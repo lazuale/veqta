@@ -4,17 +4,42 @@
 
 Задача v0.1 — понять, можно ли описать разные виды обычной работы одной небольшой моделью и использовать для процесса штатные механизмы Frappe.
 
-## Общая схема
+## Граница модели
+
+Собственных DocType VEQTA в v0.1 **ровно два**:
 
 ```text
 Work Type
+Work Item
+```
+
+Следующие вещи **не являются сущностями VEQTA v0.1** и отдельно нами не разрабатываются:
+
+```text
+Workflow / Workflow State  → штатный Frappe
+Assign To / ToDo           → штатный Frappe
+Version / Timeline         → штатный Frappe
+Desk                       → штатный Frappe
+Kanban                     → штатный Frappe
+```
+
+Мы проверяем их только как готовые механизмы платформы, которые должны работать поверх наших двух DocType.
+
+## Общая схема
+
+```text
+VEQTA
+
+Work Type
     ↓
 Work Item
-    ↓
-Workflow State
 
-Assign To / ToDo  →  назначение людей
-Version / Timeline → история изменений
+Frappe вокруг Work Item
+
+Workflow State       → текущее состояние
+Assign To / ToDo     → назначение людей
+Version / Timeline   → история изменений
+Desk / Kanban        → работа пользователя
 ```
 
 ## Work Type
@@ -40,7 +65,14 @@ title  Data  required, display name
 - `code` — стабильная машинная ссылка, например `TASK`;
 - `title` — понятное человеку название, которое можно переименовать без изменения машинной ссылки.
 
-На стенде проверяется `code` как `name` документа и изменение `title` без нарушения существующих ссылок.
+На стенде `Work Type` настраивается так:
+
+```text
+Autoname    = field:code
+Title Field = title
+```
+
+Это даёт документу стабильное `name = code`, а человеку оставляет изменяемое отображаемое название.
 
 ## Work Item
 
@@ -57,18 +89,20 @@ title  Data  required, display name
 Для v0.1 достаточно:
 
 ```text
-title           Data  required
-work_type       Link  required -> Work Type
-workflow_state  Link  managed by Frappe Workflow
+title      Data  required
+work_type  Link  required -> Work Type
 ```
+
+`Title Field` для `Work Item` — `title`.
 
 Смысл полей:
 
 - `title` — что именно нужно сделать;
-- `work_type` — к какому виду работы относится запись;
-- `workflow_state` — где эта работа находится сейчас; поле управляется штатным Workflow Frappe.
+- `work_type` — к какому виду работы относится запись.
 
 Системные поля Frappe (`name`, `owner`, `creation`, `modified` и т. п.) отдельно не дублируются.
+
+Поле состояния вручную в DocType не добавляется. При сохранении активного Workflow Frappe создаёт собственное Link-поле для Workflow State, если указанного поля ещё нет.
 
 ## State / Workflow
 
