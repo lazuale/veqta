@@ -4,7 +4,7 @@
 
 Эта инструкция нужна для первого bootstrap реального Frappe app VEQTA на Windows + WSL2.
 
-> Выполнять разделы по порядку. Если команда завершилась ошибкой — не продолжать следующий раздел, пока ошибка не разобрана.
+> Выполнять разделы по порядку. Если команда завершилась ошибкой — не переходить дальше, пока ошибка не разобрана.
 
 ## Что получится
 
@@ -32,7 +32,7 @@ wsl --status
 wsl -l -v
 ```
 
-Нужен дистрибутив Ubuntu с `VERSION 2`.
+Нужен `Ubuntu-24.04` с `VERSION 2`.
 
 Если его нет:
 
@@ -49,11 +49,32 @@ cat /etc/os-release
 ps -p 1 -o comm=
 ```
 
-Ожидается Ubuntu 24.04 и `systemd`.
+Ожидается Ubuntu 24.04 и:
 
-## 2. Поставить системные пакеты
+```text
+systemd
+```
 
-Все следующие команды выполняются **в Ubuntu WSL**, а не в PowerShell.
+Если `systemd` не используется, выполнить в Ubuntu:
+
+```bash
+sudo tee /etc/wsl.conf >/dev/null <<'EOF'
+[boot]
+systemd=true
+EOF
+```
+
+Затем в PowerShell:
+
+```powershell
+wsl --shutdown
+```
+
+и снова открыть Ubuntu.
+
+## 2. Поставить базовые пакеты
+
+Все следующие Linux-команды выполняются **в Ubuntu WSL**, а не в PowerShell.
 
 ```bash
 sudo apt update
@@ -61,31 +82,56 @@ sudo apt install -y \
   git \
   openssh-client \
   redis-server \
-  mariadb-server \
-  mariadb-client \
-  libmariadb-dev \
   pkg-config \
   curl \
-  rsync
+  rsync \
+  ca-certificates \
+  apt-transport-https
 
-sudo systemctl enable --now redis-server mariadb
+sudo systemctl enable --now redis-server
 ```
 
-Проверка:
+Проверить:
 
 ```bash
 git --version
-mariadb --version
 redis-server --version
 ```
 
-## 3. Настроить MariaDB
+## 3. Поставить MariaDB 11.8
+
+Для Frappe v16 целевая версия MariaDB — **11.8**. Не полагаемся на версию `mariadb-server` из стандартного Ubuntu repository.
+
+Подключить официальный MariaDB repository, зафиксированный на линии 11.8:
+
+```bash
+curl -LsS https://r.mariadb.com/downloads/mariadb_repo_setup \
+  | sudo bash -s -- --mariadb-server-version="mariadb-11.8"
+
+sudo apt update
+sudo apt install -y \
+  mariadb-server \
+  mariadb-client \
+  libmariadb-dev
+
+sudo systemctl enable --now mariadb
+```
+
+Проверить:
+
+```bash
+mariadb --version
+```
+
+**Не продолжать**, если вывод не содержит `11.8`.
+
+Если установка не попросила задать пароль администратора MariaDB:
 
 ```bash
 sudo mariadb-secure-installation
 ```
 
-Запомнить выбранные реквизиты администратора MariaDB. Они могут понадобиться при `bench new-site`.
+Запомнить выбранные реквизиты администратора MariaDB. Они понадобятся при создании site.
 
 Не хранить пароли в repository.
 
@@ -160,20 +206,30 @@ uv python install 3.14 --default
 uv tool install frappe-bench
 ```
 
-Проверить:
+Проверить всё до продолжения:
 
 ```bash
 node -v
 python --version
 yarn --version
 bench --version
+mariadb --version
+redis-server --version
+```
+
+Ожидаемые основные линии:
+
+```text
+Node      24.x
+Python    3.14.x
+MariaDB   11.8.x
 ```
 
 ## 7. Создать Bench с проверенной stable-версией Frappe
 
 Перед фактическим выполнением проверить текущую stable-версию согласно `DEVELOPMENT.md`.
 
-На дату этой инструкции проверена `v16.32.0`:
+На дату последнего аудита (2026-08-29) последняя проверенная stable-версия линии v16 — `v16.32.0`.
 
 ```bash
 mkdir -p ~/frappe
@@ -191,18 +247,24 @@ git describe --tags --always
 git rev-parse HEAD
 ```
 
+Сохранить этот вывод в Issue #1.
+
 `apps/frappe` не редактируется ради VEQTA.
 
 ## 8. Превратить существующий repository в Frappe app
 
-Repository уже существует и содержит документацию, поэтому нельзя просто создать новый независимый Git repository тем же именем.
+Repository уже существует и содержит документацию, `LICENSE` и `.gitignore`, поэтому нельзя создавать второй независимый Git repository тем же именем.
 
 ### 8.1. Временно клонировать существующий repository
 
 ```bash
 cd ~
 git clone git@github.com:lazuale/veqta.git veqta-existing
+cd ~/veqta-existing
+git status
 ```
+
+Рабочее дерево должно быть чистым.
 
 ### 8.2. Создать штатный Frappe scaffold без нового Git
 
@@ -211,22 +273,49 @@ cd ~/frappe/veqta-bench
 bench new-app --no-git veqta
 ```
 
-Интерактивные значения prototype:
+На вопросы первого bootstrap отвечать:
 
 ```text
 App Title: VEQTA
 App Description: Configurable work management on Frappe Framework
 App Publisher: lazuale
 App Email: ваш GitHub email
+App License: agpl-3.0
+Create GitHub Workflow action for unittests: No
+Branch Name: main
 ```
 
-Поле license при scaffold **не считается продуктовым решением**; актуальный статус лицензии см. `DECISIONS.md`.
+Почему в prompt выбирается `agpl-3.0`: это штатный вариант генератора Frappe v16. Продуктовое решение VEQTA при этом — **`AGPL-3.0-or-later`**; после объединения metadata приводится к нему явно.
 
 ### 8.3. Соединить scaffold с существующей Git history
 
 ```bash
 rsync -a ~/veqta-existing/ ~/frappe/veqta-bench/apps/veqta/
 cd ~/frappe/veqta-bench/apps/veqta
+```
+
+Удалить дублирующий license-файл, который создал boilerplate:
+
+```bash
+rm -f license.txt
+```
+
+Привести metadata приложения к принятой лицензии:
+
+```bash
+sed -i 's/^app_license = .*/app_license = "AGPL-3.0-or-later"/' veqta/hooks.py
+grep '^app_license' veqta/hooks.py
+```
+
+Ожидается:
+
+```text
+app_license = "AGPL-3.0-or-later"
+```
+
+Проверить Git:
+
+```bash
 git status
 git remote -v
 ```
@@ -241,18 +330,34 @@ rm -rf ~/veqta-existing
 
 Теперь `apps/veqta` одновременно является Frappe app и рабочим Git repository проекта.
 
-## 9. Сделать первый commit scaffold
+## 9. Проверить первый diff и сделать commit scaffold
+
+Сначала **не коммитить вслепую**:
 
 ```bash
 cd ~/frappe/veqta-bench/apps/veqta
 git status
+git diff
+```
+
+Проверить минимум:
+
+- существующие `README.md`, `LICENSE`, `.gitignore` и `docs/` не потерялись;
+- появился реальный Frappe app scaffold;
+- нет `license.txt`;
+- в `veqta/hooks.py` стоит `AGPL-3.0-or-later`;
+- нет паролей, site config или файлов всего Bench.
+
+Только затем:
+
+```bash
 git add .
 git diff --cached
 git commit -m "Bootstrap VEQTA as Frappe app"
 git push origin main
 ```
 
-После push repository должен содержать не только `docs/`, но и настоящий Frappe app scaffold.
+После push repository должен содержать настоящий Frappe app scaffold.
 
 ## 10. Создать локальный site
 
@@ -293,12 +398,6 @@ bench start
 Окно оставить открытым.
 
 В браузере Windows открыть:
-
-```text
-http://localhost:8000
-```
-
-Если site не определяется автоматически:
 
 ```text
 http://veqta.localhost:8000
