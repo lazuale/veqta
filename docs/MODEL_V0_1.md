@@ -4,6 +4,8 @@
 
 ## Work Type
 
+`Work Type` — тип управляемой работы. В v0.1 проверяется одна модель `Work Item` для разных типов работы.
+
 ```text
 code   Data  required, stable identifier
 title  Data  required, display name
@@ -13,13 +15,15 @@ title  Data  required, display name
 
 ## Work Item
 
+`Work Item` — единица управляемой работы.
+
 ```text
 title           Data  required
 work_type       Link  required -> Work Type
 workflow_state  Link  managed by Frappe Workflow
 ```
 
-Системные поля Frappe не дублируются.
+`Work Item` хранит текущее состояние работы. Системные поля Frappe не дублируются.
 
 ## State
 
