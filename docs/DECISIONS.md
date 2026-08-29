@@ -53,4 +53,4 @@ VEQTA: **AGPL-3.0-or-later**. Frappe Framework остаётся отдельно
 2. достаточно ли Assignment / `ToDo` для модели назначения VEQTA;
 3. достаточно ли штатной истории Frappe или нужен структурированный `Work State Change`.
 
-Остальные проверки первого стенда — реализационные и compatibility-тесты; они ведутся в Issue #1 и `PROTOTYPE_V0_1.md`.
+Остальные проверки первого стенда — реализационные и compatibility-тесты; они ведутся в Issue #2 и `PROTOTYPE_V0_1.md`.
