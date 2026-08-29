@@ -1,33 +1,28 @@
 # VEQTA — prototype v0.1
 
-Статус: **текущий практический этап проекта**.
+Цель: проверить модель из `MODEL_V0_1.md` на живом Frappe и зафиксировать рабочий код приложения в Git.
 
-Цель — проверить минимальную модель VEQTA на живом актуальном Frappe и получить первый реальный код приложения без преждевременных собственных подсистем.
+## 1. Стенд
 
-Модель, которую проверяем: `MODEL_V0_1.md`.
+- использовать baseline из `DEVELOPMENT.md`;
+- зафиксировать Frappe tag и commit SHA в Issue #1;
+- создать и запушить реальный app scaffold `veqta`;
+- установить app на `veqta.localhost` и включить Developer Mode.
 
-Правила разработки: `DEVELOPMENT.md`.
+## 2. Модель
 
-## 1. Baseline
-
-Перед началом стенда повторно проверить актуальный stable Frappe согласно `DEVELOPMENT.md` и зафиксировать точный tag/commit в Issue #1.
-
-На дату подготовки документа (2026-08-29) последняя проверенная версия линии v16 — `v16.32.0`.
-
-## 2. Что должно существовать в коде prototype
+Создать стандартные DocType:
 
 ### Work Type
 
-Стандартный DocType приложения VEQTA:
-
 ```text
-code          Data        required, unique candidate
+code          Data        required
 title         Data        required
 description   Small Text  optional
 disabled      Check       optional
 ```
 
-Prototype records:
+Тестовые записи:
 
 ```text
 TASK   / Task
@@ -36,8 +31,6 @@ CHECK  / Check
 
 ### Work Item
 
-Стандартный DocType приложения VEQTA:
-
 ```text
 title         Data        required
 work_type     Link        required -> Work Type
@@ -45,113 +38,67 @@ description   Text Editor optional
 due_at        Datetime    optional
 ```
 
-Не добавлять на первом проходе `responsible`, `assigned_to`, Workstream, Outcome, Priority, SLA, Handoff и другие неподтверждённые поля.
+State должен добавляться/управляться штатным Workflow.
 
-Текущее State сначала предоставляет Frappe Workflow.
+## 3. Workflow
 
-## 3. Workflow experiment
-
-Создать **один штатный Workflow** для `Work Item`.
-
-States:
+Один Workflow для `Work Item`.
 
 ```text
-New
-In Progress
-Review
-Done
+TASK:  New → In Progress → Done
+CHECK: New → In Progress → Review → Done
 ```
 
-Все состояния prototype оставить `Doc Status = 0`, чтобы не смешивать lifecycle test с submit/cancel semantics.
+Все состояния prototype: `Doc Status = 0`.
 
-Проверяем два процесса.
-
-### TASK
-
-```text
-New → In Progress → Done
-```
-
-### CHECK
-
-```text
-New → In Progress → Review → Done
-```
-
-Различия ограничить Transition Conditions по `work_type`.
+Разветвление — через Transition Conditions по `work_type`.
 
 Проверить:
 
-- пользователь видит только допустимые actions;
-- недопустимый transition блокируется серверно;
-- обычный save/API не обходят Workflow;
-- конфигурация остаётся понятной в Desk;
-- один Workflow не превращается в неприемлемую кашу уже на двух типах.
+- доступные actions соответствуют `Work Type`;
+- запрещённый transition блокируется серверно;
+- save/API не обходят Workflow;
+- конфигурация остаётся поддерживаемой в Desk.
 
-Если эксперимент проходит, собственный lifecycle engine не создаётся.
+## 4. Assignment
 
-## 4. Assignment experiment
+Через штатный `Assign To` проверить:
 
-Не создавать отдельное поле ответственного.
+- одного назначенного;
+- двух назначенных;
+- снятие одного из двух;
+- связанные `ToDo`;
+- «назначено мне»;
+- получение текущих назначений без разбора `_assign`.
 
-Штатным `Assign To` проверить:
+## 5. State history
 
-1. одного назначенного;
-2. двух назначенных;
-3. снятие одного assignment при сохранении второго;
-4. связанные `ToDo` и поля `allocated_to`, `reference_type`, `reference_name`, `status`, `assigned_by`;
-5. «назначено мне»;
-6. получение текущих назначений через штатный Report/API/SQL без разбора `_assign`.
+После нескольких transitions проверить `Version`, Timeline и Workflow comments.
 
-После теста решить, достаточно ли Frappe Assignment или продукту действительно нужен отдельный accountable owner.
+Нужно определить, можно ли структурированно получить:
 
-## 5. State history experiment
+```text
+from_state
+to_state
+changed_by
+changed_at
+```
 
-### Этап A — только Frappe
+и считать время в состоянии. Если нет — испытать минимальный `Work State Change`.
 
-Выполнить реальные transitions и проверить:
-
-- Timeline;
-- Workflow comments;
-- Version;
-- возможность структурированно получить `from_state`, `to_state`, `changed_by`, `changed_at`;
-- расчёт времени в State без парсинга текста/serialized audit.
-
-### Этап B — только при подтверждённой недостаточности
-
-Добавить минимальный DocType `Work State Change` и минимальный server-side hook.
-
-Не создавать Event Store/Event Bus/Event Sourcing.
-
-## 6. Rename / integrity experiment
+## 6. Integrity / Kanban
 
 Проверить:
 
-- изменение `Work Type.title` при стабильном `code`;
-- сохранность ссылок существующих Work Item;
-- штатное переименование Workflow State;
-- влияние rename на Work Item, Workflow и историю;
-- нужна ли VEQTA собственная стабильная машинная семантика State.
+- rename `Work Type.title` при стабильном `code`;
+- rename Workflow State и целостность ссылок;
+- Kanban по workflow-state;
+- drag-and-drop против Workflow rules;
+- корректность истории после drag-and-drop.
 
-## 7. Kanban experiment
+## 7. Git / reproducibility
 
-Kanban не считается заранее решённой частью архитектуры.
-
-Проверить:
-
-- можно ли создать корректный board по workflow-state field;
-- нужно ли вручную создавать columns;
-- проходит ли drag-and-drop через Workflow validation;
-- нельзя ли drag-and-drop выполнить запрещённый transition;
-- остаётся ли история переходов корректной.
-
-При несовместимости сначала фиксируется конкретное ограничение Frappe; новый framework не создаётся автоматически.
-
-## 8. Click → Git / reproducibility experiment
-
-Каждый согласованный объект, созданный через Desk, должен попасть в `apps/veqta` как исходник или штатно экспортированная продуктовая конфигурация.
-
-После каждого этапа:
+После каждого принятого изменения:
 
 ```bash
 cd ~/frappe/veqta-bench/apps/veqta
@@ -159,43 +106,17 @@ git status
 git diff
 ```
 
-Prototype не считается завершённым, пока не пройден контрольный тест:
+Продуктовая конфигурация должна попасть в app как файлы или штатный экспорт. Тестовые записи стенда не коммитятся без отдельной причины.
+
+Финальная проверка:
 
 ```text
-новый чистый site
-+ текущий repository VEQTA
+чистый Frappe site
++ repository VEQTA
 + install-app / migrate
-= Work Type + Work Item + принятая продуктовая конфигурация без повторного ручного накликивания
+= принятая конфигурация без ручного повторного накликивания
 ```
 
-Тестовые записи `TASK`, `CHECK` и Work Item не обязаны быть частью production fixtures, если они нужны только для испытания. В Git должна попасть **модель и продуктовая конфигурация**, а не мусорные данные стенда.
+## Результат
 
-## 9. UI sanity check
-
-Минимально проверить штатный Desk:
-
-- Form;
-- List;
-- filters;
-- Assign To;
-- Timeline;
-- Kanban как отдельный compatibility test.
-
-Цель — не финальный дизайн, а проверка возможности получить рабочий v0.1 преимущественно штатным Frappe.
-
-## 10. Результат prototype
-
-Prototype завершается только фактическим отчётом в Issue #1 и обновлением `DECISIONS.md`.
-
-Должны быть закрыты или переформулированы вопросы:
-
-- Work Item;
-- Work Type;
-- State / Workflow;
-- Assignment;
-- State history;
-- Kanban;
-- rename/integrity;
-- reproducibility из Git.
-
-До этого новые Core-сущности не проектируются.
+Фактические результаты записываются в Issue #1. После этого обновляются `MODEL_V0_1.md` и `DECISIONS.md`.
