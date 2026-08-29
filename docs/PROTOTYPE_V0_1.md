@@ -38,18 +38,18 @@ description   Text Editor optional
 due_at        Datetime    optional
 ```
 
-State должен добавляться/управляться штатным Workflow.
+State добавляется и управляется штатным Workflow.
 
 ## 3. Workflow
 
-Один Workflow для `Work Item`.
+Один Workflow для `Work Item`:
 
 ```text
 TASK:  New → In Progress → Done
 CHECK: New → In Progress → Review → Done
 ```
 
-Все состояния prototype: `Doc Status = 0`.
+Все состояния: `Doc Status = 0`.
 
 Разветвление — через Transition Conditions по `work_type`.
 
@@ -75,7 +75,7 @@ CHECK: New → In Progress → Review → Done
 
 После нескольких transitions проверить `Version`, Timeline и Workflow comments.
 
-Нужно определить, можно ли структурированно получить:
+Проверить возможность структурированно получить:
 
 ```text
 from_state
@@ -84,7 +84,7 @@ changed_by
 changed_at
 ```
 
-и считать время в состоянии. Если нет — испытать минимальный `Work State Change`.
+и рассчитать время в состоянии. Если штатных данных недостаточно, зафиксировать конкретное ограничение в Issue #2 без проектирования замены в рамках этого шага.
 
 ## 6. Integrity / Kanban
 
@@ -119,4 +119,4 @@ git diff
 
 ## Результат
 
-Фактические результаты записываются в Issue #2. После этого обновляются `MODEL_V0_1.md` и `DECISIONS.md`.
+Фактические результаты записываются в Issue #2. После этого обновляются `MODEL_V0_1.md` и `DECISIONS.md` только подтверждёнными результатами.
