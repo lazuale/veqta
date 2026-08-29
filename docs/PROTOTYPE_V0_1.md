@@ -16,10 +16,8 @@
 ### Work Type
 
 ```text
-code          Data        required
-title         Data        required
-description   Small Text  optional
-disabled      Check       optional
+code   Data  required
+title  Data  required
 ```
 
 Тестовые записи:
@@ -32,10 +30,8 @@ CHECK  / Check
 ### Work Item
 
 ```text
-title         Data        required
-work_type     Link        required -> Work Type
-description   Text Editor optional
-due_at        Datetime    optional
+title      Data  required
+work_type  Link  required -> Work Type
 ```
 
 State добавляется и управляется штатным Workflow.
