@@ -63,7 +63,7 @@ CHECK: New → In Progress → Review → Done
 - одного назначенного;
 - двух назначенных;
 - снятие одного из двух;
-- связанные `ToDo`;
+- связанные `ToDo` и поля `allocated_to`, `reference_type`, `reference_name`, `status`, `assigned_by`;
 - «назначено мне»;
 - получение текущих назначений без разбора `_assign`.
 
@@ -87,12 +87,27 @@ changed_at
 Проверить:
 
 - rename `Work Type.title` при стабильном `code`;
-- rename Workflow State и целостность ссылок;
-- Kanban по workflow-state;
+- сохранность ссылок существующих `Work Item`;
+- rename Workflow State и влияние на `Work Item`, Workflow и историю;
+- создание Kanban по workflow-state field;
+- требуется ли ручное создание колонок;
 - drag-and-drop против Workflow rules;
 - корректность истории после drag-and-drop.
 
-## 7. Git / reproducibility
+## 7. Desk sanity
+
+Проверить штатные представления и действия на созданной модели:
+
+- Form;
+- List;
+- filters;
+- Assign To;
+- Timeline;
+- Kanban.
+
+Задача этого шага — подтвердить, что проверяемая модель реально управляется через штатный Desk без отдельного UI.
+
+## 8. Git / reproducibility
 
 После каждого принятого изменения:
 
