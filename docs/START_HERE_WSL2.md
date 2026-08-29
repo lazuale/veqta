@@ -164,7 +164,7 @@ git describe --tags --always
 git rev-parse HEAD
 ```
 
-Результат записать в Issue #1.
+Результат записать в Issue #2.
 
 ## 7. Создать app `veqta`
 
@@ -299,4 +299,4 @@ git diff
 
 Если принятая конфигурация не появилась в app, экспортировать её штатным механизмом Frappe до commit.
 
-После запуска стенда работать по `PROTOTYPE_V0_1.md` и Issue #1.
+После запуска стенда работать по `PROTOTYPE_V0_1.md` и Issue #2.
