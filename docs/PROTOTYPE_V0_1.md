@@ -1,158 +1,551 @@
 # VEQTA — prototype v0.1
 
-Цель: на живом Frappe проверить модель из `MODEL_V0_1.md` и получить первый воспроизводимый код приложения.
+Цель: на живом Frappe проверить минимальную модель VEQTA и получить первый воспроизводимый код приложения.
 
-Этот prototype не должен доказать, что VEQTA уже готовый продукт. Он должен ответить на конкретный вопрос: **можно ли построить минимальную управляемую работу поверх штатного Frappe без дублирования его механизмов**.
+Главное разделение:
 
-## 1. Стенд
+```text
+СОЗДАЁМ САМИ
+├── Work Type
+└── Work Item
 
-Зачем: все дальнейшие выводы должны относиться к конкретной проверенной версии Frappe, а не к памяти или старой документации.
+НЕ СОЗДАЁМ, А ПРОВЕРЯЕМ У FRAPPE
+├── Workflow / Workflow State
+├── Assign To / ToDo
+├── Version / Timeline / Workflow comments
+├── Desk
+└── Kanban
+```
 
-Сделать:
+То есть объём предметной модели v0.1 — **два наших DocType**. Остальные шаги нужны только для ответа на вопрос: можно ли использовать готовые механизмы Frappe поверх этих двух DocType или какой-то из них имеет конкретное ограничение.
 
-- использовать baseline из `DEVELOPMENT.md`;
-- зафиксировать Frappe tag и commit SHA в Issue #2;
-- создать и запушить реальный app scaffold `veqta`;
-- установить app на `veqta.localhost` и включить Developer Mode.
+## Как вести испытание
 
-Результат: есть живой dev-site и реальный репозиторий приложения, на котором можно проверять следующие шаги.
+Каждый этап заканчивается одним результатом:
 
-## 2. Минимальная модель
+```text
+PASS — штатный механизм подходит для текущей модели
+FAIL — зафиксировано конкретное воспроизводимое ограничение
+```
 
-Зачем: проверить, хватает ли одной общей сущности `Work Item` и классификации через `Work Type` для двух разных видов работы.
+В Issue #2 для каждого этапа записываются:
 
-Создать стандартные DocType.
+```text
+Результат: PASS / FAIL
+Что сделали:
+Что получили:
+Доказательство: имя записи / вывод команды / конкретное сообщение об ошибке
+```
 
-### Work Type
+При `FAIL` в этом же шаге **не проектируется замена**. Сначала фиксируется факт.
+
+---
+
+## 0. Стенд
+
+Поднять окружение строго по `START_HERE_WSL2.md`.
+
+Зафиксировать в Issue #2:
+
+```bash
+cd ~/frappe/veqta-bench/apps/frappe
+git describe --tags --always
+git rev-parse HEAD
+```
+
+### PASS
+
+- `veqta.localhost` открывается;
+- app `veqta` установлен;
+- Developer Mode включён;
+- реальный scaffold `apps/veqta` уже запушен в `lazuale/veqta`.
+
+Без PASS этого этапа дальше не идти.
+
+---
+
+## 1. Создать два DocType VEQTA
+
+Это единственные собственные сущности prototype v0.1.
+
+### 1.1 Work Type
+
+В Desk открыть `DocType` и создать стандартный DocType `Work Type` в модуле приложения VEQTA.
+
+Поля:
 
 ```text
 code   Data  required
 title  Data  required
 ```
 
-Тестовые записи:
+Настройки DocType:
 
 ```text
-TASK   / Task
-CHECK  / Check
+Autoname    = field:code
+Title Field = title
 ```
 
-### Work Item
+Создать две записи:
+
+```text
+code=TASK   title=Task
+code=CHECK  title=Check
+```
+
+Ожидается:
+
+```text
+name TASK  → title Task
+name CHECK → title Check
+```
+
+### 1.2 Work Item
+
+Создать стандартный DocType `Work Item`.
+
+Поля:
 
 ```text
 title      Data  required
 work_type  Link  required -> Work Type
 ```
 
-State добавляется и управляется штатным Workflow.
-
-Результат: `TASK` и `CHECK` существуют как разные виды одной модели `Work Item`, а не как две отдельные подсистемы.
-
-## 3. Workflow
-
-Зачем: понять, можно ли использовать штатный Frappe Workflow как реальный lifecycle `Work Item`, включая серверный контроль переходов.
-
-Создать один Workflow:
+Настройка:
 
 ```text
-TASK:  New → In Progress → Done
-CHECK: New → In Progress → Review → Done
+Title Field = title
 ```
 
-Все состояния: `Doc Status = 0`.
+**Не добавлять вручную** `workflow_state`, `responsible`, `assigned_to` или другие поля.
 
-Разветвление — через Transition Conditions по `work_type`.
-
-Проверить:
-
-- доступные actions соответствуют `Work Type`;
-- запрещённый transition блокируется серверно;
-- save/API не обходят Workflow;
-- конфигурация остаётся понятной и поддерживаемой в Desk.
-
-Результат: становится понятно, подходит ли штатный Workflow для текущей модели или обнаружено конкретное ограничение.
-
-## 4. Assignment
-
-Зачем: не хранить ответственного вторым полем в `Work Item`, если Frappe уже корректно хранит назначения через `ToDo`.
-
-Через штатный `Assign To` проверить:
-
-- одного назначенного;
-- двух назначенных;
-- снятие одного из двух;
-- связанные `ToDo` и поля `allocated_to`, `reference_type`, `reference_name`, `status`, `assigned_by`;
-- «назначено мне»;
-- получение текущих назначений без разбора `_assign`.
-
-Результат: подтверждается либо достаточность `Assign To / ToDo`, либо конкретная проблема штатного механизма.
-
-## 5. State history
-
-Зачем: для управления и аналитики недостаточно видеть только текущее состояние. Нужно понимать, как работа через состояния прошла.
-
-После нескольких transitions проверить `Version`, Timeline и Workflow comments.
-
-Проверить возможность структурированно получить:
+Создать две записи:
 
 ```text
-from_state
-to_state
-changed_by
-changed_at
+TASK test   → work_type=TASK
+CHECK test  → work_type=CHECK
 ```
 
-и рассчитать время в состоянии.
+После создания DocType проверить исходники:
 
-Если штатных данных недостаточно, в Issue #2 фиксируется **конкретное ограничение**, без проектирования замены в рамках этого шага.
+```bash
+cd ~/frappe/veqta-bench/apps/veqta
+git status
+git diff
+```
 
-Результат: становится понятно, даёт ли Frappe пригодную машинно читаемую историю lifecycle.
+### PASS
 
-## 6. Integrity / Kanban
+- существуют только два собственных DocType VEQTA;
+- `Work Item.work_type` хранит ссылку на `Work Type`;
+- DocType metadata появились в `apps/veqta`;
+- изменение `Work Type.title` не требует изменения `code`.
 
-Зачем: проверить две вещи, которые могут выглядеть рабочими в интерфейсе, но ломать данные или правила процесса.
+---
 
-### Rename / integrity
+## 2. Workflow
+
+### Зачем
+
+Проверить, может ли **один штатный Workflow Frappe** управлять двумя типами `Work Item` с разными маршрутами.
+
+### 2.1 Подготовить штатные записи Frappe
+
+Создать Workflow State:
+
+```text
+New
+In Progress
+Review
+Done
+```
+
+Для всех четырёх состояний:
+
+```text
+Doc Status = 0
+Only Allow Edit For = System Manager
+```
+
+Создать Workflow Action Master:
+
+```text
+Start
+Send to Review
+Complete
+```
+
+### 2.2 Создать один Workflow
+
+```text
+Workflow Name        = Work Item Workflow
+Document Type        = Work Item
+Is Active            = 1
+Workflow State Field = workflow_state
+```
+
+Transitions:
+
+| From | Action | To | Allowed | Condition |
+|---|---|---|---|---|
+| New | Start | In Progress | System Manager | — |
+| In Progress | Complete | Done | System Manager | `doc.work_type == "TASK"` |
+| In Progress | Send to Review | Review | System Manager | `doc.work_type == "CHECK"` |
+| Review | Complete | Done | System Manager | `doc.work_type == "CHECK"` |
+
+После сохранения Workflow проверить `Work Item`: Frappe должен сам создать Link-поле `workflow_state`, если его не было.
+
+### 2.3 Проверить TASK
+
+Открыть `TASK test`.
+
+Ожидаемый маршрут:
+
+```text
+New
+↓ Start
+In Progress
+↓ Complete
+Done
+```
+
+В `In Progress` действие `Send to Review` для TASK появляться не должно.
+
+### 2.4 Проверить CHECK
+
+Открыть `CHECK test`.
+
+Ожидаемый маршрут:
+
+```text
+New
+↓ Start
+In Progress
+↓ Send to Review
+Review
+↓ Complete
+Done
+```
+
+В `In Progress` действие `Complete` для CHECK появляться не должно.
+
+### 2.5 Проверить серверный запрет обхода
+
+Создать ещё один `Work Item` типа `CHECK`, провести его штатным действием до `In Progress` и скопировать его `name`.
+
+В Ubuntu:
+
+```bash
+cd ~/frappe/veqta-bench
+bench --site veqta.localhost console
+```
+
+В console:
+
+```python
+doc = frappe.get_doc("Work Item", "<CHECK_NAME>")
+doc.workflow_state = "Done"
+doc.save()
+```
+
+Ожидается ошибка вида:
+
+```text
+Workflow State transition not allowed from In Progress to Done
+```
+
+После выхода из console документ должен остаться в `In Progress`.
+
+### PASS
+
+- TASK проходит только `New → In Progress → Done`;
+- CHECK проходит только `New → In Progress → Review → Done`;
+- лишние actions не предлагаются;
+- прямой `doc.save()` не позволяет запрещённый переход.
+
+### FAIL
+
+Любой способ изменить состояние в обход разрешённых переходов или невозможность поддерживать оба типа одним понятным Workflow.
+
+---
+
+## 3. Assignment / ToDo
+
+### Зачем
+
+Понять, достаточно ли штатного Assignment, чтобы **не добавлять в Work Item своё поле ответственного**.
+
+Если на чистом site есть только `Administrator`, создать через Desk одного временного тестового System User. Специальную модель пользователей VEQTA для этого не создавать.
+
+Создать `Work Item`:
+
+```text
+Assignment test
+work_type=TASK
+```
+
+### 3.1 Одно назначение
+
+Через `Assign To` назначить документ на `Administrator`.
+
+Открыть список `ToDo` и найти запись по:
+
+```text
+Reference Type = Work Item
+Reference Name = <имя Assignment test>
+```
 
 Проверить:
 
-- rename `Work Type.title` при стабильном `code`;
-- сохранность ссылок существующих `Work Item`;
-- rename Workflow State и влияние на `Work Item`, Workflow и историю.
+```text
+allocated_to
+reference_type
+reference_name
+status
+assigned_by
+```
 
-Это показывает, насколько безопасно менять человекочитаемые названия после появления данных.
+### 3.2 Два назначения
 
-### Kanban
+Тем же `Assign To` добавить второго пользователя.
+
+Ожидается две открытые записи `ToDo`, обе с одной ссылкой на тот же `Work Item`.
+
+### 3.3 Снять одно назначение
+
+Убрать второго пользователя из назначенных.
+
+Ожидается:
+
+```text
+ToDo второго пользователя → Cancelled
+ToDo Administrator        → Open
+```
+
+Для машинной проверки можно выполнить:
+
+```bash
+cd ~/frappe/veqta-bench
+bench --site veqta.localhost console
+```
+
+```python
+frappe.get_all(
+    "ToDo",
+    filters={
+        "reference_type": "Work Item",
+        "reference_name": "<WORK_ITEM_NAME>",
+    },
+    fields=[
+        "allocated_to",
+        "reference_type",
+        "reference_name",
+        "status",
+        "assigned_by",
+    ],
+    order_by="creation asc",
+)
+```
+
+### PASS
+
+- одно назначение = одна связанная `ToDo`;
+- два назначения = две независимые `ToDo`;
+- снятие одного не уничтожает второе;
+- текущие назначения можно получить из структурированных `ToDo` без разбора `_assign`;
+- своего `responsible` / `assigned_to` в `Work Item` не требуется для этих операций.
+
+---
+
+## 4. State history
+
+### Зачем
+
+Понять, даёт ли штатный audit Frappe машинно читаемую историю lifecycle, а не только красивую Timeline для человека.
+
+Использовать `CHECK test`, который уже прошёл:
+
+```text
+New → In Progress → Review → Done
+```
+
+### 4.1 Проверить глазами
+
+На форме `Work Item` открыть Timeline и убедиться, что переходы видны пользователю.
+
+### 4.2 Проверить данные
+
+В console:
+
+```python
+frappe.get_all(
+    "Comment",
+    filters={
+        "reference_doctype": "Work Item",
+        "reference_name": "<CHECK_NAME>",
+        "comment_type": "Workflow",
+    },
+    fields=["content", "comment_by", "creation"],
+    order_by="creation asc",
+)
+```
+
+И отдельно:
+
+```python
+frappe.get_all(
+    "Version",
+    filters={
+        "ref_doctype": "Work Item",
+        "docname": "<CHECK_NAME>",
+    },
+    fields=["owner", "creation", "data"],
+    order_by="creation asc",
+)
+```
+
+Нужно ответить на один конкретный вопрос:
+
+> Можно ли без разбора текста и без парсинга сериализованного audit получить отдельными структурированными полями `from_state`, `to_state`, `changed_by`, `changed_at` и рассчитать время в состоянии?
+
+### PASS
+
+Да — показать, из каких именно штатных полей это получается.
+
+### FAIL
+
+Нет — записать в Issue #2, чего именно не хватает. **Никакую замену на этом шаге не проектировать.**
+
+---
+
+## 5. Rename / integrity
+
+### Зачем
+
+Проверить, не ломаются ли уже созданные данные при изменении человекочитаемых названий.
+
+### 5.1 Work Type title
+
+Изменить:
+
+```text
+TASK.title: Task → Task renamed
+```
+
+Проверить существующий `Work Item` типа TASK.
+
+Ожидается:
+
+```text
+work_type продолжает ссылаться на name=TASK
+```
+
+После проверки вернуть `title=Task`.
+
+### 5.2 Workflow State
+
+После завершения остальных workflow-тестов переименовать `Review` штатным Rename в `Review Renamed`.
 
 Проверить:
 
-- создание Kanban по workflow-state field;
-- требуется ли ручное создание колонок;
-- drag-and-drop против Workflow rules;
-- корректность истории после drag-and-drop.
+- ссылки в Workflow;
+- существующий `Work Item`, если он находится в этом State;
+- Timeline / Version.
 
-Это важно потому, что Kanban не должен становиться обходным путём вокруг правил Workflow.
+После фиксации результата вернуть название `Review`.
 
-Результат: Kanban либо признаётся совместимым с проверяемой моделью, либо фиксируется конкретное нарушение.
+### PASS / FAIL
 
-## 7. Desk sanity
+Записать фактическое поведение ссылок и истории. Здесь не предполагается заранее, что State rename обязательно безопасен.
 
-Зачем: даже правильная модель бесполезна, если с ней нельзя нормально работать через штатный интерфейс.
+---
+
+## 6. Kanban
+
+### Зачем
+
+Проверить, не становится ли drag-and-drop обходным способом менять `workflow_state` мимо правил Workflow.
+
+Создать Kanban Board для:
+
+```text
+Reference DocType = Work Item
+Field             = workflow_state
+```
+
+Если Frappe не создаст колонки состояний автоматически, вручную добавить:
+
+```text
+New
+In Progress
+Review
+Done
+```
+
+Сам факт необходимости ручных колонок записать в Issue #2, но не считать ошибкой сам по себе.
+
+### 6.1 Запрещённый drag-and-drop
+
+Создать новый CHECK и штатным Workflow довести до `In Progress`.
+
+Попытаться перетащить карточку сразу:
+
+```text
+In Progress → Done
+```
+
+### PASS
+
+- перенос отвергнут;
+- `workflow_state` остаётся `In Progress`;
+- данные и история не повреждены.
+
+### FAIL
+
+Карточка реально получает `Done` в обход разрешённого маршрута.
+
+### 6.2 Разрешённый drag-and-drop
+
+Попытаться:
+
+```text
+In Progress → Review
+```
 
 Проверить:
 
-- Form;
-- List;
-- filters;
-- Assign To;
-- Timeline;
-- Kanban.
+- изменилось ли состояние;
+- не появилась ли ошибка;
+- что записалось в Timeline / Version / Workflow comments.
 
-Результат: подтверждается, что текущей моделью можно пользоваться через стандартный Desk без отдельного UI.
+Записать фактическое отличие drag-and-drop от обычного Workflow action, если оно есть.
+
+---
+
+## 7. Desk
+
+Отдельного большого теста Desk нет: он уже используется во всех предыдущих шагах.
+
+В процессе достаточно подтвердить, что для `Work Item` нормально работают:
+
+```text
+Form
+List
+filters
+Assign To
+Timeline
+Kanban
+```
+
+Если базовая операция требует собственного UI уже на этих двух DocType — это фиксируется как конкретное ограничение.
+
+---
 
 ## 8. Git / reproducibility
 
-Зачем: dev-site не должен становиться единственным местом, где существует VEQTA.
+### Зачем
+
+Доказать, что VEQTA существует не только в БД текущего стенда.
 
 После каждого принятого изменения:
 
@@ -162,21 +555,52 @@ git status
 git diff
 ```
 
-Продуктовая конфигурация должна попасть в app как файлы или штатный экспорт. Тестовые записи стенда не коммитятся без отдельной причины.
+Стандартные DocType должны появляться в исходном дереве приложения благодаря Developer Mode.
 
-Финальная проверка:
+Для принятой конфигурации, которая остаётся только в БД, сначала определить **какие именно штатные записи Frappe требуется экспортировать**, затем использовать официальный механизм fixtures/export. Не создавать exporter VEQTA.
 
-```text
-чистый Frappe site
-+ repository VEQTA
-+ install-app / migrate
-= принятая конфигурация без ручного повторного накликивания
+Тестовые `Work Type`, `Work Item` и временные User не коммитятся как production data только ради прохождения испытаний.
+
+После фиксации принятой конфигурации в Git создать контрольный чистый site:
+
+```bash
+cd ~/frappe/veqta-bench
+bench new-site veqta-restore.localhost --db-type mariadb
+bench --site veqta-restore.localhost install-app veqta
+bench --site veqta-restore.localhost migrate
 ```
 
-Результат: Git действительно содержит воспроизводимое состояние VEQTA, а не только документацию о нём.
+Проверить, что без повторного ручного создания продуктовой конфигурации восстановлены все **принятые** части v0.1.
 
-## Завершение prototype
+### PASS
 
-Фактические результаты записываются в Issue #2.
+```text
+чистый site
++ repository VEQTA
++ install-app / migrate
+= принятое состояние VEQTA
+```
 
-После этого `MODEL_V0_1.md` и `DECISIONS.md` обновляются только тем, что реально подтвердил стенд.
+### FAIL
+
+Что-либо принято как часть продукта, но существует только на исходном dev-site и требует повторного ручного накликивания.
+
+---
+
+## Когда prototype v0.1 закончен
+
+В Issue #2 должны быть результаты:
+
+```text
+0 Stand                PASS
+1 Two VEQTA DocTypes   PASS / FAIL
+2 Workflow             PASS / FAIL
+3 Assignment / ToDo    PASS / FAIL
+4 State history        PASS / FAIL
+5 Rename / integrity   PASS / FAIL
+6 Kanban               PASS / FAIL
+7 Desk                 PASS / FAIL
+8 Reproducibility      PASS / FAIL
+```
+
+После этого `MODEL_V0_1.md` и `DECISIONS.md` обновляются **только фактическими выводами стенда**.
