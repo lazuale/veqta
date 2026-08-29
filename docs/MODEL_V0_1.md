@@ -1,6 +1,6 @@
 # VEQTA — модель v0.1
 
-Модель ниже проверяется на первом prototype и пока не является стабильным API.
+Эта модель проверяется на первом prototype и пока не является стабильным API.
 
 ## Work Type
 
@@ -11,7 +11,7 @@ description  Small Text  optional
 disabled     Check       optional
 ```
 
-Проверяем `code` как `name` документа и изменение `title` без нарушения ссылок.
+Проверяется `code` как `name` документа и изменение `title` без нарушения ссылок.
 
 ## Work Item
 
@@ -19,7 +19,7 @@ disabled     Check       optional
 title           Data        required
 work_type       Link        required -> Work Type
 description     Text Editor optional
-due_at           Datetime    optional
+due_at          Datetime    optional
 workflow_state  Link        managed by Frappe Workflow
 ```
 
@@ -27,31 +27,18 @@ workflow_state  Link        managed by Frappe Workflow
 
 ## State
 
-На v0.1 используется Frappe Workflow / Workflow State. Проверяем один Workflow для разных `Work Type` через Transition Conditions.
+Проверяется Frappe Workflow / Workflow State: один Workflow для разных `Work Type` через Transition Conditions.
 
 ## Assignment
 
-Отдельного `responsible` / `assigned_to` в `Work Item` нет. Проверяется штатный `Assign To` и связанные `ToDo`.
+Проверяется штатный `Assign To` и связанные `ToDo`. Отдельного `responsible` / `assigned_to` в `Work Item` на v0.1 нет.
 
 ## State history
 
-Сначала проверяются `Version`, Timeline и Workflow comments.
+Проверяются `Version`, Timeline и Workflow comments на возможность получить состояние, пользователя и время перехода в структурированном виде.
 
-Если из них нельзя надёжно получить:
-
-```text
-work_item
-from_state
-to_state
-changed_by
-changed_at
-```
-
-проверяется минимальный `Work State Change`.
-
-## Инварианты
+## Инварианты v0.1
 
 - один бизнес-факт — один источник истины;
 - ключевые данные структурированы;
-- производные показатели вычисляются из первичных фактов;
-- штатный механизм Frappe не дублируется без необходимости.
+- штатный механизм Frappe не дублируется до подтверждённой необходимости.
