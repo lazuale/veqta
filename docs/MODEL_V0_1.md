@@ -5,10 +5,8 @@
 ## Work Type
 
 ```text
-code         Data        required, stable identifier
-title        Data        required, display name
-description  Small Text  optional
-disabled     Check       optional
+code   Data  required, stable identifier
+title  Data  required, display name
 ```
 
 Проверяется `code` как `name` документа и изменение `title` без нарушения ссылок.
@@ -16,11 +14,9 @@ disabled     Check       optional
 ## Work Item
 
 ```text
-title           Data        required
-work_type       Link        required -> Work Type
-description     Text Editor optional
-due_at          Datetime    optional
-workflow_state  Link        managed by Frappe Workflow
+title           Data  required
+work_type       Link  required -> Work Type
+workflow_state  Link  managed by Frappe Workflow
 ```
 
 Системные поля Frappe не дублируются.
@@ -36,9 +32,3 @@ workflow_state  Link        managed by Frappe Workflow
 ## State history
 
 Проверяются `Version`, Timeline и Workflow comments на возможность получить состояние, пользователя и время перехода в структурированном виде.
-
-## Инварианты v0.1
-
-- один бизнес-факт — один источник истины;
-- ключевые данные структурированы;
-- штатный механизм Frappe не дублируется до подтверждённой необходимости.
