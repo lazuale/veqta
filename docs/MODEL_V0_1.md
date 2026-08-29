@@ -5,41 +5,39 @@
 ## Work Type
 
 ```text
-code          Data        required, stable identifier
- title        Data        required, display name
- description  Small Text  optional
- disabled     Check       optional
+code         Data        required, stable identifier
+title        Data        required, display name
+description  Small Text  optional
+disabled     Check       optional
 ```
 
-Проверяем `code` как `name` документа и возможность менять `title` без нарушения существующих ссылок.
+Проверяем `code` как `name` документа и изменение `title` без нарушения ссылок.
 
 ## Work Item
 
 ```text
-title          Data        required
-work_type      Link        required -> Work Type
-description    Text Editor optional
-due_at          Datetime    optional
-workflow_state Link        managed by Frappe Workflow
+title           Data        required
+work_type       Link        required -> Work Type
+description     Text Editor optional
+due_at           Datetime    optional
+workflow_state  Link        managed by Frappe Workflow
 ```
 
 Системные поля Frappe не дублируются.
 
 ## State
 
-На v0.1 используется Frappe Workflow / Workflow State. Проверяем, может ли один Workflow обслуживать разные `Work Type` через Transition Conditions.
-
-Собственный State-механизм рассматривается только при подтверждённом ограничении штатного Workflow.
+На v0.1 используется Frappe Workflow / Workflow State. Проверяем один Workflow для разных `Work Type` через Transition Conditions.
 
 ## Assignment
 
-Отдельного `responsible` / `assigned_to` в `Work Item` на первом проходе нет. Проверяется штатный `Assign To` и связанные `ToDo`.
+Отдельного `responsible` / `assigned_to` в `Work Item` нет. Проверяется штатный `Assign To` и связанные `ToDo`.
 
 ## State history
 
 Сначала проверяются `Version`, Timeline и Workflow comments.
 
-Если из них нельзя надёжно получить структурированные:
+Если из них нельзя надёжно получить:
 
 ```text
 work_item
@@ -49,7 +47,7 @@ changed_by
 changed_at
 ```
 
-тогда проверяется минимальный `Work State Change`.
+проверяется минимальный `Work State Change`.
 
 ## Инварианты
 
