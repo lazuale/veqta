@@ -5,7 +5,7 @@
 ## 1. Стенд
 
 - использовать baseline из `DEVELOPMENT.md`;
-- зафиксировать Frappe tag и commit SHA в Issue #1;
+- зафиксировать Frappe tag и commit SHA в Issue #2;
 - создать и запушить реальный app scaffold `veqta`;
 - установить app на `veqta.localhost` и включить Developer Mode.
 
@@ -119,4 +119,4 @@ git diff
 
 ## Результат
 
-Фактические результаты записываются в Issue #1. После этого обновляются `MODEL_V0_1.md` и `DECISIONS.md`.
+Фактические результаты записываются в Issue #2. После этого обновляются `MODEL_V0_1.md` и `DECISIONS.md`.
