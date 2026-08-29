@@ -186,7 +186,7 @@ bench new-app --no-git veqta
 
 ```text
 App Title: VEQTA
-App Description: Configurable work management on Frappe Framework
+App Description: VEQTA prototype on Frappe Framework
 App Publisher: lazuale
 App Email: ваш GitHub email
 App License: agpl-3.0
