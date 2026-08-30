@@ -55,7 +55,7 @@
 ### Блок C. Интерфейс
 
 11. [Form View](11_FORM_VIEW.md)
-12. List View и фильтры
+12. [List View и фильтры](12_LIST_VIEW_AND_FILTERS.md)
 13. Kanban, Calendar, Gantt и Tree View
 14. Workspace, Shortcut, Quick List, Number Card и Chart
 15. Customize Form
