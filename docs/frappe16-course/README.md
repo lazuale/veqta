@@ -66,7 +66,7 @@
 17. [User и Role](17_USER_AND_ROLE.md)
 18. [Role Permission Manager](18_ROLE_PERMISSION_MANAGER.md)
 19. [Permission Level](19_PERMISSION_LEVEL.md)
-20. User Permission
+20. [User Permission](20_USER_PERMISSION.md)
 21. Owner и Sharing
 22. Где заканчиваются штатные permissions
 
