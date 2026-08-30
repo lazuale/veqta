@@ -82,7 +82,7 @@
 4. [DocType от А до Я](04_DOCTYPE.md)
 5. [DocField и свойства полей](05_DOCFIELD.md)
 6. [Naming и `name`](06_NAMING.md)
-7. Link, Dynamic Link и Fetch From
+7. [Link, Dynamic Link и Fetch From](07_LINKS_AND_FETCH.md)
 8. Child Table и Table MultiSelect
 9. Single, Tree, Submittable и Virtual DocType
 10. `docstatus`, Submit, Cancel и Amendment
