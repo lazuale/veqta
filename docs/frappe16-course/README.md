@@ -68,7 +68,7 @@
 19. [Permission Level](19_PERMISSION_LEVEL.md)
 20. [User Permission](20_USER_PERMISSION.md)
 21. [Owner и Sharing](21_OWNER_AND_SHARING.md)
-22. Где заканчиваются штатные permissions
+22. [Где заканчиваются штатные permissions](22_PERMISSION_BOUNDARIES.md)
 
 ### Блок E. Работа и процессы
 
