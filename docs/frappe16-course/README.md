@@ -63,7 +63,7 @@
 
 ### Блок D. Пользователи и права
 
-17. User и Role
+17. [User и Role](17_USER_AND_ROLE.md)
 18. Role Permission Manager
 19. Permission Level
 20. User Permission
