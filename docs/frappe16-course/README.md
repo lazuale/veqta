@@ -57,7 +57,7 @@
 11. [Form View](11_FORM_VIEW.md)
 12. [List View и фильтры](12_LIST_VIEW_AND_FILTERS.md)
 13. [Kanban, Calendar, Gantt и Tree View](13_KANBAN_CALENDAR_GANTT_TREE.md)
-14. Workspace, Shortcut, Quick List, Number Card и Chart
+14. [Workspace, Shortcut, Quick List, Number Card и Chart](14_WORKSPACE_AND_DASHBOARD_BLOCKS.md)
 15. Customize Form
 16. Desk Page и границы штатного интерфейса
 
