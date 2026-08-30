@@ -1,29 +1,54 @@
-# Frappe Framework 16 — учебный курс для VEQTA
+# Frappe Framework 16 — полный учебный курс
 
-Этот каталог — учебник по **Frappe Framework 16 с нуля**. Его задача — дать системное понимание штатных возможностей Framework до того, как мы начнём добавлять собственные механизмы в VEQTA.
+Этот каталог — самостоятельный учебник по **Frappe Framework 16 с нуля**.
 
-> Главный вопрос курса: **это действительно нужно реализовать в VEQTA или Frappe уже умеет это штатно?**
+Его цель — последовательно изучить:
+
+- устройство Frappe Framework;
+- штатный интерфейс и навигацию;
+- модель данных и DocType;
+- пользователей и права;
+- Workflow, Assignment и автоматизацию;
+- отчёты, печать, импорт и экспорт;
+- Web Forms и API;
+- low-code возможности;
+- разработку собственных Apps;
+- фоновые процессы и эксплуатацию.
+
+Место хранения этого учебника не относится к его предметной области. Материал должен оставаться самостоятельным и переносимым в другой репозиторий без смысловых изменений.
+
+## Цель курса
+
+После прохождения курса читатель должен понимать не только **как выполнить действие во Frappe**, но и:
+
+1. что именно делает Framework;
+2. какие возможности существуют штатно;
+3. где они находятся в интерфейсе;
+4. какие metadata и настройки стоят за интерфейсом;
+5. где заканчивается конфигурация и начинается код;
+6. когда нужен Client Script, Server Script или Python App;
+7. как устроено приложение от DocType до production-процессов.
 
 ## Статус и границы
 
 - Целевая версия: **Frappe Framework 16**.
-- Актуальность курса проверяется по официальной документации и исходному коду Frappe.
-- ERPNext, Frappe CRM, Helpdesk, HRMS и другие приложения **не считаются частью Framework** и рассматриваются только если это явно указано.
-- Старые материалы по v14/v15 используются только для общих концепций, если они подтверждены для v16.
-- Этот каталог — **учебный материал**, а не спецификация VEQTA. Продуктовые решения остаются в `docs/DECISIONS.md`, `docs/MODEL_V0_1.md` и других документах проекта.
+- Актуальность проверяется по официальной документации и исходному коду Frappe.
+- Основной предмет курса — **чистый Frappe Framework**.
+- ERPNext, Frappe CRM, Helpdesk, HRMS и другие приложения не считаются частью Framework и упоминаются только для объяснения границы между платформой и отдельными Apps.
+- Материалы по старым версиям используются только тогда, когда соответствующая возможность подтверждена для v16.
 
 Проверено: **2026-08-30**.
 
 ## Как проходить курс
 
-Курс идёт от устройства платформы к практике и только затем к коду. Не перескакиваем сразу в Python: сначала проверяем, что можно решить штатной конфигурацией Frappe.
+Курс идёт от общей карты платформы к интерфейсу, затем к данным и настройкам, после этого — к scripting и полноценной разработке.
 
 Для каждого механизма фиксируем четыре вещи:
 
 1. **Что это такое.**
-2. **Что Frappe делает сам.**
-3. **Где граница штатной возможности.**
-4. **Когда действительно нужен код VEQTA.**
+2. **Где это находится и как выглядит.**
+3. **Что Frappe делает штатно.**
+4. **Где заканчивается штатная возможность и требуется код.**
 
 Уровни решения задачи:
 
@@ -41,7 +66,7 @@
    Python controllers / hooks / API / jobs / tests
 
 5. Custom frontend
-   только если штатного Desk действительно недостаточно
+   используется, когда штатного Desk или web-интерфейсов недостаточно
 ```
 
 ## Программа
@@ -49,7 +74,7 @@
 ### Блок A. Карта Frappe
 
 1. [Архитектура: Bench → Site → App → Module → DocType → Document](01_FOUNDATIONS.md)
-2. Desk, Desktop, Sidebar, Workspace и навигация v16
+2. [Desk, Desktop, Sidebar, Workspace и навигация v16](02_DESK_NAVIGATION.md)
 3. Что входит в чистый Framework, а что является отдельным приложением
 
 ### Блок B. Модель данных
@@ -62,110 +87,115 @@
 9. Single, Tree, Submittable и Virtual DocType
 10. `docstatus`, Submit, Cancel и Amendment
 
-### Блок C. Интерфейс без собственного frontend
+### Блок C. Интерфейс
 
 11. Form View
 12. List View и фильтры
 13. Kanban, Calendar, Gantt и Tree View
 14. Workspace, Shortcut, Quick List, Number Card и Chart
 15. Customize Form
+16. Desk Page и границы штатного интерфейса
 
 ### Блок D. Пользователи и права
 
-16. User и Role
-17. Role Permission Manager
-18. Permission Level
-19. User Permission
-20. Owner и Sharing
-21. Где заканчиваются штатные permissions
+17. User и Role
+18. Role Permission Manager
+19. Permission Level
+20. User Permission
+21. Owner и Sharing
+22. Где заканчиваются штатные permissions
 
 ### Блок E. Работа и процессы
 
-22. Assignment и ToDo
-23. Assignment Rule
-24. Status против Workflow State
-25. Workflow и переходы
-26. Notification
-27. Auto Repeat
+23. Assignment и ToDo
+24. Assignment Rule
+25. Status против Workflow State
+26. Workflow и переходы
+27. Notification
+28. Auto Repeat
 
-### Блок F. Системные сервисы документа
+### Блок F. Системные возможности документа
 
-28. Timeline и Comments
-29. Version и Track Changes
-30. Attachments и File
-31. Email / Communication
-32. Print Format и PDF
+29. Timeline и Comments
+30. Version и Track Changes
+31. Attachments и File
+32. Email / Communication
+33. Print Format и PDF
 
 ### Блок G. Данные и аналитика
 
-33. Report Builder
-34. Query Report
-35. Script Report
-36. Dashboard Chart и Number Card
-37. Data Import / Export
+34. Report Builder
+35. Query Report
+36. Script Report
+37. Dashboard Chart и Number Card
+38. Data Import / Export
 
 ### Блок H. Внешние интерфейсы
 
-38. Web Form
-39. Portal / website-возможности Framework
-40. REST API
-41. RPC и whitelisted methods
-42. Authentication для интеграций
+39. Web Form
+40. Website / portal-возможности Framework
+41. REST API
+42. RPC и whitelisted methods
+43. Authentication для интеграций
 
 ### Блок I. Low-code и разработка
 
-43. Client Script
-44. Server Script
-45. Standard vs Custom
-46. Developer Mode
-47. Собственное App
-48. Standard DocType и файлы приложения
-49. Python controller и lifecycle документа
-50. Hooks
+44. Client Script
+45. Server Script
+46. Standard vs Custom
+47. Developer Mode
+48. Собственное App
+49. Standard DocType и файлы приложения
+50. Python controller и lifecycle документа
+51. Hooks
 
-### Блок J. Фоновая и серверная инфраструктура
+### Блок J. Серверная инфраструктура
 
-51. ORM и Database API
-52. Background Jobs и очереди
-53. Scheduler
-54. Realtime
-55. Fixtures
-56. Patches и migrations
-57. Tests
+52. ORM и Database API
+53. Background Jobs и очереди
+54. Scheduler
+55. Realtime
+56. Fixtures
+57. Patches и migrations
+58. Tests
 
 ### Блок K. Bench и эксплуатация
 
-58. Bench и Bench CLI
-59. Site configuration
-60. Установка и обновление Apps
-61. `bench migrate`
-62. Workers, scheduler, Redis/Valkey и web processes
-63. Logs и диагностика
-64. Backup и restore
-65. Production deployment — что обязан понимать разработчик приложения
+59. Bench и Bench CLI
+60. Site configuration
+61. Установка и обновление Apps
+62. `bench migrate`
+63. Workers, scheduler, Redis/Valkey и web processes
+64. Logs и диагностика
+65. Backup и restore
+66. Production deployment — что должен понимать разработчик Frappe
 
 ### Блок L. Итоговая практика
 
-66. Создаём учебное приложение с нуля
-67. Проверяем каждый штатный механизм руками
-68. Выносим принятую конфигурацию в Git
-69. Устанавливаем приложение на чистый Site и воспроизводим состояние
-70. Составляем карту: **Frappe штатно / VEQTA должна реализовать**
+67. Создаём нейтральное учебное приложение с нуля
+68. Проверяем штатные механизмы руками
+69. Добавляем scripting только там, где configuration недостаточно
+70. Переводим стабильную реализацию в App и Git
+71. Устанавливаем App на чистый Site и воспроизводим состояние
+72. Составляем итоговую карту возможностей: **штатно / low-code / application code / custom frontend**
 
-## Правило курса для VEQTA
+## Главный принцип обучения
 
-Перед созданием любой общей сущности или инфраструктурного механизма задаём вопросы по порядку:
+Для любой задачи сначала определяем минимальный уровень решения:
 
 ```text
-1. Frappe уже хранит этот факт?
-2. Frappe уже предоставляет такой UI?
-3. Frappe уже имеет permission/automation/reporting механизм?
-4. Можно ли закрыть задачу настройкой Framework?
-5. Если нет — чего конкретно не хватает?
-6. Только этот подтверждённый недостаток становится кандидатом на код VEQTA.
+Можно решить свойством DocType/DocField?
+        ↓ нет
+Есть штатная настройка Framework?
+        ↓ нет
+Достаточно low-code механизма?
+        ↓ нет
+Нужен код собственного App?
+        ↓ нет
+Только тогда рассматриваем отдельный frontend или внешнюю подсистему.
 ```
 
-Это не запрет на разработку. Это защита от создания второго framework поверх Frappe.
+Это позволяет понять реальную мощность Frappe, а не изучать его как набор случайных экранов и API.
 
 ## Основные официальные источники
 
@@ -176,4 +206,4 @@
 - [REST API](https://docs.frappe.io/framework/user/en/guides/integration/rest_api)
 - [Migration guide for Version 16](https://github.com/frappe/frappe/wiki/Migrating-to-version-16)
 
-По мере прохождения курса конкретные главы будут содержать свои ссылки на официальную документацию и исходный код.
+Каждая глава курса должна содержать собственные ссылки на официальную документацию и, когда это полезно, на исходный код Framework.
