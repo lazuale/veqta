@@ -364,7 +364,7 @@ Virtual нужен, когда **источник данных действит�
 ## Официальные источники
 
 - [Single DocType](https://docs.frappe.io/framework/user/en/basics/doctypes/single-doctype)
-- [Tree DocType](https://docs.frappe.io/framework/user/en/basics/doctypes/tree-doctype)
+- [Tree View](https://docs.frappe.io/framework/user/en/api/tree)
 - [Virtual DocType](https://docs.frappe.io/framework/user/en/basics/doctypes/virtual-doctype)
 - [Nested Set implementation, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/utils/nestedset.py)
 - [DocType controller, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/doctype/doctype.py)
