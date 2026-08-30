@@ -80,7 +80,7 @@
 ### Блок B. Модель данных
 
 4. [DocType от А до Я](04_DOCTYPE.md)
-5. DocField и свойства полей
+5. [DocField и свойства полей](05_DOCFIELD.md)
 6. Naming и `name`
 7. Link, Dynamic Link и Fetch From
 8. Child Table и Table MultiSelect
