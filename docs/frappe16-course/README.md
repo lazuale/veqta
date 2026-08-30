@@ -59,7 +59,7 @@
 13. [Kanban, Calendar, Gantt и Tree View](13_KANBAN_CALENDAR_GANTT_TREE.md)
 14. [Workspace, Shortcut, Quick List, Number Card и Chart](14_WORKSPACE_AND_DASHBOARD_BLOCKS.md)
 15. [Customize Form](15_CUSTOMIZE_FORM.md)
-16. Desk Page и границы штатного интерфейса
+16. [Desk Page и границы штатного интерфейса](16_DESK_PAGE_AND_UI_BOUNDARIES.md)
 
 ### Блок D. Пользователи и права
 
