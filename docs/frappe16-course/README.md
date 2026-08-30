@@ -67,7 +67,7 @@
 18. [Role Permission Manager](18_ROLE_PERMISSION_MANAGER.md)
 19. [Permission Level](19_PERMISSION_LEVEL.md)
 20. [User Permission](20_USER_PERMISSION.md)
-21. Owner и Sharing
+21. [Owner и Sharing](21_OWNER_AND_SHARING.md)
 22. Где заканчиваются штатные permissions
 
 ### Блок E. Работа и процессы
