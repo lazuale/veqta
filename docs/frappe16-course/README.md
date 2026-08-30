@@ -75,7 +75,7 @@
 
 1. [Архитектура: Bench → Site → App → Module → DocType → Document](01_FOUNDATIONS.md)
 2. [Desk, Desktop, Sidebar, Workspace и навигация v16](02_DESK_NAVIGATION.md)
-3. Что входит в чистый Framework, а что является отдельным приложением
+3. [Что входит в чистый Frappe Framework 16, а что является отдельным App](03_FRAMEWORK_VS_APPS.md)
 
 ### Блок B. Модель данных
 
