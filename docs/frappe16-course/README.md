@@ -79,7 +79,7 @@
 
 ### Блок B. Модель данных
 
-4. DocType от А до Я
+4. [DocType от А до Я](04_DOCTYPE.md)
 5. DocField и свойства полей
 6. Naming и `name`
 7. Link, Dynamic Link и Fetch From
