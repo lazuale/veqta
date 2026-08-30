@@ -84,7 +84,7 @@
 6. [Naming и `name`](06_NAMING.md)
 7. [Link, Dynamic Link и Fetch From](07_LINKS_AND_FETCH.md)
 8. [Child Table и Table MultiSelect](08_CHILD_TABLES.md)
-9. Single, Tree, Submittable и Virtual DocType
+9. [Single, Tree, Submittable и Virtual DocType](09_SPECIAL_DOCTYPES.md)
 10. `docstatus`, Submit, Cancel и Amendment
 
 ### Блок C. Интерфейс
