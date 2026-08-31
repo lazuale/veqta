@@ -504,28 +504,39 @@ Share не должен был изменить owner.
 
 # Часть 7. Посмотри серверную запись Share
 
-Под `Administrator` через Desk найди:
+Работай под `Administrator`.
+
+## 11. Открой DocShare List
+
+Перейди напрямую:
 
 ```text
-DocShare
+http://learn.localhost:8000/app/docshare
 ```
 
-Если системный DocType доступен через поиск, найди запись по:
+`DocShare` — системный DocType Frappe, в котором хранится document sharing.
+
+Отфильтруй список:
 
 ```text
-share_doctype = Request
-share_name    = <name D21-Shared-South>
-user          = student.user@example.test
+Document Type = Request
+Document Name = <system name D21-Shared-South>
+User          = student.user@example.test
 ```
 
-Сопоставь поля:
+Ожидается Share-запись для документа, который мы только что оставили в read-only состоянии.
+
+Открой её и сопоставь поля:
 
 ```text
-read  = 1
-write = 0
+User          = student.user@example.test
+Document Type = Request
+Document Name = <system name D21-Shared-South>
+Read          = 1
+Write         = 0
 ```
 
-Если системный список `DocShare` не выведен в твоём Desk как обычный рабочий список, этот шаг можно проверить через Share dialog самого Request. Для состояния курса важна реальная Share-запись, а не способ её просмотра.
+Ничего в `DocShare` вручную не редактируй. Состоянием Share управляй штатным Share dialog исходного `Request`.
 
 ---
 
