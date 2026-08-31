@@ -8,79 +8,210 @@
 
 ## Цель
 
-Провести человека без опыта работы с Frappe от чистого стенда до законченной рабочей системы, построенной **штатными средствами Frappe 16 без программирования**.
+Провести человека без опыта работы с Frappe от чистого стенда до законченного рабочего продукта, собранного **максимально нативно из штатных возможностей Frappe Framework 16**.
 
 Практикум строится вокруг одного сквозного проекта — системы управления работой. Каждая следующая работа расширяет уже существующую систему и использует только знания и объекты, введённые ранее.
 
 Главный принцип:
 
-> Не изучаем возможности Frappe по отдельности. Строим одну систему от простого к сложному и вводим новую возможность тогда, когда она естественно нужна проекту.
+> Сначала используем штатный декларативный механизм Frappe. Встроенный low-code применяем только там, где он является естественным продолжением штатной функции. Полноценную файловую разработку собственного поведения откладываем на следующий уровень.
 
-## Что означает «без программирования»
+## Что означает native-first
 
-На базовом уровне ученик не пишет:
+При решении каждой задачи действует такой порядок выбора:
 
-- Python;
-- JavaScript;
-- SQL;
-- Server Script;
-- Client Script;
-- Query Report;
-- Script Report;
-- собственные API methods;
-- hooks;
-- Jinja/HTML/CSS как программируемый шаблон;
-- произвольные Python/JavaScript-условия и выражения в полях настроек.
+1. **Штатная настройка / metadata** — DocType, поля, permissions, Workflow, Assignment Rule, Notification, Workspace, Web Form, Report Builder и другие готовые механизмы.
+2. **Штатный low-code Frappe** — expressions, Client Script, Server Script, Query Report, custom Script Report, Jinja в Print Format, Webhook и другие встроенные scripting-поверхности.
+3. **Файловая разработка собственного app-кода** — только если первые два слоя не решают задачу; этот слой в базовый практикум не входит.
 
-Разрешены:
-
-- действия в Desk и других штатных UI Frappe;
-- создание и настройка стандартных Frappe-документов;
-- Custom DocType и Custom Module;
-- Package / Package Release / Package Import;
-- терминал только для установки, запуска, диагностики, backup/restore и других штатных административных команд;
-- Postman или `curl` для проверки автоматически предоставляемого REST API.
-
-Если штатная возможность существует, но для её практического использования требуется написание Python, JavaScript, SQL, Jinja или иного кода, она относится к следующему уровню — **Frappe 16 Development**.
+Практикум не должен использовать Client Script или Server Script там, где тот же результат штатно решается настройкой поля, Workflow, Notification, Assignment Rule, permissions или другим более нативным механизмом.
 
 ## Архитектурная граница базового проекта
 
-Базовый практикум **не создаёт собственный Frappe App** через `bench new-app`.
+В базовом практикуме создаётся **обычное собственное Frappe App штатной командой `bench new-app`**.
 
-Вместо этого проект собирается штатным no-code механизмом Frappe:
-
-```text
-Frappe Site
-    ↓
-Package: Frappe Practicum
-    ↓
-Custom Module: Practicum
-    ↓
-Custom DocTypes / Workspace / Reports / другие no-code объекты
-```
-
-Package используется как контейнер переносимой no-code конфигурации проекта. В конце практикума Package Release импортируется на второй Site, чтобы отдельно проверить перенос конфигурации. Backup/Restore затем проверяет восстановление **всего Site вместе с данными и файлами**.
-
-Это два разных навыка:
+Это контейнер продукта, а не повод сразу писать Python-логику.
 
 ```text
-Package Release / Import
-= перенос конфигурации no-code проекта
-
-Backup / Restore
-= восстановление полного состояния Site
+Bench
+  ↓
+Site
+  ↓
+App: frappe_practicum
+  ↓
+Module: Practicum
+  ↓
+DocTypes / Workspace / Reports / Scripts / Web / Integrations
 ```
+
+App создаётся, устанавливается на Site и хранится в Git. Внутри базового уровня продукт максимально собирается штатными механизмами Frappe.
+
+## Что входит в базовый уровень
+
+### Платформа и App
+
+- установка и базовое администрирование Frappe 16;
+- Bench и Site;
+- `bench new-app`;
+- структура App на уровне понимания контейнера проекта;
+- Module;
+- `bench --site ... install-app`;
+- `bench migrate` на уровне эксплуатации;
+- Git для хранения собственного App;
+- Desk, Desktop, Workspace Sidebar v16, Awesome Bar, System Settings и основные журналы.
+
+### Модель данных
+
+- DocType и Document;
+- DocField и штатные типы полей;
+- naming, title и search;
+- Link, Fetch From, Dynamic Link;
+- Child DocType / Table;
+- Single DocType;
+- Tree DocType;
+- Files / Attachments;
+- Connections и Actions;
+- Geolocation.
+
+### Lifecycle и аудит
+
+- Draft / Submit / Cancel / Amend;
+- Allow on Submit;
+- Track Changes;
+- Version;
+- Timeline;
+- Audit Trail;
+- Track Seen / Track Views.
+
+### Views и рабочий интерфейс
+
+- Form View;
+- List View;
+- Report View;
+- Kanban;
+- Calendar View;
+- Gantt там, где доступен штатно;
+- Tree View;
+- Map View;
+- Workspace;
+- Cards, Shortcuts, Quick Lists, Onboarding;
+- Number Cards и Dashboard Charts;
+- DocType Layout.
+
+### Пользователи и доступ
+
+- User / System User / Website User;
+- Role / Role Profile;
+- Role Permission Manager;
+- Permission Level;
+- If Owner;
+- User Permission;
+- Share;
+- Page / Report / Import / Export / Print / Email permissions;
+- штатные permission conditions;
+- Server Script Permission Query как встроенный low-code механизм после освоения обычных permissions.
+
+### Совместная работа и процесс
+
+- Assign / ToDo;
+- Comments / Mentions / Tags / Following;
+- Attachments;
+- Assignment Rule;
+- Workflow / Workflow State / Workflow Actions;
+- штатные conditions в Assignment Rule, Workflow и Notification;
+- Notification;
+- Auto Repeat;
+- Workflow Transition Tasks v16 в той части, где используются штатные Server Script/Webhook actions.
+
+### Встроенный low-code
+
+- простые expressions в штатных настройках;
+- Client Script для Form/List там, где декларативных настроек недостаточно;
+- Server Script:
+  - DocType Event;
+  - Scheduler Event;
+  - Permission Query;
+  - API;
+  - Workflow Task;
+- restricted scripting как встроенный механизм Frappe;
+- понимание границы между Client Script и серверной логикой.
+
+### Данные, отчётность и аналитика
+
+- Data Import / Data Export;
+- Report Builder;
+- Query Report;
+- Custom Script Report, если script хранится в самом Report и не требует файлов собственного app;
+- Number Card;
+- Dashboard Chart;
+- Dashboard / Workspace analytics.
+
+### Печать и коммуникации
+
+- Standard Print;
+- Print Format Builder;
+- Jinja в штатном Print Format;
+- HTML/CSS внутри Print Format в объёме, необходимом для штатной печати;
+- Letter Head;
+- PDF;
+- Email Account;
+- Communication;
+- Email Queue;
+- Email Template;
+- Email Notification.
+
+### Website и внешние интерфейсы
+
+- Website Settings на базовом уровне;
+- Web Page / Page Builder там, где доступны штатно;
+- Web Form;
+- Web Form layout, CSS и встроенный Client Script;
+- Website User;
+- автоматически предоставляемый REST API;
+- API Key / Secret;
+- Server Script API;
+- Webhook;
+- штатные условия, headers и payload templates.
+
+### Переносимость и эксплуатация
+
+- Package как отдельная штатная возможность Frappe для UI-created/lightweight конфигураций — изучается для понимания, но не является основным контейнером учебного проекта;
+- backup / restore;
+- перенос App через Git;
+- установка App на чистый второй Site;
+- `bench migrate`;
+- проверка воспроизводимости продукта.
+
+## Что не входит
+
+Базовый уровень не переходит в полноценную файловую разработку поведения приложения:
+
+- собственные Python controllers в DocType `.py`;
+- собственная бизнес-логика в Python-модулях App;
+- `hooks.py` как extension architecture;
+- override/extend стандартных классов и методов;
+- собственные whitelisted Python methods в файловом коде;
+- собственные background jobs в Python-коде App;
+- собственные scheduler handlers через hooks;
+- файловые Form/List/Page JS-скрипты App;
+- asset bundling, Vue, TypeScript и custom frontend;
+- Standard Script Report с файловыми `.py/.js`;
+- custom Page с файловой разработкой;
+- patches и data migrations собственного App;
+- Virtual DocType / Virtual DocField, если требуется controller-код;
+- custom Jinja methods через hooks;
+- полноценные automated tests собственного app-кода;
+- production-hardening как отдельный DevOps-курс.
+
+Это следующий уровень: **Frappe 16 Development**.
 
 ## Сквозной учебный проект
 
-В течение практикума формируется следующая модель:
-
 ```text
-Package: Frappe Practicum
+App: frappe_practicum
 └── Module: Practicum
     │
     ├── Project
-    │
     ├── Work Item
     │   ├── Project
     │   ├── Category
@@ -100,247 +231,105 @@ Package: Frappe Practicum
     └── Work Approval [Submittable]
 ```
 
-`Work Item` остаётся обычным рабочим документом и свободно развивается дальше через Assign, Workflow и совместную работу.
+`Work Item` остаётся обычным рабочим документом и используется в Assign, Workflow, Notifications, reports, Web Form и API.
 
-`Work Approval` создаётся специально для изучения штатного lifecycle `Draft → Submit → Cancel → Amend`, `Allow on Submit` и Audit Trail. Мы не делаем `Work Item` submittable только ради демонстрации функции.
+`Work Approval` используется для естественного изучения `Draft → Submit → Cancel → Amend`, `Allow on Submit` и Audit Trail.
 
-## Что входит в базовый уровень
+## Методическое правило выбора решения
 
-### Платформа и навигация
+Перед добавлением любой логики в практикум задаются четыре вопроса:
 
-- установка и базовое администрирование учебного Frappe 16;
-- Bench и Site на уровне, необходимом пользователю практикума;
-- Desk;
-- Desktop и Workspace Sidebar v16;
-- Awesome Bar;
-- System Settings;
-- основные журналы и диагностика.
+1. Есть ли для задачи готовая штатная настройка Frappe?
+2. Есть ли более естественный стандартный DocType/механизм, чем script?
+3. Если нужен script, существует ли для этого встроенная low-code поверхность Frappe?
+4. Требует ли решение изменения файлов Python/JS собственного App?
 
-### No-code контейнер проекта
-
-- Package;
-- Custom Module;
-- Package Release;
-- Package Import;
-- проверка переноса no-code конфигурации на второй Site.
-
-### Модель данных
-
-- Custom DocType и Document;
-- DocField и базовые штатные типы полей;
-- Geolocation;
-- naming, title и search;
-- Link и Fetch From;
-- Dynamic Link;
-- Child DocType и Table;
-- Single DocType;
-- Tree DocType;
-- File / Attachments;
-- Connections.
-
-### Lifecycle и аудит
-
-- Draft / Submit / Cancel / Amend;
-- Allow on Submit;
-- Track Changes;
-- Version;
-- Timeline;
-- Audit Trail;
-- Track Seen / Track Views.
-
-### Представления и рабочий интерфейс
-
-- List View;
-- Report View;
-- Kanban;
-- Calendar View;
-- Gantt там, где доступен штатно для настроенной модели;
-- Tree View;
-- Map View;
-- фильтры, сортировка, теги и массовые действия;
-- Workspace;
-- Cards, Shortcuts, Quick Lists и Onboarding;
-- Number Cards и Charts после их создания на аналитическом этапе;
-- DocType Layout без кодовых условий переключения.
-
-### Пользователи и доступ
-
-- User и System User;
-- Website User вводится только в Web Form-сценарии;
-- Role;
-- Role Profile;
-- Role Permissions;
-- Permission Level;
-- If Owner;
-- User Permission;
-- Share;
-- права на Reports, Pages, Print, Import/Export и другие штатные операции.
-
-### Совместная работа и процесс
-
-- Assign;
-- ToDo;
-- Comments;
-- Mentions;
-- Tags;
-- Following;
-- Attachments;
-- Assignment Rule без script conditions;
-- Workflow без кодовых transition conditions;
-- Workflow Actions;
-- System Notification без script conditions;
-- Auto Repeat.
-
-### Кастомизация, данные и аналитика
-
-- Customize Form;
-- Custom Field;
-- Property Setter;
-- Custom DocPerm;
-- Custom Link;
-- Route Action без server action;
-- Data Import / Data Export;
-- Report Builder;
-- Number Card;
-- Dashboard Chart;
-- Dashboard / Workspace analytics.
-
-### Вывод и внешние интерфейсы
-
-- стандартная печать;
-- Print Format Builder без ручного HTML/Jinja;
-- Letter Head;
-- PDF;
-- Email Account;
-- Communication;
-- Email Queue;
-- Email Notification только после настройки Email Account;
-- Web Form;
-- автоматически предоставляемый REST API;
-- API Key / Secret;
-- backup и restore.
-
-## Что не входит
-
-Базовый уровень сознательно не включает developer-level возможности:
-
-- собственный Frappe App;
-- Python controllers;
-- Python Document API;
-- Database API и Query Builder;
-- raw SQL;
-- hooks;
-- Server Script;
-- Client Script;
-- JavaScript Form Script;
-- custom List/Page/Tree JS;
-- Query Report;
-- Script Report;
-- собственные API methods;
-- собственные background jobs и scheduler handlers;
-- Custom Desk Page;
-- ручной Jinja/HTML/CSS как разработку;
-- Virtual DocType / Virtual DocField;
-- Data Masking;
-- Custom Permission Types;
-- Document Queue;
-- Data Migration Tool;
-- Scanner API;
-- custom realtime handlers;
-- любые возможности, которые требуют написания кода для воспроизводимой практики.
-
-Это следующий уровень: **Frappe 16 Development**.
+Если ответ на пункт 4 — да, тема переносится в Development-уровень, если только файл не является автоматически создаваемым стандартным артефактом самого App без добавления собственной логики.
 
 ## Последовательность
 
 ```text
 чистая система
     ↓
-Frappe Site
+Bench / Site
     ↓
-Package + Custom Module
+bench new-app / Module / install-app / Git
     ↓
-Custom DocType
+DocTypes и модель данных
     ↓
-связанная модель данных
+Document lifecycle и audit
     ↓
-отдельный submittable-документ и audit
+штатные views / Workspace
     ↓
-штатные views
+Users / Roles / Permissions
     ↓
-Workspace и навигация
+Collaboration / Assignment Rule
     ↓
-пользователи и права
+Workflow / Notification / Auto Repeat
     ↓
-совместная работа
+встроенный Client Script / Server Script там, где это естественно
     ↓
-Workflow и автоматизация
+Import / Reports / Analytics
     ↓
-кастомизация
+Print / Jinja / Email
     ↓
-импорт и отчётность
+Web Page / Web Form
     ↓
-Dashboard
+REST API / Server Script API / Webhook
     ↓
-печать и Email
+Workflow Transition Tasks
     ↓
-Web Form
+Package как отдельный stock-механизм
     ↓
-штатный REST API
-    ↓
-Package Release / Import
+Git deployment на второй Site / migrate
     ↓
 backup / restore
     ↓
-законченная рабочая система
+финальный рабочий продукт
 ```
 
 ## Источники истины внутри каталога
 
-Чтобы файлы не расходились между собой:
-
-- [`README.md`](README.md) — **границы, цель и требования уровня**;
-- [`MATRIX.md`](MATRIX.md) — **единственный источник состава и нумерации практических работ**;
-- [`ROADMAP.md`](ROADMAP.md) — **единственный источник фаз и логики последовательности**;
-- [`labs/README.md`](labs/README.md) — **стандарт написания и проверки конкретных практических работ**.
-
-Если меняется номер, состав или результат работы, сначала меняется `MATRIX.md`, затем при необходимости корректируется `ROADMAP.md`. README не должен дублировать подробную матрицу.
+- [`README.md`](README.md) — границы, цель и требования уровня;
+- [`MATRIX.md`](MATRIX.md) — единственный источник состава и нумерации практических работ;
+- [`ROADMAP.md`](ROADMAP.md) — единственный источник фаз и логики последовательности;
+- [`labs/README.md`](labs/README.md) — стандарт написания и проверки конкретных практических работ.
 
 ## Требование к официальности
 
-Каждая практическая работа должна быть подтверждена для **Frappe Framework 16**, а не просто для ERPNext, HRMS, CRM или другой системы на Frappe.
+Каждая практическая работа должна быть подтверждена для **Frappe Framework 16**.
 
 Приоритет источников:
 
 1. официальная документация Frappe Framework;
-2. ветка `version-16` репозитория `frappe/frappe`, если документация неоднозначна или отстаёт;
-3. официальные migration notes v16 для изменений, специфичных для версии.
+2. ветка `version-16` репозитория `frappe/frappe`;
+3. официальные migration notes v16.
 
-Если UI-документация функции находится в ERPNext-разделе, перед включением в практикум необходимо отдельно подтвердить, что соответствующий DocType или механизм действительно входит в core Frappe 16.
+Документация ERPNext, HRMS, CRM и других приложений может использоваться как UI-справка только после подтверждения, что соответствующий механизм действительно входит в core Frappe 16.
 
 ## Критерий завершения базового уровня
 
-После практикума ученик без Python, JavaScript и SQL должен самостоятельно уметь:
+После практикума ученик должен уметь самостоятельно:
 
-1. поднять учебный Site Frappe 16;
-2. создать Package и Custom Module;
-3. построить модель из нескольких связанных Custom DocTypes;
-4. создать отдельный submittable-документ и пройти его lifecycle;
-5. использовать штатные views, Workspace и навигацию v16;
-6. создать пользователей и роли;
-7. разграничить права;
-8. организовать Assign/ToDo и совместную работу;
-9. построить Workflow;
-10. настроить штатные уведомления и Auto Repeat;
-11. изменить систему через Customize Form и DocType Layout без кода;
-12. импортировать и экспортировать данные;
-13. сделать Report Builder и Dashboard;
-14. подготовить PDF через Print Format Builder;
-15. настроить Email и Email Notification;
-16. открыть внешний сценарий через Web Form;
-17. работать с теми же документами через штатный REST API;
-18. выпустить Package Release и импортировать конфигурацию на другой Site;
-19. сделать backup полного Site и восстановить его;
+1. развернуть учебный Frappe 16;
+2. создать собственный App штатной командой Bench и установить его на Site;
+3. построить связанную модель DocTypes;
+4. настроить lifecycle и audit;
+5. использовать штатные views и Workspace;
+6. создать пользователей, роли и permissions;
+7. организовать collaboration, Assignment Rule и Workflow;
+8. настроить Notifications и Auto Repeat;
+9. использовать встроенные expressions, Client Script и Server Script без ухода в файловую разработку;
+10. импортировать данные и строить Report Builder / Query Report / Custom Script Report;
+11. собрать Dashboard;
+12. настроить Print Format Builder и Jinja-печать;
+13. настроить Email;
+14. создать Web Page и Web Form;
+15. использовать штатный REST API, Server Script API и Webhook;
+16. использовать Workflow Transition Tasks там, где это уместно;
+17. понимать назначение Package и его отличие от обычного App;
+18. установить свой App из Git на второй Site и выполнить migrate;
+19. сделать backup и restore;
 20. пройти полный сквозной сценарий после восстановления.
 
-Если это выполнено, базовый уровень Frappe 16 считается завершённым.
+Если это выполнено, базовый уровень считается завершённым.
