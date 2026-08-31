@@ -105,7 +105,7 @@
 
 ### Блок I. Low-code и разработка
 
-44. Client Script
+44. [Client Script](44_CLIENT_SCRIPT.md)
 45. Server Script
 46. Standard vs Custom
 47. Developer Mode
