@@ -85,7 +85,7 @@
 30. [Version и Track Changes](30_VERSION_AND_TRACK_CHANGES.md)
 31. [Attachments и File](31_ATTACHMENTS_AND_FILE.md)
 32. [Email / Communication](32_EMAIL_AND_COMMUNICATION.md)
-33. Print Format и PDF
+33. [Print Format и PDF](33_PRINT_FORMAT_AND_PDF.md)
 
 ### Блок G. Данные и аналитика
 
