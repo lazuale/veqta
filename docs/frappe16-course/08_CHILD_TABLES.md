@@ -1,388 +1,343 @@
-# 08. Child Table и Table MultiSelect
+# 08. Child Table и Table MultiSelect на `Request`
 
-Иногда одному документу нужно хранить несколько однотипных строк.
+У `Request` уже есть обычные поля и ссылка на ответственного. Следующая задача другая: одной заявке нужно хранить **несколько однотипных строк**, которые не имеют самостоятельного смысла без родителя.
 
-Например, в заказе несколько позиций, а в акте замера — несколько измерений. Для этого во Frappe есть `Child Table`.
+Для этого во Frappe используется Child DocType и поле `Table`.
 
-Проверено: **2026-08-30**.
+В этой главе добавим к `Request` строки `Request Item`, а затем отдельно увидим `Table MultiSelect` — более компактный вариант множественного выбора, который тоже хранит данные через child rows.
 
-## 1. Самый понятный пример
+Проверено для **Frappe Framework v16.32.0**.
 
-Есть `Order`:
+---
+
+## Что уже есть на стенде
+
+`Request` содержит накопленную модель, включая:
 
 ```text
-Order ORD-0001
+subject
+status
+priority
+due_date
+responsible
+responsible_name
+```
+
+и остальные поля предыдущих лабораторных.
+
+Новых Child DocTypes пока нет.
+
+---
+
+## Когда нужен Child Table
+
+Представим Request с несколькими строками работ:
+
+```text
+Request REQ-2026-00005
 
 Items:
-- Laptop      × 2
-- Mouse       × 5
-- Keyboard    × 3
+1. Analysis       Qty 2   Rate 50   Amount 100
+2. Review         Qty 1   Rate 80   Amount 80
+3. Documentation  Qty 3   Rate 20   Amount 60
 ```
 
-Сам `Order` — обычный Document.
+Каждая строка нужна только внутри конкретного Request.
 
-Каждая строка `Items` — тоже Document, но **дочерний**: отдельно от Order она не имеет самостоятельного смысла.
+Если удалить сам Request, отдельная строка `Analysis × 2` не является самостоятельным объектом системы.
 
-Вот для таких случаев нужен Child DocType.
+Это хороший случай для Child Table.
 
-## 2. Как это собирается
+---
 
-Сначала создаём дочерний DocType:
+## Как собирается Child Table
+
+Нужны две части.
+
+### 1. Child DocType
+
+Создадим:
 
 ```text
-DocType: Order Item
-Is Child Table = ✓
-
-Fields:
-product   Link
-qty       Float
-price     Currency
+Request Item
+Is Child Table = включено
 ```
 
-Потом в `Order` добавляем поле:
+Поля строки:
 
 ```text
-Label: Items
-Fieldname: items
+title
+qty
+rate
+amount
+```
+
+### 2. Поле в родительском `Request`
+
+```text
+Label:      Items
+Fieldname:  items
 Field Type: Table
-Options: Order Item
+Options:    Request Item
 ```
 
-Теперь Frappe знает:
+После этого Frappe понимает:
 
 ```text
-Order.items
-→ список Documents типа Order Item
+Request.items
+→ набор child rows типа Request Item
 ```
 
-## 3. Child DocType — не JSON-мешок
+---
 
-Дочерняя строка — нормальный Document своего DocType.
+## Child row — структурированный Document
 
-У неё есть:
+Строка таблицы — не произвольный JSON и не текстовая ячейка.
 
-- свои DocFields;
-- свой `name`;
-- системные поля связи с родителем;
-- validation и controller behavior в рамках lifecycle родителя.
+У неё есть metadata `Request Item` и системная связь с родителем.
 
-То есть строка таблицы структурирована так же строго, как обычный документ, просто **принадлежит parent Document**.
+Внутри Frappe для child row важны поля:
 
-## 4. Четыре поля, которые связывают child с parent
+```text
+parent
+parenttype
+parentfield
+idx
+```
 
-У дочерней строки есть специальные системные свойства:
+Их смысл:
 
 | Поле | Что означает |
 |---|---|
-| `parent` | `name` родительского Document |
-| `parenttype` | DocType родителя |
-| `parentfield` | fieldname Table-поля в родителе |
-| `idx` | порядок строки в таблице |
+| `parent` | `name` родительского Request |
+| `parenttype` | DocType родителя, здесь `Request` |
+| `parentfield` | поле родителя, здесь `items` |
+| `idx` | порядок строки |
 
-Посмотрим на строку товара:
+В этой главе мы **не открываем Python console**, чтобы посмотреть эти поля напрямую: Python ещё не изучался.
 
-```text
-parent      = ORD-0001
-parenttype  = Order
-parentfield = items
-idx         = 2
-```
-
-Этого достаточно, чтобы Frappe понял:
-
-> Это вторая строка поля `items` документа `Order ORD-0001`.
-
-## 5. Зачем нужен `parentfield`
-
-У одного родителя может быть больше одной таблицы.
-
-Например:
+Сейчас достаточно увидеть поведение, которое из них следует:
 
 ```text
-Inspection
-├── measurements
-└── defects
+строки создаются внутри Request
+сохраняются вместе с Request
+порядок строк сохраняется
+валидация строки блокирует Save родителя
 ```
 
-Тогда одного `parent = INS-0001` мало. Frappe ещё должен знать, к какому Table-полю относится строка.
+Позже, когда появится код, к внутренней структуре можно будет вернуться уже осознанно.
 
-Для этого и нужен `parentfield`.
+---
 
-## 6. Зачем нужен `idx`
+## Почему child row не создаём как обычный самостоятельный Document
 
-`idx` хранит порядок:
+`Request Item` не должен иметь отдельный рабочий список, в котором пользователь создаёт строки независимо от Request.
 
-```text
-1 → Laptop
-2 → Mouse
-3 → Keyboard
-```
-
-Если пользователь переставит строки местами, Framework обновит порядок.
-
-Не стоит использовать `idx` как важный неизменяемый бизнес-ID. Это прежде всего позиция строки.
-
-## 7. Как child rows выглядят в Python
-
-Получаем Order:
-
-```python
-order = frappe.get_doc("Order", "ORD-0001")
-```
-
-И работаем с дочерними строками как со списком:
-
-```python
-for row in order.items:
-    print(row.product, row.qty)
-```
-
-Добавить строку можно через parent:
-
-```python
-order.append("items", {
-    "product": "Laptop",
-    "qty": 2
-})
-
-order.save()
-```
-
-Для новичка тут важна не команда, а модель:
-
-> дочерние строки загружаются и сохраняются **вместе с родителем**.
-
-## 8. Что происходит при Save
-
-Допустим, в Order было три строки.
-
-Пользователь:
-
-- изменил количество в первой;
-- удалил вторую;
-- добавил четвёртую.
-
-При сохранении parent Frappe синхронизирует дочернюю таблицу с текущим состоянием Document.
-
-Не нужно отдельно нажимать Save у каждой строки.
-
-Это и есть главное отличие от набора самостоятельных Documents.
-
-## 9. Почему Child Table подходит не всегда
-
-Child Table хороша, когда строка **принадлежит родителю**.
-
-Хорошие примеры:
-
-```text
-Order → Order Items
-Inspection → Measurements
-Questionnaire → Answers
-```
-
-Плохой кандидат:
-
-```text
-Project → Employees
-```
-
-если сотрудник должен иметь собственные права, ссылки, отчёты, lifecycle и использоваться независимо от конкретного Project.
-
-Тогда `Employee` — обычный самостоятельный DocType, а не child row.
-
-## 10. Простой тест: child или обычный DocType?
-
-Спроси:
-
-> Если удалить родительский документ, имеет ли эта строка самостоятельный смысл?
-
-Если ответ «нет» — Child Table выглядит логично.
-
-Если ответ «да, это полноценный объект системы» — скорее нужен обычный DocType и Link.
-
-Это не абсолютное математическое правило, но для проектирования помогает очень хорошо.
-
-## 11. Child Table нельзя вкладывать бесконечно
-
-В Frappe child tables не предназначены для создания дерева «таблица внутри строки таблицы внутри ещё одной таблицы».
-
-Child DocType не должен содержать обычную вложенную child table как ещё один уровень композиции.
-
-Если модель требует глубокую иерархию самостоятельных объектов, лучше пересмотреть структуру данных.
-
-## 12. Editable Grid
-
-В Form View обычная Child Table часто отображается как grid.
-
-Пользователь может редактировать часть полей прямо в строках:
-
-```text
-Product      Qty      Price
-Laptop       2        1200
-Mouse        5        30
-```
-
-Какие колонки видны и как ведёт себя grid, зависит от metadata полей и настроек DocType.
-
-Для небольших таблиц это очень удобно.
-
-## 13. Что делать с очень большими таблицами
-
-Если один Document начинает содержать тысячи child rows, работать с ним становится тяжелее и для UI, и для lifecycle сохранения.
-
-В v16 есть настройки grid/search, которые помогают с крупными таблицами, но они не отменяют архитектурный вопрос:
-
-> действительно ли эти тысячи записей являются частью одного документа?
-
-Иногда правильнее сделать самостоятельный DocType и List View, а не гигантскую Child Table.
-
-## 14. Table MultiSelect
-
-`Table MultiSelect` решает более узкую задачу: **выбрать несколько связанных значений**.
-
-Пример:
+Модель здесь именно такая:
 
 ```text
 Request
-Allowed Departments:
-[Analytics] [Finance] [Operations]
+└── owns → Request Item rows
 ```
 
-Под капотом для этого тоже используется Child DocType.
-
-Например:
+А обычный Link из предыдущей главы означал другое:
 
 ```text
-DocType: Request Department
-Is Child Table = ✓
-
-Field:
-department  Link → Department
+Request
+└── references → User
 ```
 
-А в Request:
+Полезно различать два слова:
 
 ```text
+Link        → ссылка
+Child Table → принадлежность
+```
+
+---
+
+## `idx` и порядок строк
+
+Frappe хранит порядок child rows через `idx`.
+
+Пользователь может переставить строки в grid:
+
+```text
+Analysis
+Review
+Documentation
+```
+
+на:
+
+```text
+Documentation
+Analysis
+Review
+```
+
+После Save и повторного открытия порядок должен сохраниться.
+
+`idx` — технический порядок строки, а не постоянный бизнес-номер. Не стоит строить предметную идентичность на `idx`.
+
+---
+
+## Валидация child rows идёт вместе с родителем
+
+Сделаем `Request Item.title` обязательным.
+
+Если добавить строку:
+
+```text
+Title:  пусто
+Qty:    1
+Rate:   10
+Amount: 10
+```
+
+и сохранить Request, Frappe должен остановить сохранение из-за Mandatory-поля дочерней строки.
+
+Это хорошо показывает границу lifecycle:
+
+```text
+Save Request
+→ Frappe проверяет и его child rows
+→ только затем сохраняет согласованное состояние документа
+```
+
+---
+
+## Что такое Table MultiSelect
+
+Иногда полная grid-таблица из четырёх колонок не нужна.
+
+Нужно просто выбрать несколько Documents одного типа, например пользователей-наблюдателей:
+
+```text
+Watchers:
+[Administrator] [Guest]
+```
+
+Для этого есть `Table MultiSelect`.
+
+Он тоже использует Child DocType, но показывает выбранные Link-значения компактно.
+
+---
+
+## Почему Table MultiSelect тоже требует Child DocType
+
+В `v16.32.0` control `Table MultiSelect` берёт metadata указанного Child DocType и ищет в нём Link-поле.
+
+Поэтому создадим отдельный Child DocType:
+
+```text
+Request Watcher
+Is Child Table = включено
+
+User
+  fieldname: user
+  type: Link
+  options: User
+```
+
+А в `Request` добавим:
+
+```text
+Watchers
+Fieldname: watchers
 Field Type: Table MultiSelect
-Options: Request Department
+Options: Request Watcher
 ```
 
-Пользователь получает удобный множественный выбор вместо полноценной табличной формы.
+Frappe хранит выбранных пользователей как child rows, а показывает их пользователю как компактный набор значений.
 
-## 15. Table и Table MultiSelect — в чём разница
+---
 
-### Table
+## Table и Table MultiSelect — разные задачи
 
-Нужна, когда каждая строка содержит **несколько значимых полей**.
+### `Table`
 
-Пример:
+Используем, когда одна строка содержит несколько важных значений:
 
 ```text
-Product | Qty | Price | Discount
+Title | Qty | Rate | Amount
 ```
 
-### Table MultiSelect
+### `Table MultiSelect`
 
-Нужна, когда основная задача — **выбрать несколько ссылок**.
-
-Пример:
+Используем, когда основная задача — выбрать несколько связанных Documents:
 
 ```text
-Department
-- Analytics
-- Finance
-- Operations
+Administrator
+Guest
 ```
 
-Если для каждой выбранной записи внезапно нужны `Role`, `Start Date`, `Percent`, `Comment` — это уже не простой MultiSelect. Возможно, нужна обычная Table или отдельный DocType связи.
-
-## 16. Почему для Table MultiSelect тоже нужен Child DocType
-
-Frappe не хранит список ссылок просто строкой:
+Если у наблюдателя позже понадобятся:
 
 ```text
-"Analytics,Finance,Operations"
-```
-
-Вместо этого каждая выбранная связь имеет структурированную child row.
-
-Это лучше для целостности и работы Framework.
-
-## 17. Уникальность выбора
-
-Для Table MultiSelect смысл обычно в том, чтобы один и тот же связанный Document не выбирать много раз.
-
-Например:
-
-```text
-Analytics
-Analytics
-Analytics
-```
-
-не несёт пользы как «список разрешённых отделов».
-
-Framework учитывает специфику этого field type и работает с ним не как с обычной свободной таблицей.
-
-## 18. Когда лучше отдельный DocType связи
-
-Допустим, между `Project` и `Employee` нужно хранить:
-
-```text
-Project
-Employee
 Role
 Start Date
-End Date
-Allocation %
+Comment
+Notification Level
 ```
 
-Это уже почти самостоятельная сущность:
+простого MultiSelect уже будет мало: понадобится полноценная Table или самостоятельная сущность связи.
+
+---
+
+## Почему оба Child DocType останутся на стенде
+
+`Request Item` нужен дальше как часть основной учебной формы.
+
+`Request Watcher` нужен, чтобы Table MultiSelect был не только теорией, а реально пройденным механизмом.
+
+После этой главы оба объекта оставляем. Они созданы не «для галочки», а потому что два разных field type требуют двух разных форм строк:
 
 ```text
-Project Member
+Request Item
+→ полноценная строка с несколькими полями
+
+Request Watcher
+→ одна Link-ссылка для множественного выбора
 ```
 
-У неё могут появиться свои permissions, Reports и ссылки из других документов.
+---
 
-В таком случае отдельный обычный DocType часто понятнее, чем прятать всё внутри parent.
+## Что произойдёт в лабораторной
 
-## 19. Child Table и Link — разные отношения
+Ты:
 
-Полезно запомнить две модели:
+1. создашь Child DocType `Request Item`;
+2. добавишь `Items → Table → Request Item` в существующий Request;
+3. создашь Request с несколькими строками;
+4. поменяешь порядок строк и увидишь сохранение порядка;
+5. добавишь строку без Mandatory `Title` и получишь отказ Save родителя;
+6. исправишь строку и сохранишь Request;
+7. создашь Child DocType `Request Watcher`;
+8. добавишь `Watchers → Table MultiSelect`;
+9. выберешь нескольких Users и увидишь компактный множественный выбор.
 
-```text
-Link
-→ «этот документ ссылается на другой самостоятельный документ»
-
-Child Table
-→ «эти строки принадлежат этому документу»
-```
-
-Слова «ссылка» и «принадлежность» хорошо помогают выбрать правильный механизм.
-
-## Мини-практика
-
-Определи подходящий вариант:
-
-1. `Order` содержит товары, количество и цену → **Table / Child DocType**.
-2. `Request` должен выбрать несколько разрешённых Departments без дополнительных данных → **Table MultiSelect**.
-3. `Request` относится к одному Department → **Link**, не Child Table.
-4. Участие Employee в Project имеет роль, даты и процент загрузки → скорее **отдельный DocType связи**.
+---
 
 ## Что запомнить
 
-- Child Table означает **владение/композицию**, а не просто любую связь.
-- Child row знает `parent`, `parenttype`, `parentfield`, `idx`.
-- Child rows сохраняются вместе с parent Document.
-- `Table` — полноценные строки с несколькими полями.
-- `Table MultiSelect` — удобный множественный выбор через child rows.
-- Если строка становится самостоятельным объектом, пора подумать об обычном DocType.
+1. Child Table означает принадлежность строк родительскому Document.
+2. `Table` в родителе указывает через `Options` на Child DocType.
+3. Child rows сохраняются и валидируются вместе с родителем.
+4. Порядок строк поддерживается Framework.
+5. `parent`, `parenttype`, `parentfield`, `idx` объясняют внутреннюю связь, но Python для их изучения пока не нужен.
+6. `Table MultiSelect` — компактный множественный Link-выбор поверх child rows.
+7. `Table` и `Table MultiSelect` не взаимозаменяемы: выбор зависит от структуры одной строки.
+
+---
 
 ## Официальные источники
 
 - [Child / Table DocType](https://docs.frappe.io/framework/user/en/basics/doctypes/child-doctype)
 - [Field Types](https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes)
-- [BaseDocument child handling, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/model/base_document.py)
+- [Table MultiSelect control — v16.32.0](https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/form/controls/table_multiselect.js)
+- [Child table handling — v16.32.0](https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/base_document.py)
 
-Следующая глава: [**09. Single, Tree, Submittable и Virtual DocType**](09_SPECIAL_DOCTYPES.md).
+Теперь выполни [**лабораторную 08**](labs/08_CHILD_TABLES_LAB.md).
+
+После неё переходи к [**09. Single, Tree, Submittable и Virtual DocType**](09_SPECIAL_DOCTYPES.md).
