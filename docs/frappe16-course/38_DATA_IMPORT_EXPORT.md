@@ -709,23 +709,19 @@ new_doc.update(imported_values)
 new_doc.insert()
 ```
 
-То есть создаётся настоящий новый Document.
+То есть создаётся настоящий новый Document, а не выполняется прямой SQL `INSERT` в обход модели Frappe.
 
-Это означает, что продолжает работать обычная логика:
+Поэтому участвуют обычные механизмы insert-flow:
 
 ```text
-before_insert
-before_validate
-validate
-autoname
-before_save
-after_insert
-on_update
+валидации
+naming
+controller hooks
+DocType hooks / doc_events
+Link и mandatory checks
 ```
 
-в рамках обычного Document lifecycle.
-
-Подробно controller events будут в главе 50.
+Точный порядок lifecycle-событий разберём отдельно в главе 50. Здесь достаточно запомнить главное: Data Import работает через Document layer.
 
 ---
 
@@ -1628,9 +1624,11 @@ columns
 
 То есть массовая выгрузка не обязана быть полностью невидимым действием без следа.
 
-При этом стандартный `Access Log` автоматически очищает старые записи по своей maintenance-логике; текущий helper имеет default cleanup window 30 дней.
+`Access Log` поддерживает очистку через общий механизм `Log Settings`: его controller реализует `clear_old_logs(days=30)`, а daily maintenance запускает общий cleanup зарегистрированных log DocTypes.
 
-Не путай такой operational log с вечным юридическим audit archive.
+Но конкретный срок хранения зависит от настройки `Log Settings` и от того, зарегистрирован ли там `Access Log`. Значение `30` в сигнатуре helper-а — не гарантия, что каждый Site автоматически хранит Access Log ровно 30 дней.
+
+Поэтому такой operational log не нужно путать с вечным или юридически неизменяемым audit archive.
 
 ---
 
@@ -2303,6 +2301,7 @@ Import/Export связаны с отдельными permissions и row/field ac
 - [Frappe Framework v16 — `Data Export`](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/data_export/data_export.js)
 - [Frappe Framework v16 — Data Export backend](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/data_export/exporter.py)
 - [Frappe Framework v16 — Access Log](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/access_log/access_log.py)
+- [Frappe Framework v16 — Log Settings](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/log_settings/log_settings.py)
 
 ---
 
