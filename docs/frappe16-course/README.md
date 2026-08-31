@@ -91,7 +91,7 @@
 
 34. [Report Builder](34_REPORT_BUILDER.md)
 35. [Query Report](35_QUERY_REPORT.md)
-36. Script Report
+36. [Script Report](36_SCRIPT_REPORT.md)
 37. Dashboard Chart и Number Card
 38. Data Import / Export
 
