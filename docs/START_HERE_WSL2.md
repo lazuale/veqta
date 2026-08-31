@@ -106,26 +106,43 @@ wsl --install -d Ubuntu-24.04
 
 После этого снова открыть Ubuntu и создать Linux-пользователя.
 
-### 1.3. Проверить Ubuntu и systemd
+### 1.3. Проверить Ubuntu, systemd и рабочий каталог
 
-Уже **в Ubuntu**, не в PowerShell:
+Уже **в Ubuntu**, не в PowerShell, выполнить именно этот блок:
 
 ```bash
-whoami
-cat /etc/os-release
-ps -p 1 -o comm=
+cd ~
+. /etc/os-release
+
+echo "USER=$(whoami)"
+echo "UBUNTU=$VERSION_ID"
+echo "INIT=$(ps -p 1 -o comm=)"
+echo "HOME=$HOME"
+echo "PWD=$PWD"
 ```
 
-Нужно увидеть:
+`cd ~` обязателен: если WSL был открыт из PowerShell, запущенного в `C:\Windows\System32`, начальный каталог может быть `/mnt/c/WINDOWS/System32`. Для стенда работаем из домашнего Linux-каталога.
+
+Если Linux-пользователь создан как `dev`, контрольный вывод должен быть **ровно по смыслу таким**:
 
 ```text
-VERSION_ID="24.04"
-systemd
+USER=dev
+UBUNTU=24.04
+INIT=systemd
+HOME=/home/dev
+PWD=/home/dev
 ```
 
-Имя из `whoami` может быть любым.
+Если имя пользователя другое, оно должно одинаково отображаться в `USER`, `HOME` и `PWD`. Критические значения:
 
-Если PID 1 не `systemd`:
+```text
+UBUNTU=24.04
+INIT=systemd
+HOME=/home/<ваш_пользователь>
+PWD=/home/<ваш_пользователь>
+```
+
+Если `INIT` не `systemd`:
 
 ```bash
 sudo tee /etc/wsl.conf >/dev/null <<'EOF'
@@ -140,17 +157,7 @@ EOF
 wsl --shutdown
 ```
 
-Снова открыть Ubuntu и проверить:
-
-```bash
-ps -p 1 -o comm=
-```
-
-Ожидается:
-
-```text
-systemd
-```
+Снова открыть Ubuntu и **повторить весь контрольный блок из начала пункта 1.3**. Следующий шаг выполнять только когда `UBUNTU=24.04`, `INIT=systemd`, а `PWD` совпадает с `HOME`.
 
 Все Linux-команды ниже выполняются **в Ubuntu WSL**.
 
