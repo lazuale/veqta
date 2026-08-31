@@ -1,242 +1,339 @@
 # 03. Что входит в Framework, а что является отдельным App
 
-Перед тем как изучать возможности Frappe, нужно научиться отличать **сам Framework** от приложений, которые на нём работают.
+В двух предыдущих главах ты уже увидел:
 
-Иначе легко увидеть функцию в ERPNext или CRM и решить, что она есть в чистом Frappe. Это одна из самых частых ошибок новичка.
+```text
+apps/frappe
+apps/training
+learn.localhost
+User
+Role
+DocType
+Workspace
+```
 
-Проверено: **2026-08-30**.
+Теперь нужно провести последнюю границу перед созданием собственного `Request`: **что даёт сам Frappe Framework, а что появляется только после установки отдельного App**.
 
-## 1. Самая простая модель
+Это важно именно сейчас. В следующем блоке мы начнём строить свою модель данных и должны понимать, какие механизмы уже предоставляет платформа, а какие сущности нам предстоит создать самим.
+
+Проверено для **Frappe Framework v16.32.0**.
+
+---
+
+## Что уже есть на стенде
+
+После лабораторной 02 состояние не изменилось:
+
+```text
+Bench:          ~/frappe/frappe16-course-bench
+Site:           learn.localhost
+Apps installed: frappe, training
+Module:         Training
+Developer Mode: включён
+User:           Administrator
+Request:        ещё не создан
+```
+
+ERPNext, CRM, Helpdesk, HRMS и другие продуктовые Apps на учебный Site не установлены.
+
+---
+
+## Главная модель
+
+На нашем стенде есть два App:
+
+```text
+frappe
+training
+```
+
+Но роль у них разная.
+
+```text
+frappe
+→ App, в котором находится сам Framework
+→ даёт базовые механизмы платформы
+
+training
+→ наше учебное App
+→ пока почти пустое
+→ в следующих главах будет содержать наши объекты
+```
+
+Отдельный продукт вроде ERPNext выглядит иначе:
 
 ```text
 Frappe Framework
-├── общая техническая платформа
-├── DocType / Document
-├── Desk
-├── permissions
-├── Workflow
-├── API
-└── другие универсальные механизмы
-
-Отдельные Apps
-├── ERPNext
-├── CRM
-├── Helpdesk
-├── HRMS
-└── свои приложения
++
+ERPNext App
+→ ERP-система с предметными DocTypes и логикой
 ```
 
-Framework даёт **инструменты**.
+Framework от этого не превращается в ERPNext. ERPNext добавляет своё App поверх платформы.
 
-App добавляет **конкретные сущности и сценарии**.
+---
 
-Например:
+## Что означает «Framework даёт механизм»
+
+На чистом `learn.localhost` уже существуют системные объекты и интерфейс, которые мы использовали руками:
 
 ```text
-Workflow                           → Framework
-«Согласование коммерческого счёта» → логика конкретного App
+User
+Role
+DocType
+Workspace
+Desk
+List View
+Form View
 ```
 
-## 2. Пример на форме
+Мы не устанавливали ERPNext, чтобы получить эти возможности.
 
-Допустим, в ERPNext есть документ `Sales Order`.
+Они доступны потому, что на Site установлен `frappe`.
 
-Что здесь от Framework:
+Это хороший первый критерий:
 
-- форма;
-- сохранение Document;
-- Link-поля;
-- permissions;
-- Timeline;
-- attachments;
-- REST API;
-- Workflow-механизм.
+> Если механизм работает на нашем Site с `frappe` и пустым `training`, он не зависит от ERPNext.
 
-Что добавляет ERPNext:
+---
 
-- сам DocType `Sales Order`;
-- его поля;
-- бизнес-правила продаж;
-- расчёты;
-- связи с другими ERP-сущностями.
+## Что означает «App добавляет предметную модель»
 
-То есть Frappe умеет **обслуживать документ**, но не знает из коробки, что такое заказ клиента в конкретной ERP-модели.
+Framework не знает заранее, что именно должна делать твоя будущая система.
 
-## 3. Что точно относится к чистому Framework
+Например, чистый Framework не обязан содержать твой DocType:
 
-Ниже не полный API-справочник, а полезная карта возможностей.
+```text
+Request
+```
 
-### Данные
+Именно поэтому в следующем блоке мы создадим его в `training`.
 
-- `DocType` и `DocField`;
-- `Document` API;
-- `Link`, `Dynamic Link`, Child Tables;
-- Single, Tree, Submittable, Virtual DocTypes;
-- ORM и Database API.
+Точно так же ERPNext приносит свои предметные объекты. Например, `Sales Invoice` — это не универсальный системный DocType чистого Frappe Framework, а часть ERPNext.
 
-### Интерфейс
+Получается:
 
-- Desk;
-- Form View;
-- List View;
-- Workspaces;
-- Reports;
-- Kanban, Calendar, Gantt, Tree View там, где они применимы.
+```text
+DocType как механизм
+→ Framework
 
-### Доступ
+конкретный DocType Request нашего курса
+→ training
 
-- `User`;
-- `Role`;
-- Role Permission Manager;
-- Permission Level;
-- User Permission;
-- Sharing;
-- owner-based permissions.
+конкретный ERP DocType Sales Invoice
+→ ERPNext
+```
 
-### Процессы
+Эта разница намного важнее длинного списка функций.
 
-- Assignment и ToDo;
-- Assignment Rule;
-- Workflow;
-- Notification;
-- Auto Repeat.
+---
 
-### Возможности вокруг документа
+## Framework не равен набору всех Frappe-продуктов
 
-- Comments и Timeline;
-- Version / Track Changes;
-- File и attachments;
-- email / Communication;
-- Print Format и PDF;
-- Data Import / Export.
-
-### Для интеграций и разработки
-
-- REST API;
-- whitelisted methods;
-- Client Script;
-- Server Script;
-- hooks;
-- background jobs;
-- scheduler;
-- realtime.
-
-Все эти механизмы могут использовать разные Apps.
-
-## 4. Что не стоит автоматически считать частью Framework
-
-Примеры отдельных продуктов экосистемы:
+В экосистеме Frappe есть отдельные Apps и продукты, например:
 
 ```text
 ERPNext
-Frappe CRM
-Frappe Helpdesk
-Frappe HR / HRMS
-Frappe Learning
-Frappe Insights
-Frappe Builder
-Frappe Wiki
-Frappe Drive
+CRM
+Helpdesk
+HRMS
+Insights
+Drive
 ```
 
-Они могут выглядеть очень «родными», потому что построены на Frappe, но это отдельные Apps.
+То, что они построены на Frappe и визуально похожи на него, не делает их частью чистого Framework.
 
-### Несколько наглядных пар
+Поэтому утверждение:
 
-| В Framework есть | Но это не значит, что в Framework есть |
-|---|---|
-| `File` и attachments | полноценный Frappe Drive |
-| Reports и Charts | Frappe Insights |
-| Web Forms | Frappe Builder |
-| email / Communication | готовый Newsletter-продукт |
-| ToDo и Assignment | готовый проектный менеджер |
+```text
+«я видел это в одном Frappe-приложении»
+```
 
-Это важная граница: **базовый механизм не равен готовому предметному продукту**.
+ещё не означает:
 
-## 5. Особенность v16: часть старого core вынесли в отдельные Apps
+```text
+«это есть в core Framework»
+```
 
-В Frappe 16 некоторые возможности, которые раньше жили внутри `frappe`, вынесены отдельно. В migration guide упоминаются, в частности:
+---
 
-- Energy Points;
-- Newsletter;
-- Backup Integrations;
-- Blog.
+## Два противоположных заблуждения
 
-Поэтому статья или видео по старой версии может говорить «это есть в Frappe», а на чистом v16 соответствующего модуля уже не будет.
+### Заблуждение 1. «Если нет готового продукта, значит Framework этого не умеет»
 
-Это не ошибка установки — состав Framework изменился.
+Например, в чистом Framework уже есть базовые механизмы работы с документами, пользователями, ролями, представлениями и другими системными объектами.
 
-## 6. Как самому проверить спорную функцию
+Не нужно заново писать собственную базовую платформу поверх Frappe, пока не проверены штатные возможности.
 
-Если встретил незнакомую возможность, можно пройти короткую проверку.
+### Заблуждение 2. «Если есть базовый механизм, значит готов весь продукт»
 
-### Шаг 1. Есть ли она на чистом Site только с `frappe`?
+Наличие `User`, `Role`, `DocType` и Workspace не превращает чистый Framework автоматически в ERP, CRM или Helpdesk.
 
-Если функция появляется только после установки другого App, ответ уже понятен.
+Framework даёт строительные блоки. Предметную систему добавляет App.
 
-### Шаг 2. Где находится DocType или код?
+---
 
-Если объект живёт в репозитории `frappe/frappe`, это сильный признак core Framework.
+## Как проверить границу на нашем стенде
 
-Если он находится, например, в `frappe/erpnext` или другом репозитории — это отдельное App.
+У нас есть три простых наблюдения.
 
-### Шаг 3. Что говорит документация?
+### 1. Что лежит в Bench как код
 
-Смотри именно документацию **Framework**, а не документацию конкретного продукта.
+```bash
+ls -1 apps
+```
 
-## 7. Простой пример классификации
+На нашем стенде должны быть:
 
-Попробуем разложить несколько вещей:
+```text
+frappe
+training
+```
 
-| Возможность | Framework или отдельное App? |
-|---|---|
-| создать свой DocType | Framework |
-| настроить Workflow | Framework |
-| назначить документ пользователю | Framework |
-| открыть Kanban для подходящего DocType | Framework |
-| вести бухгалтерский план счетов ERPNext | ERPNext |
-| использовать готовый CRM pipeline Frappe CRM | CRM App |
-| хранить вложение у документа | Framework |
-| получить полноценный файловый диск с UI Drive | Frappe Drive |
+### 2. Что установлено на Site
 
-Если такое разделение стало интуитивным, дальше будет намного проще читать документацию.
+```bash
+bench --site learn.localhost list-apps
+```
 
-## 8. Зачем вообще знать эту границу
+Снова должны быть:
 
-Есть две противоположные ошибки.
+```text
+frappe
+training
+```
 
-### Ошибка 1. Писать то, что уже есть
+### 3. Какие объекты доступны в Desk
 
-Например, делать собственную систему ролей, не изучив Role Permission Manager.
+В Desk уже находятся системные объекты Framework:
 
-### Ошибка 2. Ждать от Framework готовый бизнес-продукт
+```text
+User
+Role
+DocType
+Workspace
+```
 
-Например, считать, что раз в Framework есть Assignment и Kanban, то он уже является полноценной системой управления проектами.
+Но предметного ERPNext DocType `Sales Invoice` на чистом стенде быть не должно.
 
-Правильный подход находится посередине: сначала понять штатные строительные блоки, затем уже собирать из них нужное приложение.
+Эти три проверки вместе дают практическую картину:
 
-## Мини-практика
+```text
+код App
+→ установка App на Site
+→ объекты и возможности, которые после этого доступны Site
+```
 
-Попробуй классифицировать без подсказки:
+---
 
-1. `DocType` — **Framework**.
-2. `Sales Invoice` — **не core Framework; предметный DocType ERPNext**.
-3. `User Permission` — **Framework**.
-4. Frappe Insights — **отдельное App**.
-5. REST API для своего DocType — **Framework**.
+## Почему особенно важно проверять старые материалы по Frappe
+
+Frappe 16 изменил не только интерфейс навигации.
+
+В migration guide для v16 также указано, что часть возможностей прежних версий была вынесена из `frappe` в отдельные Apps.
+
+Поэтому старое видео может честно показывать функцию внутри Frappe своей версии, но это не гарантирует, что она остаётся в чистом Framework v16.
+
+Для курса действует порядок проверки:
+
+```text
+официальная документация Framework
+→ migration guide v16
+→ исходный код нужной версии, если документация неоднозначна
+```
+
+Не нужно запоминать список всех исторических переносов. Нужно запомнить сам принцип: **версия и конкретный App имеют значение**.
+
+---
+
+## Как это связано с `training`
+
+Наше App `training` специально создано почти пустым.
+
+Это удобно для обучения, потому что дальше будет видно, что именно добавили мы сами.
+
+Сейчас:
+
+```text
+training
+└── Module Training
+```
+
+После следующего блока оно уже будет содержать учебные DocTypes, начиная с:
+
+```text
+Request
+```
+
+Так мы не будем гадать, пришёл объект из Framework или появился в нашем App: момент его создания будет явно показан в лабораторной.
+
+---
+
+## Что пока не нужно изучать
+
+Мы ещё не разбираем:
+
+```text
+как App переносится между серверами
+как устроен hooks.py
+как писать Python-код App
+как устанавливать зависимости App
+как работают migrations
+```
+
+App сейчас нужен только как понятие и как уже существующий контейнер для будущих учебных объектов.
+
+Подробная разработка собственного App будет позже.
+
+---
+
+## Что произойдёт в лабораторной
+
+Ты проверишь на живом стенде:
+
+```text
+какие Apps есть в Bench
+какие Apps установлены на learn.localhost
+что системные User, Role, DocType и Workspace работают без ERPNext
+что Sales Invoice отсутствует
+```
+
+Затем намеренно попробуешь установить `erpnext`, которого нет в `apps/` этого Bench.
+
+Установка должна завершиться ошибкой, потому что `install-app` не скачивает отсутствующее App автоматически.
+
+После этого мы проверим, что список установленных Apps остался прежним:
+
+```text
+frappe
+training
+```
+
+Это будет последняя практика блока A.
+
+---
 
 ## Что запомнить
 
-- Frappe Framework — **платформа**, а не ERP/CRM/Helpdesk сразу.
-- Наличие функции в одном Frappe-приложении не доказывает её наличие в core.
-- Framework даёт универсальные механизмы; Apps добавляют предметную модель.
-- Для v16 старые материалы нужно проверять: часть прежнего core вынесена в отдельные Apps.
+1. `frappe` — App, в котором находится сам Frappe Framework.
+2. Framework даёт универсальные механизмы платформы.
+3. Отдельный App добавляет свои DocTypes, настройки и логику.
+4. `training` — наше учебное App, а не часть core Framework.
+5. `Request` пока не существует; мы создадим его в `training` только в следующем блоке.
+6. ERPNext и другие продукты не являются скрытой частью чистого Framework.
+7. Для v16 старые материалы нужно проверять по актуальной документации и migration guide.
+
+---
 
 ## Официальные источники
 
 - [Frappe Framework — Introduction](https://docs.frappe.io/framework/user/en/introduction)
-- [Frappe Framework documentation](https://docs.frappe.io/framework/user/en)
-- [Migrating to Version 16](https://github.com/frappe/frappe/wiki/Migrating-to-version-16)
-- [Frappe Framework source](https://github.com/frappe/frappe/tree/version-16)
+- [Apps](https://docs.frappe.io/framework/user/en/basics/apps)
+- [Sites](https://docs.frappe.io/framework/user/en/basics/sites)
+- [Understanding DocTypes](https://docs.frappe.io/framework/user/en/basics/doctypes)
+- [Migrating to version 16](https://github.com/frappe/frappe/wiki/Migrating-to-version-16)
+- [Frappe Framework source — version-16](https://github.com/frappe/frappe/tree/version-16)
 
-Следующая глава: [**04. DocType от А до Я**](04_DOCTYPE.md).
+Теперь выполни [**лабораторную 03**](labs/03_FRAMEWORK_VS_APPS_LAB.md).
+
+После неё блок A завершён. Следующий блок начинается с [**04. DocType от А до Я**](04_DOCTYPE.md).
