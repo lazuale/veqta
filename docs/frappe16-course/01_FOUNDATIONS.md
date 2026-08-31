@@ -342,7 +342,7 @@ REST API
 ```text
 где находится Bench
 где находятся Apps
-gде находится каталог Site
+где находится каталог Site
 какие Apps установлены на learn.localhost
 где зафиксирован Module Training
 как открыть системный DocType User
