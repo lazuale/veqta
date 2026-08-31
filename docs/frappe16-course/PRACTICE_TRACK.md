@@ -24,26 +24,63 @@ Site должен открываться по:
 http://learn.localhost:8000
 ```
 
+Developer Mode включён как инструмент учебного стенда.
+
+`Request` ещё не создан.
+
 ---
 
 # После блока A — главы 1–3
 
-Новых business objects нет.
+Стенд по сравнению с главой 0 **не изменён**.
 
-Ученик умеет найти на диске и в Desk:
+Фактическое состояние:
 
 ```text
-Bench
-Site
-App
-Module
-DocType
-Document
-Workspace
-List/Form
+Bench:          ~/frappe/frappe16-course-bench
+Frappe:         v16.32.0
+Site:           learn.localhost
+Apps in Bench:  frappe, training
+Apps installed: frappe, training
+Module:         Training
+Developer Mode: включён
+User:           Administrator
+ERPNext:        отсутствует
+Request:        ещё не создан
 ```
 
-И понимает, что чистый Framework работает без ERPNext.
+Новых бизнес-объектов, Documents, ролей, Workspaces и настроек блок A не создаёт.
+
+Ученик уже руками проверил:
+
+```text
+apps/ и sites/ — соседние части Bench
+training существует как код App и установлен на learn.localhost
+Module Training зафиксирован в training/modules.txt
+User — системный DocType
+Administrator — конкретный Document User
+Desk / Sidebar / Desktop / Workspace
+List View и Form View
+границу между чистым Framework и отдельными Apps
+```
+
+Контролируемые ошибки блока A не меняют состояние стенда:
+
+```text
+несуществующий Site
+несуществующий Desk route
+попытка install-app erpnext при отсутствии кода erpnext в Bench
+```
+
+После восстановления должны по-прежнему открываться Desk и `User`, а команда:
+
+```bash
+bench --site learn.localhost list-apps
+```
+
+должна показывать `frappe` и `training`.
+
+Это точное входное состояние блока B: **первый собственный DocType `Request` создаётся только в лабораторной 04**.
 
 ---
 
