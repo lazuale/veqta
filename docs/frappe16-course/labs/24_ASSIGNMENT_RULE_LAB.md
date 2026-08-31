@@ -1,52 +1,389 @@
 # Лабораторная 24. Assignment Rule
 
-## Цель
+## Что уже должно быть готово
 
-Автоматически создавать assignments по штатному правилу и увидеть, когда правило срабатывает.
+Лабораторная 23 завершена.
 
-## Подготовка
-
-Убедись, что оба учебных пользователя имеют доступ к Request, который им может быть назначен.
-
-## Создай Assignment Rule
-
-Для `Request` создай правило с простым условием, например:
+Есть ручной Request:
 
 ```text
+E23-Assignment-Manual
+```
+
+с одним активным Assignment:
+
+```text
+student.user@example.test
+```
+
+Sharing включён:
+
+```text
+Disable Document Sharing = ☐
+```
+
+Assignment Rule ещё не создан.
+
+---
+
+## Что сейчас получим
+
+Останется правило:
+
+```text
+Training Request Round Robin
+Disabled = ✓
+```
+
+Оно будет проверено на последовательности:
+
+```text
+E24-RR-1 → student.user@example.test
+E24-RR-2 → student.manager@example.test
+E24-RR-3 → student.user@example.test
+E24-RR-4 → student.manager@example.test
+```
+
+Также останется один no-match Request без Assignment:
+
+```text
+E24-NoMatch
+Status = Done
+```
+
+---
+
+# Часть 1. Создай правило
+
+Работай под `Administrator`.
+
+Открой:
+
+```text
+http://learn.localhost:8000/app/assignment-rule
+```
+
+Создай новый `Assignment Rule`.
+
+Имя:
+
+```text
+Training Request Round Robin
+```
+
+Заполни:
+
+```text
+Document Type: Request
+Priority:      10
+Disabled:      ☐
+Description:   Auto assignment: {{ subject }}
+```
+
+В `Assign Condition`:
+
+```python
 status == "Open"
 ```
 
-Выбери метод распределения, который доступен в текущем v16, например Round Robin, и двух учебных Users.
+`Unassign Condition` и `Close Condition` оставь пустыми.
 
-## Проверь
-
-Создай 4–6 новых Request со Status = Open.
-
-После каждого Save проверяй:
+В `Assignment Days` нажми:
 
 ```text
-кому назначен Request
-какой ToDo создан
+All Days
 ```
 
-## Эксперимент
+Убедись, что появились все семь дней недели.
 
-Создай Request со Status = Done или значением, которое не проходит condition. Убедись, что Rule не срабатывает.
+В `Rule` выбери:
 
-Измени condition на другое понятное правило и повтори.
+```text
+Round Robin
+```
 
-## Намеренная ошибка
+В `Users` добавь строго в таком порядке:
 
-Укажи пользователя, который не имеет доступа к целевому Document, либо временно сними нужный permission. Посмотри, как Frappe реагирует на невозможное назначение. После теста верни права.
+```text
+1. student.user@example.test
+2. student.manager@example.test
+```
+
+Сохрани.
+
+Проверь:
+
+```text
+Last User = пусто
+```
+
+---
+
+# Часть 2. Проверь Round Robin
+
+Полностью войди:
+
+```text
+student.manager@example.test
+FrappeCourse!2026
+```
+
+Создай четыре Request по очереди.
+
+Для каждого используй:
+
+```text
+Status:   Open
+Priority: Medium
+Area:     North
+Due Date: 2026-09-05
+```
+
+Subject меняй:
+
+```text
+E24-RR-1
+E24-RR-2
+E24-RR-3
+E24-RR-4
+```
+
+После каждого `Save` посмотри активный Assignment на форме.
+
+Ожидается строго:
+
+```text
+E24-RR-1 → student.user@example.test
+E24-RR-2 → student.manager@example.test
+E24-RR-3 → student.user@example.test
+E24-RR-4 → student.manager@example.test
+```
+
+---
+
+## Проверь через ToDo
+
+Открой:
+
+```text
+http://learn.localhost:8000/app/todo
+```
+
+Фильтруй по:
+
+```text
+Reference Type = Request
+Status         = Open
+```
+
+Для четырёх E24 Request проверь поле:
+
+```text
+Assignment Rule = Training Request Round Robin
+```
+
+Вернись к самому Assignment Rule и проверь:
+
+```text
+Last User = student.manager@example.test
+```
+
+---
+
+# Эксперимент — condition не выполняется
+
+Создай Request:
+
+```text
+Subject:  E24-NoMatch
+Status:   Done
+Priority: Medium
+Area:     North
+Due Date: 2026-09-05
+```
+
+Сохрани.
+
+Ожидается:
+
+```text
+Assignment отсутствует
+```
+
+Через ToDo List проверь, что для `E24-NoMatch` не создан Open ToDo с нашим Assignment Rule.
+
+Причина одна:
+
+```python
+status == "Open"
+```
+
+для этого документа ложно.
+
+---
+
+# Намеренная поломка — assignee без доступа и Sharing выключен
+
+После `E24-RR-4` поле `Last User` равно менеджеру.
+
+Значит следующий подходящий Request Round Robin попытается назначить:
+
+```text
+student.user@example.test
+```
+
+## 1. Временно отключи document sharing
+
+Под `Administrator` открой `System Settings`.
+
+Установи:
+
+```text
+Disable Document Sharing = ✓
+```
+
+Сохрани.
+
+---
+
+## 2. Попробуй создать South Request
+
+Снова войди менеджером.
+
+Создай:
+
+```text
+Subject:  E24-Permission-Failure
+Status:   Open
+Priority: Medium
+Area:     South
+Due Date: 2026-09-05
+```
+
+Нажми `Save`.
+
+Ожидается отказ с заголовком:
+
+```text
+Missing Permission
+```
+
+Смысл сообщения:
+
+```text
+student.user@example.test
+не имеет доступа к этому документу
+и document sharing отключён
+```
+
+Не пытайся обходить ошибку изменением User Permission.
+
+---
+
+# Восстановление
+
+Под `Administrator` верни:
+
+```text
+Disable Document Sharing = ☐
+```
+
+Сохрани.
+
+Теперь снова войди менеджером и создай контрольный Request:
+
+```text
+Subject:  E24-Recovered
+Status:   Open
+Priority: Medium
+Area:     North
+Due Date: 2026-09-05
+```
+
+Сохрани.
+
+Ожидается:
+
+```text
+Save успешен
+Assignment → student.user@example.test
+```
+
+Это подтверждает, что после восстановления правило снова работает.
+
+---
+
+# Часть 3. Отключи правило перед следующей главой
+
+Под `Administrator` открой:
+
+```text
+Training Request Round Robin
+```
+
+Установи:
+
+```text
+Disabled = ✓
+```
+
+Сохрани.
+
+Проверь:
+
+```text
+Status правила больше не влияет на новые Request
+```
+
+Само правило не удаляй.
+
+---
 
 ## Проверка себя
 
-Ответь:
+1. Что создаёт Assignment Rule после успешного срабатывания?
+2. Почему `E24-NoMatch` не получил Assignment?
+3. В каком порядке Round Robin использовал двух Users?
+4. Для чего нужен `Last User`?
+5. Почему South Request дал `Missing Permission` только после отключения Sharing?
+6. Заменяет ли Assignment Rule Role Permission или User Permission?
+7. Почему правило оставлено Disabled?
 
-- Assignment Rule заменяет ли Role Permission?
-- создаёт ли он ToDo?
-- почему condition и permission — разные проверки?
+---
 
-## Состояние после лабораторной
+## Состояние стенда после лабораторной
 
-Оставь одно простое рабочее правило или отключи его, если оно будет мешать следующим упражнениям. Предпочтительно `Disabled`, а не удаление.
+Существует:
+
+```text
+Training Request Round Robin
+  Document Type: Request
+  Assign Condition: status == "Open"
+  Rule: Round Robin
+  Users:
+    student.user@example.test
+    student.manager@example.test
+  Assignment Days: All Days
+  Disabled: ✓
+```
+
+Проверены и остаются документы:
+
+```text
+E24-RR-1
+E24-RR-2
+E24-RR-3
+E24-RR-4
+E24-NoMatch
+E24-Recovered
+```
+
+`E24-Permission-Failure` не должен считаться сохранённым рабочим документом после отказа.
+
+Глобально снова:
+
+```text
+Disable Document Sharing = ☐
+```
+
+Это точное входное состояние [**главы 25**](../25_STATUS_VS_WORKFLOW_STATE.md).
