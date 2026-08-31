@@ -2,23 +2,41 @@
 
 ## Цель
 
-Увидеть Server Script в трёх режимах и сравнить его с Client Script на одном `Request`.
+Увидеть Server Script в нескольких режимах и сравнить его с Client Script на одном `Request`.
 
-## Подготовка
+## Шаг 1. Включи Server Scripts
 
-Server Scripts должны быть включены на учебном Bench:
+Во втором терминале:
 
 ```bash
 cd ~/frappe/frappe16-course-bench
 bench set-config -g server_script_enabled 1
-bench restart
 ```
 
-Проверь `sites/common_site_config.json`.
+Проверь:
+
+```bash
+grep -n 'server_script_enabled' sites/common_site_config.json
+```
+
+На учебном стенде процессы запущены через `bench start`, поэтому **не используй `bench restart` как production-команду**.
+
+Перейди в первый терминал, останови dev stack:
+
+```text
+Ctrl+C
+```
+
+и снова запусти:
+
+```bash
+cd ~/frappe/frappe16-course-bench
+bench start
+```
 
 ## Эксперимент 1 — DocType Event validation
 
-В `Request` добавь поле:
+В `Request` добавь поле, если его ещё нет:
 
 ```text
 Result  Small Text
@@ -41,13 +59,36 @@ if doc.status == "Done" and not doc.result:
 
 ### Проверка через Desk
 
-Попробуй сохранить Done без Result — должен быть отказ.
+Попробуй сохранить:
+
+```text
+Status = Done
+Result = пусто
+```
+
+Ожидается отказ.
+
+Заполни `Result` и сохрани успешно.
 
 ### Проверка через REST
 
-Отправь update того же типа через API — должен быть тот же server-side отказ.
+Используй token authentication из главы 43 либо снова создай временную session как в лабораторной 41.
 
-Это ключевой опыт главы.
+Попробуй REST update:
+
+```text
+Status = Done
+Result = пусто
+```
+
+Должен быть **тот же server-side отказ**.
+
+Это ключевой опыт главы:
+
+```text
+Client Script может не выполниться
+Server Script validation выполняется на сервере
+```
 
 ## Эксперимент 2 — API Server Script
 
@@ -63,38 +104,95 @@ Allow Guest: off
 
 ```python
 count = frappe.db.count("Request")
-frappe.response["message"] = {"request_count": count}
+frappe.response["message"] = {
+    "request_count": count
+}
 ```
 
-Вызови `/api/method/training-request-summary` под authenticated user.
+Вызови:
 
-Временно включи Rate Limit с маленьким лимитом и вызови endpoint несколько раз, чтобы увидеть ограничение. Затем верни разумное состояние.
+```text
+/api/method/training-request-summary
+```
+
+под authenticated user.
+
+Затем включи небольшой Rate Limit, например 3 запроса за 60 секунд, и быстро вызови endpoint несколько раз.
+
+Увидь rate-limit response, после чего выключи экспериментальный маленький лимит или верни разумное значение.
 
 ## Эксперимент 3 — Scheduler Event
 
-Создай Scheduler Event, который пишет безопасную диагностическую запись, например Error Log/лог с количеством Request. Для лаборатории используй подходящую frequency или ручной запуск scheduler job согласно v16, не жди реальный день.
+Создай Scheduler Event, который выполняет безопасное наблюдаемое действие, например:
 
-Проверь связанный `Scheduled Job Type`.
+```python
+frappe.log("Training Request count: " + str(frappe.db.count("Request")))
+```
+
+Выбери подходящую учебную frequency и проверь созданный связанный `Scheduled Job Type`.
+
+Чтобы не ждать реальный день, используй штатные scheduler/bench инструменты, описанные в главе, для ручной проверки job на dev Site. Не создавай отдельный Linux cron.
 
 ## Restricted Python
 
-Попробуй выполнить запрещённый arbitrary import/операцию, например `import os`, и посмотри restricted compilation/runtime error. После этого удали запрещённый код.
+Создай отдельный временный Server Script и попробуй запрещённый arbitrary import:
 
-## Намеренная ошибка
+```python
+import os
+```
 
-В `After Save` не делай бесконечный `doc.save()`. Если хочешь увидеть принцип рекурсии, разберись на бумаге/в коде без запуска опасного бесконечного цикла.
+Посмотри `Compilation warning`/restricted execution error.
+
+После эксперимента удали запрещённый код или отключи этот Script.
+
+## Намеренная опасная идея, которую не запускаем
+
+Не запускай в `After Save`:
+
+```python
+doc.save()
+```
+
+для того же документа без контроля.
+
+Разбери цепочку на бумаге:
+
+```text
+Save
+→ After Save
+→ doc.save()
+→ Save
+→ After Save
+→ ...
+```
+
+Здесь задача — понять рекурсию, а не повесить dev worker.
 
 ## Проверка себя
 
-Объясни различие:
+Объясни:
 
 ```text
 Client Script   → browser/UI
-DocType Event   → server lifecycle
+DocType Event   → server Document lifecycle
 API Script      → HTTP endpoint
 Scheduler Event → scheduled server execution
 ```
 
+и почему Server Script всё равно не равен произвольному Python-файлу App.
+
 ## Состояние после лабораторной
 
-Оставь работающую validation `Done → Result required`. API и Scheduler scripts можно оставить Disabled после проверки, чтобы они не создавали лишнюю поверхность/нагрузку.
+Оставь рабочую validation:
+
+```text
+Done → Result required
+```
+
+API и Scheduler Server Scripts после проверки можно оставить:
+
+```text
+Disabled = 1
+```
+
+чтобы они не создавали лишнюю поверхность и шум.

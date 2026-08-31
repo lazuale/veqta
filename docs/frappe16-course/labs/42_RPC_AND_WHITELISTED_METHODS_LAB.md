@@ -2,14 +2,29 @@
 
 ## Цель
 
-Вызвать серверную функцию как command и сравнить это с CRUD resource API.
+Вызвать серверную Python-функцию как command и сравнить это с resource REST API.
 
-## Создай method в App training
+## Шаг 1. Создай Python module
 
-В подходящем Python module, например `training/api.py`, добавь минимальный method:
+В терминале:
+
+```bash
+cd ~/frappe/frappe16-course-bench
+```
+
+Найди корневой Python package учебного App:
+
+```bash
+find apps/training -maxdepth 3 -name hooks.py -print
+```
+
+Рядом с `hooks.py` должен находиться package `training`.
+
+Создай/открой файл `api.py` в этом package и добавь:
 
 ```python
 import frappe
+
 
 @frappe.whitelist()
 def ping_training(name=None):
@@ -20,42 +35,102 @@ def ping_training(name=None):
     }
 ```
 
-После изменения перезапусти dev server при необходимости.
+Не создавай второй случайный package, если `training/api.py` уже существует.
 
-## Вызови через curl
+## Шаг 2. Убедись, что dev server видит изменение
+
+Если `bench start` не подхватил новый Python module, останови его `Ctrl+C` и снова запусти:
 
 ```bash
-curl -s 'http://learn.localhost:8000/api/method/training.api.ping_training?name=test'
+bench start
 ```
 
-с нужной authentication.
+## Шаг 3. Используй session из лабораторной 41
 
-## Вызови из browser console
+Проверь:
+
+```bash
+test -f /tmp/frappe-course.cookies && echo "cookie jar exists"
+```
+
+Если файла нет, повтори login-шаг из лабораторной 41.
+
+## Шаг 4. Вызови method через curl
+
+```bash
+curl -sS \
+  -b /tmp/frappe-course.cookies \
+  -G \
+  --data-urlencode 'name=terminal' \
+  http://learn.localhost:8000/api/method/training.api.ping_training
+```
+
+Ожидается response с:
+
+```text
+pong
+terminal
+Administrator
+```
+
+## Шаг 5. Вызови method из Desk
+
+Открой Browser DevTools → Console на странице Desk:
 
 ```javascript
 frappe.call({
-  method: 'training.api.ping_training',
-  args: {name: 'browser'}
+    method: 'training.api.ping_training',
+    args: {name: 'browser'}
 }).then(r => console.log(r.message));
 ```
 
 ## Эксперимент
 
-Убери `@frappe.whitelist()` и повтори вызов. Посмотри отказ. Затем верни decorator.
+Убери decorator:
 
-## Намеренная ошибка
+```python
+@frappe.whitelist()
+```
 
-Попытайся решить команду «Approve Request» через generic `PUT status=Approved`, хотя бизнес-действие требует проверок. Зафиксируй, почему RPC command может быть правильнее resource update для сложной операции.
+перезапусти dev server при необходимости и повтори HTTP-вызов.
+
+Ожидается отказ: наличие Python function не делает её RPC endpoint автоматически.
+
+Верни decorator.
+
+## Намеренная ошибка мышления
+
+Сравни две задачи:
+
+```text
+изменить Priority Request
+→ REST resource update подходит
+
+Approve Request с permissions, conditions и side effects
+→ отдельная server command часто понятнее
+```
+
+Не реализуй Approve в этой лабораторной — цель увидеть границу.
 
 ## Проверка себя
 
 Объясни:
 
 ```text
-REST resource API → CRUD над Documents
-RPC method        → вызов server function/command
+/api/resource/... → CRUD над Document
+/api/method/...   → RPC вызов whitelisted server method
 ```
 
 ## Состояние после лабораторной
 
-Оставь `training.api.ping_training` как тестовый method.
+Оставь:
+
+```text
+training.api.ping_training
+```
+
+Удалить временную session cookie можно после проверки:
+
+```bash
+rm -f /tmp/frappe-course.cookies
+```

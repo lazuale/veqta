@@ -2,13 +2,70 @@
 
 ## Цель
 
-Создать собственное печатное представление Request и увидеть границу HTML/Jinja/PDF renderer.
+Создать печатное представление Request, а затем получить настоящий PDF на Frappe 16.
 
-## Сделай руками
+В v16 `Print Format` имеет выбор PDF generator:
 
-Создай Print Format для `Request` через штатный builder.
+```text
+wkhtmltopdf
+chrome
+```
 
-Выведи минимум:
+Для учебного Debian 13 используем `chrome`, чтобы получить воспроизводимый renderer из штатного Debian package.
+
+## Шаг 1. Установи Chromium Headless
+
+Во втором терминале:
+
+```bash
+sudo apt update
+sudo apt install -y chromium-headless-shell
+```
+
+Проверь:
+
+```bash
+command -v chromium-headless-shell
+chromium-headless-shell --version
+```
+
+Должен существовать исполняемый файл, обычно:
+
+```text
+/usr/bin/chromium-headless-shell
+```
+
+## Шаг 2. Скажи Frappe, где Chromium
+
+```bash
+cd ~/frappe/frappe16-course-bench
+bench set-config -g chromium_path "$(command -v chromium-headless-shell)"
+```
+
+Проверь:
+
+```bash
+grep -n 'chromium_path' sites/common_site_config.json
+```
+
+После изменения общей конфигурации останови `bench start` в первом терминале через `Ctrl+C` и снова запусти:
+
+```bash
+cd ~/frappe/frappe16-course-bench
+bench start
+```
+
+## Шаг 3. Создай Print Format
+
+Создай Print Format:
+
+```text
+Name: Request Training
+DocType: Request
+PDF Generator: chrome
+```
+
+Через штатный builder выведи минимум:
 
 ```text
 Subject
@@ -22,43 +79,84 @@ Items
 
 Открой Print Preview.
 
-## Эксперимент 1
+## Эксперимент 1 — metadata builder
 
-Измени порядок блоков и подписи. Обнови preview.
+Измени порядок полей, подписи и margins. Обновляй Preview и наблюдай результат.
 
-## Эксперимент 2
+## Эксперимент 2 — Jinja
 
-Создай отдельный Custom HTML/Jinja Print Format с минимальным шаблоном, например:
+Создай второй Custom Print Format с минимальным шаблоном:
 
 ```html
 <h1>{{ doc.subject }}</h1>
 <p>Status: {{ doc.status }}</p>
+<p>Priority: {{ doc.priority }}</p>
 ```
 
-Сравни builder и ручной template.
+Для него также выбери:
 
-## PDF
+```text
+PDF Generator = chrome
+```
 
-Нажми PDF/Download PDF и посмотри, работает ли renderer на текущем стенде.
+Сравни builder и ручной Jinja template.
 
-Если PDF не строится, не «чинить наугад»: прочитай сообщение, проверь установленный PDF renderer/зависимости согласно текущей v16 документации и логам.
+## Шаг 4. Получи PDF
+
+Открой Request → Print → выбери `Request Training` → PDF.
+
+Ожидаемый результат:
+
+```text
+браузерный Print Preview
+и
+реальный PDF-файл
+```
 
 ## Намеренная ошибка
 
-Добавь в Jinja ссылку на несуществующее поле и посмотри результат. Затем исправь.
+Временно укажи неправильный путь:
+
+```bash
+bench set-config -g chromium_path /no/such/chromium
+```
+
+Перезапусти `bench start` и попробуй PDF.
+
+Прочитай реальную server error.
+
+Затем восстанови:
+
+```bash
+bench set-config -g chromium_path "$(command -v chromium-headless-shell)"
+```
+
+и снова перезапусти `bench start`.
+
+## Что насчёт wkhtmltopdf
+
+Он остаётся штатным generator и default для обычного Print Format. Официальная документация Frappe требует `wkhtmltopdf 0.12.6 with patched Qt` для этого пути.
+
+Мы не подменяем его случайным Debian package. В этой лабораторной цель — понять механизм Print/PDF и получить воспроизводимый PDF через поддерживаемый в v16 `chrome` generator.
 
 ## Проверка себя
 
-Объясни:
+Объясни цепочку:
 
 ```text
-Document data
-→ Print Format/Jinja
-→ HTML print view
-→ PDF renderer
+Document
+→ Print Format
+→ rendered HTML
+→ выбранный PDF Generator
 → PDF
 ```
 
 ## Состояние после лабораторной
 
-Оставь один рабочий Print Format `Request Training`.
+Оставь:
+
+```text
+Request Training
+PDF Generator = chrome
+chromium_path = реальный executable
+```

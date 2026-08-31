@@ -2,11 +2,11 @@
 
 ## Цель
 
-Ограничить пользователя не всем DocType целиком, а значением Link.
+Ограничить пользователя не всем DocType целиком, а конкретным значением связанного Link.
 
 ## Подготовка
 
-Создай простой DocType:
+Создай Standard DocType:
 
 ```text
 Training Area
@@ -17,6 +17,8 @@ Training Area
 ```text
 Area Name  Data Mandatory
 ```
+
+Дай `Training User` и `Training Manager` как минимум `Read` на `Training Area`, иначе Link сам по себе не будет доступен учебным пользователям.
 
 Создай Documents:
 
@@ -31,37 +33,73 @@ South
 Area  Link → Training Area
 ```
 
-Распредели существующие Request между North и South.
+Распредели существующие Request между `North` и `South`.
 
 ## Настрой User Permission
 
-Для `student.user@example.test` создай User Permission:
+Для:
+
+```text
+student.user@example.test
+```
+
+создай:
 
 ```text
 Allow: Training Area
 For Value: North
 ```
 
-Убедись, что Link field `Area` участвует в permission chain и не отключён флагами Ignore User Permissions.
+У Link `Area` не должен быть включён `Ignore User Permissions`.
 
 ## Проверь
 
-Под Training User открой Request List и сравни доступные записи/варианты Area.
+Полностью перезайди под `student.user@example.test`.
 
-Под Training Manager без такого ограничения должны быть доступны обе Area при достаточных role permissions.
+Проверь:
+
+1. какие Request видны в List View;
+2. какие значения предлагает Link `Area`;
+3. открывается ли напрямую Request из `South`.
+
+Затем войди под `student.manager@example.test` без такого User Permission и сравни.
 
 ## Эксперимент
 
-Поменяй User Permission с North на South и перезайди. Набор доступных данных должен измениться.
+Поменяй User Permission с `North` на `South`, перезайди и повтори те же три проверки.
 
-## Намеренная ошибка
+После опыта верни `North`.
 
-Включи `Ignore User Permissions` у Link `Area` или другой релевантной настройки только на время эксперимента и посмотри, как меняется поведение выбора. После этого верни безопасное состояние.
+## Намеренная поломка
+
+Временно включи у поля `Area`:
+
+```text
+Ignore User Permissions = 1
+```
+
+и сравни варианты Link.
+
+Важно: этот флаг относится к применению User Permissions для данного Link; он не превращает пользователя в администратора и не отменяет всю permission model.
+
+После опыта выключи флаг.
 
 ## Проверка себя
 
-Почему Role Permission отвечает на вопрос «что можно делать с DocType», а User Permission — «какие связанные значения/документы доступны конкретному User»?
+Объясни разницу:
+
+```text
+Role Permission
+→ что Role вообще может делать с DocType
+
+User Permission
+→ какими связанными значениями ограничен конкретный User
+```
 
 ## Состояние после лабораторной
 
-Верни Training User ограничение на `North`.
+```text
+Training User → User Permission Training Area = North
+Training Manager → без такого ограничения
+Area → Ignore User Permissions выключен
+```

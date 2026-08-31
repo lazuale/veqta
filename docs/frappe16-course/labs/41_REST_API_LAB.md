@@ -2,52 +2,142 @@
 
 ## Цель
 
-Сделать CRUD над тем же `Request` без Desk и увидеть, что server rules остаются теми же.
+Сделать CRUD над тем же `Request` без Desk и увидеть, что REST работает с обычными Frappe Documents.
 
-## Подготовка
+В этой главе используем **временную authenticated session Administrator через cookie jar**. Постоянную token authentication для интеграций разберём отдельно в главе 43.
 
-Используй authenticated session/cookie или безопасные API credentials из следующей главы только если уже созданы. Не публикуй секреты в history/Git.
+## Шаг 1. Авторизуй curl без записи пароля в файл
 
-Для первого опыта можно использовать `curl` с session login в локальном стенде либо token пользователя, подготовленный безопасно.
-
-## GET list
+Во втором терминале:
 
 ```bash
-curl -s 'http://learn.localhost:8000/api/resource/Request?fields=["name","subject","status"]'
+read -s -p "Frappe Administrator password: " FRAPPE_PASSWORD
+echo
 ```
 
-Добавь authentication согласно главе 43, если endpoint не доступен анонимно.
-
-## GET document
+Выполни login:
 
 ```bash
-curl -s 'http://learn.localhost:8000/api/resource/Request/REQ-...'
+curl -sS \
+  -c /tmp/frappe-course.cookies \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  --data-urlencode 'usr=Administrator' \
+  --data-urlencode "pwd=${FRAPPE_PASSWORD}" \
+  http://learn.localhost:8000/api/method/login
 ```
 
-## POST create
+Сразу очисти shell variable:
 
-Отправь JSON с `subject`, `status`, `priority`.
+```bash
+unset FRAPPE_PASSWORD
+```
 
-## PUT update
+Cookie лежит только во временном файле:
 
-Измени `Priority` созданного API-document.
+```text
+/tmp/frappe-course.cookies
+```
 
-## DELETE
+## Шаг 2. GET list
 
-Удаляй только специально созданный API test Request.
+```bash
+curl -sS \
+  -b /tmp/frappe-course.cookies \
+  -G \
+  --data-urlencode 'fields=["name","subject","status","priority"]' \
+  --data-urlencode 'limit_page_length=5' \
+  http://learn.localhost:8000/api/resource/Request
+```
 
-## Эксперимент
+## Шаг 3. GET один Document
 
-Создай через REST Request, который нарушает Mandatory/permissions. Сравни server error с Desk.
+Подставь реальный `name`:
 
-## Намеренная ошибка
+```bash
+curl -sS \
+  -b /tmp/frappe-course.cookies \
+  http://learn.localhost:8000/api/resource/Request/REQ-2026-00001
+```
 
-Используй неразрешённый HTTP method для операции и посмотри response v16.
+## Шаг 4. POST create
+
+```bash
+curl -sS \
+  -b /tmp/frappe-course.cookies \
+  -X POST \
+  -H 'Content-Type: application/json' \
+  --data '{
+    "subject": "Created via REST",
+    "status": "Open",
+    "priority": "Medium"
+  }' \
+  http://learn.localhost:8000/api/resource/Request
+```
+
+Скопируй `name` созданного Document из JSON response.
+
+## Шаг 5. PUT update
+
+Подставь этот `name`:
+
+```bash
+curl -sS \
+  -b /tmp/frappe-course.cookies \
+  -X PUT \
+  -H 'Content-Type: application/json' \
+  --data '{"priority":"High"}' \
+  http://learn.localhost:8000/api/resource/Request/ИМЯ_ДОКУМЕНТА
+```
+
+Открой тот же Request в Desk и проверь изменение.
+
+## Шаг 6. DELETE
+
+Создай ещё один специальный Request только для удаления и выполни:
+
+```bash
+curl -sS \
+  -b /tmp/frappe-course.cookies \
+  -X DELETE \
+  http://learn.localhost:8000/api/resource/Request/ИМЯ_ТЕСТОВОГО_ДОКУМЕНТА
+```
+
+Не удаляй основной набор учебных данных.
+
+## Эксперимент — server validation
+
+Попробуй POST без Mandatory `subject`.
+
+Ожидается server-side validation error.
+
+Если к этому моменту Workflow/другие server rules ограничивают `Request`, учитывай их: REST не обходит lifecycle и permissions только потому, что запрос пришёл не из Desk.
+
+## Намеренная ошибка — HTTP method
+
+Попробуй вызвать resource operation неподходящим HTTP method и прочитай status/response.
 
 ## Проверка себя
 
-Объясни, почему REST resource API работает с теми же Documents, а не с отдельной «API-базой».
+Объясни:
+
+```text
+Desk Form
+REST API
+Python code
+```
+
+могут работать с одним и тем же Document `Request`.
 
 ## Состояние после лабораторной
 
-Оставь один Request с Subject `Created via REST`.
+Оставь один документ:
+
+```text
+Subject = Created via REST
+```
+
+Cookie jar можно оставить до лабораторной 42, затем удалить:
+
+```bash
+rm -f /tmp/frappe-course.cookies
+```
