@@ -1,41 +1,261 @@
 # Лабораторная 09. Single, Tree, Submittable и граница Virtual DocType
 
-## Цель
+## Что уже должно быть готово
 
-Увидеть, что специальные режимы меняют семантику DocType, а не просто внешний вид.
+Лабораторная 08 завершена.
 
-## Часть A — Single
+Главный DocType:
+
+```text
+Request
+```
+
+Child DocTypes:
+
+```text
+Request Item
+Request Watcher
+```
+
+В `Request` есть:
+
+```text
+Items     Table → Request Item
+Watchers  Table MultiSelect → Request Watcher
+```
+
+Есть рабочие Request Documents. Ничего из предыдущего состояния не удаляем.
+
+---
+
+## Что сейчас получим
+
+После лабораторной останутся три новых Standard DocType:
+
+```text
+Training Settings   → Single
+Training Category   → Tree
+Approval Record     → Submittable
+```
+
+Также будет проверена граница Virtual DocType без создания постоянного Virtual-объекта.
+
+---
+
+# Часть A. Single — `Training Settings`
+
+## 1. Создай Single DocType
+
+Открой:
+
+```text
+DocType
+→ New
+```
 
 Создай:
+
+```text
+Name:      Training Settings
+Module:    Training
+Is Single: включено
+Custom?:   выключено
+```
+
+Добавь поля.
+
+### Default Priority
+
+```text
+Label:      Default Priority
+Fieldname:  default_priority
+Field Type: Select
+Options:
+Low
+Medium
+High
+Default:    Medium
+```
+
+### Course Note
+
+```text
+Label:      Course Note
+Fieldname:  course_note
+Field Type: Small Text
+```
+
+Сохрани DocType.
+
+---
+
+## 2. Открой `Training Settings`
+
+Через поиск Desk найди:
 
 ```text
 Training Settings
-Module: Training
-Is Single: enabled
 ```
 
-Поля:
+Открой форму.
+
+Обрати внимание: это не обычный List View с кнопкой создания множества Documents.
+
+Перед тобой одна форма настроек.
+
+Заполни:
 
 ```text
-Default Priority  Select → Low/Medium/High
-Course Note       Small Text
+Default Priority: Medium
+Course Note: Block B settings
 ```
 
-Открой `Training Settings`, сохрани значения, закрой и снова открой.
+Нажми Save.
 
-Наблюдение: это одна запись-настройка на Site, а не список из многих Documents.
+---
 
-## Часть B — Tree
+## 3. Проверь постоянство Single
+
+Перейди на другой экран Desk, затем снова открой:
+
+```text
+Training Settings
+```
+
+Ожидается:
+
+```text
+Default Priority = Medium
+Course Note = Block B settings
+```
+
+Но второй отдельный `Training Settings` Document создавать не нужно и обычного списка множества настроек нет.
+
+Наблюдение:
+
+```text
+Single
+→ один экземпляр настроек на Site
+```
+
+---
+
+# Часть B. Tree — `Training Category`
+
+## 4. Создай Tree DocType
+
+Открой:
+
+```text
+DocType
+→ New
+```
 
 Создай:
 
 ```text
-Training Category
-Module: Training
-Is Tree: enabled
+Name:    Training Category
+Module:  Training
+Is Tree: включено
+Custom?: выключено
 ```
 
-Создай иерархию:
+Добавь поле:
+
+```text
+Label:      Category Name
+Fieldname:  category_name
+Field Type: Data
+Mandatory:  включено
+```
+
+В Naming укажи:
+
+```text
+Auto Name:   field:category_name
+Title Field: category_name
+```
+
+Сохрани DocType.
+
+Frappe должен автоматически подготовить служебные поля Tree, включая:
+
+```text
+Parent Training Category
+Is Group
+```
+
+Не создавай их вручную второй раз.
+
+---
+
+## 5. Создай корневую группу `Operations`
+
+Открой `Training Category` и создай:
+
+```text
+Category Name: Operations
+Is Group:      включено
+Parent Training Category: пусто
+```
+
+Сохрани.
+
+Так как Auto Name берётся из `category_name`, системный `name` будет:
+
+```text
+Operations
+```
+
+---
+
+## 6. Создай корневую группу `Analytics`
+
+Создай:
+
+```text
+Category Name: Analytics
+Is Group:      включено
+Parent Training Category: пусто
+```
+
+Сохрани.
+
+---
+
+## 7. Создай дочернюю категорию `Internal`
+
+Создай:
+
+```text
+Category Name: Internal
+Is Group:      выключено
+Parent Training Category: Operations
+```
+
+Сохрани.
+
+---
+
+## 8. Создай дочернюю категорию `External`
+
+Создай:
+
+```text
+Category Name: External
+Is Group:      выключено
+Parent Training Category: Operations
+```
+
+Сохрани.
+
+---
+
+## 9. Посмотри Tree View
+
+Открой Tree View `Training Category`.
+
+Должна получиться структура:
 
 ```text
 Operations
@@ -45,31 +265,303 @@ Operations
 Analytics
 ```
 
-Открой Tree View и перемещай узел.
+Если узлы свернуты, раскрой `Operations`.
 
-## Часть C — Submittable
+---
 
-Создай маленький `Approval Record` с `Is Submittable = 1` и полем `Subject`.
+## Эксперимент — перенеси узел
 
-Пока только убедись, что у него появляются действия Submit/Cancel. Полный lifecycle — следующая глава.
+Открой Document:
 
-## Virtual DocType
+```text
+External
+```
 
-Не создавай Virtual DocType «для галочки». В этой лабораторной достаточно открыть metadata/документацию и зафиксировать: Virtual нужен, когда backend хранения реализуется кодом и обычной таблицы DocType недостаточно.
+Измени только:
 
-## Намеренная ошибка
+```text
+Parent Training Category:
+Operations → Analytics
+```
 
-Попробуй использовать Single как обычный список из нескольких настроек. Увидь, что модель не соответствует такой задаче.
+Сохрани.
+
+Вернись в Tree View.
+
+Ожидается:
+
+```text
+Operations
+└── Internal
+
+Analytics
+└── External
+```
+
+Мы изменили родителя одного Document, а Framework перестроил иерархию Tree.
+
+---
+
+# Часть C. Submittable — `Approval Record`
+
+## 10. Создай Submittable DocType
+
+Открой:
+
+```text
+DocType
+→ New
+```
+
+Создай:
+
+```text
+Name:           Approval Record
+Module:         Training
+Is Submittable: включено
+Custom?:        выключено
+```
+
+Добавь поле:
+
+```text
+Label:      Subject
+Fieldname:  subject
+Field Type: Data
+Mandatory:  включено
+```
+
+В Naming укажи:
+
+```text
+Auto Name:   APR-.YYYY.-.#####
+Title Field: subject
+```
+
+Сохрани DocType.
+
+После сохранения Frappe должен автоматически иметь служебное поле:
+
+```text
+Amended From
+fieldname: amended_from
+```
+
+Его вручную не добавляй.
+
+---
+
+## 11. Создай первый Draft
+
+Открой `Approval Record` и создай:
+
+```text
+Subject: Первый черновик Approval Record
+```
+
+Нажми Save.
+
+На свежем стенде имя будет вида:
+
+```text
+APR-2026-00001
+```
+
+Но **Submit пока не нажимай**.
+
+Убедись, что у сохранённого документа доступно действие:
+
+```text
+Submit
+```
+
+Это всё, что сейчас нужно от Submittable. Полный lifecycle будет в следующей лабораторной.
+
+---
+
+# Часть D. Намеренная ошибка — Custom Virtual DocType
+
+Теперь проверим реальное ограничение `v16.32.0`.
+
+## 12. Начни создавать временный DocType
+
+Открой:
+
+```text
+DocType
+→ New
+```
+
+Введи:
+
+```text
+Name:       Temporary Virtual Test
+Module:     Training
+Custom?:    включено
+Is Virtual: включено
+```
+
+Добавь простое поле:
+
+```text
+Label:      Title
+Fieldname:  title
+Field Type: Data
+```
+
+Нажми Save.
+
+---
+
+## Ожидаемая ошибка
+
+Frappe `v16.32.0` должен отказать в создании такого DocType.
+
+Смысл сообщения:
+
+```text
+Custom Virtual DocType создавать нельзя
+```
+
+Это не случайная ошибка формы.
+
+Исходный код Framework явно проверяет сочетание:
+
+```text
+is_virtual + custom
+```
+
+и запрещает его.
+
+Причина учебной границы:
+
+```text
+Virtual DocType
+→ требует developer-level реализации controller
+→ не является обычной site-only Custom metadata
+```
+
+---
+
+## Восстановление
+
+После ошибки **не исправляй** временный DocType и не создавай Standard Virtual «в обход».
+
+Закрой несохранённую форму.
+
+Через список `DocType` убедись, что:
+
+```text
+Temporary Virtual Test
+```
+
+не создан.
+
+Постоянное состояние стенда должно содержать только три специальных объекта этой лабораторной:
+
+```text
+Training Settings
+Training Category
+Approval Record
+```
+
+---
+
+## Проверь результат
+
+Должно быть доказано руками:
+
+```text
+Training Settings
+→ одна форма, значения сохранились
+
+Training Category
+→ иерархия с родителями реально работает
+
+Approval Record
+→ сохранённый Draft имеет действие Submit
+
+Temporary Virtual Test
+→ не создан, потому что Custom Virtual запрещён
+```
+
+---
 
 ## Проверка себя
 
-Для каждой задачи выбери режим:
+Ответь без подсказки.
 
-- одна конфигурация Site;
-- иерархический каталог;
-- документ с Submit/Cancel;
-- данные из внешнего backend без обычной таблицы.
+1. Почему `Training Settings` сделан Single?
+2. Можно ли создать второй независимый экземпляр тех же Single-настроек обычным способом?
+3. Какое поле связывает `External` с его текущим родителем в Tree?
+4. Что произошло после изменения родителя `External`?
+5. Почему `Approval Record` сделан Submittable, а основной `Request` пока нет?
+6. Что означает появившееся действие Submit?
+7. Почему мы не написали Virtual controller прямо сейчас?
+8. Какое сочетание настроек намеренно вызвало ошибку Virtual?
 
-## Состояние после лабораторной
+---
 
-Оставь `Training Settings`, `Training Category`, `Approval Record`.
+## Состояние стенда после лабораторной
+
+Оставляем:
+
+### `Training Settings`
+
+```text
+Is Single: 1
+Default Priority = Medium
+Course Note = Block B settings
+```
+
+### `Training Category`
+
+```text
+Is Tree: 1
+Auto Name: field:category_name
+Title Field: category_name
+```
+
+Documents:
+
+```text
+Operations  Is Group = 1
+└── Internal
+
+Analytics   Is Group = 1
+└── External
+```
+
+То есть после эксперимента:
+
+```text
+Internal.parent_training_category = Operations
+External.parent_training_category = Analytics
+```
+
+### `Approval Record`
+
+```text
+Is Submittable: 1
+Auto Name: APR-.YYYY.-.#####
+Title Field: subject
+Subject field: Mandatory
+amended_from: добавлено Framework
+```
+
+Есть минимум один сохранённый Draft:
+
+```text
+APR-2026-00001
+Subject = Первый черновик Approval Record
+```
+
+Он **не Submitted**.
+
+### Virtual
+
+```text
+Temporary Virtual Test отсутствует
+```
+
+Это точное входное состояние [**главы 10**](../10_DOCSTATUS_LIFECYCLE.md).
