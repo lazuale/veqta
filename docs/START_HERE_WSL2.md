@@ -2,7 +2,7 @@
 
 Эта инструкция поднимает **локальный dev-стенд VEQTA с нуля на Windows через WSL2 / Debian 13**.
 
-Цель — получить рабочий Frappe Desk без сторонних репозиториев MariaDB, самодельных install-скриптов и лишней настройки системы.
+Цель: получить воспроизводимый Frappe v16 Desk без сторонних репозиториев MariaDB, самодельных bootstrap-скриптов и ручной перенастройки системных компонентов.
 
 После завершения:
 
@@ -24,27 +24,22 @@ Desk:
 http://veqta.localhost:8000
 ```
 
-## 0. Принцип установки
+---
 
-Для этого стенда используем **Debian 13 (Trixie)**.
+# 0. Baseline
 
-Почему Debian, а не Ubuntu 24.04:
+Используем Debian 13 (Trixie), потому что Frappe v16 его поддерживает, а MariaDB 11.8 доступна в штатном Debian APT.
 
-- Frappe v16 официально поддерживает Debian 13+;
-- Frappe v16 требует MariaDB 11.8;
-- Debian 13 поставляет MariaDB 11.8 штатно через обычный `apt`;
-- поэтому не нужен отдельный repository MariaDB и не возникает конфликт с MariaDB 10.11 из Ubuntu 24.04.
+Системные пакеты Debian не фиксируем до patch-версии: они должны получать обычные security updates.
 
-Системные пакеты Debian не фиксируем до patch-версии: они должны получать штатные security updates Debian 13.
-
-Фиксируем только runtime и код, от которых зависит воспроизводимость разработки:
+Фиксируем runtime и код стенда:
 
 ```text
 Debian                  13 / Trixie
 MariaDB                 11.8.x из Debian 13
 NVM                     0.40.3
-Node.js                 24.20.0
-npm                     11.19.0 (идёт вместе с Node 24.20.0)
+Node.js                 24.20.0 LTS
+npm                     12.0.2
 Yarn Classic            1.22.22
 uv                      0.12.7
 Python                  3.14.7
@@ -52,7 +47,25 @@ Frappe Bench            5.31.0
 Frappe Framework        v16.32.0
 ```
 
-`wkhtmltopdf` не входит в основной сценарий: он нужен для PDF-печати, но не для запуска Desk. Его добавляем отдельно, когда понадобится PDF.
+Политика версий:
+
+- Node держим на поддерживаемой Frappe линии Node 24 LTS;
+- npm — отдельный CLI, поэтому используем свежую стабильную совместимую версию `12.0.2`;
+- Yarn оставляем на требуемой Frappe линии Yarn Classic `1.22.x`;
+- Python, Bench и Frappe фиксируем для воспроизводимости;
+- Python- и JavaScript-зависимости внутри самого Frappe вручную не обновляем: ими управляет выбранный `Frappe v16.32.0`.
+
+Пароли при вводе в Linux обычно никак не отображаются. Это нормально.
+
+В установке будут три разных секрета:
+
+```text
+Linux user password       пароль пользователя Debian
+MariaDB frappe_admin      пароль администратора БД для Bench
+Frappe Administrator      пароль входа в Desk
+```
+
+Не сохранять их в Git.
 
 ---
 
@@ -60,22 +73,16 @@ Frappe Framework        v16.32.0
 
 ## 1.1. PowerShell
 
-Открыть **PowerShell от имени администратора**.
-
-Обновить WSL и посмотреть доступные дистрибутивы:
+Открыть **PowerShell от имени администратора**:
 
 ```powershell
 wsl --update
 wsl --list --online
 ```
 
-В списке должен быть:
+В списке должен быть Debian.
 
-```text
-Debian    Debian GNU/Linux
-```
-
-Установить Debian:
+Установить:
 
 ```powershell
 wsl --install -d Debian
@@ -87,13 +94,13 @@ wsl --install -d Debian
 wsl -l -v
 ```
 
-Для `Debian` должно быть:
+Для `Debian` нужен:
 
 ```text
 VERSION 2
 ```
 
-Если Debian почему-то создан как WSL1:
+Если получился WSL1:
 
 ```powershell
 wsl --set-version Debian 2
@@ -105,13 +112,13 @@ wsl --set-version Debian 2
 wsl --set-default Debian
 ```
 
-Старый Ubuntu пока **не удалять**. Удалить его можно после того, как новый стенд полностью заработает.
+Старый Ubuntu пока не удалять. Сначала полностью поднимаем новый стенд.
 
 ## 1.2. Первый запуск Debian
 
 Открыть `Debian` из меню Пуск.
 
-При первом запуске создать обычного Linux-пользователя. Например:
+Создать обычного Linux-пользователя, например:
 
 ```text
 Enter new UNIX username: dev
@@ -119,11 +126,11 @@ New password:             придумать пароль
 Retype new password:      повторить пароль
 ```
 
-Имя пользователя может быть любым. Дальше инструкция не зависит от имени `dev`.
+Имя может быть любым.
 
-## 1.3. Проверить систему
+## 1.3. Проверка Debian
 
-В Debian:
+В Debian выполнить:
 
 ```bash
 cd ~
@@ -137,7 +144,7 @@ echo "HOME=$HOME"
 echo "PWD=$PWD"
 ```
 
-Ожидается по смыслу:
+Для пользователя `dev` ожидается:
 
 ```text
 USER=dev
@@ -157,7 +164,7 @@ INIT=systemd
 PWD совпадает с HOME
 ```
 
-Если `INIT` не `systemd`, выполнить:
+Если `INIT` не `systemd`:
 
 ```bash
 sudo tee /etc/wsl.conf >/dev/null <<'EOF'
@@ -172,13 +179,11 @@ EOF
 wsl --shutdown
 ```
 
-Снова открыть Debian и повторить проверку пункта 1.3.
+Снова открыть Debian и повторить проверку.
 
 ---
 
-# 2. Обновить Debian и поставить системные зависимости
-
-В Debian:
+# 2. Обновить Debian и установить системные зависимости
 
 ```bash
 cd ~
@@ -186,7 +191,7 @@ sudo apt update
 sudo apt full-upgrade -y
 ```
 
-Установить системные зависимости стенда:
+Установить:
 
 ```bash
 sudo apt install -y \
@@ -227,7 +232,7 @@ systemctl is-active redis-server
 systemctl is-active cron
 ```
 
-Нормальный результат:
+Нормально:
 
 ```text
 MariaDB ... 11.8.x ...
@@ -239,23 +244,21 @@ active
 
 Если MariaDB не `11.8.x`, дальше не идти.
 
-Никакой сторонний MariaDB repository в этой инструкции не используется.
+В этом сценарии нет стороннего MariaDB repository.
 
 ---
 
 # 3. Создать администратора MariaDB для Bench
 
-Системного MariaDB-пользователя `root` не перенастраиваем. Он остаётся штатным системным администратором MariaDB.
+Системного MariaDB `root` не перенастраиваем.
 
-Для Bench создаём отдельного локального администратора `frappe_admin`.
-
-Открыть MariaDB от системного root:
+Открыть MariaDB штатно:
 
 ```bash
 sudo mariadb
 ```
 
-Появится приглашение:
+Получим:
 
 ```text
 MariaDB [(none)]>
@@ -270,33 +273,27 @@ FLUSH PRIVILEGES;
 EXIT;
 ```
 
-`ВАШ_ПАРОЛЬ_MARIADB` заменить на отдельный пароль и сохранить в менеджере паролей.
+`ВАШ_ПАРОЛЬ_MARIADB` заменить своим отдельным паролем.
 
-Проверить вход:
+Проверить:
 
 ```bash
 mariadb -u frappe_admin -p -e "SELECT VERSION();"
 ```
 
-На:
-
-```text
-Enter password:
-```
-
-ввести пароль `frappe_admin`.
+После `Enter password:` ввести пароль `frappe_admin`.
 
 Версия должна начинаться с `11.8`.
 
-`mariadb-secure-installation` для этого локального dev-стенда не требуется: системный `root` не меняем, а Bench работает через отдельного локального администратора.
+`mariadb-secure-installation` здесь не нужен: системный root остаётся штатным, Bench использует отдельного локального администратора.
 
 ---
 
 # 4. Git и GitHub SSH
 
-## 4.1. Настроить автора Git
+## 4.1. Автор Git
 
-Подставить email GitHub:
+Подставить свой GitHub email:
 
 ```bash
 git config --global user.name "lazuale"
@@ -312,21 +309,19 @@ git config --global user.email
 git config --global init.defaultBranch
 ```
 
-## 4.2. Создать SSH-ключ
+## 4.2. SSH
 
 ```bash
 ssh-keygen -t ed25519 -C "ВАШ_GITHUB_EMAIL"
 ```
 
-На вопрос о пути:
+На вопрос о пути нажать `Enter`:
 
 ```text
 Enter file in which to save the key (.../.ssh/id_ed25519):
 ```
 
-нажать `Enter`.
-
-Passphrase можно задать или оставить пустой для локального dev-стенда.
+Passphrase можно задать или оставить пустым для локального dev-стенда.
 
 Показать публичный ключ:
 
@@ -359,7 +354,7 @@ Key:      строка из ~/.ssh/id_ed25519.pub
 ssh -T git@github.com
 ```
 
-При первом подключении подтвердить fingerprint словом:
+При первом подключении подтвердить fingerprint:
 
 ```text
 yes
@@ -376,8 +371,6 @@ Hi lazuale! You've successfully authenticated
 # 5. Node.js, npm и Yarn
 
 ## 5.1. NVM 0.40.3
-
-Установить NVM тем же способом, который рекомендует документация Frappe:
 
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
@@ -396,7 +389,7 @@ nvm --version
 0.40.3
 ```
 
-## 5.2. Node.js 24.20.0
+## 5.2. Node.js 24.20.0 LTS
 
 ```bash
 nvm install 24.20.0
@@ -404,26 +397,42 @@ nvm use 24.20.0
 nvm alias default 24.20.0
 ```
 
-Проверить:
+Проверить Node:
 
 ```bash
 node --version
-npm --version
 ```
 
 Ожидается:
 
 ```text
 v24.20.0
-11.19.0
 ```
 
-`npm` отдельно не обновлять.
+Node 24.20.0 изначально приходит со своей bundled-версией npm. Следующим шагом npm обновляется отдельно.
 
-## 5.3. Yarn 1.22.22
+## 5.3. npm 12.0.2
 
 ```bash
-npm install -g --allow-scripts=yarn yarn@1.22.22
+npm install -g npm@12.0.2
+```
+
+Проверить:
+
+```bash
+npm --version
+```
+
+Ожидается:
+
+```text
+12.0.2
+```
+
+## 5.4. Yarn Classic 1.22.22
+
+```bash
+npm install -g yarn@1.22.22
 ```
 
 Проверить:
@@ -435,6 +444,22 @@ yarn --version
 Ожидается:
 
 ```text
+1.22.22
+```
+
+Итог Node-стека:
+
+```bash
+node --version
+npm --version
+yarn --version
+```
+
+Должно быть:
+
+```text
+v24.20.0
+12.0.2
 1.22.22
 ```
 
@@ -510,8 +535,6 @@ bench --version
 
 # 7. Контроль окружения
 
-Перед созданием Bench выполнить:
-
 ```bash
 cd ~
 . /etc/os-release
@@ -536,14 +559,14 @@ MARIADB=... 11.8.x ...
 REDIS=PONG
 NVM=0.40.3
 NODE=v24.20.0
-NPM=11.19.0
+NPM=12.0.2
 YARN=1.22.22
 UV=uv 0.12.7
 PYTHON=Python 3.14.7
 BENCH=5.31.0
 ```
 
-Если всё совпадает — переходить дальше.
+Если всё совпало, переходим дальше.
 
 ---
 
@@ -554,15 +577,15 @@ mkdir -p ~/frappe
 cd ~/frappe
 ```
 
-Убедиться, что каталог ещё не существует:
+Проверить содержимое:
 
 ```bash
 ls -la
 ```
 
-`veqta-bench` на чистой установке здесь быть не должно.
+На чистой установке `veqta-bench` ещё быть не должно.
 
-Создать Bench:
+Создать Bench на точном Frappe tag и точном Python:
 
 ```bash
 bench init \
@@ -571,7 +594,7 @@ bench init \
   veqta-bench
 ```
 
-Команда скачает Frappe, создаст Python environment, установит зависимости и соберёт assets. Вывод будет длинным.
+Вывод длинный: Bench скачивает Frappe, создаёт Python environment, устанавливает зависимости и собирает assets.
 
 После завершения:
 
@@ -594,11 +617,13 @@ Python 3.14.7
 v16.32.0
 ```
 
+`git rev-parse HEAD` дополнительно покажет точный commit Frappe.
+
 ---
 
 # 9. Превратить repository VEQTA в Frappe app
 
-Это единственный проектный bootstrap-шаг: repository `lazuale/veqta` уже существует и содержит документацию, поэтому нужно добавить в него штатный scaffold Frappe app, сохранив Git history.
+Repository `lazuale/veqta` уже существует и содержит документацию. Поэтому добавляем штатный scaffold Frappe app, сохраняя существующую Git history.
 
 ## 9.1. Клонировать существующий repository
 
@@ -615,9 +640,15 @@ git status
 git remote -v
 ```
 
-Должны быть branch `main`, чистый working tree и remote `git@github.com:lazuale/veqta.git`.
+Нужны:
 
-## 9.2. Создать штатный scaffold Frappe
+```text
+branch main
+clean working tree
+remote git@github.com:lazuale/veqta.git
+```
+
+## 9.2. Создать штатный Frappe scaffold
 
 ```bash
 cd ~/frappe/veqta-bench
@@ -652,11 +683,16 @@ main
 Проверить:
 
 ```bash
-test -f ~/frappe/veqta-bench/apps/veqta/pyproject.toml && echo OK
-test -f ~/frappe/veqta-bench/apps/veqta/veqta/hooks.py && echo OK
+test -f ~/frappe/veqta-bench/apps/veqta/pyproject.toml && echo "pyproject OK"
+test -f ~/frappe/veqta-bench/apps/veqta/veqta/hooks.py && echo "hooks OK"
 ```
 
-Должно быть два `OK`.
+Ожидается:
+
+```text
+pyproject OK
+hooks OK
+```
 
 ## 9.3. Добавить существующую Git history
 
@@ -674,7 +710,7 @@ git branch --show-current
 git status
 ```
 
-Корень Git должен быть:
+Корень Git:
 
 ```text
 .../frappe/veqta-bench/apps/veqta
@@ -692,7 +728,7 @@ Branch:
 main
 ```
 
-Scaffold должен существовать:
+Проверить scaffold:
 
 ```bash
 test -f pyproject.toml && echo "pyproject OK"
@@ -710,13 +746,11 @@ rm -rf ~/veqta-existing
 
 # 10. Создать site
 
-Перейти в Bench:
-
 ```bash
 cd ~/frappe/veqta-bench
 ```
 
-Создать site:
+Создать:
 
 ```bash
 bench new-site veqta.localhost \
@@ -724,7 +758,7 @@ bench new-site veqta.localhost \
   --db-root-username frappe_admin
 ```
 
-Bench спросит пароль администратора MariaDB. Ввести пароль пользователя `frappe_admin` из шага 3.
+Bench попросит пароль администратора MariaDB. Ввести пароль `frappe_admin` из шага 3.
 
 Затем:
 
@@ -732,9 +766,9 @@ Bench спросит пароль администратора MariaDB. Ввес
 Set Administrator password:
 ```
 
-задать **другой** пароль — это пароль пользователя `Administrator` в Frappe Desk.
+задать другой пароль — пароль пользователя `Administrator` в Frappe Desk.
 
-После создания site:
+После создания:
 
 ```bash
 bench use veqta.localhost
@@ -780,7 +814,7 @@ cd ~/frappe/veqta-bench
 bench start
 ```
 
-Команда остаётся работать и выводит логи — это нормально.
+Команда остаётся работать и выводит логи.
 
 В Windows открыть:
 
@@ -815,7 +849,7 @@ git status
 git diff
 ```
 
-Проверить, что:
+Проверить:
 
 - существующие `README.md`, `LICENSE`, `.gitignore`, `docs/` сохранены;
 - появились штатные файлы Frappe app: `pyproject.toml`, пакет `veqta/` и т. п.;
@@ -863,7 +897,7 @@ code .
 
 ```text
 apps/frappe/   # точный Frappe v16.32.0; читаем как Framework
-apps/veqta/    # код VEQTA; именно этот repository коммитим
+apps/veqta/    # код VEQTA; этот repository коммитим
 ```
 
 ---
@@ -915,7 +949,7 @@ Redis                   active / PONG
 cron                    active
 NVM                     0.40.3
 Node.js                 v24.20.0
-npm                     11.19.0
+npm                     12.0.2
 Yarn                    1.22.22
 uv                      0.12.7
 Python                  3.14.7
@@ -932,12 +966,12 @@ Desk                    открывается на veqta.localhost:8000
 - Ubuntu 24.04 — для нового стенда используем Debian 13, чтобы MariaDB 11.8 ставилась штатно;
 - сторонние MariaDB repositories;
 - `mariadb_repo_setup`;
-- ручная настройка `character-set-server` и `collation-server` — Frappe создаёт свою БД с `utf8mb4` и `utf8mb4_unicode_ci`;
-- отдельное обновление npm;
-- Node Current;
-- Python из системного Debian для Frappe;
+- ручная настройка charset/collation системной MariaDB;
+- Node Current вместо поддерживаемой Frappe линии Node 24 LTS;
+- ручное обновление Python/JS dependencies внутри Frappe;
+- Python из системного Debian для runtime Frappe;
 - `sudo pip`;
-- Frappe `develop`;
+- Frappe `develop` вместо фиксированного tag;
 - Docker внутри WSL;
 - production nginx/supervisor/systemd-конфигурация — это отдельный production-сценарий;
-- wkhtmltopdf — добавляется отдельно, когда потребуется PDF-печать.
+- `wkhtmltopdf` — добавляется отдельно, когда потребуется PDF-печать.
