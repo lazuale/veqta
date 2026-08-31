@@ -1,342 +1,232 @@
-# 18. Role Permission Manager
+# 18. Role Permissions Manager
 
-В прошлой главе мы разобрали две вещи:
+В главе 17 мы создали:
+
+```text
+Training User
+Training Manager
+```
+
+и двух реальных System Users.
+
+Они уже могут войти в Desk, но Role пока не отвечает на вопрос:
+
+> что именно пользователь может делать с `Request`?
+
+Для этого во Frappe есть **Role Permissions Manager**.
+
+Проверено для **Frappe Framework v16.32.0**.
+
+---
+
+## Что уже есть на стенде
+
+```text
+student.user@example.test
+└── Training User
+
+student.manager@example.test
+├── Training User
+└── Training Manager
+```
+
+Оба — `System User`.
+
+Для `Request` ещё нет учебных permission rules этих ролей.
+
+---
+
+# Главная модель
 
 ```text
 User
-└── получает Role
+  ↓ имеет
+Role
+  ↓ получает правило на
+DocType
+  ↓ разрешённые действия
 ```
 
-Но пока Role — это просто имя.
+Например:
 
-Чтобы роль действительно что-то разрешала, нужно сказать Frappe:
+```text
+Training User
+→ Request
+→ Read + Create + Write
+```
 
-> что эта роль может делать с конкретным DocType?
+А менеджер дополнительно:
 
-Для этого существует **Role Permissions Manager**.
+```text
+Training Manager
+→ Request
+→ Delete + Share
+```
 
-Проверено: **2026-08-31**.
+Так одна Role применяется ко всем Users, которым она назначена.
 
 ---
 
-## 1. Самый простой пример
+# Где находится Role Permissions Manager
 
-Есть DocType:
-
-```text
-Request
-```
-
-И три роли:
+В Desk найди:
 
 ```text
-Request Reader
-Request Operator
-Request Approver
+Role Permissions Manager
 ```
 
-Мы хотим получить такую логику:
+Его route в текущем Desk:
 
 ```text
-Request Reader
-└── только читать
-
-Request Operator
-├── читать
-├── создавать
-└── редактировать
-
-Request Approver
-├── читать
-├── отправлять документ в Submit
-└── отменять Submitted-документ
+/app/permission-manager
 ```
 
-В Role Permissions Manager это примерно превращается в такую таблицу:
+Страница штатно предназначена для `System Manager`.
 
-| Role | Read | Write | Create | Submit | Cancel |
-|---|---:|---:|---:|---:|---:|
-| Request Reader | ✓ |  |  |  |  |
-| Request Operator | ✓ | ✓ | ✓ |  |  |
-| Request Approver | ✓ |  |  | ✓ | ✓ |
-
-Вот и вся базовая идея.
-
-**Role Permissions Manager связывает Role, DocType и разрешённые действия.**
+В лаборатории настройку выполняет `Administrator`, а результат проверяется под обычными учебными Users.
 
 ---
 
-## 2. Где это находится
+# Permission rule
 
-Самый простой путь:
-
-```text
-Awesomebar
-→ Role Permissions Manager
-```
-
-Внутри можно выбрать:
+Одна строка связывает:
 
 ```text
 Document Type
 Role
+Permission Level
+```
+
+Для базового доступа к документу используется:
+
+```text
+Permission Level = 0
 ```
 
 Например:
-
-```text
-Document Type = Request
-Role          = Request Operator
-```
-
-После этого видны permission rules для выбранной комбинации.
-
-Доступ к самому Role Permissions Manager штатно предназначен для `System Manager`.
-
----
-
-## 3. Как читать одну строку permissions
-
-Представим такую строку:
-
-```text
-Document Type: Request
-Role:          Request Operator
-Level:         0
-
-Read    ✓
-Write   ✓
-Create  ✓
-Delete
-```
-
-Она означает:
-
-```text
-если User имеет Role Request Operator
-        ↓
-для DocType Request
-        ↓
-он получает Read + Write + Create
-```
-
-Это правило относится не к одному конкретному пользователю, а ко всем пользователям с этой Role.
-
----
-
-# Часть 1. Основные права
-
-## 4. Read
-
-`Read` разрешает открыть и прочитать документ.
-
-Например:
-
-```text
-Request Reader
-Read = ✓
-```
-
-Пользователь сможет открыть:
-
-```text
-REQ-0001
-REQ-0002
-REQ-0003
-```
-
-если никакие другие ограничения не отсекают эти документы.
-
-`Read` не означает право редактировать.
-
----
-
-## 5. Write
-
-`Write` разрешает изменять существующий документ, к которому у пользователя есть доступ.
-
-Обычный рабочий набор:
-
-```text
-Read  ✓
-Write ✓
-```
-
-Например:
-
-```text
-REQ-0001
-Subject: Проверить отчёт
-```
-
-Пользователь с Write может изменить Subject и сохранить документ, если остальные правила это позволяют.
-
-### Важно
-
-`Write` и `Read` — разные permissions.
-
-Не стоит мыслить так:
-
-```text
-Write автоматически включает Read
-```
-
-Для обычной роли редактора практически всегда явно дают оба:
-
-```text
-Read  ✓
-Write ✓
-```
-
----
-
-## 6. Create
-
-`Create` разрешает создать новый документ.
-
-Например:
-
-```text
-Request Operator
-Create = ✓
-```
-
-позволяет нажать:
-
-```text
-+ Add Request
-```
-
-и создать новую запись.
-
-Но `Create` не означает автоматически, что пользователь сможет потом редактировать все существующие Request.
-
-Для обычного оператора чаще используется:
-
-```text
-Read   ✓
-Create ✓
-Write  ✓
-```
-
----
-
-## 7. Delete
-
-`Delete` разрешает удаление документа там, где lifecycle документа это допускает.
-
-Это отдельное право.
-
-Не нужно выдавать его просто потому, что пользователь умеет редактировать.
-
-Например, можно сделать:
-
-```text
-Request Operator
-Read   ✓
-Create ✓
-Write  ✓
-Delete
-```
-
-Тогда оператор работает с документами, но не может их удалять.
-
-Для рабочих систем это часто разумнее.
-
----
-
-## 8. Почему права лучше выдавать по необходимости
-
-Плохая привычка:
-
-```text
-поставить все галочки
-```
-
-только потому, что так быстрее.
-
-Лучше начать с реальных действий пользователя.
-
-Например:
-
-```text
-Что должен делать оператор?
-
-1. видеть Request      → Read
-2. создавать Request   → Create
-3. исправлять Request  → Write
-4. удалять Request?    → нет
-5. экспортировать?     → только если действительно нужно
-```
-
-Так permission model остаётся понятной.
-
----
-
-# Часть 2. Select
-
-## 9. Select и Read — не одно и то же
-
-`Select` нужен для более узкого сценария: пользователь может **найти и выбрать документ как ссылку**, но не обязательно открыть его полноценную форму.
-
-Представим:
 
 ```text
 Request
-└── Department → Link → Department
+Training User
+Level 0
 ```
 
-Пользователю нужно выбрать Department при заполнении Request.
+и на этой строке включаются нужные права.
 
-Но ему не обязательно давать полноценный доступ к карточкам Department.
+---
 
-Можно использовать:
+# Основные права этой лабораторной
+
+## Read
+
+Разрешает читать доступный Document.
 
 ```text
-Department
-Select ✓
+Read = ✓
+```
+
+не означает Write.
+
+---
+
+## Create
+
+Разрешает создать новый Document.
+
+```text
+Create = ✓
+```
+
+не означает Delete.
+
+---
+
+## Write
+
+Разрешает изменять существующий доступный Document.
+
+Для обычного оператора курса получаем:
+
+```text
+Read   ✓
+Create ✓
+Write  ✓
+```
+
+---
+
+## Delete
+
+Отдельное право удаления.
+
+В нашем сценарии:
+
+```text
+Training User
+Delete = ☐
+
+Training Manager
+Delete = ✓
+```
+
+Так ученик руками увидит разницу между редактированием и удалением.
+
+---
+
+## Share
+
+Разрешает штатно делиться конкретным Document с другим User.
+
+Пока просто оставим:
+
+```text
+Training User
+Share = ☐
+
+Training Manager
+Share = ✓
+```
+
+Сам механизм Sharing подробно проверим в главе 21.
+
+---
+
+# Select и Read
+
+`Select` — более узкое permission для выбора Document в Link-поиске.
+
+В текущем permission engine `v16.32.0`:
+
+```text
 Read
-```
-
-Тогда Department можно использовать в Link-поиске, не превращая пользователя в обычного читателя всего справочника.
-
-Простая разница:
-
-```text
-Select
-→ можно найти и выбрать
-
-Read
-→ можно открыть и прочитать документ
-```
-
-В текущем permission engine v16 есть ещё полезное правило: если отдельного `Select` нет, но есть `Read`, проверка Select может пройти через Read.
-
-То есть практически:
-
-```text
-Read ⇒ достаточно и для обычного выбора в Link
+→ может удовлетворить проверку Select
 ```
 
 Но обратное неверно:
 
 ```text
-Select ⇏ Read
+Select
+≠ полноценный Read
 ```
+
+В нашей матрице отдельный `Select` не нужен: обе роли получают обычный `Read` на `Request`.
 
 ---
 
-# Часть 3. Submit, Cancel и Amend
+# Остальные permissions
 
-## 10. Эти права появляются только там, где есть смысл
-
-Для обычного DocType:
+Role Permissions Manager показывает и другие права:
 
 ```text
-Is Submittable = 0
+Print
+Email
+Report
+Import
+Export
+Mask
 ```
 
-permissions:
+Для Submittable DocType также имеют смысл:
 
 ```text
 Submit
@@ -344,963 +234,200 @@ Cancel
 Amend
 ```
 
-не нужны.
+`Request` в текущем курсе не Submittable, поэтому Submit/Cancel/Amend здесь не являются нашей задачей.
 
-В интерфейсе Role Permissions Manager v16 они не показываются для несубмиттабельного DocType.
+Главное правило лабораторной:
 
-Если же:
+> не ставить все галочки «на всякий случай».
 
-```text
-Is Submittable = 1
-```
-
-то появляется lifecycle:
-
-```text
-Draft
-  ↓ Submit
-Submitted
-  ↓ Cancel
-Cancelled
-  ↓ Amend
-новый Draft
-```
-
-Мы подробно разбирали его в главе 10.
+Мы оставим только реально нужные действия.
 
 ---
 
-## 11. Submit
+## Почему отдельно проверяем Export
 
-`Submit` разрешает переход:
+Metadata `Custom DocPerm` в `v16.32.0` содержит собственные значения по умолчанию для permission fields.
 
-```text
-docstatus 0
-→
-docstatus 1
-```
+Поэтому после добавления новой строки нельзя полагаться на мысль:
 
-То есть пользователь может подтвердить Draft.
+> я включил три галочки — значит остальные точно выключены.
 
-Например:
+Нужно глазами проверить **всю строку**.
 
-```text
-Request Approver
-Read   ✓
-Submit ✓
-```
+В лабораторной `Export`, `Import`, `Print`, `Email`, `Report` и другие ненужные права явно оставляем выключенными.
 
 ---
 
-## 12. Cancel
+# Несколько ролей складываются
 
-`Cancel` разрешает отменить Submitted-документ:
+Менеджер имеет:
 
 ```text
-docstatus 1
-→
-docstatus 2
+Training User
+Training Manager
 ```
 
-Обычно это более сильное право, чем обычное редактирование.
+Permission engine собирает разрешения всех подходящих Roles.
 
-Поэтому его не стоит автоматически выдавать всем, кому дали Submit.
+Поэтому менеджеру не нужно отнимать базовые возможности `Training User`.
 
----
-
-## 13. Amend
-
-`Amend` разрешает создать исправленную версию отменённого документа.
-
-Это не возвращает старый документ обратно в Draft.
-
-Упрощённо:
+Можно мыслить так:
 
 ```text
-REQ-0001
-Cancelled
-   ↓ Amend
-REQ-0001-1
-Draft
-```
-
----
-
-# Часть 4. Остальные штатные permissions
-
-## 14. Print
-
-`Print` разрешает печать документа и использование соответствующих возможностей печатного представления/PDF.
-
-Если человеку не нужно выгружать документ в печатном виде, это право необязательно.
-
----
-
-## 15. Email
-
-`Email` разрешает отправлять документ через штатные email-действия Frappe.
-
-Это не означает «пользователь вообще может пользоваться почтой».
-
-Permission относится к email-действию для данного DocType.
-
----
-
-## 16. Report
-
-`Report` разрешает использовать отчёты, связанные с DocType, при наличии остальных необходимых прав.
-
-Например:
-
-```text
-Request Analyst
-Read   ✓
-Report ✓
-```
-
-может работать с отчётным представлением Request.
-
-`Report` не превращает Frappe в отдельную BI-систему — это permission на штатные report-механизмы.
-
----
-
-## 17. Export
-
-`Export` разрешает выгружать данные.
-
-Это право часто недооценивают.
-
-Читать записи в интерфейсе и скачать большой набор данных — разные по последствиям действия.
-
-Поэтому `Export` лучше выдавать осознанно.
-
----
-
-## 18. Import
-
-`Import` разрешает использовать Data Import для данного DocType.
-
-Но одной permission недостаточно.
-
-Сам DocType ещё должен разрешать импорт:
-
-```text
-Allow Import = 1
-```
-
-То есть:
-
-```text
-Import permission = ✓
-        +
-DocType Allow Import = ✓
-        ↓
-импорт возможен
-```
-
----
-
-## 19. Share
-
-`Share` разрешает делиться доступом к отдельным документам с другими пользователями.
-
-Например:
-
-```text
-REQ-0007
-→ Share
-→ anna@example.com
-```
-
-Sharing разберём отдельно в главе 21.
-
-Также в System Settings можно глобально отключить document sharing; тогда одна галочка `Share` не сможет обойти глобальный запрет.
-
----
-
-## 20. Mask
-
-В интерфейсе v16 есть permission `Mask`.
-
-Она связана с механизмом маскирования значений полей.
-
-Пример идеи:
-
-```text
-81112345678
-↓ mask
-811XXXXXXX
-```
-
-На первом проходе курса достаточно знать, что это **не обычный Read/Write**, а специальный механизм работы с маскируемыми полями.
-
-Не нужно использовать Mask для решения обычной задачи «скрыть поле от роли» — для этого есть Permission Level, который разберём в следующей главе.
-
----
-
-# Часть 5. Only if Creator
-
-## 21. Самое полезное ограничение внутри Role Permission Manager
-
-Для permission rule уровня 0 можно включить:
-
-```text
-Only if Creator
-```
-
-В metadata это поле называется:
-
-```text
-if_owner
-```
-
-Смысл:
-
-> правило применяется к документу, если текущий пользователь является его системным Owner.
-
-Например:
-
-```text
-Request Operator
-
-Read  ✓
-Write ✓
-Only if Creator ✓
-```
-
-Анна создала:
-
-```text
-REQ-0001
-owner = anna@example.com
-```
-
-Борис создал:
-
-```text
-REQ-0002
-owner = boris@example.com
-```
-
-Тогда Анна по такому правилу работает со своей:
-
-```text
-REQ-0001
-```
-
-но не получает те же owner-права на:
-
-```text
-REQ-0002
-```
-
----
-
-## 22. Creator здесь — это именно `owner`
-
-Это частая ошибка.
-
-`Only if Creator` не проверяет:
-
-```text
-Assigned To
-Responsible User
-Department
-Created By — ваше отдельное поле
-Workflow State
-```
-
-Он опирается на системное поле:
-
-```text
-owner
-```
-
-которое Frappe автоматически хранит у документа.
-
-Поэтому такой механизм подходит для логики:
-
-> пользователь работает со своими созданными документами.
-
-Но не подходит для логики:
-
-> пользователь работает со всеми документами, назначенными на него.
-
-Это уже другая задача.
-
----
-
-## 23. Only if Creator не является отрицательным запретом
-
-Представим, у User две роли.
-
-Первая:
-
-```text
-Request Operator
-Read ✓
-Only if Creator ✓
-```
-
-Вторая:
-
-```text
-Request Auditor
-Read ✓
-```
-
-без ограничения по owner.
-
-Итог:
-
-```text
-Request Auditor
-```
-
-уже даёт обычный `Read` на DocType.
-
-`Only if Creator` из другой роли не сможет превратить его в запрет.
-
-Почему — разберём прямо сейчас.
-
----
-
-# Часть 6. Права нескольких Roles складываются
-
-## 24. Во Frappe нет обычного правила «Deny победил Allow»
-
-Это одна из самых важных вещей во всём блоке permissions.
-
-Представим User:
-
-```text
-anna@example.com
-├── Request Reader
-└── Request Editor
-```
-
-Permissions:
-
-```text
-Request Reader
-Read ✓
-Write
-
-Request Editor
-Read
-Write ✓
-```
-
-Новичок иногда читает это так:
-
-```text
-первая роль запрещает Write
-вторая роль запрещает Read
-```
-
-Но пустая галочка **не является явным запретом**.
-
-Frappe рассматривает подходящие permission rows всех ролей и собирает разрешения.
-
-В этом примере итог будет:
-
-```text
-Read  ✓
-Write ✓
-```
-
-То есть упрощённо:
-
-```text
-Role A permissions
-        ∪
-Role B permissions
-        ∪
-Role C permissions
-        ↓
-итоговые role permissions User
-```
-
----
-
-## 25. Практическое правило
-
-Если хоть одна подходящая Role даёт обычный:
-
-```text
-Read ✓
-```
-
-другая Role с пустым `Read` его не отнимет.
-
-То же относится к другим обычным permission types.
-
-Поэтому нельзя построить такую модель:
-
-```text
-Role A → всё разрешает
-Role B → должна что-то запретить
-```
-
-просто сняв галочку у Role B.
-
-Для ограничений используются другие механизмы:
-
-```text
-If Owner
-User Permission
-Permission Level
-controller permission logic
-```
-
-в зависимости от задачи.
-
----
-
-## 26. Почему это удобно
-
-Роли можно собирать как независимые способности.
-
-Например:
-
-```text
-Request Operator
+Training User
 → Read + Create + Write
 
-Request Exporter
-→ Export
-
-Request Approver
-→ Submit + Cancel
+Training Manager
+→ Read + Create + Write + Delete + Share
 ```
 
-Одному человеку назначаем:
+Итог менеджера — более широкий набор разрешённых действий.
 
-```text
-Request Operator
-```
-
-другому:
-
-```text
-Request Operator
-Request Exporter
-```
-
-третьему:
-
-```text
-Request Operator
-Request Approver
-```
-
-Не нужно создавать три почти одинаковых огромных роли.
+Пустая галочка в одной Role не является отдельным запретом, который отменяет разрешение другой Role.
 
 ---
 
-# Часть 7. Level
+# Administrator — специальный случай
 
-## 27. Что означает Level 0
-
-Пока почти все наши permission rules выглядят так:
+В `frappe.permissions.has_permission()` для:
 
 ```text
-Level = 0
+Administrator
 ```
 
-Это основной уровень доступа к самому документу.
-
-Проще говоря:
+есть прямой shortcut:
 
 ```text
-Level 0
-→ может ли роль вообще работать с документом?
+return True
 ```
 
-Если на Level 0 нет нужного базового доступа, permission rules более высоких уровней сами по себе не дают полноценного доступа к документу.
+Поэтому все важные проверки этой главы выполняем под:
+
+```text
+student.user@example.test
+student.manager@example.test
+```
 
 ---
 
-## 28. А зачем Level 1, 2, 3…
+# Где сохраняются изменения Role Permissions Manager
 
-Они нужны для ограничения отдельных полей.
+Это особенно важно после главы 15.
 
-Например:
+Наш `Request` — Standard DocType собственного App.
 
-```text
-Request
-├── Subject       Perm Level 0
-├── Description   Perm Level 0
-└── Internal Cost Perm Level 1
-```
-
-Тогда обычная роль может работать с Level 0, а специальная — ещё и с полями Level 1.
-
-В текущем UI Role Permissions Manager для уровней выше 0 используются только права, связанные с доступом к полям:
+Его каноническая metadata лежит в:
 
 ```text
-Read
-Write
-Mask
+apps/training/training/training/doctype/request/request.json
 ```
 
-Это отдельная тема, поэтому полностью разбираем её в следующей главе.
-
----
-
-# Часть 8. Standard permissions и Custom DocPerm
-
-## 29. Откуда вообще берутся начальные permission rules
-
-У стандартного DocType из App исходные permissions хранятся вместе с metadata приложения.
-
-Упрощённо:
-
-```text
-App
-└── Request DocType
-    └── standard DocPerm rows
-```
-
-Это базовая permission model разработчика приложения.
-
----
-
-## 30. Что происходит, когда мы меняем permissions на Site
-
-Frappe не должен переписывать исходный файл установленного App при каждом клике администратора.
-
-Поэтому для site-level настройки используется:
+Но Role Permissions Manager для runtime-настройки использует:
 
 ```text
 Custom DocPerm
 ```
 
-При переходе к кастомным permissions стандартные правила копируются в site-level набор, после чего изменения выполняются уже там.
+Если custom permissions для DocType ещё не созданы, Framework сначала копирует стандартные `DocPerm`, а затем изменяет site-level `Custom DocPerm`.
 
-Упрощённо:
-
-```text
-DocPerm из App
-      ↓ первая кастомизация
-Custom DocPerm на Site
-      ↓
-изменённые permissions этого Site
-```
-
-По смыслу это похоже на идею Customize Form:
+То есть:
 
 ```text
-стандартное описание App
-+
-локальная настройка Site
+Request JSON
+→ стандартная metadata App
+
+Role Permissions Manager
+→ site-level Custom DocPerm
 ```
 
-Только здесь речь идёт именно о permissions.
+В лабораторной мы проверим SHA-256 `request.json` до и после настройки.
+
+Он не должен измениться.
 
 ---
 
-## 31. Reset Permissions
+# Only if Creator пока не включаем
 
-Role Permissions Manager умеет вернуть стандартные permissions.
-
-Перед сбросом интерфейс показывает стандартный набор правил.
-
-После Reset локальная кастомизация permissions для DocType убирается, и система возвращается к базовым правилам.
-
-Поэтому Reset — это не «снять все галочки».
-
-Это именно:
+На Level 0 есть ещё флаг:
 
 ```text
-вернуться к стандартной permission model DocType
+Only if Creator
 ```
+
+В metadata он называется:
+
+```text
+if_owner
+```
+
+Он ограничивает permission rule документами, где текущий User является системным `owner`.
+
+В этой главе оставляем:
+
+```text
+Only if Creator = ☐
+```
+
+Подробный owner-эксперимент будет в главе 21, когда у нас уже появятся стабильные Documents разных владельцев.
+
+Важно: на первом проходе курса не строим фиктивную схему с двумя одинаковыми строками одной Role и одного Level. В текущем UI `Only if Creator` — свойство конкретной permission row.
 
 ---
 
-# Часть 9. Child Table
+# Почему нужен фиксированный набор документов
 
-## 32. Почему Child DocType не настраивается здесь отдельно
+Если тестировать Delete на случайном старом Request, результат может зависеть от данных предыдущих глав.
 
-Child Table не является самостоятельным рабочим документом.
-
-Например:
+Поэтому лабораторная создаст точно два постоянных документа:
 
 ```text
-Request
-└── Participants
-    ├── row 1
-    └── row 2
+D18-User-Record
+D18-Manager-Record
 ```
 
-Пользователь получает доступ к child rows через parent `Request`.
+И один временный delete-probe, который в конце удаляется.
 
-Поэтому Role Permissions Manager v16 не предлагает Child DocType (`istable = 1`) в обычном списке Document Type.
-
-Это продолжает правило из главы 08:
-
-```text
-Child Table
-→ часть parent-документа
-→ не отдельный объект доступа
-```
+У этих документов будет известный `owner`, что пригодится в главе 21.
 
 ---
 
-# Часть 10. Чего Role Permissions Manager НЕ решает
-
-## 33. Он отвечает на вопрос «что можно делать с DocType»
-
-Например:
-
-```text
-Request Operator
-→ может Read + Create + Write Request
-```
-
-Но этого недостаточно, чтобы ответить:
-
-> какие именно Request он должен видеть?
-
-Например:
-
-```text
-только Department A
-только Site North
-только определённого Customer
-```
-
-Для этого есть `User Permission` и связанные механизмы.
-
----
-
-## 34. Три разных вопроса
-
-Полезно сразу разделять:
-
-```text
-1. Что пользователь может делать?
-   → Role Permission
-
-2. Какие значения/документы ему доступны?
-   → User Permission / Owner / Sharing / другие правила
-
-3. Какие поля внутри документа доступны?
-   → Permission Level
-```
-
-Если держать эти три вопроса раздельно, permission model становится намного понятнее.
-
----
-
-# Часть 11. Как проверить, почему доступ работает не так
-
-## 35. Не проверяй permissions под Administrator
-
-`Administrator` в permission engine получает специальный обход обычных role permissions.
-
-Поэтому тест:
-
-```text
-под Administrator всё открывается
-```
-
-ничего не доказывает.
-
-Создай обычного тестового System User и назначь ему именно те роли, которые хочешь проверить.
-
----
-
-## 36. Permission Inspector
-
-В текущем Frappe v16 есть полезный штатный инструмент:
-
-```text
-Permission Inspector
-```
-
-Он позволяет указать:
-
-```text
-DocType
-Document — необязательно
-User
-Permission Type
-```
-
-Например:
-
-```text
-DocType         = Request
-Document        = REQ-0007
-User            = anna@example.com
-Permission Type = write
-```
-
-После проверки Inspector показывает debug-объяснение решения permission engine.
-
-Это намного полезнее, чем гадать:
-
-```text
-почему кнопка пропала?
-почему документ не открывается?
-почему одна запись видна, а другая нет?
-```
-
-Когда permissions становятся сложнее, Permission Inspector стоит проверять одним из первых.
-
----
-
-# Часть 12. Мини-практика
-
-## 37. Создай две роли
-
-Создай:
-
-```text
-Request Reader
-Request Operator
-```
-
----
-
-## 38. Настрой Request Reader
-
-В Role Permissions Manager:
-
-```text
-Document Type = Request
-Role          = Request Reader
-Level         = 0
-
-Read ✓
-```
-
-Остальное пока не включай.
-
----
-
-## 39. Настрой Request Operator
-
-```text
-Document Type = Request
-Role          = Request Operator
-Level         = 0
-
-Read   ✓
-Write  ✓
-Create ✓
-```
-
-`Delete` оставь выключенным.
-
----
-
-## 40. Проверь первым пользователем
-
-Создай обычного тестового User:
-
-```text
-reader@example.com
-```
-
-Назначь:
-
-```text
-Request Reader
-```
-
-Проверь:
-
-```text
-может открыть Request       → да
-может создать новую         → нет
-может изменить существующую → нет
-```
-
----
-
-## 41. Проверь вторым пользователем
-
-```text
-operator@example.com
-```
-
-Role:
-
-```text
-Request Operator
-```
-
-Проверь:
-
-```text
-Read   → да
-Create → да
-Write  → да
-Delete → нет
-```
-
----
-
-## 42. Теперь проверь сложение ролей
-
-Назначь `reader@example.com` ещё одну роль, которая на `Request` даёт только:
-
-```text
-Export ✓
-```
-
-Ожидаемая идея:
-
-```text
-Request Reader → Read
-Export Role    → Export
-
-итого          → Read + Export
-```
-
-Пустые галочки второй роли не должны «отнять» Read первой.
-
----
-
-## 43. Проверь Only if Creator
-
-Для тестовой роли настрой:
-
-```text
-Read  ✓
-Write ✓
-Only if Creator ✓
-```
-
-Создай одну Request под первым пользователем и вторую — под другим.
-
-Сравни доступ.
-
-Смотри именно на системное поле:
-
-```text
-owner
-```
-
-а не на Assignment.
-
----
-
-# Частые ошибки
-
-## 44. «Снял галочку — значит запретил»
-
-Нет.
-
-Пустая permission в одной роли не является отрицательным deny против разрешения другой роли.
-
-Всегда смотри на **все роли User вместе**.
-
----
-
-## 45. «Write значит и Read»
-
-Не рассчитывай на это.
-
-Для обычного редактора явно выдавай:
-
-```text
-Read + Write
-```
-
----
-
-## 46. «Create значит потом можно редактировать»
-
-Тоже нет.
-
-`Create` и `Write` — разные действия.
-
----
-
-## 47. «Only if Creator — это назначенный исполнитель»
-
-Нет.
-
-Это:
-
-```text
-owner == current user
-```
-
-Assignment — отдельный механизм.
-
----
-
-## 48. «Нужно дать оператору доступ только к Department A — настрою Role Permission Manager»
-
-Role Permission Manager отвечает прежде всего на вопрос **что можно делать**.
-
-Ограничение конкретными Department — задача `User Permission`, которую разберём в главе 20.
-
----
-
-## 49. «Настрою permissions прямо для Child Table»
-
-Обычная Child Table следует доступу parent-документа.
-
-Не нужно строить для неё независимую role model.
-
----
-
-## 50. «Проверю под Administrator»
-
-Так можно пропустить почти любую ошибку permission model.
-
-Проверяй под обычным User.
+# Что произойдёт в лабораторной
+
+Ты:
+
+1. снимешь SHA-256 `request.json`;
+2. создашь точные Level 0 rules для `Training User` и `Training Manager`;
+3. явно выключишь ненужные permissions;
+4. проверишь, что `request.json` не изменился;
+5. под Training User создашь `D18-User-Record`;
+6. под Training Manager создашь `D18-Manager-Record`;
+7. проверишь разницу Delete;
+8. временно снимешь `Write` у Training User;
+9. увидишь read-only поведение;
+10. восстановишь точную permission matrix.
 
 ---
 
 # Что запомнить
 
-1. **Role Permissions Manager связывает Role с действиями над DocType.**
-2. `Read`, `Write`, `Create`, `Delete` — отдельные permissions.
-3. `Select` позволяет выбирать документ в ссылках без полноценного Read; Read при этом покрывает Select-проверку.
-4. `Submit`, `Cancel`, `Amend` имеют смысл только у Submittable DocType.
-5. Права нескольких Roles **складываются как разрешения**.
-6. Пустая галочка в одной Role не отменяет разрешение другой Role.
-7. `Only if Creator` работает через системное поле `owner`.
-8. `Level 0` — базовый document-level доступ; более высокие Levels относятся к полям.
-9. Изменённые на Site стандартные permissions хранятся как `Custom DocPerm`, а Reset возвращает стандартные правила.
-10. Если результат непонятен, используй обычного тестового User и `Permission Inspector`.
+1. Role сама по себе не даёт доступ к DocType.
+2. Level 0 — базовые document permissions.
+3. Read, Create, Write и Delete — разные права.
+4. Share — отдельное право.
+5. Несколько Roles пользователя складывают разрешения.
+6. Administrator не подходит для проверки обычной permission model.
+7. Role Permissions Manager в этом сценарии пишет `Custom DocPerm`, а не `request.json`.
+8. После добавления rule нужно проверить всю строку, а не только поставленные вручную галочки.
 
 ---
 
-# Контрольные вопросы
+## Проверенные исходники v16.32.0
 
-1. Что связывает Role Permissions Manager?
-2. Чем `Read` отличается от `Write`?
-3. Даёт ли `Create` автоматически `Write`?
-4. Чем `Select` отличается от `Read`?
-5. Почему у обычного DocType нет смысла выдавать Submit?
-6. Что означает `Only if Creator`?
-7. Проверяет ли он Assigned To?
-8. Что произойдёт, если одна Role даёт Read, а другая Role Read не даёт?
-9. Зачем нужен Level 0?
-10. Чем `DocPerm` отличается от `Custom DocPerm`?
-11. Почему Child Table не получает отдельную обычную permission model?
-12. Каким инструментом удобно диагностировать конкретную проверку доступа?
+- [Role Permissions Manager backend](https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/page/permission_manager/permission_manager.py)
+- [Role Permissions Manager UI](https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/page/permission_manager/permission_manager.js)
+- [Custom DocPerm metadata](https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/custom_docperm/custom_docperm.json)
+- [Permission engine](https://github.com/frappe/frappe/blob/v16.32.0/frappe/permissions.py)
 
-Если на эти вопросы можно ответить без подсказки, базовая логика Role Permissions уже понятна.
+Теперь выполни [**лабораторную 18**](labs/18_ROLE_PERMISSION_MANAGER_LAB.md).
 
----
-
-# Официальные источники
-
-- [Users and Permissions](https://docs.frappe.io/framework/user/en/basics/users-and-permissions)
-- [Role Permissions Manager — source, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/core/page/permission_manager/permission_manager.py)
-- [Role Permissions Manager UI — source, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/core/page/permission_manager/permission_manager.js)
-- [Permission Manager Help — source, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/core/page/permission_manager/permission_manager_help.html)
-- [Permission engine — source, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/permissions.py)
-- [DocPerm metadata — source, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/docperm/docperm.json)
-- [Custom DocPerm metadata — source, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/custom_docperm/custom_docperm.json)
-- [Permission Inspector — source, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/permission_inspector/permission_inspector.py)
-
-Следующая глава: **19. Permission Level**.
+После неё переходи к [**19. Permission Level**](19_PERMISSION_LEVEL.md).
