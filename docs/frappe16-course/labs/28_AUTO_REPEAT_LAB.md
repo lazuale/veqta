@@ -37,26 +37,67 @@ reference document
 одна реально созданная Auto Repeat копия
 ```
 
-Останется:
+Останется один проверенный Auto Repeat в состоянии:
 
 ```text
-AUT-AR-00001
 Disabled = ✓
 ```
 
-если это первый Auto Repeat на чистом стенде курса.
+---
+
+# Часть 1. Получи даты именно из учебного Site
+
+Открой терминал WSL2.
+
+Перейди в Bench:
+
+```bash
+cd ~/frappe/frappe16-course-bench
+```
+
+Получим текущую дату Frappe Site:
+
+```bash
+TODAY=$(bench --site learn.localhost execute frappe.utils.nowdate)
+```
+
+Посчитаем соседние даты средствами Debian:
+
+```bash
+YESTERDAY=$(date -d "$TODAY -1 day" +%F)
+TOMORROW=$(date -d "$TODAY +1 day" +%F)
+WEEKLY_NEXT=$(date -d "$YESTERDAY +7 days" +%F)
+```
+
+Выведи их:
+
+```bash
+printf 'YESTERDAY=%s\nTODAY=%s\nTOMORROW=%s\nWEEKLY_NEXT=%s\n' \
+  "$YESTERDAY" "$TODAY" "$TOMORROW" "$WEEKLY_NEXT"
+```
+
+Ты получишь четыре реальные даты вида:
+
+```text
+YESTERDAY=YYYY-MM-DD
+TODAY=YYYY-MM-DD
+TOMORROW=YYYY-MM-DD
+WEEKLY_NEXT=YYYY-MM-DD
+```
+
+**Дальше в поля Desk вводи именно значения, которые напечатал твой терминал.**
 
 ---
 
-# Часть 1. Создай Recurring Note
+# Часть 2. Создай Recurring Note
 
 Работай под `Administrator`.
 
 Открой `DocType` и создай Standard DocType:
 
 ```text
-Name:   Recurring Note
-Module: Training
+Name:    Recurring Note
+Module:  Training
 Custom?: ☐
 ```
 
@@ -84,7 +125,34 @@ Title Field: title
 
 ---
 
-# Часть 2. Создай reference document
+## Проверь, что Framework добавил служебную связь сам
+
+Открой `Customize Form` для:
+
+```text
+Recurring Note
+```
+
+Найди поле:
+
+```text
+Auto Repeat
+fieldname: auto_repeat
+```
+
+Это служебный Custom Field, созданный из-за:
+
+```text
+Allow Auto Repeat = ✓
+```
+
+Ничего в нём не меняй.
+
+Закрой Customize Form без изменений.
+
+---
+
+# Часть 3. Создай reference document
 
 Открой новый `Recurring Note`.
 
@@ -92,7 +160,7 @@ Title Field: title
 
 ```text
 Title:    Monthly Check Template
-Run Date: 2026-08-30
+Run Date: <значение YESTERDAY>
 ```
 
 Сохрани.
@@ -100,14 +168,14 @@ Run Date: 2026-08-30
 На чистом стенде курса ожидается имя вида:
 
 ```text
-RN-2026-00001
+RN-<current-year>-00001
 ```
 
 Запомни фактический системный `name` — он будет выбран в Auto Repeat.
 
 ---
 
-# Часть 3. Создай Auto Repeat
+# Часть 4. Создай Auto Repeat
 
 Открой:
 
@@ -120,7 +188,7 @@ http://learn.localhost:8000/app/auto-repeat
 ```text
 Reference Document Type: Recurring Note
 Reference Document:      <name Monthly Check Template>
-Start Date:              2026-08-31
+Start Date:              <значение TODAY>
 Frequency:               Daily
 Disabled:                ☐
 ```
@@ -145,26 +213,26 @@ AUT-AR-00001
 
 ```text
 Status = Active
-Next Schedule Date = 2026-09-01
+Next Schedule Date = <значение TOMORROW>
 ```
 
 Причина:
 
 ```text
-Start Date 2026-08-31
+Start Date = TODAY
 +
 Daily
-→ следующий запуск 2026-09-01
+→ Next Schedule Date = TOMORROW
 ```
 
 ---
 
-# Часть 4. Подготовь запуск на сегодня
+# Часть 5. Подготовь запуск на TODAY
 
 У уже сохранённого Auto Repeat измени только:
 
 ```text
-Start Date = 2026-08-30
+Start Date = <значение YESTERDAY>
 ```
 
 Сохрани.
@@ -172,24 +240,22 @@ Start Date = 2026-08-30
 Ожидается:
 
 ```text
-Next Schedule Date = 2026-08-31
+Next Schedule Date = <значение TODAY>
 ```
 
-Это сегодняшняя дата учебного прохода.
+Теперь scheduled backend имеет запись, которую нужно выполнить именно сегодня.
 
 ---
 
-# Часть 5. Выполни сегодняшнее повторение сейчас
+# Часть 6. Выполни сегодняшнее повторение сейчас
 
-Открой терминал WSL2.
-
-Перейди в Bench:
+Вернись в терминал:
 
 ```bash
 cd ~/frappe/frappe16-course-bench
 ```
 
-Сначала зафиксируй фактическое имя Auto Repeat из формы. Для чистого стенда:
+Зафиксируй фактическое имя Auto Repeat из формы. Для чистого стенда:
 
 ```bash
 AR_NAME="AUT-AR-00001"
@@ -197,7 +263,7 @@ AR_NAME="AUT-AR-00001"
 
 Если на форме другое имя, замени значение переменной на него.
 
-Теперь выполни:
+Выполни:
 
 ```bash
 bench --site learn.localhost execute \
@@ -209,7 +275,7 @@ bench --site learn.localhost execute \
 
 ---
 
-# Часть 6. Проверь созданный Document
+# Часть 7. Проверь созданный Document
 
 Вернись в Desk и открой:
 
@@ -230,20 +296,16 @@ Monthly Check Template
 ### Reference
 
 ```text
-Run Date = 2026-08-30
+Run Date = <значение YESTERDAY>
 ```
 
 ### Новая копия
 
 ```text
-Run Date = 2026-08-31
+Run Date = <значение TODAY>
 ```
 
-У новой копии другой системный `name`, например:
-
-```text
-RN-2026-00002
-```
+У новой копии другой системный `name`, например следующий `RN-...` в series.
 
 Это реальный новый Document, а не изменение reference document.
 
@@ -256,7 +318,7 @@ RN-2026-00002
 После сегодняшнего создания ожидается:
 
 ```text
-Next Schedule Date = 2026-09-01
+Next Schedule Date = <значение TOMORROW>
 Status = Active
 ```
 
@@ -269,7 +331,7 @@ Status = Active
 На Auto Repeat установи:
 
 ```text
-Start Date = 2026-08-30
+Start Date = <значение YESTERDAY>
 Frequency  = Weekly
 ```
 
@@ -280,10 +342,10 @@ Frequency  = Weekly
 Ожидается:
 
 ```text
-Next Schedule Date = 2026-09-06
+Next Schedule Date = <значение WEEKLY_NEXT>
 ```
 
-Обычный недельный шаг без выбранных weekdays равен семи дням.
+То есть обычный недельный шаг без выбранных weekdays равен семи дням.
 
 ---
 
@@ -292,7 +354,7 @@ Next Schedule Date = 2026-09-06
 Верни:
 
 ```text
-Start Date = 2026-08-31
+Start Date = <значение TODAY>
 Frequency  = Daily
 ```
 
@@ -301,7 +363,7 @@ Frequency  = Daily
 Ожидается:
 
 ```text
-Next Schedule Date = 2026-09-01
+Next Schedule Date = <значение TOMORROW>
 ```
 
 ---
@@ -311,12 +373,12 @@ Next Schedule Date = 2026-09-01
 На том же активном Auto Repeat установи:
 
 ```text
-End Date = 2026-08-31
+End Date = <значение TODAY>
 ```
 
 Нажми `Save`.
 
-Ожидается отказ:
+Ожидается точный отказ:
 
 ```text
 End Date cannot be today.
@@ -340,14 +402,14 @@ End Date
 
 ```text
 Status = Active
-Next Schedule Date = 2026-09-01
+Next Schedule Date = <значение TOMORROW>
 ```
 
 ---
 
-# Часть 7. Отключи Auto Repeat
+# Часть 8. Отключи Auto Repeat
 
-Чтобы завтра лаборатория не начала создавать новые документы сама, установи:
+Чтобы после лабораторной правило не создавало новые документы само, установи:
 
 ```text
 Disabled = ✓
@@ -366,7 +428,7 @@ Auto Repeat не удаляй.
 
 ---
 
-# Часть 8. Финальная проверка блока E
+# Часть 9. Финальная проверка блока E
 
 Проверь, что существуют:
 
@@ -387,24 +449,25 @@ Auto Repeat <AUT-AR-name>
 Проверь два `Recurring Note`:
 
 ```text
-Monthly Check Template / 2026-08-30
-Monthly Check Template / 2026-08-31
+Monthly Check Template / <YESTERDAY>
+Monthly Check Template / <TODAY>
 ```
 
 ---
 
 ## Проверка себя
 
-1. Зачем Recurring Note получил `Allow Auto Repeat`?
-2. Что является Reference Document?
-3. Создался ли новый system name у повторения?
-4. Почему у новой копии `Run Date = 2026-08-31`?
-5. Что произошло с `Next Schedule Date` после запуска?
-6. Какой результат дал Weekly от 2026-08-30?
-7. Почему End Date = 2026-08-31 был отвергнут?
-8. Зачем Auto Repeat в конце Disabled?
-9. Чем Auto Repeat отличается от Assignment Rule?
-10. Писали ли мы собственный scheduler code?
+1. Откуда в лабораторной взято значение TODAY?
+2. Зачем Recurring Note получил `Allow Auto Repeat`?
+3. Какое служебное поле Framework добавил сам?
+4. Что является Reference Document?
+5. Создался ли новый system name у повторения?
+6. Почему у новой копии `Run Date = TODAY`?
+7. Что произошло с `Next Schedule Date` после запуска?
+8. Какой результат дал Weekly от YESTERDAY?
+9. Почему End Date = TODAY был отвергнут?
+10. Зачем Auto Repeat в конце Disabled?
+11. Писали ли мы собственный scheduler code?
 
 ---
 
@@ -419,8 +482,9 @@ Recurring Note
   Auto Name: RN-.YYYY.-.#####
   Title Field: title
 
-  title    Data  Mandatory
-  run_date Date  Mandatory
+  title       Data  Mandatory
+  run_date    Date  Mandatory
+  auto_repeat служебный Custom Field, создан Framework
 ```
 
 Существуют два Documents с Title:
@@ -432,8 +496,8 @@ Monthly Check Template
 и Run Date:
 
 ```text
-2026-08-30
-2026-08-31
+reference = YESTERDAY текущего прохода
+generated = TODAY текущего прохода
 ```
 
 Существует один проверенный Auto Repeat:
@@ -441,7 +505,7 @@ Monthly Check Template
 ```text
 Reference Document Type: Recurring Note
 Reference Document:      <reference Monthly Check Template>
-Start Date:              2026-08-31
+Start Date:              TODAY текущего прохода
 Frequency:               Daily
 End Date:                пусто
 Disabled:                ✓
