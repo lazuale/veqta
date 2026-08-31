@@ -99,7 +99,7 @@
 
 39. [Web Form](39_WEB_FORM.md)
 40. [Website / portal-возможности Framework](40_WEBSITE_AND_PORTAL.md)
-41. REST API
+41. [REST API](41_REST_API.md)
 42. RPC и whitelisted methods
 43. Authentication для интеграций
 
