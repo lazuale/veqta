@@ -1,19 +1,15 @@
 # 21. Owner и Sharing
 
-В предыдущих главах мы уже собрали почти всю базовую систему permissions:
+У нас уже есть четыре разных элемента permission model:
 
 ```text
+User / Role
 Role Permission
-→ что пользователь вообще может делать с DocType
-
 Permission Level
-→ какие поля он может видеть и менять
-
 User Permission
-→ какие конкретные записи ему доступны через Link-поля
 ```
 
-Остались ещё два штатных механизма, которые часто путают с исполнителями, ответственными и бизнес-владельцами:
+Теперь разберём ещё два механизма, которые часто путают с бизнес-полями вроде `Responsible`:
 
 ```text
 owner
@@ -22,828 +18,501 @@ Sharing
 
 Они решают разные задачи.
 
-Проверено: **2026-08-31**.
+Проверено для **Frappe Framework v16.32.0**.
 
 ---
 
-## 1. `owner` — системный создатель документа
+# `owner` — системный создатель Document
 
-У обычного Document есть системное поле:
+У обычного Document Frappe есть системное поле:
 
 ```text
 owner
 ```
 
-Для нового документа Frappe штатно записывает туда пользователя, под которым документ создаётся.
+Если пользователь сам создаёт Request, Framework записывает его User туда автоматически.
 
-Например:
+Из главы 18 у нас уже есть два хороших примера:
 
 ```text
-User: anna@example.com
+D18-User-Record
+owner = student.user@example.test
 
-Анна создаёт:
-Request REQ-0001
-
-После сохранения:
-owner = anna@example.com
+D18-Manager-Record
+owner = student.manager@example.test
 ```
 
-То есть в простом случае `owner` отвечает на вопрос:
+Оба имеют:
 
-> кто создал эту запись?
+```text
+Area = North
+```
 
-Это системное поле, а не поле, которое нужно добавлять в свой DocType вручную.
+Поэтому они идеально подходят для чистого owner-эксперимента: Area одинаковая, отличается только создатель.
 
 ---
 
-## 2. `owner` не означает «ответственный»
+# owner ≠ Responsible
 
-Это особенно важно.
-
-Допустим, Анна создала заявку, а выполнять её назначили Борису:
+У нашего `Request` уже есть:
 
 ```text
-Request REQ-0001
-
-owner       = anna@example.com
-Assigned To = boris@example.com
+Responsible
+Link → User
 ```
 
-Кто owner?
+Это бизнес-поле самого DocType.
+
+Если менеджер создал Request и указал:
 
 ```text
-Анна
+Responsible = student.user@example.test
 ```
 
-Кто исполнитель?
+системный owner всё равно будет:
 
 ```text
-Борис
+student.manager@example.test
 ```
 
-Это разные вещи.
-
-Поэтому не стоит читать `owner` как:
+То есть:
 
 ```text
-владелец процесса
-ответственный
-исполнитель
-руководитель
-куратор
+owner
+→ кто создал Document
+
+responsible
+→ кого модель Request считает ответственным
 ```
 
-В контексте обычных permissions удобнее думать так:
-
-```text
-owner = системный создатель записи
-```
-
-Assignment разберём отдельно в главе 23.
+Framework не считает эти значения взаимозаменяемыми.
 
 ---
 
-## 3. Где `owner` используется в permissions
+# Only if Creator
 
-В Role Permissions Manager есть режим:
+В Role Permissions Manager у Level 0 rule есть:
 
 ```text
 Only if Creator
 ```
 
-В metadata permission rule это свойство называется:
+В metadata permission rule это:
 
 ```text
 if_owner
 ```
 
-Идея очень простая:
-
-> данное право действует только для документов, у которых `owner` совпадает с текущим User.
-
-Например:
-
-```text
-Request Operator
-Read  ✓
-Write ✓
-Only if Creator ✓
-```
-
-Тогда оператор может работать только со своими документами в рамках этого правила.
-
----
-
-## 4. Как Frappe понимает, что пользователь является owner
-
-Для конкретного Document проверяется системное поле:
-
-```text
-owner
-```
-
-Условно:
+Если включить его у `Training User`, права этой строки начинают зависеть от:
 
 ```text
 doc.owner == current_user
 ```
 
-Например:
-
-```text
-REQ-0001
-owner = anna@example.com
-```
-
-Для Анны:
-
-```text
-is_owner = true
-```
-
-Для Бориса:
-
-```text
-is_owner = false
-```
-
-Никакие поля вроде:
-
-```text
-assigned_to
-responsible
-manager
-employee
-requested_by
-```
-
-автоматически в эту проверку не входят.
+Именно это проверим в лабораторной.
 
 ---
 
-## 5. Можно дать разные права на свои и чужие документы
+## Что произойдёт с нашим Training User
 
-Например, хотим такую модель:
-
-```text
-все Request можно читать
-свои Request можно ещё и редактировать
-```
-
-Логика permission rules выглядит так:
+Сейчас финальная row главы 20:
 
 ```text
-Request Operator
-
-Rule A
-Read = ✓
-Only if Creator = ✗
-
-Rule B
-Write = ✓
-Only if Creator = ✓
+Training User
+Read   ✓
+Create ✓
+Write  ✓
+Only if Creator ☐
 ```
 
-Результат:
+Временно сделаем:
 
 ```text
-чужой Request
-→ Read
-
-свой Request
-→ Read + Write
+Only if Creator ✓
 ```
 
-Это полезнее, чем пытаться создавать отдельные DocType для «моих» и «чужих» записей.
+Тогда для двух North-документов:
+
+```text
+D18-User-Record
+owner = student.user@example.test
+→ owner condition проходит
+
+D18-Manager-Record
+owner = student.manager@example.test
+→ owner condition не проходит
+```
+
+После опыта обязательно вернём:
+
+```text
+Only if Creator ☐
+```
+
+чтобы дальнейший курс не превратился в модель «только свои Requests».
 
 ---
 
-## 6. `Only if Creator` — не фильтр по произвольному полю
+## Почему не строим две одинаковые строки одной Role
 
-Представим, что у `Request` есть поле:
-
-```text
-requested_by
-Link → User
-```
-
-И там указано:
+Иногда хочется выразить:
 
 ```text
-requested_by = anna@example.com
+все документы Read
+свои документы Write
 ```
 
-Но документ фактически создал Борис:
+и попытаться создать две Level 0 rows одной и той же Role:
 
 ```text
-owner = boris@example.com
+Training User + Level 0 + normal
+Training User + Level 0 + if_owner
 ```
 
-Для `Only if Creator` owner здесь:
+Для первого практического маршрута так делать не будем.
 
-```text
-Борис
-```
+В текущем Role Permissions Manager `Only if Creator` является свойством конкретной row `Role + Permission Level`, а backend обновления custom permissions ориентируется на эту комбинацию.
 
-Значение `requested_by` на это не влияет.
-
-Если ограничение должно строиться именно по `requested_by`, `department`, `company` или другому Link-полю, это уже другая задача. Часто здесь подходит User Permission или собственная серверная логика.
+Поэтому в лаборатории owner-поведение проверяем как **одну временную конфигурацию**, а не учим сомнительной схеме дублирования строк.
 
 ---
 
-# Sharing
+# Sharing — другое
 
-Теперь другой сценарий.
+Теперь представим другой сценарий.
 
-Представим:
-
-```text
-Анна обычно не работает с REQ-0100
-```
-
-Но именно эту одну заявку ей нужно показать на время.
-
-Менять ей роли ради одной записи неудобно.
-
-Создавать User Permission тоже не обязательно.
-
-Для этого есть **Sharing**.
-
----
-
-## 7. Что такое Sharing простыми словами
-
-Sharing — это выдача конкретному пользователю доступа к **конкретному документу**.
-
-Например:
+У обычного User есть:
 
 ```text
-Request
-└── REQ-0100
-      ↓ Share
-   anna@example.com
-```
-
-Это не изменение роли Анны целиком.
-
-Это отдельное исключение для одной записи.
-
-Удобная аналогия:
-
-```text
-Role Permission
-→ постоянный пропуск в класс документов
-
 User Permission
-→ ограничение по допустимым значениям
-
-Sharing
-→ персональный пропуск на одну конкретную запись
+Training Area = North
 ```
 
----
+Поэтому South Request ему недоступен.
 
-## 8. Где хранится Sharing
+Но один конкретный South Request нужно показать ему как исключение.
 
-Внутри Framework для этого используется системный DocType:
-
-```text
-DocShare
-```
-
-Запись хранит примерно такую информацию:
-
-```text
-user          = anna@example.com
-share_doctype = Request
-share_name    = REQ-0100
-read          = 1
-write         = 0
-submit        = 0
-share         = 0
-```
-
-То есть Sharing — не просто отметка в браузере.
-
-У него есть отдельная серверная запись доступа.
-
----
-
-## 9. Какие права можно выдать через обычный Sharing
-
-Базовые права `DocShare`:
-
-| Право | Что означает |
-|---|---|
-| **Read** | открыть документ |
-| **Write** | изменять документ |
-| **Submit** | Submit для подходящего Submittable DocType |
-| **Share** | разрешить пользователю делиться документом дальше |
-
-При создании Share доступ на чтение добавляется всегда.
-
-То есть бессмысленного варианта:
-
-```text
-Write = да
-Read = нет
-```
-
-обычный механизм Sharing не создаёт.
-
-В v16 Framework также умеет учитывать custom permission types, если они определены для конкретного DocType. Для первого знакомства это можно не использовать.
-
----
-
-## 10. Sharing не выдаёт вообще любые права
-
-Через стандартный document sharing не раздаются, например:
-
-```text
-Create
-Delete
-Cancel
-Amend
-Report
-Import
-Export
-```
-
-Sharing предназначен именно для доступа к уже существующему конкретному документу.
-
-Это важная граница.
-
-Если человеку нужна полноценная постоянная работа со всем DocType, правильнее настроить Role Permission, а не расшаривать сотни записей вручную.
-
----
-
-## 11. Нельзя поделиться большим правом, чем есть у тебя
-
-Представим:
-
-```text
-Анна имеет Read на REQ-0100
-но не имеет Write
-```
-
-Она пытается расшарить документ Борису с:
-
-```text
-Read  ✓
-Write ✓
-```
-
-Frappe проверяет права пользователя, который выполняет Sharing.
-
-Если у Анны самой нет `Write`, она не должна суметь выдать Борису `Write` через стандартный Sharing.
-
-То же относится к `Submit` и другим поддерживаемым share permissions.
-
----
-
-## 12. Для самого Sharing тоже нужно разрешение
-
-В Role Permission Manager есть право:
+Для этого существует:
 
 ```text
 Share
 ```
 
-Чтобы пользователь штатно делился документами, у него должно быть такое permission для соответствующего Document.
+---
 
-То есть:
+# Что такое Share
+
+Sharing выдаёт конкретному User доступ к **конкретному Document**.
+
+Например:
+
+```text
+D21-Shared-South
+Area = South
+        ↓
+Share
+        ↓
+student.user@example.test
+Read only
+```
+
+Это не меняет:
+
+```text
+Training User Role
+User Permission North
+owner документа
+```
+
+Просто появляется явное document-level исключение.
+
+---
+
+# Где хранится Share
+
+Framework использует системный DocType:
+
+```text
+DocShare
+```
+
+Запись содержит, среди прочего:
+
+```text
+user
+share_doctype
+share_name
+read
+write
+submit
+share
+```
+
+То есть Sharing — серверная запись permission model, а не локальная настройка браузера.
+
+---
+
+# Read при Share
+
+В `frappe.share.add_docshare()` текущего `v16.32.0` есть прямое правило:
+
+```text
+при создании Share
+Read добавляется всегда
+```
+
+Потом можно дополнительно разрешить:
+
+```text
+Write
+Submit
+Share
+```
+
+если пользователь, который делится документом, сам имеет соответствующие права.
+
+---
+
+# Нельзя раздать право, которого нет у тебя
+
+Перед созданием Share Framework проверяет:
+
+```text
+имеет ли текущий User право Share на документ
+```
+
+А если он пытается выдать, например:
+
+```text
+Write
+```
+
+проверяется и его собственный `Write` на этот Document.
+
+Именно поэтому в нашей модели:
+
+```text
+Training Manager
+Share = ✓
+Write = ✓
+```
+
+а:
+
+```text
+Training User
+Share = ☐
+```
+
+Менеджер сможет создать учебный Share без Administrator.
+
+---
+
+# Share может быть исключением из других ограничений
+
+Это особенно важная деталь `v16.32.0`.
+
+В permission-aware list query Framework строит обычные ограничения, например:
+
+```text
+owner
+User Permission
+permission query conditions
+```
+
+а затем, если есть shared Documents, добавляет их как отдельное разрешённое множество.
+
+В исходнике это сформулировано прямо:
+
+```text
+shared documents trump all other restrictions
+```
+
+Поэтому наш будущий:
+
+```text
+D21-Shared-South
+Area = South
+```
+
+сможет появиться у пользователя, которому обычно разрешён только North.
+
+Это не «сломанный User Permission».
+
+Это явное исключение через Share.
+
+---
+
+# Share Read не означает Write
+
+Если South Document расшарен только с:
 
 ```text
 Read
 ```
 
-не означает автоматически:
+то обычный User сможет его открыть.
+
+Но `Write` через его обычную Role всё равно упирается в User Permission по Area.
+
+А Share не содержит Write.
+
+Поэтому ожидаемый итог:
 
 ```text
-можно раздавать доступ другим
+D21-Shared-South
+→ виден
+→ открывается
+→ read-only
 ```
 
-Это отдельное право.
+Затем лаборатория временно добавит Share Write, даст изменить `Notes` и снова вернёт Share в read-only состояние.
 
 ---
 
-## 13. Что происходит при проверке доступа
+# Permission Level остаётся отдельным слоем
 
-Упрощённо серверная логика выглядит так:
+Даже если Document расшарен с Read или Write, это не означает автоматический доступ к:
 
 ```text
-проверить обычные Role Permissions
-        ↓
-учесть owner / User Permissions
-        ↓
-доступа всё ещё нет?
-        ↓
-проверить, не расшарен ли этот Document пользователю
-        ↓
-есть подходящий DocShare
-        ↓
-разрешить соответствующее действие
+Internal Cost
+Perm Level = 1
 ```
 
-Поэтому Sharing является настоящим дополнительным каналом доступа.
+У `Training User` по-прежнему нет Level 1 rule.
 
-Например, пользователь может не иметь обычного `Read` на конкретный `Request`, но получить `Read` именно на `REQ-0100` через Share.
+Поэтому на Shared Request:
+
+```text
+обычные поля могут быть доступны
+Internal Cost остаётся недоступен
+```
+
+Это очень хороший пример того, как permission layers складываются, а не заменяют друг друга.
 
 ---
 
-## 14. Sharing работает с конкретным документом
+# Share не меняет owner
 
-Это главное отличие от Role Permission.
-
-```text
-Role Permission
-Request → Read
-```
-
-может дать доступ ко множеству заявок.
-
-А:
+Если:
 
 ```text
-Share REQ-0100 → Anna
+D21-Shared-South
+owner = student.manager@example.test
 ```
 
-касается именно:
+и менеджер делится им с обычным User, после Share:
 
 ```text
-REQ-0100
+owner
 ```
 
-Другие записи автоматически от этого не становятся доступными.
+остаётся прежним.
+
+Sharing не передаёт ownership.
 
 ---
 
-## 15. Share можно отозвать
-
-Поскольку доступ хранится отдельной записью `DocShare`, его можно убрать.
-
-После удаления Share пользователь снова остаётся только с теми правами, которые даёт обычная permission model.
-
-Например:
+# Sharing ≠ User Permission
 
 ```text
-до Share
-Anna → REQ-0100 недоступен
+User Permission North
+→ системное ограничение по связанному Training Area
 
-после Share
-Anna → REQ-0100 Read
-
-после удаления Share
-Anna → REQ-0100 снова недоступен
+Share D21-Shared-South
+→ исключение для одной конкретной записи
 ```
 
-Поэтому Sharing удобен для временных исключений.
+Механизмы работают на разных уровнях.
 
 ---
 
-## 16. `Everyone`
+# Sharing ≠ Assignment
 
-В `DocShare` существует флаг:
+В следующем блоке появится:
 
 ```text
-Everyone
+Assignment / ToDo
 ```
 
-Он позволяет расшарить документ не одному конкретному пользователю, а всем соответствующим пользователям системы.
+Его вопрос:
 
-Это мощная настройка, поэтому использовать её стоит осознанно.
+> кому нужно выполнить работу?
 
-Если задача звучит:
+Sharing отвечает на другой вопрос:
 
-> этот тип данных в принципе должны читать все сотрудники
+> кому разрешено открыть/изменить конкретный Document?
 
-то чаще правильнее сначала проверить обычные Role Permissions.
+Не путай:
 
-`Everyone` полезнее как документное исключение, а не как замена нормальной модели ролей.
+```text
+доступ
+≠
+рабочее назначение
+```
 
 ---
 
-## 17. Sharing можно отключить глобально
+# Disable Document Sharing
 
-В `System Settings` существует настройка:
+В System Settings есть глобальная настройка:
 
 ```text
 Disable Document Sharing
 ```
 
-Если она включена, стандартная permission check для `share` не разрешает пользователям делиться документами.
+Если она включена, стандартная permission check не разрешает обычный Sharing.
 
-Это может быть полезно в системах, где доступ должен определяться только централизованными правилами и никаких пользовательских исключений быть не должно.
+В учебном стенде она должна оставаться выключенной:
+
+```text
+Disable Document Sharing = ☐
+```
+
+Это также важно для следующей главы про Assignment: стандартный Assign умеет использовать Share как вспомогательный механизм, если назначаемому User не хватает Read.
 
 ---
 
-## 18. Sharing ≠ Assignment
+# Что произойдёт в лабораторной
 
-Это одна из самых частых путаниц.
+Ты:
 
-Допустим:
-
-```text
-REQ-0100 assigned to Boris
-```
-
-Это означает рабочее назначение.
-
-А:
-
-```text
-REQ-0100 shared with Boris
-```
-
-означает выдачу доступа.
-
-Это разные механизмы.
-
-Удобно помнить:
-
-```text
-Assignment
-→ кто должен что-то сделать
-
-Sharing
-→ кому дополнительно разрешено открыть/изменить документ
-```
-
-Назначение задачи не стоит использовать как замену модели безопасности.
+1. временно включишь `Only if Creator` у Training User;
+2. сравнишь два North Requests с разными owners;
+3. полностью вернёшь owner restriction в исходное состояние;
+4. под Training Manager создашь `D21-Shared-South`;
+5. убедишься, что Student User не видит его из-за Area = South;
+6. расшаришь документ Student User только на Read;
+7. увидишь Share как явное исключение User Permission;
+8. временно добавишь Share Write;
+9. изменишь обычное поле;
+10. вернёшь Share в read-only состояние;
+11. убедишься, что owner не изменился и Internal Cost не раскрылся.
 
 ---
 
-## 19. Sharing ≠ User Permission
+# Что запомнить
 
-Ещё одно важное различие.
-
-### User Permission
-
-```text
-Anna
-Allow Department
-For Value Department A
-```
-
-означает системное ограничение по связанному значению.
-
-### Sharing
-
-```text
-REQ-0100
-Share with Anna
-```
-
-означает исключение для конкретной записи.
-
-Сравнение:
-
-| Механизм | Отвечает на вопрос |
-|---|---|
-| Role Permission | что разрешено делать с DocType |
-| Permission Level | какие поля доступны |
-| User Permission | какие записи допустимы по Link-значениям |
-| If Owner | что можно делать со своими документами |
-| Sharing | кому дать исключительный доступ к одной записи |
+1. `owner` — системный создатель Document.
+2. `owner` не равен `Responsible`.
+3. `Only if Creator` проверяет именно owner.
+4. Share хранится как `DocShare` для конкретного Document.
+5. Share всегда добавляет Read, а дополнительные права выдаются отдельно.
+6. Нельзя штатно расшарить право, которого нет у самого sharer.
+7. Shared Document может быть явным исключением owner/User Permission restrictions.
+8. Share не отменяет Permission Level.
+9. Share не меняет owner.
+10. Sharing и Assignment — разные механизмы.
 
 ---
 
-## 20. Sharing ≠ изменение `owner`
+## Проверенные исходники v16.32.0
 
-Если нужно дать Анне доступ к документу Бориса, не надо ради этого менять:
+- [Permission engine](https://github.com/frappe/frappe/blob/v16.32.0/frappe/permissions.py)
+- [Permission-aware query conditions](https://github.com/frappe/frappe/blob/v16.32.0/frappe/database/query.py)
+- [Sharing backend](https://github.com/frappe/frappe/blob/v16.32.0/frappe/share.py)
+- [Role Permissions Manager](https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/page/permission_manager/permission_manager.py)
 
-```text
-owner = boris@example.com
-```
+Теперь выполни [**лабораторную 21**](labs/21_OWNER_AND_SHARING_LAB.md).
 
-на:
-
-```text
-owner = anna@example.com
-```
-
-`owner` используется системой как признак создателя документа и участвует в `If Owner` permissions.
-
-Для дополнительного доступа существует Sharing.
-
-То есть:
-
-```text
-нужно дать доступ
-→ Share
-
-нужно определить создателя для owner-based rules
-→ owner
-```
-
-Не смешивай эти задачи.
-
----
-
-## 21. Почему Sharing не стоит превращать в основную архитектуру доступа
-
-Представим 5 000 заявок и 100 пользователей.
-
-Можно вручную создавать тысячи `DocShare`.
-
-Но если реальное правило звучит:
-
-```text
-операторы Department A всегда работают с Department A
-```
-
-то это уже постоянное правило модели доступа.
-
-Здесь логичнее использовать:
-
-```text
-Role Permission
-+
-User Permission
-```
-
-Sharing лучше подходит для исключений вроде:
-
-```text
-показать одну заявку коллеге
-дать временный доступ руководителю
-разрешить конкретному пользователю изменить один документ
-```
-
----
-
-## 22. Простой алгоритм выбора
-
-Спроси себя, какую задачу решаешь.
-
-### «Пользователь должен работать с этим DocType постоянно»
-
-Используй:
-
-```text
-Role Permission
-```
-
-### «Пользователь должен видеть только свой Department»
-
-Используй:
-
-```text
-User Permission
-```
-
-### «Пользователь должен менять дополнительную группу полей»
-
-Используй:
-
-```text
-Permission Level
-```
-
-### «Пользователь может менять только созданные им документы»
-
-Проверь:
-
-```text
-If Owner / Only if Creator
-```
-
-### «Нужно показать ему ровно один чужой документ»
-
-Проверь:
-
-```text
-Sharing
-```
-
----
-
-## 23. Минимальный технический пример Sharing
-
-В коде App документ можно расшарить через API Framework:
-
-```python
-import frappe
-
-frappe.share.add(
-    "Request",
-    "REQ-0100",
-    user="anna@example.com",
-    read=1,
-)
-```
-
-Если нужно разрешить редактирование:
-
-```python
-frappe.share.add(
-    "Request",
-    "REQ-0100",
-    user="anna@example.com",
-    read=1,
-    write=1,
-)
-```
-
-Удалить Share:
-
-```python
-frappe.share.remove(
-    "Request",
-    "REQ-0100",
-    "anna@example.com",
-)
-```
-
-На первом проходе курса этот код запоминать не нужно.
-
-Главное понять модель:
-
-```text
-Sharing → отдельная запись доступа к конкретному Document
-```
-
----
-
-## 24. Практика
-
-Возьми учебный DocType:
-
-```text
-Request
-```
-
-и двух пользователей:
-
-```text
-anna@example.com
-boris@example.com
-```
-
-### Шаг 1
-
-Создай `REQ-0001` под Анной.
-
-Проверь системное поле:
-
-```text
-owner = anna@example.com
-```
-
-### Шаг 2
-
-Настрой для роли правило `Only if Creator` и проверь документ под Борисом.
-
-### Шаг 3
-
-Добавь Борису Share только на:
-
-```text
-REQ-0001
-```
-
-с `Read`.
-
-### Шаг 4
-
-Проверь, что Борис может открыть именно этот документ.
-
-### Шаг 5
-
-Удали Share и снова проверь доступ.
-
-### Шаг 6
-
-Повтори Share с `Write`, если у пользователя, выполняющего Sharing, есть право выдать `Write`.
-
-После этой практики разница между owner-based permissions и Sharing становится намного понятнее.
-
----
-
-## Что запомнить
-
-1. `owner` — системное поле создателя Document.
-2. `Only if Creator` / `if_owner` проверяет именно `owner`.
-3. Исполнитель, ответственный и `owner` — не одно и то же.
-4. Sharing выдаёт доступ к конкретному документу через `DocShare`.
-5. Обычный Share работает прежде всего с `Read`, `Write`, `Submit` и `Share`.
-6. Пользователь не должен штатно выдавать через Sharing право, которого у него самого нет.
-7. Sharing является дополнительным каналом доступа после обычных permission checks.
-8. Sharing можно отозвать, удалив соответствующий Share.
-9. Sharing не заменяет Role Permission, User Permission или Assignment.
-10. Для постоянной модели доступа используй permissions; для разовых исключений — Sharing.
-
----
-
-## Источники
-
-- [Users and Permissions](https://docs.frappe.io/framework/user/en/basics/users-and-permissions)
-- [Document API](https://docs.frappe.io/framework/user/en/api/document)
-- [`frappe/share.py`, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/share.py)
-- [`frappe/permissions.py`, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/permissions.py)
-- [`frappe/model/document.py`, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/model/document.py)
-- [`DocShare`, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/docshare/docshare.json)
-
----
-
-Дальше: **22. Где заканчиваются штатные permissions**.
+После неё переходи к [**22. Границы штатных permissions**](22_PERMISSION_BOUNDARIES.md).
