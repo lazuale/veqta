@@ -101,7 +101,7 @@
 40. [Website / portal-возможности Framework](40_WEBSITE_AND_PORTAL.md)
 41. [REST API](41_REST_API.md)
 42. [RPC и whitelisted methods](42_RPC_AND_WHITELISTED_METHODS.md)
-43. Authentication для интеграций
+43. [Authentication для интеграций](43_AUTHENTICATION_FOR_INTEGRATIONS.md)
 
 ### Блок I. Low-code и разработка
 
