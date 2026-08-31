@@ -1,48 +1,32 @@
 # Frappe Framework 16 — практический учебник с нуля
 
-Этот учебник рассчитан на человека, который впервые открыл Frappe и пока не обязан знать, что такое ORM, metadata, controller, lifecycle, worker или migration.
+Этот курс рассчитан на человека, который впервые открыл Frappe и пока не обязан знать, что такое ORM, metadata, controller, lifecycle, worker или migration.
 
-Но это **не справочник для чтения**.
+Это **не справочник для пассивного чтения**. Каждая тема должна быть проверена на живом локальном стенде.
 
-Курс строится вокруг живого учебного стенда:
+Целевая версия курса — **Frappe Framework 16**, базовый стенд зафиксирован на **Frappe v16.32.0**.
 
-```text
-прочитал минимум теории
-        ↓
-сделал руками на Frappe
-        ↓
-увидел результат
-        ↓
-изменил условие
-        ↓
-увидел другое поведение
-        ↓
-понял границу механизма
-```
-
-Цель — к концу курса не просто знать названия возможностей Frappe, а уметь самостоятельно открыть чистый Site и воспроизвести нужное поведение.
-
-Целевая версия — **Frappe Framework 16**. Базовый стенд курса фиксируется на **Frappe v16.32.0**. ERPNext, CRM, Helpdesk, HRMS и другие приложения не считаются частью Framework: они упоминаются только там, где это помогает понять границу платформы.
+ERPNext, CRM, Helpdesk, HRMS и другие приложения не считаются частью Framework и появляются только там, где помогают понять границу платформы.
 
 Проверено: **2026-08-31**.
 
 ---
 
-# Сначала стенд, потом книга
+# Как проходить курс
 
 До главы 1 обязательно выполнить:
 
 **[0. Учебный стенд Frappe 16](00_LAB_SETUP.md)**
 
-После него должно быть:
+После главы 0 должно быть:
 
 ```text
 Windows 11
 └── WSL2 / Debian 13
-    └── frappe16-course-bench
+    └── ~/frappe/frappe16-course-bench/
         ├── Frappe v16.32.0
         ├── Site learn.localhost
-        └── учебное App training
+        └── App training / Module Training
 ```
 
 Desk:
@@ -51,231 +35,161 @@ Desk:
 http://learn.localhost:8000
 ```
 
-Без работающего стенда дальнейший курс теряет смысл.
+Дальше каждая тема состоит из двух обязательных частей:
 
-Отдельно смотри:
+```text
+Глава
+→ понять механизм
 
-**[Практический трек всего курса](PRACTICE_TRACK.md)**
+Лабораторная
+→ сделать руками
+→ увидеть результат
+→ изменить условие
+→ увидеть другое поведение
+→ намеренно встретить ошибку
+→ восстановить рабочее состояние
+```
 
-Там зафиксировано, что именно ученик должен сделать руками по мере прохождения блоков.
+**Глава без лабораторной не считается пройденной.**
+
+Все лабораторные собраны также в [отдельном индексе](labs/README.md), а сквозное состояние учебного стенда описано в [PRACTICE_TRACK.md](PRACTICE_TRACK.md).
 
 ---
 
-# Сквозная лабораторная работа
+# Сквозная учебная система
 
-Начиная с блока модели данных мы создаём один основной учебный DocType:
+Основной объект курса — DocType:
 
 ```text
 Request
 ```
 
-Он постепенно получит:
+Он не выбрасывается после каждой темы, а постепенно развивается:
 
 ```text
-поля
-naming
-Link
-Child Table
-permissions
-assignment
-workflow
-notifications
-comments
-versions
-attachments
-reports
-charts
-Web Form
-REST API
-Client Script
-Server Script
-controller
-background jobs
-tests
+DocType
+→ DocField
+→ Naming
+→ Links
+→ Child Tables
+→ Form/List/Kanban/Calendar
+→ Workspace
+→ Permissions
+→ Assignment
+→ Workflow
+→ Notification
+→ Timeline/Version/File/Email
+→ Reports/Dashboard/Import
+→ Web Form/Website
+→ REST/RPC/Auth
+→ Client Script
+→ Server Script
+→ App code
+→ Jobs/Scheduler/Migrations/Tests
 ```
 
-То есть следующая глава обычно не начинает пример с нуля, а **изменяет уже существующий учебный стенд**.
-
-Так ученик видит, как отдельные механизмы Frappe складываются в одну систему.
+За счёт этого ученик видит не набор несвязанных функций Frappe, а одну систему, которая постепенно усложняется.
 
 ---
 
-# Как устроена каждая глава
+# Стандарт лабораторной
 
-Основной порядок теперь такой:
+Каждая лабораторная 1–45 содержит:
 
-1. **Что должно быть готово** — состояние стенда до начала.
-2. **Что сегодня увидим** — конкретный результат, который должен появиться.
-3. **Минимальная теория** — только то, что нужно для осмысленного действия.
-4. **Практика** — точные шаги в Desk / terminal / API.
-5. **Ожидаемый результат** — что именно должно измениться и где это увидеть.
-6. **Эксперимент** — меняем одно условие и смотрим разницу.
-7. **Типичная ошибка** — намеренно встречаем или разбираем реальный failure mode.
-8. **Проверка себя** — ученик должен объяснить, почему результат получился именно таким.
-9. **Состояние стенда после главы** — что должно остаться для следующей темы.
-10. **Что запомнить** — короткая итоговая модель.
+1. **Что должно быть готово**.
+2. **Конкретную цель**.
+3. **Точные действия** в Desk, terminal или API.
+4. **Ожидаемый результат**.
+5. **Эксперимент** с изменением одного условия.
+6. **Намеренную ошибку / поломку**.
+7. **Проверку себя**.
+8. **Состояние стенда после главы**.
 
-Глава не считается законченной только потому, что в ней перечислены все поля интерфейса.
-
----
-
-# Что считается практикой
-
-Плохо:
-
-```text
-«Попробуйте создать несколько записей»
-```
-
-Хорошо:
-
-```text
-1. Создай Request A со Status = Open.
-2. Создай Request B со Status = Closed.
-3. Открой List View.
-4. Поставь фильтр Status = Open.
-5. Должен остаться только Request A.
-6. Удали фильтр.
-7. Оба документа снова должны быть видны.
-```
-
-Ученик всегда должен понимать:
-
-```text
-что сделать
-что увидеть
-как проверить
-что изменить для контраста
-```
-
----
-
-# Можно и нужно ломать учебный стенд
-
-Это лаборатория, а не production.
-
-В упражнениях мы намеренно будем получать:
-
-```text
-Permission Error
-validation error
-неправильный Client Script
-неудачный API request
-сломанный Workflow transition
-ошибку migration/test
-```
-
-После этого ошибка исправляется и повторяется правильный сценарий.
-
-Именно так становятся понятны реальные границы Frappe.
-
-На стенде не должно быть рабочих данных, которые нельзя потерять.
-
----
-
-# Шесть слов, которые встретятся сразу
-
-| Термин | Простое объяснение |
-|---|---|
-| **Bench** | окружение Frappe и инструмент для управления им |
-| **Site** | один работающий экземпляр Frappe со своими данными |
-| **App** | устанавливаемый пакет функциональности |
-| **Module** | логическая область внутри App |
-| **DocType** | описание типа данных и его поведения |
-| **Document** | одна конкретная запись DocType |
-| **Desk** | встроенный рабочий интерфейс для системных пользователей |
-
-Сейчас определения можно не заучивать. В первых главах мы найдём каждый из этих объектов на живом стенде.
+Если результат отличается, не переходи дальше, пока не понял причину.
 
 ---
 
 # Программа
 
-## Перед началом
+## Блок A. Карта Frappe
 
-0. [Учебный стенд Frappe 16](00_LAB_SETUP.md)
+1. [Bench → Site → App → Module → DocType → Document](01_FOUNDATIONS.md) · [лабораторная](labs/01_FOUNDATIONS_LAB.md)
+2. [Desk, Desktop, Sidebar, Workspace и навигация v16](02_DESK_NAVIGATION.md) · [лабораторная](labs/02_DESK_NAVIGATION_LAB.md)
+3. [Что входит в Framework, а что является отдельным App](03_FRAMEWORK_VS_APPS.md) · [лабораторная](labs/03_FRAMEWORK_VS_APPS_LAB.md)
 
-Дополнительно: [сквозной практический трек](PRACTICE_TRACK.md).
+## Блок B. Модель данных
 
-### Блок A. Карта Frappe
+4. [DocType от А до Я](04_DOCTYPE.md) · [лабораторная](labs/04_DOCTYPE_LAB.md)
+5. [DocField и свойства полей](05_DOCFIELD.md) · [лабораторная](labs/05_DOCFIELD_LAB.md)
+6. [Naming и системное поле `name`](06_NAMING.md) · [лабораторная](labs/06_NAMING_LAB.md)
+7. [Link, Dynamic Link и Fetch From](07_LINKS_AND_FETCH.md) · [лабораторная](labs/07_LINKS_AND_FETCH_LAB.md)
+8. [Child Table и Table MultiSelect](08_CHILD_TABLES.md) · [лабораторная](labs/08_CHILD_TABLES_LAB.md)
+9. [Single, Tree, Submittable и Virtual DocType](09_SPECIAL_DOCTYPES.md) · [лабораторная](labs/09_SPECIAL_DOCTYPES_LAB.md)
+10. [`docstatus`, Submit, Cancel и Amendment](10_DOCSTATUS_LIFECYCLE.md) · [лабораторная](labs/10_DOCSTATUS_LIFECYCLE_LAB.md)
 
-1. [Bench → Site → App → Module → DocType → Document](01_FOUNDATIONS.md)
-2. [Desk, Desktop, Sidebar, Workspace и навигация v16](02_DESK_NAVIGATION.md)
-3. [Что входит в Framework, а что является отдельным App](03_FRAMEWORK_VS_APPS.md)
+## Блок C. Интерфейс
 
-### Блок B. Модель данных
+11. [Form View](11_FORM_VIEW.md) · [лабораторная](labs/11_FORM_VIEW_LAB.md)
+12. [List View и фильтры](12_LIST_VIEW_AND_FILTERS.md) · [лабораторная](labs/12_LIST_VIEW_AND_FILTERS_LAB.md)
+13. [Kanban, Calendar, Gantt и Tree View](13_KANBAN_CALENDAR_GANTT_TREE.md) · [лабораторная](labs/13_KANBAN_CALENDAR_GANTT_TREE_LAB.md)
+14. [Workspace, Shortcut, Quick List, Number Card и Chart](14_WORKSPACE_AND_DASHBOARD_BLOCKS.md) · [лабораторная](labs/14_WORKSPACE_AND_DASHBOARD_BLOCKS_LAB.md)
+15. [Customize Form](15_CUSTOMIZE_FORM.md) · [лабораторная](labs/15_CUSTOMIZE_FORM_LAB.md)
+16. [Desk Page и границы штатного интерфейса](16_DESK_PAGE_AND_UI_BOUNDARIES.md) · [лабораторная](labs/16_DESK_PAGE_AND_UI_BOUNDARIES_LAB.md)
 
-4. [DocType от А до Я](04_DOCTYPE.md)
-5. [DocField и свойства полей](05_DOCFIELD.md)
-6. [Naming и системное поле `name`](06_NAMING.md)
-7. [Link, Dynamic Link и Fetch From](07_LINKS_AND_FETCH.md)
-8. [Child Table и Table MultiSelect](08_CHILD_TABLES.md)
-9. [Single, Tree, Submittable и Virtual DocType](09_SPECIAL_DOCTYPES.md)
-10. [`docstatus`, Submit, Cancel и Amendment](10_DOCSTATUS_LIFECYCLE.md)
+## Блок D. Пользователи и права
 
-### Блок C. Интерфейс
+17. [User и Role](17_USER_AND_ROLE.md) · [лабораторная](labs/17_USER_AND_ROLE_LAB.md)
+18. [Role Permission Manager](18_ROLE_PERMISSION_MANAGER.md) · [лабораторная](labs/18_ROLE_PERMISSION_MANAGER_LAB.md)
+19. [Permission Level](19_PERMISSION_LEVEL.md) · [лабораторная](labs/19_PERMISSION_LEVEL_LAB.md)
+20. [User Permission](20_USER_PERMISSION.md) · [лабораторная](labs/20_USER_PERMISSION_LAB.md)
+21. [Owner и Sharing](21_OWNER_AND_SHARING.md) · [лабораторная](labs/21_OWNER_AND_SHARING_LAB.md)
+22. [Где заканчиваются штатные permissions](22_PERMISSION_BOUNDARIES.md) · [лабораторная](labs/22_PERMISSION_BOUNDARIES_LAB.md)
 
-11. [Form View](11_FORM_VIEW.md)
-12. [List View и фильтры](12_LIST_VIEW_AND_FILTERS.md)
-13. [Kanban, Calendar, Gantt и Tree View](13_KANBAN_CALENDAR_GANTT_TREE.md)
-14. [Workspace, Shortcut, Quick List, Number Card и Chart](14_WORKSPACE_AND_DASHBOARD_BLOCKS.md)
-15. [Customize Form](15_CUSTOMIZE_FORM.md)
-16. [Desk Page и границы штатного интерфейса](16_DESK_PAGE_AND_UI_BOUNDARIES.md)
+## Блок E. Работа и процессы
 
-### Блок D. Пользователи и права
+23. [Assignment и ToDo](23_ASSIGNMENT_AND_TODO.md) · [лабораторная](labs/23_ASSIGNMENT_AND_TODO_LAB.md)
+24. [Assignment Rule](24_ASSIGNMENT_RULE.md) · [лабораторная](labs/24_ASSIGNMENT_RULE_LAB.md)
+25. [Status против Workflow State](25_STATUS_VS_WORKFLOW_STATE.md) · [лабораторная](labs/25_STATUS_VS_WORKFLOW_STATE_LAB.md)
+26. [Workflow и переходы](26_WORKFLOW_AND_TRANSITIONS.md) · [лабораторная](labs/26_WORKFLOW_AND_TRANSITIONS_LAB.md)
+27. [Notification](27_NOTIFICATION.md) · [лабораторная](labs/27_NOTIFICATION_LAB.md)
+28. [Auto Repeat](28_AUTO_REPEAT.md) · [лабораторная](labs/28_AUTO_REPEAT_LAB.md)
 
-17. [User и Role](17_USER_AND_ROLE.md)
-18. [Role Permission Manager](18_ROLE_PERMISSION_MANAGER.md)
-19. [Permission Level](19_PERMISSION_LEVEL.md)
-20. [User Permission](20_USER_PERMISSION.md)
-21. [Owner и Sharing](21_OWNER_AND_SHARING.md)
-22. [Где заканчиваются штатные permissions](22_PERMISSION_BOUNDARIES.md)
+## Блок F. Возможности документа
 
-### Блок E. Работа и процессы
+29. [Timeline и Comments](29_TIMELINE_AND_COMMENTS.md) · [лабораторная](labs/29_TIMELINE_AND_COMMENTS_LAB.md)
+30. [Version и Track Changes](30_VERSION_AND_TRACK_CHANGES.md) · [лабораторная](labs/30_VERSION_AND_TRACK_CHANGES_LAB.md)
+31. [Attachments и File](31_ATTACHMENTS_AND_FILE.md) · [лабораторная](labs/31_ATTACHMENTS_AND_FILE_LAB.md)
+32. [Email / Communication](32_EMAIL_AND_COMMUNICATION.md) · [лабораторная](labs/32_EMAIL_AND_COMMUNICATION_LAB.md)
+33. [Print Format и PDF](33_PRINT_FORMAT_AND_PDF.md) · [лабораторная](labs/33_PRINT_FORMAT_AND_PDF_LAB.md)
 
-23. [Assignment и ToDo](23_ASSIGNMENT_AND_TODO.md)
-24. [Assignment Rule](24_ASSIGNMENT_RULE.md)
-25. [Status против Workflow State](25_STATUS_VS_WORKFLOW_STATE.md)
-26. [Workflow и переходы](26_WORKFLOW_AND_TRANSITIONS.md)
-27. [Notification](27_NOTIFICATION.md)
-28. [Auto Repeat](28_AUTO_REPEAT.md)
+## Блок G. Данные и аналитика
 
-### Блок F. Возможности документа
+34. [Report Builder](34_REPORT_BUILDER.md) · [лабораторная](labs/34_REPORT_BUILDER_LAB.md)
+35. [Query Report](35_QUERY_REPORT.md) · [лабораторная](labs/35_QUERY_REPORT_LAB.md)
+36. [Script Report](36_SCRIPT_REPORT.md) · [лабораторная](labs/36_SCRIPT_REPORT_LAB.md)
+37. [Dashboard Chart и Number Card](37_DASHBOARD_CHART_AND_NUMBER_CARD.md) · [лабораторная](labs/37_DASHBOARD_CHART_AND_NUMBER_CARD_LAB.md)
+38. [Data Import / Export](38_DATA_IMPORT_EXPORT.md) · [лабораторная](labs/38_DATA_IMPORT_EXPORT_LAB.md)
 
-29. [Timeline и Comments](29_TIMELINE_AND_COMMENTS.md)
-30. [Version и Track Changes](30_VERSION_AND_TRACK_CHANGES.md)
-31. [Attachments и File](31_ATTACHMENTS_AND_FILE.md)
-32. [Email / Communication](32_EMAIL_AND_COMMUNICATION.md)
-33. [Print Format и PDF](33_PRINT_FORMAT_AND_PDF.md)
+## Блок H. Внешние интерфейсы
 
-### Блок G. Данные и аналитика
+39. [Web Form](39_WEB_FORM.md) · [лабораторная](labs/39_WEB_FORM_LAB.md)
+40. [Website / portal-возможности Framework](40_WEBSITE_AND_PORTAL.md) · [лабораторная](labs/40_WEBSITE_AND_PORTAL_LAB.md)
+41. [REST API](41_REST_API.md) · [лабораторная](labs/41_REST_API_LAB.md)
+42. [RPC и whitelisted methods](42_RPC_AND_WHITELISTED_METHODS.md) · [лабораторная](labs/42_RPC_AND_WHITELISTED_METHODS_LAB.md)
+43. [Authentication для интеграций](43_AUTHENTICATION_FOR_INTEGRATIONS.md) · [лабораторная](labs/43_AUTHENTICATION_FOR_INTEGRATIONS_LAB.md)
 
-34. [Report Builder](34_REPORT_BUILDER.md)
-35. [Query Report](35_QUERY_REPORT.md)
-36. [Script Report](36_SCRIPT_REPORT.md)
-37. [Dashboard Chart и Number Card](37_DASHBOARD_CHART_AND_NUMBER_CARD.md)
-38. [Data Import / Export](38_DATA_IMPORT_EXPORT.md)
+## Блок I. Low-code и разработка
 
-### Блок H. Внешние интерфейсы
-
-39. [Web Form](39_WEB_FORM.md)
-40. [Website / portal-возможности Framework](40_WEBSITE_AND_PORTAL.md)
-41. [REST API](41_REST_API.md)
-42. [RPC и whitelisted methods](42_RPC_AND_WHITELISTED_METHODS.md)
-43. [Authentication для интеграций](43_AUTHENTICATION_FOR_INTEGRATIONS.md)
-
-### Блок I. Low-code и разработка
-
-44. [Client Script](44_CLIENT_SCRIPT.md)
-45. [Server Script](45_SERVER_SCRIPT.md)
+44. [Client Script](44_CLIENT_SCRIPT.md) · [лабораторная](labs/44_CLIENT_SCRIPT_LAB.md)
+45. [Server Script](45_SERVER_SCRIPT.md) · [лабораторная](labs/45_SERVER_SCRIPT_LAB.md)
 46. Standard vs Custom
-47. Developer Mode — что мы включили в учебном стенде и зачем
-48. Собственное App — теперь разбираем `training` осознанно
+47. Developer Mode
+48. Собственное App
 49. Standard DocType и файлы приложения
 50. Python controller и lifecycle документа
 51. Hooks
 
-### Блок J. Серверная инфраструктура
+## Блок J. Серверная инфраструктура
 
 52. ORM и Database API
 53. Background Jobs и очереди
@@ -285,7 +199,7 @@ validation error
 57. Patches и migrations
 58. Tests
 
-### Блок K. Bench и эксплуатация
+## Блок K. Bench и эксплуатация
 
 59. Bench и Bench CLI
 60. Site configuration
@@ -296,9 +210,9 @@ validation error
 65. Backup и restore
 66. Production deployment — необходимый минимум
 
-### Блок L. Итоговая практика
+## Блок L. Итоговая практика
 
-67. Создаём новое учебное приложение с нуля уже без пошаговой подсказки
+67. Создаём учебное приложение с нуля
 68. Проверяем штатные механизмы руками
 69. Добавляем scripting там, где настроек уже не хватает
 70. Переводим стабильную реализацию в App и Git
@@ -309,66 +223,58 @@ validation error
 
 # Как выбирать уровень решения
 
-В практических заданиях постоянно используется одна и та же лестница:
+Во время лабораторных постоянно проверяй лестницу:
 
 ```text
-можно решить свойством поля / DocType?
-        ↓ нет
-есть готовый штатный механизм Framework?
-        ↓ нет
-хватает Client Script / Server Script / Jinja?
-        ↓ нет
-нужен код собственного App?
-        ↓ нет
-нужен отдельный frontend / внешняя подсистема?
+поле или свойство DocType
+        ↓ не хватает
+штатная настройка Framework
+        ↓ не хватает
+Client Script / Server Script / Jinja
+        ↓ не хватает
+код собственного App
+        ↓ не хватает
+отдельный frontend или внешняя подсистема
 ```
 
-Ученик должен не только сделать работающий вариант, но и увидеть, **почему предыдущего уровня уже не хватило**.
+Не начинай с Python только потому, что Python позволяет решить задачу. Цель курса — сначала научиться видеть возможности самой платформы.
 
 ---
 
-# Про Developer Mode в стенде
+# Правило безопасности учебного стенда
 
-В главе 0 Developer Mode включается заранее, потому что уже в ранних главах мы создаём Standard DocType внутри учебного App `training` и хотим видеть реальные файлы на диске.
+Стенд `learn.localhost` предназначен для экспериментов.
 
-Это не означает, что ученик уже обязан понимать Developer Mode.
-
-В главе 47 мы специально:
+В нём можно:
 
 ```text
-выключим его
-попробуем создать Standard DocType
-увидим ограничение
-включим обратно
-посмотрим, что он меняет
+создавать и удалять тестовые данные
+намеренно ломать настройки
+проверять permission errors
+делать неудачные imports
+проверять API failures
+перезапускать bench
+восстанавливать состояние
 ```
 
-То есть установка инструмента и изучение его устройства намеренно разделены.
+Но нельзя использовать в учебнике:
+
+```text
+реальные рабочие пароли
+реальные API secrets
+корпоративную SMTP-почту без необходимости
+production database
+production Site
+```
 
 ---
 
 # Про точность курса
 
-Для поведения именно v16 приоритет такой:
+Для поведения именно Frappe 16 приоритет источников такой:
 
-1. актуальная документация Frappe;
-2. исходный код ветки `version-16`, если документация отстаёт или формулирует неоднозначно;
-3. конкретный релиз `v16.32.0`, если поведение зависит от patch/minor состояния;
-4. материалы старых версий — только когда поведение подтверждено для v16.
+1. официальная документация Frappe;
+2. исходный код ветки `version-16`, если документация отстаёт или неоднозначна;
+3. материалы старых версий — только после подтверждения поведения в v16.
 
-В технических местах курс может давать ссылку на исходный код, но ученик не обязан заучивать internals, если глава посвящена пользовательскому механизму.
-
----
-
-# Основные источники
-
-- [Frappe Framework — Introduction](https://docs.frappe.io/framework/user/en/introduction)
-- [Installation](https://docs.frappe.io/framework/user/en/installation)
-- [Bench](https://docs.frappe.io/framework/user/en/bench)
-- [Understanding DocTypes](https://docs.frappe.io/framework/user/en/basics/doctypes)
-- [Users and Permissions](https://docs.frappe.io/framework/user/en/basics/users-and-permissions)
-- [REST API](https://docs.frappe.io/framework/user/en/guides/integration/rest_api)
-- [Migrating to Version 16](https://github.com/frappe/frappe/wiki/Migrating-to-version-16)
-- [Frappe v16.32.0](https://github.com/frappe/frappe/releases/tag/v16.32.0)
-
-Каждая глава дополнительно содержит источники по своей теме.
+Если лабораторная расходится с живым `v16.32.0`, фактическое поведение стенда является сигналом перепроверить документацию и исходный код, а не придумывать обходной «магический» шаг.

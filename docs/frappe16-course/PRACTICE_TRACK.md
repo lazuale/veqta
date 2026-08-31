@@ -1,949 +1,282 @@
-# Практический трек курса Frappe 16
+# Сквозное состояние практического курса Frappe 16
 
-Этот файл задаёт **сквозную лабораторную работу** для всего учебника.
+Этот файл не заменяет лабораторные. Он фиксирует, **что должно существовать на стенде после каждого блока**, чтобы следующая практика была воспроизводимой.
 
-Он нужен, чтобы главы не превращались в энциклопедию возможностей Frappe.
+Основной стенд: [00_LAB_SETUP.md](00_LAB_SETUP.md).
 
-Главная идея курса:
-
-```text
-прочитал
-→ сделал руками
-→ увидел результат
-→ изменил условие
-→ увидел другое поведение
-→ понял границу механизма
-```
-
-Основной стенд описан в [00_LAB_SETUP.md](00_LAB_SETUP.md).
+Полный индекс лабораторных: [labs/README.md](labs/README.md).
 
 ---
 
-# 1. Сквозной объект курса
-
-Главный учебный DocType:
+# После главы 0
 
 ```text
-Request
-```
-
-Он специально начинается очень простым и постепенно получает новые возможности.
-
-К концу курса через один и тот же объект ученик должен руками увидеть:
-
-```text
-metadata
-Document lifecycle
-Form
-List
-Kanban
-Calendar
-permissions
-sharing
-assignment
-workflow
-notifications
-versions
-attachments
-reports
-import/export
-Web Form
-REST API
-RPC
-Client Script
-Server Script
-controller
-hooks
-background jobs
-scheduler
-fixtures
-migrations
-tests
-```
-
-Это лучше, чем создавать новый бессвязный пример в каждой главе.
-
----
-
-# 2. Исходное состояние
-
-После главы 0 есть:
-
-```text
-Bench:  frappe16-course-bench
+Bench:  ~/frappe/frappe16-course-bench
 Site:   learn.localhost
+Frappe: v16.32.0
 Apps:   frappe, training
 Module: Training
 ```
 
-И больше ничего специально создавать не нужно.
+Site должен открываться по:
+
+```text
+http://learn.localhost:8000
+```
 
 ---
 
-# 3. Блок A — карта Frappe
+# После блока A — главы 1–3
 
-## Глава 1
+Новых business objects нет.
 
-Практика:
-
-```text
-открыть каталог Bench
-найти apps/
-найти sites/
-найти apps/frappe/
-найти apps/training/
-выполнить bench --site learn.localhost list-apps
-```
-
-Результат:
-
-> ученик физически видит разницу Bench / Site / App, а не только читает определения.
-
-## Глава 2
-
-Практика:
+Ученик умеет найти на диске и в Desk:
 
 ```text
-открыть Desk
-найти через Awesome Bar User
-найти DocType
-найти Workspace
-перейти между Desktop / Sidebar / Workspace
+Bench
+Site
+App
+Module
+DocType
+Document
+Workspace
+List/Form
 ```
 
-Проверка:
-
-> ученик должен уметь найти системный объект без инструкции «нажми третью кнопку слева».
-
-## Глава 3
-
-Практика:
-
-```text
-bench --site learn.localhost list-apps
-ls apps
-открыть Installed Applications / Apps в Desk, если применимо
-сравнить frappe и training
-```
-
-Эксперимент:
-
-> убедиться, что ERPNext отсутствует, но Framework при этом полностью работает.
+И понимает, что чистый Framework работает без ERPNext.
 
 ---
 
-# 4. Блок B — модель данных
+# После блока B — главы 4–10
 
-## Глава 4 — DocType
-
-Создать Standard DocType:
+Должны существовать:
 
 ```text
-Name: Request
-Module: Training
-```
-
-Минимальные поля:
-
-```text
-Subject      Data
-Description  Small Text
-Status       Select
-Due Date     Date
-```
-
-Создать 2–3 Documents.
-
-После Save открыть:
-
-```bash
-find apps/training -iname '*request*' -o -iname 'request*'
-```
-
-Ученик должен увидеть одновременно:
-
-```text
-DocType в Desk
-таблицу/records в Frappe
-файлы Standard DocType в App
-```
-
-## Глава 5 — DocField
-
-На `Request` последовательно попробовать:
-
-```text
-Data
-Select
-Date
-Check
-Int
-Text Editor
-Attach
-Link
-```
-
-Для нескольких полей изменить:
-
-```text
-Mandatory
-Read Only
-Hidden
-In List View
-Default
-Depends On
-```
-
-Главный эксперимент:
-
-> менять ровно одно свойство, обновлять Form и наблюдать разницу.
-
-## Глава 6 — Naming
-
-Сначала создать Request с обычным naming.
-
-Затем настроить отдельную naming scheme и создать ещё несколько записей.
-
-Нужно увидеть:
-
-```text
-name
-Title Field
-человеческий заголовок
-системный идентификатор
-```
-
-## Глава 7 — Link / Fetch From
-
-Добавить в `Request`:
-
-```text
-Responsible   Link → User
-Responsible Name  Data / Fetch From
-```
-
-Выбрать разных Users и увидеть автоматическую подстановку.
-
-Потом временно сломать `Fetch From`, убедиться, что значение перестало приходить, и исправить.
-
-## Глава 8 — Child Table
-
-Создать:
-
-```text
+Request
 Request Item
-```
-
-как Child Table.
-
-Поля:
-
-```text
-Title
-Qty
-Rate
-Amount
-```
-
-Добавить Table в `Request`.
-
-Создать Document с несколькими rows.
-
-Проверить:
-
-```text
-child row не существует как обычный независимый master Document
-parent хранит набор rows
-```
-
-## Глава 9 — специальные DocType
-
-Создать маленькие экспериментальные объекты:
-
-```text
-Training Settings → Single
-Training Category → Tree
-```
-
-Не пытаться делать их полноценной бизнес-моделью.
-
-Цель — руками почувствовать отличие режимов.
-
-## Глава 10 — docstatus lifecycle
-
-Создать отдельный учебный Submittable DocType, например:
-
-```text
+Training Settings
+Training Category
 Approval Record
 ```
 
-Выполнить:
+`Request` содержит минимум:
 
 ```text
-Draft
-→ Submit
-→ попробовать изменить обычное поле
-→ Cancel
-→ Amend
+Subject
+Description
+Status
+Priority
+Due Date
+Responsible
+Responsible Name
+Is Urgent
+Estimate Hours
+Notes
+Reference File
+Items → Request Item
 ```
 
-Ученик должен увидеть `docstatus` не как теорию, а как реальный lifecycle.
+Naming новых Request — стабильная учебная series вида:
+
+```text
+REQ-.YYYY.-.#####
+```
+
+Есть несколько Request Documents и примеры `Approval Record` в разных docstatus.
 
 ---
 
-# 5. Блок C — интерфейс
+# После блока C — главы 11–16
 
-## Глава 11 — Form View
+`Request` имеет аккуратную Form layout.
 
-На `Request`:
-
-```text
-Section Break
-Column Break
-Tab Break
-описания полей
-read-only
-mandatory
-attachments/timeline area
-```
-
-Цель — построить форму и сразу посмотреть, как metadata влияет на UI.
-
-## Глава 12 — List View
-
-Создать 10–15 Request с разными Status и Due Date.
-
-Практика:
+Есть:
 
 ```text
-filters
-saved filters
-sort
-page length
-list columns
-bulk actions
+List data
+Kanban по Status
+Calendar по Due Date
+при необходимости Start/End Date для Gantt
+Training Category Tree
+Training Workspace
+custom_local_note через Customize Form
 ```
 
-## Глава 13 — Kanban / Calendar / Gantt / Tree
-
-Не просто открыть экраны.
-
-Нужно подготовить подходящие данные и проверить:
-
-```text
-Kanban → изменить колонку и увидеть изменение Document
-Calendar → увидеть записи по Date
-Gantt → проверить требуемые поля и границы
-Tree → использовать Training Category
-```
-
-## Глава 14 — Workspace
-
-Создать учебный Workspace:
-
-```text
-Training
-```
-
-Добавить:
-
-```text
-Shortcut → Request
-Quick List
-Number Card
-Chart
-```
-
-К концу главы ученик должен иметь собственную маленькую рабочую область.
-
-## Глава 15 — Customize Form
-
-Изменить существующий DocType через Customize Form.
-
-Сравнить:
-
-```text
-Standard metadata файла App
-vs
-Custom Field / Property Setter на Site
-```
-
-Пока без глубокого Git-разбора.
-
-## Глава 16 — Desk Page и границы UI
-
-Открыть несколько штатных Page/Workspace экранов и определить:
-
-```text
-что можно собрать metadata
-что требует Client Script
-что уже требует Page/App code
-```
-
-Практический результат — не написание большого frontend, а умение увидеть границу.
+Ученик различает Standard metadata и site customization, но глубокий перенос ещё не изучает.
 
 ---
 
-# 6. Блок D — пользователи и права
+# После блока D — главы 17–22
 
-Создать учебных пользователей, например:
+Есть:
 
 ```text
+Roles:
+Training User
+Training Manager
+
+Users:
 student.user@example.test
 student.manager@example.test
+
+DocType:
+Training Area
+
+Areas:
+North
+South
 ```
 
-и роли:
+В `Request` добавлены:
+
+```text
+Area → Training Area
+Internal Cost → Permission Level 1
+```
+
+Рабочая модель доступа:
 
 ```text
 Training User
+→ работает с разрешёнными Request
+→ ограничен User Permission по North
+→ не видит Internal Cost
+
 Training Manager
+→ имеет расширенные права
+→ видит Internal Cost
 ```
 
-Не использовать реальные email для учебной модели доступа.
-
-## Глава 17
-
-Назначить разные роли двум пользователям и войти в отдельном private/incognito окне.
-
-## Глава 18
-
-Настроить Role Permission Manager для `Request`.
-
-Проверить реальные действия:
-
-```text
-Read
-Create
-Write
-Delete
-```
-
-под обоими пользователями.
-
-## Глава 19
-
-Добавить поле с другим Permission Level.
-
-Проверить:
-
-```text
-один пользователь видит
-другой не видит / не может менять
-```
-
-## Глава 20
-
-Настроить User Permission через подходящий Link-объект и проверить фильтрацию записей.
-
-## Глава 21
-
-Создать два Request разными owners.
-
-Проверить:
-
-```text
-owner restriction
-Share
-Unshare
-```
-
-## Глава 22
-
-Сделать несколько намеренно конфликтующих permission-настроек и научиться определять, какой слой доступа реально сработал.
+Есть один учебный пример Share.
 
 ---
 
-# 7. Блок E — работа и процессы
+# После блока E — главы 23–28
 
-## Глава 23
+Есть минимум один активный Assignment/ToDo.
 
-Назначить Request другому пользователю через Assignment.
+Assignment Rule проверен и может быть оставлен Disabled.
 
-Проверить созданный `ToDo` и снять назначение.
-
-## Глава 24
-
-Создать Assignment Rule и несколько новых Request.
-
-Проверить автоматическое распределение.
-
-## Глава 25
-
-На живом объекте сравнить:
-
-```text
-обычный field Status
-Workflow State
-```
-
-## Глава 26
-
-Создать Workflow:
+У `Request` работает Workflow:
 
 ```text
 Draft
 → Review
 → Approved
 → Rejected
+→ Reopen/Draft
 ```
 
-Проверить transition разными ролями.
+Переходы разделены между `Training User` и `Training Manager`.
 
-Обязательно попытаться сделать запрещённый transition.
+Notification проверена и может быть Disabled.
 
-## Глава 27
-
-Создать Notification на изменение Request.
-
-Если реальный SMTP ещё не настроен, сначала проверить создание Email Queue/Communication и сам trigger; локальный SMTP-синк подключается в практической части email-главы.
-
-## Глава 28
-
-Создать простой повторяемый учебный документ и увидеть, что делает Auto Repeat без собственного scheduler code.
+Auto Repeat проверен на отдельном учебном DocType и может быть Disabled.
 
 ---
 
-# 8. Блок F — возможности документа
+# После блока F — главы 29–33
 
-## Глава 29
-
-На одном Request:
+На одном Request есть:
 
 ```text
-добавить comments
-mention пользователя
-посмотреть Timeline
+Comments
+Timeline events
+Version history
+public File
+private File
+Communication
 ```
 
-## Глава 30
+Для `Request` существует рабочий Print Format.
 
-Включить/использовать Track Changes.
-
-Несколько раз изменить разные поля и сравнить Version.
-
-## Глава 31
-
-Прикрепить:
-
-```text
-текстовый файл
-картинку
-```
-
-Проверить public/private поведение File.
-
-## Глава 32
-
-Настроить безопасный локальный тест отправки почты либо отдельный учебный SMTP account.
-
-Отправить письмо из Frappe и найти созданный `Communication`.
-
-Никаких реальных массовых рассылок.
-
-## Глава 33
-
-Создать Print Format для `Request`.
-
-Распечатать HTML, затем проверить PDF-механизм и системную зависимость PDF renderer.
+Email используется только через безопасную тестовую конфигурацию.
 
 ---
 
-# 9. Блок G — данные и аналитика
+# После блока G — главы 34–38
 
-К этому моменту в `Request` должно быть хотя бы 30–50 учебных записей.
+В `Request` должно быть минимум 40–50 учебных Documents.
 
-Их можно быстро создать импортом.
-
-## Глава 34
-
-Собрать Report Builder:
+Есть:
 
 ```text
-Status
-Responsible
-Due Date
-filters
-grouping
-```
-
-## Глава 35
-
-Создать безопасный Query Report и увидеть, какие данные реально возвращает SQL.
-
-## Глава 36
-
-Создать Script Report и сравнить его с Query Report.
-
-## Глава 37
-
-На базе данных Request сделать:
-
-```text
+Report Builder report
+Query Report
+Script Report
 Number Card
 Dashboard Chart
 ```
 
-и разместить их на Training Workspace.
+Card/Chart размещены в Training Workspace.
 
-## Глава 38
-
-Экспортировать Requests, изменить CSV/XLSX и импортировать обратно.
-
-Обязательно сделать один файл с ошибкой и разобрать import feedback.
+Data Import проверен как для create, так и для update, включая обработку ошибочной строки.
 
 ---
 
-# 10. Блок H — внешние интерфейсы
+# После блока H — главы 39–43
 
-## Глава 39
-
-Создать Web Form для `Request`.
-
-Проверить:
+Есть:
 
 ```text
-создание как Guest / authenticated user
-поля формы
-созданный Document в Desk
+Web Form для Request
+простая Training Portal page
+REST CRUD опыт
+training.api.ping_training whitelisted RPC method
+training.api@example.test integration user
 ```
 
-## Глава 40
+API key/secret не должны лежать в Git.
 
-Создать простейшую website/portal поверхность и увидеть отличие от Desk и Web Form.
-
-## Глава 41
-
-Через `curl` выполнить REST операции над `Request`:
-
-```text
-GET list
-GET document
-POST create
-PUT update
-DELETE test document
-```
-
-## Глава 42
-
-Вызвать whitelisted method и сравнить RPC с resource REST API.
-
-## Глава 43
-
-Создать отдельного учебного API User / credentials и выполнить authenticated запрос без браузерной session.
+Guest creation в Web Form должен быть выключен, если он не нужен дальше.
 
 ---
 
-# 11. Блок I — low-code и разработка
+# После главы 44
 
-## Глава 44 — Client Script
-
-На `Request` сделать руками:
+Есть Client Script Request, который демонстрирует минимум:
 
 ```text
-условный mandatory
+conditional mandatory
 show/hide
-Link filter
-custom button
-client calculation
+custom UI action
+Child Table calculation
 ```
 
-Потом вызвать тот же Save через REST и увидеть, какие client-only правила не работают на сервере.
+Ученик уже проверил через REST, что Client Script не является server-side validation.
 
-Это обязательный эксперимент.
+---
 
-## Глава 45 — Server Script
+# После главы 45
 
-На `Request` сделать минимум три эксперимента:
+Server Scripts включены на учебном Bench.
+
+Есть рабочая server-side validation:
 
 ```text
-DocType Event validation
-API Server Script
-Scheduler Event
+Request Status = Done
+→ Result обязателен
 ```
 
-Для validation:
-
-```text
-Status = Closed
-→ Result обязательно
-```
-
-Проверить одинаковый отказ через:
+Она проверена как минимум через:
 
 ```text
 Desk
 REST API
 ```
 
-Именно здесь ученик должен руками увидеть разницу Client Script и Server Script.
-
-## Глава 46 — Standard vs Custom
-
-Сравнить реальные объекты, которые уже накопились на Site:
-
-```text
-Standard Request в apps/training
-Custom Field / Property Setter
-Client Script в БД
-Server Script в БД
-```
-
-## Глава 47 — Developer Mode
-
-Мы уже включили его в главе 0.
-
-Теперь:
-
-```text
-выключить
-попробовать создать Standard DocType
-увидеть отказ
-включить обратно
-повторить
-```
-
-## Глава 48 — App
-
-Разобрать уже существующий `training`:
-
-```text
-pyproject.toml
-hooks.py
-modules.txt
-public/
-templates/
-training/training/
-```
-
-Затем создать второй маленький App с нуля и удалить его после эксперимента либо оставить для итоговой практики.
-
-## Глава 49
-
-Открыть реальные файлы `Request` и связать:
-
-```text
-JSON metadata
-Python file
-JS file
-Desk behavior
-```
-
-## Глава 50
-
-Добавить простую server validation в Python controller.
-
-Проверить через Desk и REST.
-
-## Глава 51
-
-Добавить один безопасный hook и увидеть, когда он вызывается.
+API Server Script и Scheduler Event проверены; после опыта их можно оставить `Disabled`.
 
 ---
 
-# 12. Блок J — серверная инфраструктура
+# Правило восстановления
 
-## Глава 52
+Если лабораторная ломает стенд сильнее, чем ожидается:
 
-Открыть:
+1. не продолжать следующую главу вслепую;
+2. проверить последние изменённые metadata/permissions/scripts;
+3. использовать Version/Git/backup-механизм, соответствующий уже изученному уровню;
+4. вернуть состояние, описанное для предыдущего блока;
+5. только после этого продолжать.
 
-```bash
-bench --site learn.localhost console
-```
-
-и руками выполнить несколько `frappe.get_doc`, `frappe.get_list`, `frappe.db.get_value`.
-
-## Глава 53
-
-Поставить маленькую задачу в background queue и увидеть worker execution.
-
-## Глава 54
-
-Создать scheduled job и вручную проверить его регистрацию/выполнение.
-
-## Глава 55
-
-Сделать минимальный realtime event и увидеть сообщение в browser UI.
-
-## Глава 56
-
-Экспортировать одну безопасную конфигурационную сущность как fixture и увидеть файл в App.
-
-## Глава 57
-
-Создать маленький patch, выполнить migrate и проверить идемпотентность.
-
-## Глава 58
-
-Написать первый automated test для `Request` и намеренно заставить его упасть, затем исправить.
-
----
-
-# 13. Блок K — Bench и эксплуатация
-
-## Глава 59
-
-Через реальный стенд разобрать основные команды Bench.
-
-## Глава 60
-
-Сравнить:
-
-```text
-common_site_config.json
-site_config.json
-```
-
-и изменить одну безопасную настройку.
-
-## Глава 61
-
-Установить/удалить дополнительный учебный App либо локальную копию собственного экспериментального App.
-
-## Глава 62
-
-Сделать изменение metadata, выполнить `bench migrate`, увидеть результат.
-
-## Глава 63
-
-Во время `bench start` сопоставить процессы:
-
-```text
-web
-socketio
-scheduler
-workers
-redis
-```
-
-с тем, что происходит в браузере и очередях.
-
-## Глава 64
-
-Создать контролируемую ошибку и найти её в правильном логе.
-
-## Глава 65
-
-Сделать backup учебного Site, изменить данные, восстановить backup и проверить возврат состояния.
-
-## Глава 66
-
-Разобрать production topology на отдельном тестовом контексте, не превращая WSL dev-стенд в якобы production.
-
----
-
-# 14. Блок L — итоговая практика
-
-Здесь ученик перестаёт следовать пошаговому рецепту и воспроизводит механику сам.
-
-## Главы 67–71
-
-Нужно создать **новое маленькое приложение с чистого листа**:
-
-```text
-новый App
-новый Site или чистый test Site
-несколько DocType
-permissions
-workflow
-report
-Client Script
-server logic
-API
-test
-migration
-```
-
-После этого приложение устанавливается на чистый Site.
-
-Главный экзамен:
-
-> система должна воспроизводиться не потому, что «на старом Site что-то настроено руками», а потому что ученик понимает, что относится к App, что к Site и что нужно перенести.
-
-## Глава 72
-
-Ученик для нескольких требований должен самостоятельно выбрать уровень:
-
-```text
-metadata
-штатный low-code механизм
-Client Script
-Server Script
-App code
-custom frontend
-```
-
-и объяснить выбор.
-
----
-
-# 15. Формат практики внутри главы
-
-Каждая глава должна содержать явные секции:
-
-```text
-## Что должно быть готово
-## Что сегодня делаем
-## Практика
-## Ожидаемый результат
-## Эксперимент
-## Типичная ошибка
-## Проверка себя
-## Состояние стенда после главы
-```
-
-Не каждая глава обязана использовать именно эти заголовки дословно, но все эти функции должны присутствовать.
-
----
-
-# 16. Запрет на «практику понарошку»
-
-Не считается практикой формулировка:
-
-```text
-«попробуйте создать несколько документов»
-```
-
-без указания:
-
-```text
-какие именно
-с какими значениями
-что должно измениться
-где это увидеть
-как понять, что механизм сработал
-```
-
-Хорошая практика выглядит так:
-
-```text
-1. Создай Request A со Status = Open.
-2. Создай Request B со Status = Closed.
-3. Открой List View.
-4. Поставь фильтр Status = Open.
-5. Должен остаться только Request A.
-6. Удали фильтр.
-7. Оба документа снова должны быть видны.
-```
-
----
-
-# 17. Главный критерий качества курса
-
-После каждой главы ученик должен уметь ответить не только:
-
-```text
-«что такое механизм X?»
-```
-
-но и:
-
-```text
-где его найти
-как создать минимальный пример
-как проверить, что он сработал
-какое изменение сломает/изменит поведение
-где заканчиваются его возможности
-```
-
-Если этого нет — глава ещё не закончена.
+Курс специально допускает ошибки. Но каждая ошибка должна закончиться пониманием причины и восстановлением воспроизводимого состояния.
