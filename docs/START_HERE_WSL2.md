@@ -148,36 +148,89 @@ git config --global init.defaultBranch main
 
 **Зачем:** это runtime и инструменты сборки/управления Frappe. Bench создаёт окружение Frappe, приложения и sites.
 
+Для первого стенда VEQTA используем **фиксированные версии**, чтобы повторная установка давала тот же runtime и тот же набор управляющих инструментов. Не заменять их на плавающие `24`, `3.14` или `latest` без отдельного обновления этой инструкции.
+
+Зафиксированный стек:
+
+```text
+NVM           0.40.3
+Node.js       24.20.0
+npm           11.19.0
+Yarn          1.22.22
+uv            0.12.7
+Python        3.14.7
+Frappe Bench  5.31.0
+```
+
+`npm 11.19.0` уже входит в Node.js `24.20.0`; отдельно обновлять npm не нужно.
+
+Установить Node.js и Yarn:
+
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 source ~/.bashrc
-nvm install 24
-npm install -g yarn
 
-curl -LsSf https://astral.sh/uv/install.sh | sh
+nvm install 24.20.0
+nvm use 24.20.0
+nvm alias default 24.20.0
+
+npm install -g --allow-scripts=yarn yarn@1.22.22
+```
+
+Установить фиксированную версию `uv`, Python и Bench:
+
+```bash
+curl -LsSf https://astral.sh/uv/0.12.7/install.sh | sh
 source ~/.bashrc
-uv python install 3.14 --default
-uv tool install frappe-bench
+
+uv python install 3.14.7 --default
+uv tool install 'frappe-bench==5.31.0'
 ```
 
 Проверить:
 
 ```bash
-node -v
-python --version
+echo "=== NVM ==="
+nvm --version
+
+echo "=== NODE ==="
+node --version
+
+echo "=== NPM ==="
+npm --version
+
+echo "=== YARN ==="
 yarn --version
+
+echo "=== UV ==="
+uv --version
+
+echo "=== PYTHON ==="
+python --version
+
+echo "=== BENCH ==="
 bench --version
+
+echo "=== MARIADB ==="
 mariadb --version
+
+echo "=== REDIS ==="
 redis-server --version
 ```
 
-Целевые линии:
+Для runtime/toolchain должны получиться именно:
 
 ```text
-Node      24.x
-Python    3.14.x
-MariaDB   11.8.x
+NVM           0.40.3
+Node.js       v24.20.0
+npm           11.19.0
+Yarn          1.22.22
+uv            0.12.7
+Python        3.14.7
+Frappe Bench  5.31.0
 ```
+
+Если версия отличается, не переходить к следующему шагу, пока причина не выяснена.
 
 ## 6. Frappe Bench
 
