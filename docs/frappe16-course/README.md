@@ -75,7 +75,7 @@
 23. [Assignment и ToDo](23_ASSIGNMENT_AND_TODO.md)
 24. [Assignment Rule](24_ASSIGNMENT_RULE.md)
 25. [Status против Workflow State](25_STATUS_VS_WORKFLOW_STATE.md)
-26. Workflow и переходы
+26. [Workflow и переходы](26_WORKFLOW_AND_TRANSITIONS.md)
 27. Notification
 28. Auto Repeat
 
