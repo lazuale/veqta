@@ -1,135 +1,59 @@
 # Матрица базового практикума Frappe Framework 16
 
-Матрица фиксирует обязательную последовательность базового уровня. Единица обучения — **осмысленный прирост одного сквозного продукта**, а не отдельная кнопка, API-метод или синтаксическая конструкция.
+Это список практических работ курса. Мы идём по нему по порядку и всё время развиваем одно приложение `frappe_practicum`.
 
-## Условия уровня
+Главное правило: сначала пробуем готовую возможность Frappe. Встроенный скрипт используем только тогда, когда обычной настройки уже мало.
 
-- основа — штатные возможности Frappe Framework 16;
-- собственный App создаётся нативно через `bench new-app`;
-- продукт живёт в собственном App и Module;
-- сначала используется декларативный штатный механизм Frappe;
-- встроенный low-code применяется только как естественное расширение штатной функции;
-- допустимы Client Script, Server Script, Query Report, custom Script Report, expressions, Jinja, Webhook и другие встроенные scripting-поверхности;
-- не используется полноценная файловая разработка собственной бизнес-логики на Python/JS;
-- не используются controllers, hooks, patches, overrides, custom frontend и другие developer-level расширения App;
-- терминал используется для штатной работы Bench/App/Site;
-- Git используется как нормальный способ хранения и переноса собственного App.
+| № | Практическая работа | Что делаем | Основные возможности Frappe | Результат |
+|---:|---|---|---|---|
+| **00** | **Ставим Frappe 16 с нуля** | Разворачиваем учебный стенд на чистой Linux-системе | зависимости v16, MariaDB, Redis/Valkey, Bench, Site, `bench start`, Desk | Frappe открывается в браузере, Administrator входит в Desk, стенд можно остановить и снова запустить |
+| **01** | **Разбираемся, что у нас запущено** | Осматриваем Desk и основные настройки | Bench, Site, App, Module, DocType, Document, Desktop, Workspace Sidebar, Awesome Bar, System Settings, журналы | ученик понимает основные части Frappe и может найти нужную настройку или журнал |
+| **02** | **Создаём своё приложение** | Создаём `frappe_practicum`, устанавливаем его на Site, включаем Developer Mode и кладём App в Git | `bench new-app`, `install-app`, `list-apps`, Developer Mode, Module, `bench migrate`, Git | App установлен, Developer Mode включён, есть первый commit; дальнейшие стандартные объекты могут сохраняться в App |
+| **03** | **Создаём первый DocType** | Создаём `Work Item` и несколько записей | DocType, DocField, Document, Form View, List View, системные поля, CRUD | Work Item создаётся, изменяется, копируется и удаляется; его файлы появились в App |
+| **04** | **Собираем рабочую карточку** | Добавляем поля и приводим форму в порядок | основные Field Types, Attach, Geolocation, mandatory, default, read-only, unique, hidden, Section/Column/Tab Break, Quick Entry, list/filter properties | у Work Item есть статус, приоритет, даты, описание, координаты и нормальная форма |
+| **05** | **Настраиваем имя и поиск** | Делаем записи понятными человеку | naming, naming series, field naming, Title Field, Search Fields, Allow Rename, list/preview properties | записи имеют понятные имена и находятся по рабочим данным |
+| **06** | **Связываем документы между собой** | Создаём `Project`, `Work Item Step`, `Practicum Settings` | Link, Fetch From, Dynamic Link, Child DocType, Table, Single DocType, Files, Connections | Work Item связан с Project, содержит checklist и использует общие настройки |
+| **07** | **Делаем дерево категорий** | Создаём `Category` как Tree DocType и связываем его с Work Item | Tree DocType, parent-child hierarchy, Tree View, Link | категории работают как дерево и выбираются в Work Item |
+| **08** | **Проводим документ через Submit, Cancel и Amend** | Создаём отдельный `Work Approval` и проходим его жизненный цикл | Is Submittable, Draft, Submit, Cancel, Amend, Allow on Submit, Track Changes, Version, Timeline, Audit Trail | видно, чем подтверждаемый документ отличается от обычного Work Item |
+| **09** | **Смотрим на одни данные по-разному** | Создаём достаточный набор Work Items и открываем их разными представлениями | List View, фильтры, сортировка, tags, bulk actions, Report View, Kanban, Calendar View, Calendar, Gantt где доступен, Tree View, Map View | один набор документов удобно используется в списке, на доске, в календаре и на карте |
+| **10** | **Собираем рабочий экран** | Создаём Workspace приложения | Workspace, Cards/Links, Shortcuts, Quick List, Onboarding, public/private Workspace, Sidebar v16 | основные документы и действия доступны с одного экрана |
+| **11** | **Добавляем пользователей и роли** | Создаём несколько обычных пользователей | User, System User, Role, Role Profile, module access, default Workspace | минимум три пользователя входят под своими учётными записями и ролями |
+| **12** | **Раздаём права и проверяем их** | Настраиваем разные уровни доступа и проверяем их под обычными пользователями | Role Permission Manager, CRUD, Submit/Cancel/Amend, Report/Export/Import/Share/Print/Email, Permission Level, If Owner, User Permission, Share | разные роли действительно видят разные документы, поля и действия |
+| **13** | **Назначаем работу людям** | Превращаем Work Item в рабочее поручение | Assign, ToDo, priority, due date, Comments, Mentions, Tags, Following, Attachments, Timeline, Track Seen/Views, Share | исполнитель получает задачу и ведёт обсуждение в той же карточке |
+| **14** | **Распределяем задачи автоматически** | Настраиваем Assignment Rule и простое условие его применения | Round Robin, Load Balancing, Based on Field, Due Date Based On, conditions | новые Work Items распределяются автоматически по заданному правилу |
+| **15** | **Проводим задачу по Workflow** | Строим процесс `Новая → В работе → На проверке → Завершена/На доработку` | Workflow State, Workflow, transitions, allowed roles, transition conditions, Workflow Actions | пользователи видят только разрешённые им переходы и реально проводят документ по процессу |
+| **16** | **Настраиваем уведомления** | Добавляем системные уведомления о событиях и сроках | Notification, Document Event, Value Change, date-based event, recipients, conditions, System Notification | нужные пользователи получают уведомления только при нужных событиях |
+| **17** | **Создаём повторяющиеся задачи** | Настраиваем регулярный Work Item | Allow Auto Repeat, Auto Repeat, frequency, start/end dates | Frappe сам создаёт следующий документ по расписанию |
+| **18** | **Меняем форму штатно и сохраняем изменения в App** | Используем Customize Form, затем экспортируем изменения | Customize Form, Custom Field, Property Setter, Custom DocPerm, Custom Link, Route Action, DocType Layout, Export Customizations | форма и права изменены без правки core; нужные customizations записаны в App и видны в Git |
+| **19** | **Добавляем немного поведения на форме** | Решаем одну реальную задачу с Client Script, которую неудобно решить только настройками | Client Script для Form/List, события полей, `frm.set_value`, свойства полей, кнопки, фильтры | форма реагирует на действия пользователя; одновременно понятно, что Client Script работает только в браузере |
+| **20** | **Проверяем данные на сервере** | Включаем Server Script на учебном стенде и создаём первый DocType Event | enable server scripts, Script Manager, Server Script, restricted Python, DocType Event, System Console на базовом уровне | серверное правило срабатывает независимо от Client Script; ученик понимает, почему Server Script выключен по умолчанию |
+| **21** | **Запускаем действие по расписанию и ограничиваем выборку на сервере** | Пробуем ещё два штатных типа Server Script | Scheduler Event, frequency/Cron, Permission Query, журналы выполнения | периодическая автоматизация запускается без hooks; серверное ограничение выборки работает |
+| **22** | **Проверяем, что реально попадёт в Git** | Разбираем разницу между файлами App и настройками Site; добавляем нужные записи в fixtures | fixtures, экспорт DB-based настроек, `hooks.py` только как конфигурация fixtures, migrate | Client Script, Server Script, Workflow, Notification и другие выбранные настройки не нужно будет повторять вручную на втором Site |
+| **23** | **Загружаем и обновляем данные пачкой** | Импортируем, исправляем и экспортируем Work Items | Data Import, Data Export, templates, Insert, Update, child data, import errors, bulk operations | большой набор записей загружается и обновляется без ручного ввода каждой строки |
+| **24** | **Строим отчёты от простого к сложному** | Одну задачу решаем Report Builder, следующую Query Report, ещё одну — Custom Script Report | Report Builder, Query Report, SQL на минимальном уровне, Custom Script Report с встроенным script | понятна граница между тремя штатными способами отчётности; отдельные `.py/.js` файлы отчёта не создаются |
+| **25** | **Собираем Dashboard** | Добавляем показатели и графики в Workspace | Number Card, Dashboard Chart, Dashboard, Workspace analytics, filters, role access | на рабочем экране видны ключевые показатели по Work Item |
+| **26** | **Делаем печатный документ** | Проходим от стандартной печати до небольшого Jinja-шаблона | Standard Print, Print Format Builder, Letter Head, Print Settings, PDF, Jinja, минимальный HTML/CSS | один документ печатается стандартно, через Builder и через собственный штатный шаблон |
+| **27** | **Подключаем почту** | Отправляем Work Item по Email и добавляем Email в Notification | Email Account, Send Email, Communication, Email Queue, Email Template, attachments/PDF, Email Notification | письмо уходит из документа, сохраняется в истории и может отправляться автоматически |
+| **28** | **Делаем публичную страницу** | Настраиваем website-часть и создаём простую Web Page | Website Settings, Web Page, Page Builder там, где доступен штатно | у приложения появляется публичная информационная страница без собственного frontend |
+| **29** | **Делаем внешнюю форму** | Создаём Web Form для Work Item и проверяем Guest/Website User сценарии | Website User, Web Form, layout, multi-step, permissions, list/edit/comments/attachments/print, встроенные CSS/Client Script/validation | внешний пользователь создаёт и обслуживает свои документы без Desk |
+| **30** | **Работаем с Work Item через API** | Сначала используем готовый REST CRUD, потом создаём один Server Script API для задачи, которой CRUD недостаточно | API User, API Key/Secret, REST v1/v2, filters, pagination, permissions, Server Script API, Allow Guest, rate limiting | внешний клиент читает и меняет документы штатным API и вызывает отдельный low-code endpoint |
+| **31** | **Отправляем событие наружу через Webhook** | Настраиваем исходящий запрос при изменении Work Item | Webhook, Document Event, condition, URL, method, headers, fields/JSON, Jinja payload, secret/HMAC | внешний тестовый endpoint получает запрос из Frappe |
+| **32** | **Запускаем действие при переходе Workflow** | Связываем уже изученные Workflow, Server Script и Webhook | Workflow Transition Tasks v16, Server Script/Webhook action, sync/async | переход Workflow запускает штатное дополнительное действие |
+| **33** | **Пробуем Package и сравниваем его с обычным App** | Создаём небольшой Package и переносим его отдельно от основного приложения | Package, Custom Module, Package Release, Package Import | ученик на практике видит, чем Package отличается от обычного App и когда он нужен |
+| **34** | **Ставим наше приложение на второй Site** | Берём App из Git и устанавливаем его на чистый Site | Git, `bench get-app`/локальный эквивалент учебного сценария, `install-app`, fixtures, exported customizations, `bench migrate` | второй Site получает модель, Workspace, Workflow, scripts, reports и другие настройки продукта без ручной пересборки |
+| **35** | **Делаем backup и восстанавливаем Site** | Резервируем первый Site вместе с файлами и восстанавливаем его | `bench backup`, public/private files, restore, site config/data checks | после восстановления остаются пользователи, документы, файлы и рабочая конфигурация |
+| **36** | **Проходим весь путь заново** | Проверяем готовое приложение после restore и второй Site после установки из Git | совместное использование изученных возможностей | Web Form → Work Item → Assignment → Workflow → Notification → Files/Comments → Report/Dashboard → Print/Email → API/Webhook проходит без скрытых ручных настроек |
 
-## Практические работы
+## Что обязательно проверяем по ходу курса
 
-| № | Практическая работа | Входное состояние | Что добавляем | Штатные возможности Frappe | Контрольный результат |
-|---:|---|---|---|---|---|
-| **00** | **Развернуть чистый Frappe 16** | Чистая Linux-система | Рабочий учебный стенд | официальные зависимости v16, MariaDB, Redis/Valkey, Bench, Site, `bench start`, Desk | Site открывается; Administrator входит в Desk; стенд корректно перезапускается |
-| **01** | **Освоиться в Frappe 16** | Пустой Site | Базовая конфигурация и понимание платформы | Desk, Desktop v16, Workspace Sidebar, Awesome Bar, System Settings, timezone, форматы, sessions, основные журналы | ученик ориентируется в Site и понимает назначение Bench, Site, App, Module, DocType и Document |
-| **02** | **Создать собственный App** | Рабочий Site | `frappe_practicum` и Module `Practicum` | `bench new-app`, структура App, Module, `install-app`, `list-apps`, Git, `bench migrate` | App создан, установлен на Site, находится в Git; дальнейшие стандартные объекты принадлежат Practicum |
-| **03** | **Создать первый DocType** | Пустой Practicum App | `Work Item` | DocType, DocField, Document, Form View, List View, стандартные системные поля, CRUD | можно создать, открыть, изменить, скопировать и удалить Work Item |
-| **04** | **Построить рабочую карточку** | Минимальный Work Item | Рабочие поля и структура формы | основные Field Types, Geolocation, Attach, mandatory/default/read-only/unique/hidden, Section/Column/Tab Break, Quick Entry, list/filter properties | Work Item имеет статус, приоритет, даты, описание, Location и пригодную форму |
-| **05** | **Настроить идентификацию и поиск** | Рабочая карточка | Удобные имена и поиск | naming, naming series/field naming, Title Field, Search Fields, Allow Rename, list/preview properties | документы получают понятные идентификаторы и находятся по рабочим данным |
-| **06** | **Построить связанную модель** | Один самостоятельный DocType | `Project`, `Work Item Step`, `Practicum Settings` и связи | Link, Fetch From, Dynamic Link, Child DocType, Table, Single DocType, Files, Connections | Work Item связан с Project, содержит checklist, файлы и использует общие настройки |
-| **07** | **Добавить иерархический справочник** | Модель без Category | `Category` как Tree DocType | Tree DocType, parent-child hierarchy, Tree View, Link на Tree DocType | Category работает как дерево и используется в Work Item |
-| **08** | **Освоить lifecycle и аудит** | Есть обычные рабочие DocTypes | `Work Approval` [Submittable] | Draft, Submit, Cancel, Amend, Allow on Submit, Track Changes, Version, Timeline, Audit Trail | Work Approval проходит полный lifecycle; Work Item остаётся обычным рабочим документом |
-| **09** | **Освоить штатные представления** | Накоплены Work Items | Несколько способов работы с одними данными | List View, filters, sorting, tags, bulk actions, Report View, Kanban, Calendar View, Calendar, Gantt где доступен, Tree View, Map View | один набор Documents используется через несколько штатных views |
-| **10** | **Собрать Workspace** | Есть модель и views | Рабочее место пользователя | Workspace, Cards/Links, Shortcuts, Quick List, Onboarding, public/private Workspace, Sidebar v16 | пользователь получает единый рабочий вход в Practicum |
-| **11** | **Добавить пользователей и роли** | Работа только Administrator | Несколько реальных пользователей | User, System User, Role, Role Profile, module access, default Workspace | минимум три Desk User работают под собственными ролями |
-| **12** | **Настроить штатные permissions** | Пользователи видят одинаково | Базовая модель доступа | Role Permission Manager; CRUD; Submit/Cancel/Amend; Report/Export/Import/Share/Print/Email; Permission Level; If Owner; User Permission; Share; Page/Report permissions | роли реально получают разные Documents, поля и действия; проверка выполняется не Administrator |
-| **13** | **Организовать совместную работу** | Documents без рабочего взаимодействия | Поручения и коммуникация | Assign, ToDo, priority, due date, Comments, Mentions, Tags, Following, Attachments, Timeline, Track Seen/Views, Share | Work Item назначается исполнителю и становится центром совместной работы |
-| **14** | **Автоматизировать назначения** | Assign выполняется вручную | Assignment Rule | Round Robin, Load Balancing, Based on Field, Due Date Based On, штатные conditions | новые Work Items распределяются автоматически; простое условие ограничивает применение правила |
-| **15** | **Построить Workflow** | Есть users, roles и permissions | Управляемый процесс Work Item | Workflow State, Workflow, transitions, allowed roles, штатные transition conditions, Workflow Actions | Work Item проходит `Новая → В работе → На проверке → Завершена/На доработку` |
-| **16** | **Настроить Notifications** | Workflow не информирует участников | Событийные и срочные уведомления | Notification, Document Event, Value Change, date-based event, recipients, штатные conditions, System Notification | пользователи получают системные уведомления только при нужных условиях |
-| **17** | **Добавить повторяемую работу** | Work Items создаются вручную | Регулярные документы | Allow Auto Repeat, Auto Repeat, frequency, start/end dates | Frappe самостоятельно создаёт повторяемые Work Items |
-| **18** | **Освоить штатную кастомизацию** | Известны собственные DocTypes | Изменение существующей конфигурации без правки core | Customize Form, Custom Field, Property Setter, Custom DocPerm, Custom Link, Route Action, DocType Layout | форма, links/actions, права и layout меняются штатным customization layer |
-| **19** | **Добавить клиентское поведение** | Декларативные возможности формы уже понятны | Минимальный Client Script | Client Script для Form/List, field events, `frm.set_value`, field properties, buttons, filters; граница client-side validation | Work Item получает полезное интерактивное поведение, которое нельзя было выразить проще metadata-настройкой |
-| **20** | **Добавить серверные правила без controller-кода** | Client-side граница понятна | Server Script: DocType Event | Script Manager, restricted Python, DocType Event, server-side validation/автозаполнение, обработка ошибок | правило работает и через Desk, и при обходе браузерного Client Script |
-| **21** | **Освоить встроенную серверную автоматизацию** | Server Script уже знаком | Scheduler Event и Permission Query | Server Script Scheduler Event, frequency/Cron на базовом уровне, Permission Query; журналы выполнения | периодическая автоматизация выполняется без hooks; дополнительное permission-ограничение действует на сервере |
-| **22** | **Освоить массовую работу с данными** | Есть стабильная модель | Массовая загрузка и выгрузка | Data Export, Data Import, template, Insert, Update, child data, validation/import errors, bulk operations | массив Work Items импортируется, обновляется и экспортируется обратно |
-| **23** | **Построить отчётность штатной лестницей** | Накоплены данные | Три уровня отчётности | Report Builder → Query Report → Custom Script Report; filters, grouping, aggregates, SQL внутри Query Report, restricted script внутри custom Report | ученик понимает, когда достаточно builder, когда нужен SQL, а когда нужен встроенный script report, не создавая файловый Standard Script Report |
-| **24** | **Собрать Dashboard и аналитику Workspace** | Есть отчёты | Управленческий экран | Number Card, Dashboard Chart, Dashboard/Workspace analytics, filters/aggregates, role access | ключевые показатели встроены в ранее созданный Workspace |
-| **25** | **Настроить печать от Builder до Jinja** | Work Item существует в интерфейсе | Человекочитаемый документ | Standard Print, Print Format Builder, Letter Head, Print Settings, PDF, custom Print Format с Jinja и минимальным HTML/CSS | один документ выводится стандартно, через builder и через Jinja-шаблон; понятна граница каждого уровня |
-| **26** | **Подключить Email** | System Notification уже работает | Email как часть Document history | Email Account, Send Email, Communication, Email Queue, Email Template, attachments/PDF, Email Notification | письмо отправляется из Work Item, сохраняется в истории, Notification умеет отправлять Email |
-| **27** | **Создать штатную Website-страницу** | Продукт пока существует только в Desk | Внешняя информационная страница | Website Settings, Web Page/Page Builder и штатные website-настройки без файлового portal-кода | у Practicum появляется публичная страница, созданная штатными средствами Frappe |
-| **28** | **Создать Web Form** | Website уже знаком | Внешний пользовательский сценарий | Website User, Web Form, layout, multi-step, permissions, list/edit/comments/attachments/print, встроенные CSS/Client Script/validation | внешний пользователь создаёт и обслуживает свои Work Items без Desk |
-| **29** | **Освоить штатный REST API и low-code API** | Desk и Web Form работают | Два уровня API | API User, API Key/Secret, автоматический REST CRUD v1/v2, filters/pagination/permissions; Server Script API, Allow Guest и встроенный rate limiting | внешний клиент использует стандартный CRUD и отдельный low-code endpoint без файлового Python method |
-| **30** | **Настроить исходящую интеграцию** | API-модель понятна | Webhook | DocType Event, condition, URL, method, headers, fields/JSON, Jinja payload, secret/HMAC, журнал ошибок | изменение Work Item отправляет контролируемый запрос во внешний тестовый endpoint |
-| **31** | **Связать Workflow с действиями v16** | Workflow, Server Script и Webhook уже изучены | Workflow Transition Tasks | Workflow Transition Task, Server Script/Webhook action, sync/async поведение | переход Workflow запускает штатное действие; ученик видит границу между transition и side effect |
-| **32** | **Разобрать Package как отдельный stock-механизм** | Есть обычный App-проект | Lightweight/UI-created packaging | Package, Custom Module, Package Release/Import, сравнение с обычным Frappe App | ученик понимает, когда Package уместен и почему основной учебный продукт всё равно живёт в обычном App |
-| **33** | **Воспроизвести App на втором Site** | App полностью собран | Чистая установка продукта | Git clone/get-app в подходящем учебном сценарии, install-app, migrate, проверка стандартных объектов | второй Site получает Practicum App штатным способом; конфигурация воспроизводится из репозитория |
-| **34** | **Резервировать и восстанавливать Site** | Первый Site содержит конфигурацию, данные и файлы | Восстанавливаемость | Bench backup, public/private files, restore, проверка Site data/config | после restore сохраняются Users, Documents, Files, настройки и рабочий процесс |
-| **35** | **Пройти финальный сквозной сценарий** | Все механизмы настроены | Цельный рабочий продукт | совместное использование всех основных возможностей практикума | после restore проходит полный сценарий от Web Form до Workflow, Notifications, reports, print/email, API/Webhook; второй Site воспроизводит App из Git |
+К финалу должны быть доказаны три разные вещи:
 
----
+1. **App хранится в Git.** Стандартные объекты и экспортированные настройки продукта можно получить из репозитория.
+2. **Настройки Site не теряются из виду.** Если важная для продукта запись создаётся в базе, мы либо включаем её в fixtures/экспорт, либо честно считаем её настройкой конкретного Site.
+3. **Backup не заменяет Git.** Git переносит приложение и его конфигурацию, backup восстанавливает конкретный Site вместе с рабочими данными.
 
-# Контрольная матрица покрытия базового native-first уровня
+## Граница базового уровня
 
-| Область | Работы |
-|---|---|
-| Bench / Site | 00, 34 |
-| Desk / Desktop / Sidebar / Awesome Bar | 01, 10 |
-| `bench new-app` / App / Module / install-app / Git | 02, 33 |
-| DocType / Document / CRUD | 03 |
-| DocField / Field Types / form layout / Geolocation | 04 |
-| Naming / title / search | 05 |
-| Link / Fetch / Dynamic Link / Child / Single / Files / Connections | 06 |
-| Tree DocType / Tree View | 07, 09 |
-| Submit / Cancel / Amend / Allow on Submit / Audit Trail | 08 |
-| List / Report View / Kanban / Calendar / Gantt / Map | 09 |
-| Workspace / Onboarding | 10, 24 |
-| User / Role / Role Profile | 11 |
-| Role Permissions / Permission Level / User Permission / Share | 12 |
-| Assign / ToDo / Comments / Mentions / Tags / Following | 13 |
-| Assignment Rule + conditions | 14 |
-| Workflow + conditions / Workflow Actions | 15 |
-| Notification + conditions | 16, 26 |
-| Auto Repeat | 17 |
-| Customize Form / Property Setter / Custom Field / Actions / Links / DocType Layout | 18 |
-| Client Script | 19, 28 |
-| Server Script: DocType Event | 20 |
-| Server Script: Scheduler / Permission Query | 21 |
-| Data Import / Export | 22 |
-| Report Builder | 23 |
-| Query Report | 23 |
-| Custom Script Report | 23 |
-| Number Card / Dashboard Chart / Workspace analytics | 24 |
-| Print Builder / Jinja / PDF / Letter Head | 25 |
-| Email / Communication / Email Queue / Email Template | 26 |
-| Website Settings / Web Page | 27 |
-| Web Form / Website User / Web Form scripting | 28 |
-| REST API v1/v2 | 29 |
-| Server Script API / rate limiting | 29 |
-| Webhook | 30 |
-| Workflow Transition Tasks v16 | 31 |
-| Package / Package Release / Import | 32 |
-| Git-based App reproduction / migrate | 33 |
-| Backup / Restore | 34 |
-| Сквозной итоговый сценарий | 35 |
+В практикуме допустимы встроенные Client Script, Server Script, Query Report, Custom Script Report, Jinja, условия и Webhook. Они используются короткими рабочими примерами и только после того, как показан более простой штатный способ.
 
----
-
-# Критерий native-first для каждой работы
-
-Перед использованием low-code работа обязана показать, почему более простой механизм уже недостаточен.
-
-Правильная последовательность решения:
-
-```text
-metadata / настройка
-        ↓
-готовый штатный DocType-механизм
-        ↓
-встроенный expression
-        ↓
-Client Script / Server Script / Query / Jinja
-        ↓
-[граница базового уровня]
-        ↓
-файловый app-код
-```
-
-Практическая работа считается завершённой только если ученик:
-
-1. получил ожидаемый рабочий результат;
-2. понимает, почему выбран именно этот штатный механизм;
-3. проверил permissions правильным пользователем;
-4. намеренно изменил одну настройку и увидел последствия;
-5. вернул проект в корректное состояние;
-6. может назвать более простой и более сложный слой решения;
-7. не заменил штатную возможность ненужным script-кодом.
+Мы не пишем собственные Python controllers, бизнес-логику в модулях App, overrides, patches, файловые JS-расширения и собственный frontend. Это уже следующий уровень — разработка на Frappe.
