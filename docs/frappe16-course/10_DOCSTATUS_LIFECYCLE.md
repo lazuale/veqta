@@ -1,14 +1,62 @@
 # 10. `docstatus`, Submit, Cancel и Amendment
 
-`docstatus` — это системное состояние документа во Frappe. Оно нужно не каждому DocType, но для `Submittable` документов определяет очень важный lifecycle.
+В лабораторной 09 появился первый `Approval Record`, сохранённый как Draft. Он специально остался неподтверждённым.
 
-В этой главе разберём его на простом примере и только потом посмотрим на controller events.
+Теперь пройдём полный системный lifecycle Submittable Document руками:
 
-Проверено: **2026-08-30**.
+```text
+Draft
+→ Submit
+→ Submitted
+→ Cancel
+→ Cancelled
+→ Amend
+→ новый Draft
+```
 
-## 1. Три значения `docstatus`
+Без Python, REST API и controller hooks: сейчас важно сначала увидеть само поведение Framework.
 
-Во Frappe 16 используются три состояния:
+Проверено для **Frappe Framework v16.32.0**.
+
+---
+
+## Что уже есть на стенде
+
+`Approval Record`:
+
+```text
+Is Submittable: 1
+Auto Name:      APR-.YYYY.-.#####
+Title Field:    subject
+```
+
+Поля:
+
+```text
+subject       Data   Mandatory
+amended_from  Link → Approval Record   добавлено Framework
+```
+
+Есть минимум один сохранённый Draft:
+
+```text
+APR-2026-00001
+Subject = Первый черновик Approval Record
+```
+
+Submit у него ещё не выполнялся.
+
+---
+
+## `docstatus` — системное состояние документа
+
+У Submittable Document Frappe использует системное поле:
+
+```text
+docstatus
+```
+
+В `v16.32.0` значения зафиксированы так:
 
 ```text
 0 = Draft
@@ -16,535 +64,293 @@
 2 = Cancelled
 ```
 
-Их можно представить так:
+Это не обычный `Select`, который мы сами добавили в DocType.
+
+Framework использует `docstatus`, чтобы контролировать допустимые действия над подтверждаемым документом.
+
+---
+
+## `Request.status` и `Approval Record.docstatus` — не одно и то же
+
+У нашего основного `Request` есть обычное поле:
 
 ```text
+status
+→ Open / In Progress / Done
+```
+
+Мы сами создали его как `Select`.
+
+У `Approval Record` есть системный lifecycle:
+
+```text
+docstatus
+→ Draft / Submitted / Cancelled
+```
+
+Они отвечают на разные вопросы.
+
+```text
+status
+→ предметное состояние, определённое моделью приложения
+
+docstatus
+→ системное состояние Submittable Document во Frappe
+```
+
+Поэтому нельзя воспринимать Submit как ещё одно значение обычного поля `Status`.
+
+---
+
+# Draft
+
+## Что означает Draft
+
+Новый сохранённый `Approval Record` начинается как:
+
+```text
+docstatus = 0
 Draft
-  ↓ Submit
-Submitted
-  ↓ Cancel
-Cancelled
 ```
 
-`docstatus` — системное поле Framework, а не обычный `Select`.
+Это рабочий черновик.
 
-## 2. `status` и `docstatus` — не одно и то же
+Его можно редактировать обычным Save, пока документ не подтверждён.
 
-Пусть у документа есть обычное поле:
+На этом состоянии остановилась лабораторная 09.
 
-```text
-status = Approved
-```
+---
 
-и одновременно:
+# Submit
+
+## Чем Submit отличается от Save
+
+Save сохраняет Draft и оставляет:
 
 ```text
 docstatus = 0
 ```
 
-Это возможно.
-
-Почему? Потому что они отвечают на разные вопросы.
-
-### `status`
-
-Бизнес-состояние, которое придумало приложение:
-
-```text
-New
-In Review
-Approved
-Rejected
-Closed
-```
-
-### `docstatus`
-
-Системное состояние Frappe:
-
-```text
-Draft
-Submitted
-Cancelled
-```
-
-Пример:
-
-```text
-status = Approved
-
-docstatus = 1  # Submitted
-```
-
-То есть документ и по бизнес-логике Approved, и технически подтверждён через Submit.
-
-## 3. Пример целиком
-
-Представим DocType `Approval Record`.
-
-Пока его готовят:
-
-```text
-APR-0001
-Subject: Проверка оборудования
-Result: Approved
-docstatus: Draft
-```
-
-Пользователь может исправлять поля и нажимать Save.
-
-Когда запись окончательно подтверждена:
-
-```text
-Submit
-```
-
-Frappe переводит её в:
+Submit переводит документ в:
 
 ```text
 docstatus = 1
 ```
 
-После этого документ уже не считается обычным редактируемым черновиком.
+То есть Submit означает не просто «ещё раз сохранить», а изменить системное состояние документа.
 
-## 4. Какие переходы разрешены
+После этого Framework применяет ограничения Submitted Document.
 
-В обычном lifecycle Framework разрешает такие переходы:
+---
 
-| Было | Стало | Что происходит |
-|---|---|---|
-| Draft `0` | Draft `0` | обычный Save |
-| Draft `0` | Submitted `1` | Submit |
-| Submitted `1` | Submitted `1` | ограниченное Update after Submit |
-| Submitted `1` | Cancelled `2` | Cancel |
+## Почему после Submit обычные поля блокируются
 
-А вот такие переходы обычным Save не допускаются:
+Если подтверждённый документ можно свободно переписывать, Submit теряет смысл.
 
-```text
-Draft → Cancelled
-Submitted → Draft
-Cancelled → Submitted
-```
+Поэтому обычные поля после Submit нельзя менять обычным редактированием.
 
-То есть нельзя просто поменять число `docstatus` как обычное поле и считать задачу решённой.
-
-## 5. Save и Submit — разные действия
-
-### Save
-
-Сохраняет Draft:
+Для нашего `Approval Record` поле:
 
 ```text
-docstatus = 0
+Subject
 ```
 
-Документ остаётся рабочим черновиком.
+после Submit должно быть защищено от обычного изменения.
 
-### Submit
+Это не просто визуальная договорённость формы. В `v16.32.0` Document lifecycle отдельно проверяет update after submit и разрешает изменения только там, где metadata явно это допускает.
 
-Переводит его в:
+---
 
-```text
-docstatus = 1
-```
+# `Allow on Submit`
 
-и запускает отдельный lifecycle подтверждения.
+Иногда после подтверждения нужно оставить редактируемым отдельное служебное поле.
 
-Поэтому Submit стоит использовать только там, где предметный смысл действительно требует фиксации документа.
-
-## 6. Что вызывает Submit в controller
-
-Для Submit важные server-side hooks идут примерно так:
-
-```text
-before_validate
-validate
-before_submit
-        ↓
-сохранение документа с docstatus = 1
-        ↓
-on_update
-on_submit
-on_change
-```
-
-Для первого знакомства достаточно помнить три основных события:
-
-```text
-validate
-before_submit
-on_submit
-```
-
-Например:
-
-```python
-class ApprovalRecord(Document):
-    def before_submit(self):
-        # последняя проверка перед подтверждением
-        pass
-
-    def on_submit(self):
-        # действия после успешного Submit
-        pass
-```
-
-Подробно controller lifecycle будет отдельной главой.
-
-## 7. После Submit документ становится почти read-only
-
-Обычные поля подтверждённого документа менять нельзя.
-
-Это защищает смысл Submit: если после подтверждения всё можно свободно переписать, само подтверждение мало что означает.
-
-Пример:
-
-```text
-Amount = 1000
-```
-
-после Submit не должно тихо превратиться в:
-
-```text
-Amount = 5000
-```
-
-обычным Save.
-
-## 8. Allow on Submit
-
-Иногда после Submit всё же нужно разрешить менять отдельное служебное поле.
-
-Например:
+В лабораторной добавим:
 
 ```text
 Internal Note
+fieldname: internal_note
+Field Type: Small Text
+Allow on Submit: включено
 ```
 
-Для такого DocField можно включить:
+И рядом обычное поле:
 
 ```text
-Allow on Submit = ✓
+Comment
+fieldname: comment
+Field Type: Small Text
+Allow on Submit: выключено
 ```
 
-Тогда Frappe разрешит Update after Submit именно для таких полей.
+После Submit получится наглядный контраст:
 
-При этом ключевые реквизиты без этого флага останутся защищены.
+```text
+Comment
+→ обычное поле
+→ менять после Submit нельзя
 
-## 9. Что проверяет Frappe при Update after Submit
+Internal Note
+→ Allow on Submit
+→ допускается Update после Submit
+```
 
-Framework сравнивает текущие значения с сохранённым документом.
+Так ученик увидит назначение свойства, которое в главе 05 мы специально не изучали заранее.
 
-Если изменилось поле без `Allow on Submit`, Frappe выбросит ошибку `UpdateAfterSubmitError`.
+---
 
-Это server-side проверка, а не просто «серое поле в браузере».
+# Cancel
 
-То же относится к child rows: возможность изменять дочернюю таблицу после Submit зависит от соответствующих `allow_on_submit` настроек.
+Submitted Document можно отменить штатным действием:
 
-## 10. Cancel
+```text
+Cancel
+```
 
-`Cancel` переводит Submitted документ в:
+После него:
 
 ```text
 docstatus = 2
-```
-
-Это не удаление записи.
-
-Документ остаётся в системе, но отмечен как отменённый.
-
-Пример:
-
-```text
-APR-0001
-Submitted
-```
-
-после Cancel:
-
-```text
-APR-0001
 Cancelled
 ```
 
-История существования документа сохраняется.
+Cancel не удаляет запись.
 
-## 11. Hooks при Cancel
+Отменённый `Approval Record` остаётся в системе как часть истории.
 
-Основные controller events:
+Это принципиально отличается от физического удаления Document.
 
-```text
-before_cancel
-        ↓
-сохранение docstatus = 2
-        ↓
-on_cancel
-on_change
-```
+---
 
-Пример:
+## Почему Cancelled не возвращаем обратно в Draft
 
-```python
-class ApprovalRecord(Document):
-    def before_cancel(self):
-        # проверить, можно ли отменять
-        pass
+Обычный lifecycle не разрешает превращать уже отменённую запись назад в прежний черновик простым Save.
 
-    def on_cancel(self):
-        # откатить последствия Submit, если они были
-        pass
-```
-
-## 12. Почему Cancel иногда не проходит
-
-Документ может быть связан с другими записями так, что его отмена нарушит целостность процесса.
-
-Framework проверяет связанные документы и back links.
-
-Простой сценарий:
+Если документ был подтверждён, затем отменён из-за ошибки, Framework предлагает другой путь:
 
 ```text
-Document A был Submitted
-Document B уже ссылается на него как на действующий подтверждённый документ
-```
-
-Cancel A может потребовать сначала разобраться с B.
-
-Именно поэтому Cancel — бизнес-операция, а не просто установка `docstatus = 2`.
-
-## 13. Cancelled документ нельзя нормально редактировать
-
-После:
-
-```text
-docstatus = 2
-```
-
-обычный save запрещён.
-
-Если в отменённом документе была ошибка и нужен исправленный вариант, штатный путь — **Amendment**, а не возврат старого документа обратно в Draft.
-
-## 14. Amendment — новая исправленная версия
-
-Представим:
-
-```text
-APR-0001
-Submitted
-```
-
-Выяснилось, что в нём ошибка.
-
-Штатная логика:
-
-```text
-APR-0001
-Submit
-   ↓
-Cancel
-   ↓
 Amend
-   ↓
-новый Draft
 ```
 
-Новый документ получает ссылку на исходный через поле:
+Так история старой версии не переписывается.
+
+---
+
+# Amendment
+
+## Что делает Amend
+
+После Cancel можно создать исправленную версию через:
 
 ```text
-amended_from
+Amend
 ```
 
-Например:
+Frappe создаёт **новый Document** в состоянии Draft.
 
-```text
-APR-0001-1
-amended_from = APR-0001
-```
-
-Точный naming amended document зависит от naming поведения DocType, но принцип один: **создаётся новый Document**.
-
-## 15. Откуда берётся `amended_from`
-
-Для Submittable DocType Frappe сам добавляет поле `amended_from`, если его ещё нет.
-
-Оно является Link на тот же DocType и показывает, какой отменённый документ послужил основой новой версии.
-
-Это полезнее, чем «стереть прошлое и переписать старую запись».
-
-## 16. Amend — не Undo
-
-После Amend исходный документ остаётся:
+Старый остаётся:
 
 ```text
 Cancelled
 ```
 
-Новый документ начинается как:
+Новый получает связь:
+
+```text
+amended_from = name отменённого Approval Record
+```
+
+Именно эта связь, а не внешний вид нового номера, является главным доказательством Amendment.
+
+При стандартных настройках amended document часто получает суффикс вроде `-1`, но naming Amendment может настраиваться. В лабораторной мы не полагаемся на конкретный суффикс: проверяем `Amended From` и новый Draft.
+
+---
+
+## Почему Amendment лучше переписывания истории
+
+Получается цепочка:
+
+```text
+старый Document
+Submitted
+→ Cancelled
+
+новый Document
+Draft
+amended_from → старый Document
+```
+
+Можно увидеть:
+
+```text
+какая версия была подтверждена
+почему она отменена
+какая новая версия создана на её основе
+```
+
+Вместо того чтобы незаметно изменить уже подтверждённую запись.
+
+---
+
+# Что сейчас не изучаем
+
+У lifecycle есть server-side события и методы, например проверки перед Submit/Cancel и код после этих действий.
+
+Они относятся к controller и application code, которые будут позже.
+
+Также пока не соединяем Submit с Workflow. Workflow появится в отдельном блоке процессов.
+
+Сейчас ответственность главы ограничена наблюдаемой моделью:
 
 ```text
 Draft
-```
-
-И его нужно снова проверить и Submit, если он должен стать действующим.
-
-То есть:
-
-```text
-старый документ → история
-новый документ  → исправленная версия
-```
-
-## 17. Permissions для Submittable DocType
-
-У ролей могут быть отдельные права:
-
-```text
-Read
-Write
-Create
 Submit
+Allow on Submit
 Cancel
 Amend
 ```
 
-Например:
+---
 
-```text
-Operator
-- Create
-- Read
-- Write
+## Что произойдёт в лабораторной
 
-Manager
-- Read
-- Submit
-- Cancel
-- Amend
-```
+Ты:
 
-Так можно отделить подготовку документа от его подтверждения.
+1. добавишь `Comment` и `Internal Note` к существующему `Approval Record`;
+2. у `Internal Note` включишь `Allow on Submit`;
+3. сохранишь новый Draft;
+4. нажмёшь Submit и увидишь Submitted;
+5. изменишь `Internal Note` после Submit штатным Update;
+6. намеренно попробуешь изменить обычный `Comment` и увидишь блокировку;
+7. нажмёшь Cancel;
+8. убедишься, что Document остался, но стал Cancelled;
+9. нажмёшь Amend;
+10. увидишь новый Draft и заполненное `Amended From`;
+11. оставишь на стенде примеры Draft, Submitted, Cancelled и Amended Draft для следующих глав.
 
-## 18. Workflow и Submit
-
-Workflow может управлять бизнес-переходами и в определённых состояниях использовать системные действия Submit/Cancel.
-
-Например:
-
-```text
-Draft
-  ↓ Send for Review
-Review
-  ↓ Approve
-Approved + Submit
-```
-
-Но Workflow не отменяет смысл `docstatus`. Это дополнительный слой процесса.
-
-## 19. Cancel, Discard и Delete — три разных действия
-
-Их легко перепутать.
-
-### Cancel
-
-Для Submitted документа:
-
-```text
-Submitted → Cancelled
-```
-
-Запись остаётся в системе.
-
-### Discard
-
-В v16 есть отдельное действие `Discard` для Draft: оно переводит черновик в cancelled-like состояние через специальный lifecycle `before_discard` / `on_discard`.
-
-Смысл — отказаться от Draft, не делая обычный Submit → Cancel.
-
-### Delete
-
-Физически удаляет Document через штатный delete lifecycle, если это разрешено permissions и связями.
-
-На пальцах:
-
-```text
-Cancel  → «этот подтверждённый документ отменён»
-Discard → «этот черновик больше не нужен»
-Delete  → «удалить запись»
-```
-
-Это разные семантики.
-
-## 20. Submit в Python
-
-Document API даёт методы:
-
-```python
-doc.submit()
-```
-
-и:
-
-```python
-doc.cancel()
-```
-
-Они запускают штатный lifecycle.
-
-Не нужно заменять их прямым SQL UPDATE `docstatus`, иначе будут пропущены permissions, validations, hooks и связанные проверки.
-
-## 21. Submit через REST
-
-REST API работает поверх Document-модели Frappe, а whitelisted методы позволяют выполнять серверные действия.
-
-Конкретные способы вызова API разберём в отдельном блоке. Здесь нужно запомнить принцип:
-
-> Каким бы интерфейсом ты ни работал — Desk, Python или API — системный lifecycle документа должен оставаться одним и тем же.
-
-## 22. Когда Submittable вообще нужен
-
-Не каждый документ надо Submit-ить.
-
-Хороший кандидат:
-
-```text
-документ проходит этап подготовки,
-после подтверждения должен считаться зафиксированным,
-а исправление требует явной отмены/новой версии
-```
-
-Плохой кандидат:
-
-```text
-обычная задача, заметка или справочник,
-которые просто меняются по ходу работы
-```
-
-Для них обычного Save и бизнес-статуса часто достаточно.
-
-## Мини-практика
-
-Представь `Approval Record`.
-
-1. Создали и заполняем → `docstatus = 0` **Draft**.
-2. Руководитель подтвердил → `Submit`, `docstatus = 1`.
-3. Нужно добавить только служебную заметку → поле должно иметь **Allow on Submit**.
-4. Нашли серьёзную ошибку → **Cancel → Amend → новый Draft**.
-5. Хотим вернуть старый Cancelled Document в Draft простым Save → **так делать нельзя**.
+---
 
 ## Что запомнить
 
-- `docstatus` — системное состояние, `status` — обычное бизнес-поле.
-- `Submit` переводит `0 → 1` и запускает отдельный lifecycle.
-- После Submit можно менять только специально разрешённые поля.
-- `Cancel` переводит `1 → 2`, но не удаляет документ.
-- `Amend` создаёт новый Draft, связанный с отменённым документом через `amended_from`.
-- `Cancel`, `Discard` и `Delete` имеют разный смысл.
+1. `docstatus` — системное состояние Submittable Document.
+2. `0 / 1 / 2` означают Draft / Submitted / Cancelled.
+3. Save и Submit — разные действия.
+4. После Submit обычные поля защищены от свободного изменения.
+5. `Allow on Submit` разрешает ограниченное обновление конкретного поля после Submit.
+6. Cancel не удаляет Document.
+7. Amend создаёт новый Draft и связывает его с отменённым через `amended_from`.
+8. `Request.status` и `Approval Record.docstatus` — разные механизмы.
+
+---
 
 ## Официальные источники
 
 - [Document API](https://docs.frappe.io/framework/user/en/api/document)
-- [DocStatus source, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/model/docstatus.py)
-- [Document lifecycle implementation, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/model/document.py)
-- [DocType `amended_from` creation, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/doctype/doctype.py)
+- [DocStatus — v16.32.0](https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/docstatus.py)
+- [Document lifecycle — v16.32.0](https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py)
+- [Submittable `amended_from` generation — v16.32.0](https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/doctype/doctype.py)
+- [Amended naming — v16.32.0](https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/naming.py)
 
-Следующая глава: **11. Form View**.
+Теперь выполни [**лабораторную 10**](labs/10_DOCSTATUS_LIFECYCLE_LAB.md).
+
+После неё блок B завершён. Следующий блок начинается с [**11. Form View**](11_FORM_VIEW.md).
