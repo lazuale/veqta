@@ -86,40 +86,305 @@ bench --site learn.localhost list-apps
 
 # После блока B — главы 4–10
 
-Должны существовать:
+Блок B впервые создаёт и затем последовательно расширяет собственную модель данных курса.
+
+## `Request`
+
+Standard DocType:
 
 ```text
-Request
-Request Item
-Training Settings
-Training Category
-Approval Record
+Name:        Request
+Module:      Training
+Title Field: subject
+Auto Name:   REQ-.YYYY.-.#####
 ```
 
-`Request` содержит минимум:
+Поля:
 
 ```text
 Subject
+  subject
+  Data
+  Mandatory
+
 Description
+  description
+  Small Text
+
 Status
+  status
+  Select: Open / In Progress / Done
+  In List View
+
+Due Date
+  due_date
+  Date
+  In List View
+
 Priority
+  priority
+  Select: Low / Medium / High
+  Default: Medium
+  In List View
+
+Is Urgent
+  is_urgent
+  Check
+
+Estimate Hours
+  estimate_hours
+  Int
+
+Notes
+  notes
+  Text Editor
+
+Reference File
+  reference_file
+  Attach
+
+Responsible
+  responsible
+  Link → User
+
+Responsible Name
+  responsible_name
+  Data
+  Read Only
+  Fetch From: responsible.full_name
+
+Items
+  items
+  Table → Request Item
+
+Watchers
+  watchers
+  Table MultiSelect → Request Watcher
+```
+
+Итоговая metadata не должна содержать временные поля лабораторной 07:
+
+```text
+reference_type
+reference_name
+```
+
+Они создавались только для опыта Dynamic Link и затем удалены.
+
+Есть несколько Request Documents:
+
+```text
+часть создана до настройки Auto Name и сохраняет исходные names
+часть имеет names серии REQ-2026-.....
+```
+
+Минимум один Request содержит:
+
+```text
+Responsible = Administrator
+4 строки Items
+Watchers = Administrator, Guest
+```
+
+## `Request Item`
+
+Standard Child DocType:
+
+```text
+Request Item
+Is Child Table: 1
+```
+
+Поля:
+
+```text
+title   Data      Mandatory
+qty     Float     Default 1
+rate    Currency
+amount  Currency
+```
+
+Он используется только через:
+
+```text
+Request.items
+```
+
+## `Request Watcher`
+
+Standard Child DocType:
+
+```text
+Request Watcher
+Is Child Table: 1
+```
+
+Поле:
+
+```text
+user  Link → User  Mandatory
+```
+
+Он используется через:
+
+```text
+Request.watchers
+```
+
+как backing Child DocType для `Table MultiSelect`.
+
+## `Training Settings`
+
+Standard Single DocType:
+
+```text
+Is Single: 1
+```
+
+Поля и сохранённые значения:
+
+```text
+Default Priority  default_priority  Select Low/Medium/High = Medium
+Course Note       course_note       Small Text = Block B settings
+```
+
+Это одна форма настроек Site, а не список множества Documents.
+
+## `Training Category`
+
+Standard Tree DocType:
+
+```text
+Is Tree:    1
+Auto Name:  field:category_name
+Title Field: category_name
+```
+
+Основное поле:
+
+```text
+Category Name  category_name  Data  Mandatory
+```
+
+Tree-служебные поля добавлены Framework, включая:
+
+```text
+parent_training_category
+is_group
+lft
+rgt
+old_parent
+```
+
+Итоговая иерархия после эксперимента:
+
+```text
+Operations
+└── Internal
+
+Analytics
+└── External
+```
+
+То есть:
+
+```text
+Internal.parent_training_category = Operations
+External.parent_training_category = Analytics
+```
+
+## `Approval Record`
+
+Standard Submittable DocType:
+
+```text
+Is Submittable: 1
+Auto Name:      APR-.YYYY.-.#####
+Title Field:    subject
+```
+
+Поля:
+
+```text
+Subject
+  subject
+  Data
+  Mandatory
+
+Comment
+  comment
+  Small Text
+  Allow on Submit = 0
+
+Internal Note
+  internal_note
+  Small Text
+  Allow on Submit = 1
+
+Amended From
+  amended_from
+  Link → Approval Record
+  добавлено Framework
+```
+
+На стенде оставлены минимум четыре смысловых состояния:
+
+```text
+1 Draft
+1 Submitted
+1 Cancelled
+1 Amended Draft с заполненным amended_from
+```
+
+Ученик уже руками проверил:
+
+```text
+DocType vs Document
+Standard DocType → metadata-файл App
+DocField types и свойства
+Mandatory / Default / Read Only / Hidden / In List View
+name vs Title Field
+Naming Series REQ-.YYYY.-.#####
+Link → User
+Fetch From
+Dynamic Link как временный опыт
+Child Table
+Table MultiSelect
+Single
+Tree
+Submittable
+docstatus 0 / 1 / 2
+Allow on Submit
+Cancel
+Amend / amended_from
+границу Virtual DocType без преждевременного controller-кода
+```
+
+Контролируемые ошибки блока B после восстановления не оставляют сломанного состояния:
+
+```text
+пустой Mandatory Subject
+временный Mandatory Due Date
+невалидная naming series REQ-#####
+несуществующий Link → User
+пустой Mandatory Title в Request Item
+запрещённый Custom Virtual DocType
+попытка обычного редактирования Submitted поля без Allow on Submit
+```
+
+Это точное входное состояние блока C. Глава 11 получает уже существующий `Request` со всеми полями, которые нужны для построения Form View, включая:
+
+```text
+Subject
+Priority
+Status
 Due Date
 Responsible
 Responsible Name
-Is Urgent
-Estimate Hours
+Description
 Notes
-Reference File
-Items → Request Item
+Items
 ```
-
-Naming новых Request — стабильная учебная series вида:
-
-```text
-REQ-.YYYY.-.#####
-```
-
-Есть несколько Request Documents и примеры `Approval Record` в разных docstatus.
 
 ---
 
