@@ -6,7 +6,7 @@
 
 Целевая версия — **Frappe Framework 16**. ERPNext, CRM, Helpdesk, HRMS и другие приложения не считаются частью Framework: они упоминаются только там, где это помогает понять границу платформы.
 
-Проверено: **2026-08-30**.
+Проверено: **2026-08-31**.
 
 ## Как читать
 
@@ -97,7 +97,7 @@
 
 ### Блок H. Внешние интерфейсы
 
-39. Web Form
+39. [Web Form](39_WEB_FORM.md)
 40. Website / portal-возможности Framework
 41. REST API
 42. RPC и whitelisted methods
