@@ -327,7 +327,7 @@ Internal Cost = 1250
 
 ## 8. Удали Training User Level 1 rule полностью
 
-Под `Administrator` открой Role Permissions Manager и удалите строку:
+Под `Administrator` открой Role Permissions Manager и удали строку:
 
 ```text
 Request
