@@ -1,971 +1,582 @@
-# 22. Где заканчиваются штатные permissions
+# 22. Границы штатных permissions
 
-В предыдущих главах мы по частям разобрали почти всю стандартную модель доступа Frappe:
+За главы 17–21 мы собрали рабочую permission model не по отдельным теориям, а на одном живом `Request`.
 
-```text
-User + Role
-→ кто работает в системе и какие роли у него есть
+Теперь нужно научиться делать самое важное для реальной эксплуатации:
 
-Role Permission
-→ что роль может делать с DocType
+> диагностировать доступ по слоям и понимать, когда штатных механизмов уже действительно не хватает.
 
-Permission Level
-→ какие поля доступны на чтение и изменение
-
-User Permission
-→ какие записи допустимы по связанным Link-значениям
-
-owner / Only if Creator
-→ отдельные права на свои документы
-
-Sharing
-→ исключение для конкретного документа
-```
-
-Этого хватает для очень большого количества прикладных систем.
-
-Но не для всех.
-
-В этой главе разберём главное:
-
-> как понять, что стандартных permissions уже действительно не хватает и пора писать серверную логику?
-
-Проверено: **2026-08-31**.
+Проверено для **Frappe Framework v16.32.0**.
 
 ---
 
-## 1. Сначала всегда проверяем штатные механизмы
+## Что уже есть на стенде
 
-Представим требование:
-
-> оператор должен видеть только заявки своего отдела.
-
-Не нужно сразу писать Python.
-
-Если у `Request` есть:
+### Users и Roles
 
 ```text
-department
-Link → Department
+student.user@example.test
+└── Training User
+
+student.manager@example.test
+├── Training User
+└── Training Manager
 ```
 
-то задача обычно решается через:
+Оба — System User.
+
+### Request Role Permissions
+
+```text
+Training User
+→ Read + Create + Write
+→ no Delete
+→ no Share
+→ Only if Creator = off
+
+Training Manager
+→ Read + Create + Write + Delete + Share
+```
+
+### Field permission
+
+```text
+Internal Cost
+Perm Level = 1
+
+Training Manager
+→ Level 1 Read + Write
+
+Training User
+→ Level 1 rule отсутствует
+```
+
+### User Permission
+
+```text
+student.user@example.test
+→ Training Area = North
+```
+
+### Share
+
+```text
+D21-Shared-South
+Area = South
+→ shared to student.user@example.test
+→ Read only
+```
+
+То есть у нас уже достаточно слоёв, чтобы увидеть реальную permission evaluation.
+
+---
+
+# Не ищи одну «главную галочку»
+
+Когда пользователь говорит:
+
+> я не вижу документ
+
+плохой подход:
+
+```text
+открыть настройки
+поставить несколько галочек
+перезайти
+надеяться
+```
+
+Правильный подход — пройти уровни по порядку.
+
+---
+
+# Слой 1. Может ли User вообще работать в Desk
+
+Сначала:
+
+```text
+Enabled?
+User Type = System User?
+есть Role с Desk Access?
+```
+
+Если User стал Website User, обсуждать `Request Write` рано.
+
+Это мы уже видели в лабораторной 17.
+
+---
+
+# Слой 2. Есть ли базовый Role Permission на DocType
+
+Следующий вопрос:
+
+```text
+какие Roles есть у User?
+```
+
+и затем:
+
+```text
+какие Level 0 permissions эти Roles дают на Request?
+```
+
+Например:
+
+```text
+Training User
+Read = ✓
+```
+
+даёт базовый read-кандидат.
+
+Если обычного Role Read нет, User Permission не создаёт его из воздуха.
+
+Но отдельный Share конкретного Document может стать дополнительным каналом доступа — это проверим ещё раз в лабораторной.
+
+---
+
+# Слой 3. Ограничен ли конкретный Document
+
+После базовой Role permission появляются document-level constraints.
+
+В нашем курсе это:
+
+```text
+User Permission
+Only if Creator
+```
+
+### User Permission
+
+```text
+Area = North
+```
+
+может убрать South Request из обычной доступной выборки.
+
+### Only if Creator
+
+```text
+owner == current_user
+```
+
+может ограничить permission row только собственными Documents.
+
+Это разные условия.
+
+---
+
+# Слой 4. Есть ли Share-исключение
+
+Если обычные constraints документ не пропускают, permission engine дополнительно учитывает Sharing.
+
+В `database/query.py` `v16.32.0` логика описана очень явно:
+
+```text
+shared documents trump all other restrictions
+```
+
+Поэтому:
+
+```text
+D21-Shared-South
+Area = South
+```
+
+всё равно доступен North-only User на Read.
+
+Это не значит, что User Permission выключен.
+
+Значит только:
+
+```text
+для этого одного Document существует явное исключение
+```
+
+---
+
+# Слой 5. Какие поля доступны
+
+Даже когда сам Document уже разрешён, остаётся field-level permission.
+
+Например:
+
+```text
+D21-Shared-South
+→ Document Read есть через Share
+```
+
+но:
+
+```text
+Internal Cost
+Perm Level = 1
+```
+
+обычному Training User не раскрывается.
+
+То есть:
+
+```text
+доступ к Document
+≠ автоматически доступ ко всем полям
+```
+
+---
+
+# Разрешения нескольких Roles складываются
+
+У менеджера:
+
+```text
+Training User
+Training Manager
+```
+
+Frappe собирает подходящие permission rows всех Roles.
+
+Поэтому если:
+
+```text
+Training User Delete = 0
+Training Manager Delete = 1
+```
+
+это не означает конфликт `0 против 1`.
+
+Обычная модель разрешений работает как набор разрешающих правил.
+
+`Training Manager` даёт менеджеру Delete.
+
+---
+
+# Почему во Frappe нет простой универсальной кнопки DENY
+
+Если бы каждая Role одновременно могла давать `ALLOW` и абсолютный `DENY`, несколько ролей быстро превращались бы в трудно объяснимую таблицу конфликтов.
+
+Frappe в базовой модели идёт другим путём:
+
+```text
+Roles
+→ дают разрешения
+
+User Permission / owner / Share / field level
+→ уточняют область конкретного доступа
+```
+
+Это не означает, что модель решает абсолютно любое правило без кода.
+
+Но сначала нужно использовать её по назначению.
+
+---
+
+# List View и прямое открытие должны быть согласованы
+
+Проверяем два разных пути:
+
+```text
+1. попадает ли Document в permission-aware List
+2. разрешается ли открыть конкретный name
+```
+
+Если результаты неожиданно расходятся, нельзя сразу говорить:
+
+```text
+permissions сломаны
+```
+
+Нужно проверить:
 
 ```text
 Role Permission
-+
+User Permission
+Only if Creator
+Share
+custom permission code, если он уже есть
+```
+
+В нашем курсе до главы 22 custom permission code ещё нет.
+
+---
+
+# UI-фильтр не является security boundary
+
+Например:
+
+```text
+List Filter: Area = North
+```
+
+только просит интерфейс показать North среди уже доступных документов.
+
+Это не замена:
+
+```text
 User Permission
 ```
 
-Другой пример:
+Пользователь может убрать List Filter.
 
-> пользователь может изменять только документы, которые сам создал.
+Server-side User Permission от этого не исчезает.
 
-Здесь уже есть:
+---
+
+# Hidden не является Role Permission
+
+Аналогично:
+
+```text
+Hidden = 1
+```
+
+не заменяет:
+
+```text
+Perm Level
+```
+
+Если поле чувствительное, security model должна описывать **право на поле**, а не только его внешний вид.
+
+Мы уже доказали это на `Internal Cost`.
+
+---
+
+# Как диагностировать доступ по шагам
+
+Практический порядок для обычного Document:
+
+```text
+1. User enabled и System User?
+2. Какие Roles реально назначены?
+3. Есть ли у них Read/Write/Create/... на DocType Level 0?
+4. Включён ли Only if Creator?
+5. Есть ли User Permissions на сам DocType или его Link fields?
+6. Не стоит ли Ignore User Permissions на Link?
+7. Есть ли DocShare на конкретный Document?
+8. Какой Permission Level у нужного поля?
+9. Проверяется List или конкретный Document?
+10. После изменения permissions пользователь полностью перезашёл/кэш обновился?
+```
+
+Не обязательно каждый раз менять все настройки.
+
+Напротив: **меняем один слой и повторяем тот же тест**.
+
+---
+
+# Что покажет финальная лаборатория блока
+
+Мы возьмём четыре фиксированных Request:
+
+```text
+D18-User-Record
+D18-Manager-Record
+C12-Open-High-2
+D21-Shared-South
+```
+
+И построим фактическую матрицу:
+
+```text
+Owner
+Area
+Shared?
+Read?
+Write?
+Internal Cost?
+```
+
+Так permissions перестанут быть набором абстрактных терминов.
+
+---
+
+# Контролируемый опыт 1: убрать Role Read
+
+У `Training User` временно снимем:
+
+```text
+Read
+```
+
+Обычные North Requests исчезнут.
+
+Но `D21-Shared-South` имеет явный:
+
+```text
+DocShare Read
+```
+
+В текущем `v16.32.0` permission-aware query умеет в ситуации без role Read показать именно shared Documents этого DocType.
+
+Это важный урок:
+
+```text
+Share
+→ отдельный канал доступа к конкретной записи
+```
+
+После опыта Read сразу восстановим.
+
+---
+
+# Контролируемый опыт 2: включить owner constraint
+
+Затем, уже при восстановленном Read, временно включим:
 
 ```text
 Only if Creator
 ```
 
-Ещё пример:
-
-> руководителю нужно разово показать один чужой документ.
-
-Для этого существует:
+Получим:
 
 ```text
-Sharing
+D18-User-Record
+→ свой North
+→ доступен
+
+D18-Manager-Record
+→ чужой North
+→ обычным путём недоступен
+
+D21-Shared-South
+→ чужой South
+→ всё ещё доступен на Read через Share
 ```
 
-То есть первый вопрос всегда такой:
-
-```text
-можно ли выразить правило штатной моделью?
-```
-
-И только потом:
-
-```text
-нужен ли код?
-```
+После этого owner restriction снова будет выключен.
 
 ---
 
-## 2. Быстрая карта стандартных возможностей
+# Где заканчиваются штатные permissions
 
-| Требование | Что проверить первым |
-|---|---|
-| Разные действия для разных групп пользователей | Role Permission |
-| Скрыть часть полей от некоторых ролей | Permission Level |
-| Ограничить записи по Department, Company и другим Link | User Permission |
-| Разрешить работу только со своими записями | Only if Creator |
-| Дать доступ к одной конкретной записи | Sharing |
-| Разрешить Submit / Cancel / Amend | Role Permission + Submittable |
-| Ограничить переходы между состояниями | Workflow |
-
-Если требование естественно укладывается в эту таблицу, собственная ACL-логика обычно не нужна.
-
----
-
-## 3. Когда стандартная модель начинает ломаться
-
-Теперь возьмём другой пример.
-
-У `Request` есть:
+Стандартная модель хорошо выражает требования вроде:
 
 ```text
-owner
-reviewer
+разные действия разных Roles
+поля разных уровней доступа
+ограничение по связанному Area / Company / Department
+только свои Documents
+разовое исключение для одной записи
 ```
 
-И правило звучит так:
-
-> пользователь может читать заявку, если он либо создатель, либо указан в поле `reviewer`.
-
-То есть:
+Но представим правило:
 
 ```text
+пользователь может читать Request,
+если
 owner == current_user
-OR
+ИЛИ
 reviewer == current_user
+ИЛИ
+он указан в одной из строк Review Team
 ```
 
-`Only if Creator` умеет проверить только `owner`.
+Это уже не естественная комбинация наших простых штатных настроек.
 
-User Permission может ограничивать документы по связанным значениям, но наша логика уже строится не просто вокруг одного разрешённого Link-справочника.
-
-Нам нужен настоящий логический оператор:
-
-```text
-A OR B
-```
-
-Вот здесь уже появляется нормальная причина перейти к серверному коду.
+Здесь появляется нормальная причина расширять permission model серверным кодом App.
 
 ---
 
-## 4. Ещё несколько признаков, что простых permissions недостаточно
+# Два extension point, которые нужно знать по имени
 
-Код обычно начинает быть оправдан, если доступ зависит от чего-то вроде:
-
-```text
-пользователь входит в команду документа
-
-ИЛИ
-
-пользователь указан в одной из строк Child Table
-
-ИЛИ
-
-доступ зависит сразу от нескольких полей
-
-ИЛИ
-
-правило содержит сложные AND / OR
-
-ИЛИ
-
-право зависит от собственной бизнес-логики приложения
-```
-
-Например:
-
-```text
-может читать,
-если department совпадает
-И
-status != "Confidential"
-ИЛИ
-пользователь входит в Review Team
-```
-
-Такую модель уже не стоит пытаться насильно собирать из десятка ролей и случайных User Permission.
-
----
-
-## 5. Не вся бизнес-логика является permission-логикой
-
-Очень важно не смешивать два вопроса.
-
-### Вопрос доступа
-
-```text
-может ли пользователь открыть этот Document?
-```
-
-### Вопрос бизнес-правила
-
-```text
-можно ли сейчас изменить status с Open на Closed?
-```
-
-Второе не обязательно надо решать permissions.
-
-Для переходов состояния часто подходит:
-
-```text
-Workflow
-```
-
-Для проверки данных перед сохранением:
-
-```text
-server-side validation
-```
-
-Для ограничения конкретной команды приложения:
-
-```text
-проверка внутри серверного метода
-```
-
-Не нужно превращать permissions в универсальный движок всей бизнес-логики.
-
----
-
-# Два основных серверных инструмента
-
-Когда штатной модели действительно мало, чаще всего появляются два разных уровня проверки:
+В Frappe существуют, в частности:
 
 ```text
 permission_query_conditions
 has_permission
 ```
 
-Они решают разные задачи.
+На этом этапе **не пишем их**.
+
+Важно понять границу.
+
+### `permission_query_conditions`
+
+Дополняет permission-aware условия выборок списка.
+
+### `has_permission`
+
+Участвует в проверке конкретного Document.
+
+В текущем `v16.32.0` controller `has_permission` имеет важную границу:
+
+```text
+может дополнительно DENY
+но не должен магически GRANT право,
+которого не было в базовой permission model
+```
+
+Этого знания пока достаточно.
+
+Практика серверного кода будет позже, когда уже будут изучены нужные инструменты разработки.
 
 ---
 
-## 6. `permission_query_conditions` — какие документы попадут в список
+# Почему не пишем permission code сейчас
 
-Допустим, базовая роль уже даёт пользователю `Read` на `Request`.
+Потому что блок D должен сначала научить уверенно использовать штатную модель.
 
-Но мы хотим показывать только документы, где пользователь:
-
-```text
-owner
-или
-reviewer
-```
-
-В App можно подключить hook:
-
-```python
-# hooks.py
-
-permission_query_conditions = {
-    "Request": "training_app.permissions.request_query",
-}
-```
-
-А в Python вернуть дополнительное условие запроса:
-
-```python
-import frappe
-
-
-def request_query(user=None, **kwargs):
-    user = user or frappe.session.user
-    user = frappe.db.escape(user)
-
-    return f"""
-        (`tabRequest`.`owner` = {user}
-        or `tabRequest`.`reviewer` = {user})
-    """
-```
-
-Упрощённо получится:
+Если сразу добавить Python:
 
 ```text
-обычные permission conditions
-        +
-наше дополнительное WHERE
-        ↓
-список разрешённых Request
+непонятный List
++ непонятный has_permission
++ User Permission
++ Share
++ owner
 ```
 
----
+новичок не сможет определить источник результата.
 
-## 7. Почему это не просто фильтр интерфейса
-
-Можно было бы сделать красивый фильтр в List View:
+Поэтому итог блока D должен быть:
 
 ```text
-Reviewer = текущий пользователь
-```
-
-Но это лишь интерфейсное удобство.
-
-Пользователь потенциально мог бы открыть другую запись напрямую по URL или получить её другим способом.
-
-`permission_query_conditions` работает на серверном уровне построения permission-aware списка.
-
-Именно поэтому:
-
-```text
-List filter ≠ security
+штатные permissions понятны руками
+граница к custom server logic понятна концептуально
+custom permission code ещё отсутствует
 ```
 
 ---
 
-## 8. Но `permission_query_conditions` не решает всё
+# Что произойдёт в лабораторной
 
-Этот hook отвечает прежде всего за выборку списка.
+Ты:
 
-Он не должен быть единственной защитой конкретного Document.
-
-Например, пользователь знает имя:
-
-```text
-REQ-0099
-```
-
-и пытается открыть его напрямую.
-
-Нужна отдельная проверка конкретного документа.
-
-Для этого существует:
-
-```text
-has_permission
-```
+1. заполнишь `Internal Cost` у четырёх контрольных Requests;
+2. построишь базовую permission matrix Training User;
+3. сравнишь её с Training Manager;
+4. временно снимешь Role Read и увидишь, что остаётся только shared Request;
+5. восстановишь Read;
+6. временно включишь Only if Creator;
+7. увидишь собственный North и shared South как два разных канала доступа;
+8. восстановишь owner rule;
+9. проверишь финальное состояние всего блока D;
+10. не создашь ни одного permission hook или Server Script.
 
 ---
 
-## 9. `has_permission` — проверка конкретного документа
+# Что запомнить
 
-Подключение в `hooks.py`:
-
-```python
-has_permission = {
-    "Request": "training_app.permissions.request_has_permission",
-}
-```
-
-Простейшая логика:
-
-```python
-import frappe
-
-
-def request_has_permission(doc, user=None, ptype=None, **kwargs):
-    user = user or frappe.session.user
-
-    if ptype == "read":
-        return doc.owner == user or doc.reviewer == user
-
-    return True
-```
-
-Теперь для чтения конкретного `Request` проверяется условие:
-
-```text
-owner == user
-OR
-reviewer == user
-```
+1. Диагностика permissions идёт по слоям.
+2. Role Permission даёт базовые действия.
+3. User Permission и owner ограничивают обычный document access.
+4. Share является явным document-level исключением.
+5. Permission Level отдельно ограничивает поля.
+6. List filter и Hidden не являются security model.
+7. Менять несколько permission layers одновременно — плохой способ диагностики.
+8. Штатных механизмов хватает до тех пор, пока правило естественно ими выражается.
+9. Сложная собственная логика доступа должна быть server-side.
+10. `permission_query_conditions` и `has_permission` — extension points на будущее, а не обязательный код блока D.
 
 ---
 
-## 10. Почему часто нужны оба механизма
+## Проверенные исходники v16.32.0
 
-Для одного и того же правила обычно возникают две задачи.
+- [Permission engine](https://github.com/frappe/frappe/blob/v16.32.0/frappe/permissions.py)
+- [Permission-aware query engine](https://github.com/frappe/frappe/blob/v16.32.0/frappe/database/query.py)
+- [Sharing backend](https://github.com/frappe/frappe/blob/v16.32.0/frappe/share.py)
+- [User Permission](https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/user_permission/user_permission.py)
 
-### Список
+Теперь выполни [**лабораторную 22**](labs/22_PERMISSION_BOUNDARIES_LAB.md).
 
-```text
-какие документы показать пользователю?
-```
-
-Это задача:
-
-```text
-permission_query_conditions
-```
-
-### Один документ
-
-```text
-можно ли открыть REQ-0099 напрямую?
-```
-
-Это задача:
-
-```text
-has_permission
-```
-
-Поэтому типичная схема выглядит так:
-
-```text
-Role Permission
-→ даёт базовый доступ к Request
-
-permission_query_conditions
-→ ограничивает список
-
-has_permission
-→ проверяет конкретный Document
-```
-
-Так модель остаётся последовательной.
-
----
-
-## 11. Важная особенность `has_permission` в текущем v16
-
-В актуальном исходном коде `version-16` controller permission hook используется как **дополнительное ограничение**.
-
-Сам Framework прямо формулирует это так:
-
-```text
-controller permissions can deny,
-but cannot grant permission that was not already present
-```
-
-То есть собственный `has_permission` не стоит воспринимать как замену Role Permission.
-
-Правильная логика:
-
-```text
-Role Permission
-→ сначала существует базовое право
-
-has_permission
-→ затем может дополнительно его ограничить
-```
-
-А не:
-
-```text
-никаких Role Permissions
-+
-has_permission вернул True
-→ значит доступ magically появился
-```
-
-Так строить модель не надо.
-
----
-
-## 12. Осторожно с `None` в custom `has_permission`
-
-В старых примерах и отдельных текстах можно встретить идею:
-
-```python
-return None
-```
-
-как способ сказать:
-
-> используй обычное поведение Framework.
-
-Но в текущем исходном коде v16 обработчик controller permissions проверяет falsy-результат и возвращает отказ.
-
-Поэтому для App-кода v16 безопаснее писать поведение явно и проверять его тестами.
-
-Например:
-
-```python
-def request_has_permission(doc, user=None, ptype=None, **kwargs):
-    user = user or frappe.session.user
-
-    if ptype == "read":
-        return doc.owner == user or doc.reviewer == user
-
-    return True
-```
-
-Это одна из тех деталей, где исходный код конкретной версии важнее старого примера из интернета.
-
----
-
-## 13. `permission_query_conditions` применяется к permission-aware запросам
-
-Официальная документация показывает этот hook вместе с:
-
-```python
-frappe.db.get_list(...)
-```
-
-То есть запросом, который учитывает permissions текущего пользователя.
-
-Это принципиально отличается от:
-
-```python
-frappe.db.get_all(...)
-```
-
-`get_all` специально получает записи **без применения permissions**.
-
-Поэтому внутри собственного серверного кода нельзя бездумно заменить:
-
-```python
-frappe.get_list(...)
-```
-
-на:
-
-```python
-frappe.get_all(...)
-```
-
-если результат потом отдаётся обычному пользователю.
-
-Иначе можно собственноручно обойти модель доступа, которую только что настроили.
-
----
-
-## 14. `get_all` не является «более удобным get_list`
-
-Для новичка название может звучать безобидно:
-
-```text
-get_list
-get_all
-```
-
-Но с точки зрения безопасности разница большая:
-
-```text
-get_list
-→ учитывает permissions
-
-get_all
-→ permissions не применяет
-```
-
-`get_all` нужен для доверенного серверного кода, где разработчик сознательно хочет получить данные независимо от текущего пользователя.
-
-Это не метод для обычного пользовательского endpoint «потому что так проще».
-
----
-
-## 15. Permission Query существует и как Server Script
-
-В текущем v16 у системного DocType `Server Script` есть тип:
-
-```text
-Permission Query
-```
-
-То есть простое дополнительное условие списка можно реализовать не только App hook, но и Server Script.
-
-Однако здесь есть две причины не хвататься за него первым:
-
-1. начиная с v15 Server Scripts по умолчанию отключены;
-2. стабильную критичную permission-логику обычно удобнее хранить, тестировать и версионировать внутри App.
-
-Поэтому иерархия для серьёзной системы обычно выглядит так:
-
-```text
-штатные permissions
-        ↓ не хватает
-простая серверная настройка / Server Script, если это оправдано
-        ↓ логика становится частью приложения
-App hooks + Python + tests
-```
-
-Server Scripts подробно будут разобраны позже.
-
----
-
-## 16. Скрытие поля через JavaScript не является защитой
-
-Представим поле:
-
-```text
-internal_cost
-```
-
-И Client Script:
-
-```javascript
-frm.set_df_property('internal_cost', 'hidden', 1)
-```
-
-Пользователь перестал видеть поле на форме.
-
-Но это ещё не означает:
-
-```text
-у пользователя нет доступа к этим данным
-```
-
-JavaScript работает на стороне клиента.
-
-Если значение действительно чувствительное, сначала нужно решить задачу серверными permissions и моделью данных.
-
-Для статических групп полей есть:
-
-```text
-Permission Level
-```
-
-Если же секретность зависит от сложной динамической логики конкретной записи, иногда правильнее вообще вынести чувствительные данные в отдельный DocType с отдельной permission model.
-
----
-
-## 17. `Read Only` тоже не является моделью безопасности
-
-Поле может быть:
-
-```text
-Read Only
-```
-
-потому что пользователь не должен менять его руками.
-
-Это UX и поведение формы.
-
-Но если вопрос звучит:
-
-> кому вообще разрешено читать это значение?
-
-то нужен:
-
-```text
-Permission Level
-или
-отдельная серверная модель доступа
-```
-
-Нельзя путать:
-
-```text
-нельзя редактировать
-```
-
-и:
-
-```text
-нельзя получить данные
-```
-
----
-
-## 18. Workflow тоже не заменяет permissions целиком
-
-Workflow умеет управлять:
-
-```text
-состояниями
-переходами
-ролями на переходах
-```
-
-Например:
-
-```text
-Draft
-→ Review
-→ Approved
-```
-
-Но Workflow не стоит использовать как единственный механизм общей видимости данных.
-
-Вопросы разные:
-
-```text
-Permissions
-→ кто имеет доступ к Document и действиям
-
-Workflow
-→ кто и когда может провести Document по процессу
-```
-
-Они могут работать вместе.
-
----
-
-## 19. Не строй отдельную Role на каждую комбинацию условий
-
-Допустим, появляются требования:
-
-```text
-Department A + Reviewer
-Department A + Manager
-Department B + Reviewer
-Department B + Manager
-Department C + Reviewer
-Department C + Manager
-```
-
-Плохая реакция:
-
-```text
-создадим шесть ролей
-```
-
-А потом двадцать.
-
-Роль должна описывать устойчивую функцию пользователя, а не каждую комбинацию значений данных.
-
-Если различие определяется самими документами и связями между ними, чаще нужны:
-
-```text
-User Permission
-или
-нормальная серверная permission-логика
-```
-
----
-
-## 20. Не строй отдельный DocType только ради разных прав
-
-Ещё одна типичная ошибка:
-
-```text
-Internal Request
-External Request
-Manager Request
-Operator Request
-```
-
-хотя по смыслу это один и тот же объект `Request`.
-
-Если различается только доступ, сначала нужно проверить permission model.
-
-Отдельные DocType оправданы, когда различается сама предметная сущность, её данные или lifecycle, а не просто список пользователей, которые могут её видеть.
-
----
-
-## 21. Когда отдельный DocType всё-таки лучше сложных permissions
-
-Есть обратная ситуация.
-
-Представим, что в `Request` хотят хранить:
-
-```text
-обычные рабочие данные
-+
-секретные финансовые данные
-+
-кадровые сведения
-+
-служебное расследование
-```
-
-а потом для каждого поля придумывают уникальные динамические правила.
-
-Иногда проблема уже не в permissions.
-
-Проблема в том, что несколько разных сущностей насильно запихнули в один DocType.
-
-Тогда чище может быть:
-
-```text
-Request
-Request Finance
-Request Investigation
-```
-
-с отдельными Link-связями и отдельными permissions.
-
-Хорошая модель данных часто делает модель безопасности проще.
-
----
-
-## 22. Собственные API тоже обязаны проверять доступ
-
-Позже мы создадим собственные whitelisted methods и REST-интеграции.
-
-Важно заранее запомнить правило:
-
-> наличие метода на сервере не означает автоматическую безопасность его бизнес-логики.
-
-Если метод получает документ и выполняет чувствительное действие, серверный код должен опираться на нормальные permission checks.
-
-Например:
-
-```python
-doc = frappe.get_doc("Request", request_name)
-doc.check_permission("write")
-```
-
-или использовать операции Framework, которые сами выполняют необходимые проверки.
-
-Нельзя считать защитой:
-
-```text
-кнопка скрыта в JavaScript
-```
-
-потому что серверный endpoint всё равно существует отдельно от кнопки.
-
----
-
-## 23. `ignore_permissions` — сознательный обход защиты
-
-В серверном коде Frappe встречаются конструкции вроде:
-
-```python
-doc.insert(ignore_permissions=True)
-```
-
-или другие API с аналогичным смыслом.
-
-Это не «починка ошибки permissions».
-
-Это прямое указание Framework:
-
-```text
-в этой операции сознательно не проверяй обычные permissions
-```
-
-Использовать такое можно только там, где серверная логика сама полностью контролирует операцию.
-
-Если разработчик ставит `ignore_permissions=True` просто потому, что иначе появляется PermissionError, он обычно не решил проблему, а отключил защиту.
-
----
-
-## 24. Как выбирать решение
-
-Полезная последовательность:
-
-```text
-1. Нужны разные действия для ролей?
-   → Role Permission
-
-2. Нужны разные поля для ролей?
-   → Permission Level
-
-3. Нужно ограничить записи по Link-значениям?
-   → User Permission
-
-4. Только свои документы?
-   → Only if Creator
-
-5. Исключение для одной записи?
-   → Sharing
-
-6. Ограничение связано с процессом переходов?
-   → Workflow
-
-7. Нужен сложный список документов по собственной логике?
-   → permission_query_conditions
-
-8. Нужна проверка конкретного Document?
-   → has_permission
-
-9. Нужна сложная бизнес-проверка действия?
-   → server-side validation / application code
-
-10. Правила стали чудовищными?
-    → ещё раз проверить модель данных
-```
-
----
-
-## 25. Полная карта блока permissions
-
-Теперь весь блок можно представить так:
-
-```text
-User
-  ↓
-Roles
-  ↓
-Role Permissions (Level 0)
-  ↓
-что можно делать с DocType
-  ↓
-Permission Levels
-  ↓
-какие поля доступны
-  ↓
-User Permissions
-  ↓
-какие связанные значения разрешены
-  ↓
-owner / If Owner
-  ↓
-отдельные права на свои документы
-  ↓
-Sharing
-  ↓
-исключения для конкретных документов
-  ↓
-не хватает?
-  ↓
-permission_query_conditions
-+
-has_permission
-  ↓
-не хватает и этого?
-  ↓
-собственная серверная бизнес-логика
-```
-
-Это и есть нормальная граница между конфигурацией и кодом.
-
----
-
-## Мини-практика
-
-Возьми учебный `Request` с полями:
-
-```text
-subject
-reviewer → Link User
-status
-```
-
-Предположим, Role Permission даёт роли `Request User` обычный `Read`.
-
-Нужно получить правило:
-
-```text
-пользователь видит Request,
-если он owner
-или reviewer
-```
-
-Сначала ответь без кода:
-
-1. Почему одной Role Permission недостаточно?
-2. Почему `Only if Creator` закрывает только половину требования?
-3. Почему обычный List filter не является защитой?
-4. Зачем `permission_query_conditions`?
-5. Зачем отдельно `has_permission`?
-6. Почему `get_all` в пользовательском endpoint может обойти эту модель?
-
-После этого набросай две функции:
-
-```python
-request_query(...)
-request_has_permission(...)
-```
-
-Даже если пока не запускаешь их на Site, важно понять, почему они отвечают за разные части одной задачи.
-
----
-
-## Что запомнить
-
-1. Большинство систем доступа во Frappe сначала стоит собирать из штатных permissions.
-2. Client Script, Hidden и Read Only не заменяют серверную безопасность.
-3. `permission_query_conditions` ограничивает permission-aware выборку списка.
-4. `has_permission` проверяет конкретный Document.
-5. Для сложной модели доступа эти два механизма часто используются вместе.
-6. В текущем v16 controller `has_permission` является дополнительным ограничением и не должен использоваться как замена базовым Role Permissions.
-7. `frappe.get_list` учитывает permissions, а `frappe.get_all` — нет.
-8. `ignore_permissions=True` — сознательный обход permission checks, а не универсальное решение PermissionError.
-9. Если permission-правила становятся огромными, возможно, проблема уже в модели данных.
-10. Писать собственную ACL-систему поверх Frappe нужно только после того, как штатная модель действительно перестала выражать задачу.
-
----
-
-## Источники
-
-- [Users and Permissions](https://docs.frappe.io/framework/user/en/basics/users-and-permissions)
-- [Hooks: permission_query_conditions и has_permission](https://docs.frappe.io/framework/user/en/python-api/hooks)
-- [Database API: get_list и get_all](https://docs.frappe.io/framework/user/en/api/database)
-- [Server Script](https://docs.frappe.io/framework/user/en/desk/scripting/server-script)
-- [Frappe v16: permissions.py](https://github.com/frappe/frappe/blob/version-16/frappe/permissions.py)
-- [Frappe v16: db_query.py](https://github.com/frappe/frappe/blob/version-16/frappe/model/db_query.py)
-- [Frappe v16: Server Script](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/server_script/server_script.py)
-
----
-
-[← 21. Owner и Sharing](21_OWNER_AND_SHARING.md) · **23. Assignment и ToDo →**
+После неё блок D закончен. Следующий блок начинается с [**23. Assignment и ToDo**](23_ASSIGNMENT_AND_TODO.md).
