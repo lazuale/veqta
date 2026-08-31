@@ -1114,25 +1114,425 @@ Assignment / ToDo блок D ещё не создаёт как обязател�
 
 # После блока E — главы 23–28
 
-Есть минимум один активный Assignment/ToDo.
+Блок E добавляет штатные механизмы выполнения работы и автоматизации поверх permission model блока D. Собственный scheduler code, Server Script и custom Workflow code в блоке E не создаются.
 
-Assignment Rule проверен и может быть оставлен Disabled.
+## Ручной Assignment и `ToDo`
 
-У `Request` работает Workflow:
+Постоянно существует:
+
+```text
+E23-Assignment-Manual
+  owner:       student.manager@example.test
+  Status:      Open
+  Priority:    Medium
+  Area:        North
+  Responsible: пусто
+  Notes:       Manual assignment example
+```
+
+Его активный Assignment хранится как отдельный `ToDo`:
+
+```text
+Allocated To:   student.user@example.test
+Reference Type: Request
+Reference Name: <name E23-Assignment-Manual>
+Status:         Open
+Priority:       Medium
+Due Date:       2026-09-02
+Assigned By:    student.manager@example.test
+```
+
+Временный второй Assignment менеджера снят и остаётся только как исторический:
+
+```text
+Allocated To: student.manager@example.test
+Status:       Cancelled
+```
+
+Проверено руками:
+
+```text
+Assign → создаёт ToDo
+owner не меняется
+Responsible не создаёт ToDo
+один Request может иметь несколько Assignment
+Remove Assignment → ToDo.Cancelled
+```
+
+## `Training Request Round Robin`
+
+Assignment Rule существует, но финально отключён:
+
+```text
+Name:            Training Request Round Robin
+Document Type:   Request
+Priority:        10
+Assign Condition: status == "Open"
+Rule:            Round Robin
+Assignment Days: Monday–Sunday
+Users:
+  1. student.user@example.test
+  2. student.manager@example.test
+Disabled:        ✓
+```
+
+Проверенная последовательность:
+
+```text
+E24-RR-1 → student.user@example.test
+E24-RR-2 → student.manager@example.test
+E24-RR-3 → student.user@example.test
+E24-RR-4 → student.manager@example.test
+```
+
+Дополнительно:
+
+```text
+E24-NoMatch
+  Status: Done
+  → Assignment отсутствует
+
+E24-Recovered
+  Status: Open
+  Area: North
+  → Assignment = student.user@example.test
+```
+
+После recovery финальное поле правила:
+
+```text
+Last User = student.user@example.test
+```
+
+Для E24-RR-1..4 и E24-Recovered созданные Assignment остаются обычными Open ToDo.
+
+Временный `E24-Permission-Failure` не является сохранённым рабочим Request: попытка была отклонена и восстановлена до продолжения курса.
+
+Глобально восстановлено:
+
+```text
+Disable Document Sharing = ☐
+```
+
+## Обычный `Status`
+
+Постоянно существует контрольный Request:
+
+```text
+E25-Status-Only
+  owner:    student.user@example.test
+  Status:   Open
+  Area:     North
+  Due Date: 2026-09-05
+  Notes:    Status is still a plain Select
+```
+
+На нём доказано, что без Workflow обычный Select позволял прямые переходы:
+
+```text
+Open → In Progress → Done
+Open → Done
+```
+
+После опыта `Status` восстановлен в `Open`.
+
+## `Training Request Workflow`
+
+Для `Request` существует один активный Workflow:
+
+```text
+Workflow Name:        Training Request Workflow
+Document Type:        Request
+Is Active:            ✓
+Workflow State Field: workflow_state
+Send Email Alert:     ☐
+```
+
+Workflow States:
 
 ```text
 Draft
-→ Review
-→ Approved
-→ Rejected
-→ Reopen/Draft
+Review
+Approved
+Rejected
 ```
 
-Переходы разделены между `Training User` и `Training Manager`.
+Все четыре состояния имеют:
 
-Notification проверена и может быть Disabled.
+```text
+Doc Status = 0
+```
 
-Auto Repeat проверен на отдельном учебном DocType и может быть Disabled.
+и поэтому `Request.docstatus` в этом процессе остаётся Draft-level системным состоянием.
+
+`Document States`:
+
+```text
+Draft
+  Only Allow Edit For: Training User
+
+Review
+  Only Allow Edit For: Training Manager
+
+Approved
+  Only Allow Edit For: Training Manager
+
+Rejected
+  Only Allow Edit For: Training User
+```
+
+Transitions:
+
+```text
+Draft
+  --Send for Review--> Review
+  Allowed: Training User
+  Condition: doc.due_date
+
+Review
+  --Approve--> Approved
+  Allowed: Training Manager
+
+Review
+  --Reject--> Rejected
+  Allowed: Training Manager
+
+Rejected
+  --Reopen--> Draft
+  Allowed: Training User
+```
+
+`Allow Self Approval` оставлен включённым для учебных переходов.
+
+Workflow автоматически создал site-level Custom Field:
+
+```text
+Workflow State
+  fieldname: workflow_state
+  Link → Workflow State
+  Hidden: ✓
+  Allow on Submit: ✓
+  No Copy: ✓
+```
+
+Поле не добавлялось вручную в Standard `request.json`.
+
+При активации Workflow существующие `Request` с пустым `workflow_state` и `docstatus = 0` получили первое состояние:
+
+```text
+Draft
+```
+
+если затем не были переведены отдельными Workflow Actions.
+
+Контрольные документы:
+
+```text
+E26-Approved
+  Status: Done
+  Workflow State: Approved
+  Area: North
+  Due Date: 2026-09-05
+
+E26-Reject-Reopen
+  Status: Open
+  Workflow State: Draft
+  Area: North
+  Due Date: 2026-09-06
+```
+
+На `E26-Approved` доказано:
+
+```text
+Request.status = Done
+workflow_state = Approved
+```
+
+могут существовать одновременно и означают разные вещи.
+
+## `Training Review Notification`
+
+Notification rule существует, но финально отключён:
+
+```text
+Name:          Training Review Notification
+Enabled:       ☐
+Channel:       System Notification
+Document Type: Request
+Send Alert On: Value Change
+Value Changed: workflow_state
+Condition Type: Python
+Condition:     doc.workflow_state == "Review"
+Receiver By Role: Training Manager
+Notification Type: Alert
+Notification Title: Request {{ doc.name }} ждёт проверки
+Notification Message: {{ doc.subject }}
+```
+
+Есть доказанный `Notification Log` для:
+
+```text
+E27-Notify-Review
+For User = student.manager@example.test
+Document Type = Request
+Document Name = <name E27-Notify-Review>
+```
+
+Контрольные Request после проверки:
+
+```text
+E27-Notify-Review
+  Workflow State: Approved
+
+E27-Notify-NoHit
+  Workflow State: Approved
+```
+
+На втором документе проверено, что временное ложное Condition не создаёт Notification Log при переходе в Review.
+
+SMTP и внешний email для этого опыта не использовались.
+
+## `Recurring Note`
+
+Standard DocType:
+
+```text
+Name:              Recurring Note
+Module:            Training
+Allow Auto Repeat: ✓
+Auto Name:         RN-.YYYY.-.#####
+Title Field:       title
+```
+
+Поля:
+
+```text
+Title
+  title
+  Data
+  Mandatory
+
+Run Date
+  run_date
+  Date
+  Mandatory
+```
+
+Существуют два Documents с одинаковым Title:
+
+```text
+Monthly Check Template
+```
+
+но разными `Run Date`:
+
+```text
+reference: 2026-08-30
+generated: 2026-08-31
+```
+
+У generated document отдельный system name. На чистом стенде курса это первые два names серии `RN-2026-.....`.
+
+## Auto Repeat
+
+Существует один проверенный Auto Repeat. На чистом стенде курса это:
+
+```text
+AUT-AR-00001
+```
+
+Финальное состояние:
+
+```text
+Reference Document Type: Recurring Note
+Reference Document:      <reference Monthly Check Template>
+Start Date:              2026-08-31
+Frequency:               Daily
+End Date:                пусто
+Disabled:                ✓
+Status:                  Disabled
+Next Schedule Date:      пусто
+```
+
+В лабораторной штатная функция v16 была выполнена один раз через:
+
+```text
+bench --site learn.localhost execute
+```
+
+когда `Next Schedule Date = 2026-08-31`.
+
+Она реально создала второй `Recurring Note`, после чего расписание перед отключением сдвинулось на:
+
+```text
+2026-09-01
+```
+
+Отдельно проверено:
+
+```text
+Weekly от Start Date 2026-08-30
+→ Next Schedule Date = 2026-09-06
+```
+
+После эксперимента Frequency восстановлен в Daily и Auto Repeat отключён, поэтому следующие главы не создают новые Recurring Note сами.
+
+## Контролируемые ошибки блока E
+
+Все восстановлены:
+
+```text
+Responsible временно используется как будто это Assignment
+→ новый ToDo не появляется
+→ Responsible очищен, настоящий Assignment остаётся
+
+Disable Document Sharing = ✓ + следующий Round Robin assignee не имеет доступа к South
+→ Missing Permission
+→ Sharing возвращён в ☐, контрольное назначение успешно
+
+обычный Status делает прямой Open → Done
+→ доказано отсутствие transition graph у Select
+→ Status восстановлен в Open
+
+Send for Review при пустом Due Date
+→ действие отсутствует из-за doc.due_date
+→ Due Date заполнена, переход проходит
+
+Training User пытается получить Approve/Reject
+→ действий нет из-за Allowed Role
+→ менеджер выполняет переходы штатно
+
+Notification Condition с одним =
+→ правило не сохраняется
+→ Condition исправлен на ==
+
+Notification Condition временно требует Approved
+→ переход в Review не создаёт ожидаемый log
+→ Condition восстановлен на Review
+
+Auto Repeat End Date = 2026-08-31
+→ End Date cannot be today
+→ End Date очищен
+```
+
+## Handoff в блок F
+
+До начала главы 29:
+
+```text
+permission model блока D восстановлена
+Sharing включён
+есть реальные ToDo и Assignment history
+Assignment Rule существует, но Disabled
+Training Request Workflow Active
+есть Workflow transitions и Workflow timeline events
+Training Review Notification существует, но Disabled
+есть Notification Log
+Recurring Note и один generated Auto Repeat document существуют
+Auto Repeat Disabled
+```
+
+Следующий блок может изучать Timeline на уже накопленных реальных событиях, не создавая заново инфраструктуру блока E.
 
 ---
 
