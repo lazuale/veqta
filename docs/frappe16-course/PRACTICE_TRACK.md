@@ -56,7 +56,7 @@ Request:        ещё не создан
 ```text
 apps/ и sites/ — соседние части Bench
 training существует как код App и установлен на learn.localhost
-Module Training зафиксирован в training/modules.txt
+Module Training зафиксирован в apps/training/training/modules.txt
 User — системный DocType
 Administrator — конкретный Document User
 Desk / Sidebar / Desktop / Workspace
