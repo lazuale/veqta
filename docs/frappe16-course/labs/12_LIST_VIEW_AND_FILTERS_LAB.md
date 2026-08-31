@@ -174,12 +174,12 @@ Due Date
 ```text
 Subject
 Like
-C12-
+C12-%
 ```
 
-Теперь список должен содержать шесть созданных в этой лабораторной Documents.
+`%` — wildcard оператора `Like`. В интерфейсе фильтров v16.32.0 для `Like` прямо показана подсказка `use % as wildcard`.
 
-Если в поле `Subject` вводится фрагмент без `%`, стандартный текстовый `Like` Frappe ищет соответствующие значения по этому фрагменту; используй именно `C12-`.
+Теперь список должен содержать шесть созданных в этой лабораторной Documents.
 
 Посчитай строки:
 
@@ -191,7 +191,7 @@ C12-
 
 ## Часть 5. Проверь `AND`
 
-К уже действующему `Subject Like C12-` добавь:
+К уже действующему `Subject Like C12-%` добавь:
 
 ```text
 Status = Open
@@ -229,7 +229,7 @@ C12-Open-High-2
 Очисти фильтры и снова поставь:
 
 ```text
-Subject Like C12-
+Subject Like C12-%
 Status != Done
 ```
 
@@ -252,7 +252,7 @@ C12-Done-High
 Оставь только:
 
 ```text
-Subject Like C12-
+Subject Like C12-%
 ```
 
 Отсортируй список:
@@ -281,7 +281,7 @@ Due Date ASC
 Оставь фильтр:
 
 ```text
-Subject Like C12-
+Subject Like C12-%
 ```
 
 Выбери флажками любые две строки.
@@ -305,7 +305,7 @@ Permissions массовых действий подробно будут изу
 Очисти фильтры и установи:
 
 ```text
-Subject Like C12-
+Subject Like C12-%
 Status = Done
 Priority = Low
 ```
@@ -345,11 +345,12 @@ Status и Priority остаются In List Filter
 Ответь без подсказки.
 
 1. Чем `In List View` отличается от `In List Filter`?
-2. Сколько C12-записей имеют `Status = Open`?
-3. Сколько одновременно `Open` и `High`?
-4. Почему `Status = Done AND Priority = Low` вернул 0 строк?
-5. Изменяет ли сортировка `Due Date` в Documents?
-6. Является ли Filter механизмом permissions?
+2. Что означает `%` в условии `Subject Like C12-%`?
+3. Сколько C12-записей имеют `Status = Open`?
+4. Сколько одновременно `Open` и `High`?
+5. Почему `Status = Done AND Priority = Low` вернул 0 строк?
+6. Изменяет ли сортировка `Due Date` в Documents?
+7. Является ли Filter механизмом permissions?
 
 ---
 
