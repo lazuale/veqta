@@ -1,63 +1,232 @@
 # Лабораторная 25. `Status` против `Workflow State`
 
-## Цель
+## Что уже должно быть готово
 
-Перестать смешивать обычное бизнес-поле и состояние Workflow engine.
+Лабораторная 24 завершена.
 
-## Подготовка
-
-В `Request` уже есть обычное поле:
+`Training Request Round Robin` существует, но отключён:
 
 ```text
-Status = Open / In Progress / Done
+Disabled = ✓
 ```
 
-## Сделай руками
+Поэтому новые Request в этой и следующих главах не будут получать автоматические Assignment.
 
-Создай новое Select-поле только для временного опыта:
+У `Request` по-прежнему есть обычное поле:
 
 ```text
-Review State
-Draft
-Review
-Approved
-Rejected
+Status
+Open / In Progress / Done
 ```
 
-Поменяй его значения вручную в нескольких Request.
+Настоящий Workflow ещё не создан.
 
-Зафиксируй: это пока просто обычное поле. Никаких transition permissions, кнопок Workflow и engine нет.
+---
 
-## Затем
+## Что сейчас получим
 
-Открой DocType `Workflow State` и `Workflow`. Посмотри структуру, но не создавай финальный Workflow до следующей главы.
-
-## Эксперимент
-
-Под Training User вручную поменяй `Review State` с Draft сразу на Approved. Если обычные field permissions разрешают запись, Frappe это позволит — потому что это всего лишь Select.
-
-## Намеренная ошибка
-
-Попытайся считать список options Select полноценным Workflow. Запиши, чего не хватает:
+Останется Request:
 
 ```text
-transition graph
-allowed roles
-conditions
-state field management
-workflow actions
+Subject: E25-Status-Only
+Status: Open
+Area: North
+Due Date: 2026-09-05
 ```
+
+Никакого `workflow_state` мы вручную не создаём.
+
+---
+
+# Часть 1. Создай обычный Request
+
+Войди:
+
+```text
+student.user@example.test
+FrappeCourse!2026
+```
+
+Создай:
+
+```text
+Subject:  E25-Status-Only
+Status:   Open
+Priority: Medium
+Area:     North
+Due Date: 2026-09-05
+Notes:    Status is still a plain Select
+```
+
+Сохрани.
+
+Проверь, что на форме нет Workflow Actions:
+
+```text
+Send for Review
+Approve
+Reject
+Reopen
+```
+
+Их ещё не существует.
+
+---
+
+# Часть 2. Измени Status напрямую
+
+В том же Request установи:
+
+```text
+Status = In Progress
+```
+
+Сохрани.
+
+Затем сразу:
+
+```text
+Status = Done
+```
+
+и снова сохрани.
+
+Ожидается:
+
+```text
+оба Save успешны
+```
+
+Framework не потребовал отдельного действия перехода и не проверял промежуточный граф состояний.
+
+---
+
+# Эксперимент — измени другие поля независимо от Status
+
+При:
+
+```text
+Status = Done
+```
+
+измени:
+
+```text
+Notes = Done is still editable by normal field permissions
+```
+
+Сохрани.
+
+Ожидается обычный Save.
+
+Причина: само значение `Done` не включает отдельный механизм блокировки или согласования.
+
+---
+
+# Намеренно неправильный процессный переход
+
+Верни:
+
+```text
+Status = Open
+```
+
+Сохрани.
+
+Теперь одним действием снова установи:
+
+```text
+Status = Done
+```
+
+и сохрани.
+
+С точки зрения будущего процесса это намеренный «прыжок» через промежуточные стадии.
+
+Ожидается:
+
+```text
+Save успешен
+```
+
+Это не ошибка Framework. Мы пока используем всего лишь обычный Select.
+
+---
+
+# Восстановление
+
+Верни:
+
+```text
+Status = Open
+Notes  = Status is still a plain Select
+```
+
+Сохрани.
+
+---
+
+# Часть 3. Посмотри системные объекты будущего Workflow
+
+Работай под `Administrator`.
+
+Открой по очереди:
+
+```text
+http://learn.localhost:8000/app/workflow-state
+http://learn.localhost:8000/app/workflow
+```
+
+Сейчас ничего для `Request` не создавай.
+
+Задача только увидеть, что:
+
+```text
+Workflow State
+```
+
+и:
+
+```text
+Workflow
+```
+
+— отдельные системные DocType, а не options нашего поля `Status`.
+
+---
 
 ## Проверка себя
 
-Объясни три разных вещи:
+1. Почему `Open → Done` сейчас разрешён одним Save?
+2. Создал ли обычный Status Workflow Action?
+3. Является ли `Done` значением `docstatus`?
+4. Чем `ToDo.status` отличается от `Request.status`?
+5. Нужно ли вручную добавлять `workflow_state` перед следующей главой?
+6. Почему обычный Status оставляем в `Request`, даже когда добавим Workflow?
+
+---
+
+## Состояние стенда после лабораторной
+
+Существует:
 
 ```text
-Status        → обычное бизнес-поле
-Workflow State→ поле, управляемое Workflow
-Docstatus     → системный lifecycle 0/1/2
+E25-Status-Only
+  owner:    student.user@example.test
+  Status:   Open
+  Area:     North
+  Due Date: 2026-09-05
+  Notes:    Status is still a plain Select
 ```
 
-## Состояние после лабораторной
+`Training Request Round Robin` остаётся:
 
-`Review State` можно удалить перед следующей главой, чтобы не путать с настоящим Workflow State.
+```text
+Disabled = ✓
+```
+
+Для `Request` ещё нет активного Workflow.
+
+Поле `workflow_state` вручную не создавалось.
+
+Это точное входное состояние [**главы 26**](../26_WORKFLOW_AND_TRANSITIONS.md).
