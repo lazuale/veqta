@@ -73,7 +73,7 @@
 ### Блок E. Работа и процессы
 
 23. [Assignment и ToDo](23_ASSIGNMENT_AND_TODO.md)
-24. Assignment Rule
+24. [Assignment Rule](24_ASSIGNMENT_RULE.md)
 25. Status против Workflow State
 26. Workflow и переходы
 27. Notification
