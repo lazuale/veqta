@@ -89,7 +89,7 @@
 
 ### Блок G. Данные и аналитика
 
-34. Report Builder
+34. [Report Builder](34_REPORT_BUILDER.md)
 35. Query Report
 36. Script Report
 37. Dashboard Chart и Number Card
