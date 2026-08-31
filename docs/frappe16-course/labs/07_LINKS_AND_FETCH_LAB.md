@@ -135,18 +135,18 @@ Responsible Name
 
 ### 5. Поменяй связанный User
 
-В том же Request выбери в `Responsible` другого существующего пользователя, например:
+В том же Request выбери:
 
 ```text
-Guest
+Responsible = Guest
 ```
 
-если он доступен для выбора на твоём чистом Site.
+`Guest` — штатный User, который Frappe создаёт при установке Site вместе с `Administrator`.
 
 Наблюдай:
 
 ```text
-изменился Link
+Responsible изменился
 → Frappe снова выполнил Fetch From
 → Responsible Name изменился вслед за выбранным User
 ```
@@ -158,8 +158,6 @@ Responsible = Administrator
 ```
 
 и сохрани.
-
-Если `Guest` не предлагается Link-полем в интерфейсе, используй любой другой существующий `User` из списка `User`, но итоговое значение снова верни на `Administrator`.
 
 ---
 
