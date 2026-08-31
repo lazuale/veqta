@@ -2,7 +2,7 @@
 
 Эта инструкция поднимает **локальный стенд разработки VEQTA с нуля на Windows через WSL2 / Ubuntu 24.04**.
 
-Это эталонный сценарий первого стенда. Команды выполняются **строго сверху вниз**. Если проверка шага не совпала с ожидаемым результатом — следующий шаг не выполнять.
+Это эталонный сценарий. Команды выполняются **строго сверху вниз**. Если контрольная проверка шага не совпала с ожидаемым результатом — следующий шаг не выполнять.
 
 После завершения получится:
 
@@ -18,17 +18,10 @@ Windows
             └── veqta.localhost/       # локальный Frappe site
 ```
 
-Desk будет доступен в Windows:
+Desk будет доступен из Windows:
 
 ```text
 http://veqta.localhost:8000
-```
-
-Вход:
-
-```text
-User: Administrator
-Password: пароль, заданный при создании site
 ```
 
 ## 0. Зафиксированный baseline
@@ -37,7 +30,7 @@ Password: пароль, заданный при создании site
 WSL distro              Ubuntu 24.04 LTS
 MariaDB                 11.8.9
 wkhtmltopdf             0.12.6.1-2, patched Qt
-NVM                     0.40.7
+NVM                     0.40.6
 Node.js                 24.20.0 LTS
 npm                     11.19.0
 Yarn Classic            1.22.22
@@ -49,11 +42,11 @@ Frappe Framework        v16.32.0
 
 Ubuntu system libraries и Redis берём из актуальных security/update repositories Ubuntu 24.04. Их patch-версии отдельно не фиксируем.
 
-Не заменять версии выше на `latest`, `24`, `3.14`, `develop` или другую ветку без отдельного обновления baseline.
+Не заменять версии выше на `latest`, `24`, `3.14`, `develop` и другие плавающие значения без отдельного обновления baseline.
 
-Пароли при вводе в Linux обычно **не отображаются вообще** — это нормально.
+Пароли при вводе в Linux обычно **вообще не отображаются** — это нормально.
 
-В ходе установки будут разные секреты:
+В процессе появятся три разных секрета:
 
 ```text
 Linux user password       пароль пользователя Ubuntu
@@ -61,13 +54,13 @@ MariaDB frappe_admin      пароль администратора БД для 
 Frappe Administrator      пароль входа в Desk
 ```
 
-Не сохранять их в Git, README, Issue или исходном коде.
+Их нельзя сохранять в Git, README, Issue или исходном коде.
 
 ---
 
 ## 1. WSL2 / Ubuntu 24.04
 
-### 1.1. Новая установка
+### 1.1. Установка
 
 Открыть **PowerShell от имени администратора**:
 
@@ -78,7 +71,7 @@ wsl --install -d Ubuntu-24.04
 
 После установки открыть `Ubuntu 24.04` из меню Пуск.
 
-При первом запуске создать Linux-пользователя. Имя может быть любым, например `dev`:
+При первом запуске создать Linux-пользователя. Имя может быть любым, например:
 
 ```text
 Enter new UNIX username: dev
@@ -86,17 +79,17 @@ New password:             придумать пароль Linux-пользова
 Retype new password:      повторить пароль
 ```
 
-### 1.2. Если нужен действительно чистый WSL вместо уже сломанного
+### 1.2. Если нужно полностью начать заново
 
-**Внимание: `wsl --unregister` полностью удаляет выбранный Linux-дистрибутив и все его файлы.**
+**Внимание: следующая команда полностью удаляет выбранный WSL-дистрибутив со всеми его файлами.**
 
-В PowerShell:
+Сначала посмотреть точное имя:
 
 ```powershell
 wsl -l -v
 ```
 
-Если сознательно начинаем заново и дистрибутив называется `Ubuntu-24.04`:
+Если дистрибутив называется `Ubuntu-24.04` и его действительно нужно уничтожить:
 
 ```powershell
 wsl --terminate Ubuntu-24.04
@@ -106,9 +99,9 @@ wsl --install -d Ubuntu-24.04
 
 После этого снова открыть Ubuntu и создать Linux-пользователя.
 
-### 1.3. Проверить Ubuntu, systemd и рабочий каталог
+### 1.3. Контроль Ubuntu, systemd и рабочего каталога
 
-Уже **в Ubuntu**, не в PowerShell, выполнить именно этот блок:
+Уже **в Ubuntu**, не в PowerShell:
 
 ```bash
 cd ~
@@ -121,9 +114,7 @@ echo "HOME=$HOME"
 echo "PWD=$PWD"
 ```
 
-`cd ~` обязателен: если WSL был открыт из PowerShell, запущенного в `C:\Windows\System32`, начальный каталог может быть `/mnt/c/WINDOWS/System32`. Для стенда работаем из домашнего Linux-каталога.
-
-Если Linux-пользователь создан как `dev`, контрольный вывод должен быть **ровно по смыслу таким**:
+Для пользователя `dev` контрольный вывод должен быть таким:
 
 ```text
 USER=dev
@@ -133,14 +124,15 @@ HOME=/home/dev
 PWD=/home/dev
 ```
 
-Если имя пользователя другое, оно должно одинаково отображаться в `USER`, `HOME` и `PWD`. Критические значения:
+Имя пользователя может быть другим. Важно:
 
 ```text
 UBUNTU=24.04
 INIT=systemd
-HOME=/home/<ваш_пользователь>
-PWD=/home/<ваш_пользователь>
+PWD совпадает с HOME
 ```
+
+`cd ~` обязателен. Если WSL был открыт из PowerShell в `C:\Windows\System32`, без него стартовый каталог может оказаться `/mnt/c/WINDOWS/System32`.
 
 Если `INIT` не `systemd`:
 
@@ -157,46 +149,54 @@ EOF
 wsl --shutdown
 ```
 
-Снова открыть Ubuntu и **повторить весь контрольный блок из начала пункта 1.3**. Следующий шаг выполнять только когда `UBUNTU=24.04`, `INIT=systemd`, а `PWD` совпадает с `HOME`.
-
-Все Linux-команды ниже выполняются **в Ubuntu WSL**.
+Снова открыть Ubuntu и повторить контроль пункта 1.3.
 
 ---
 
 ## 2. Проверка сети и DNS
 
-До установки пакетов проверяем все основные хосты, откуда дальше будут скачиваться компоненты:
+Проверка выполняется **в отдельном subshell**. Если что-то недоступно, проверка завершится ошибкой, но сам Ubuntu-shell не закроется.
 
 ```bash
-set -e
+cd ~
 
-for host in \
-  github.com \
-  raw.githubusercontent.com \
-  dlm.mariadb.com \
-  nodejs.org \
-  astral.sh
-do
-  if getent ahosts "$host" >/dev/null; then
+(
+  set -e
+
+  for host in \
+    github.com \
+    raw.githubusercontent.com \
+    mariadb.org \
+    deb.mariadb.org \
+    nodejs.org \
+    astral.sh
+  do
+    getent ahosts "$host" >/dev/null
     echo "OK  $host"
-  else
-    echo "DNS ERROR: $host"
-    exit 1
-  fi
-done
+  done
 
-curl -fsSL https://dlm.mariadb.com/3/MariaDB/mariadb_repo_setup -o /dev/null
+  curl -fsSL https://mariadb.org/mariadb_release_signing_key.pgp -o /dev/null
+  curl -fsSL https://deb.mariadb.org/11.8/ubuntu/dists/noble/InRelease -o /dev/null
 
-echo "NETWORK OK"
+  echo "NETWORK OK"
+)
 ```
 
 Должно закончиться:
 
 ```text
+OK  github.com
+OK  raw.githubusercontent.com
+OK  mariadb.org
+OK  deb.mariadb.org
+OK  nodejs.org
+OK  astral.sh
 NETWORK OK
 ```
 
-Если есть `DNS ERROR`, `Could not resolve host` или ошибка `curl` — **дальше не идти**.
+Если какой-то хост не резолвится или `curl` возвращает ошибку — следующий шаг не выполнять.
+
+**`dlm.mariadb.com` в этом сценарии не используется.** Репозиторий MariaDB подключается напрямую через официальный MariaDB Foundation APT endpoint.
 
 ---
 
@@ -224,13 +224,7 @@ sudo systemctl enable --now redis-server
 sudo systemctl enable --now cron
 ```
 
-При запросе:
-
-```text
-[sudo] password for <ваш_пользователь>:
-```
-
-ввести пароль Linux-пользователя.
+Если `sudo` спросит пароль — ввести пароль Linux-пользователя.
 
 Проверить:
 
@@ -252,81 +246,77 @@ active
 
 ## 4. MariaDB 11.8.9
 
-Frappe v16 требует MariaDB 11.8. В Ubuntu 24.04 стандартный repository содержит MariaDB 10.11, поэтому **нельзя сначала выполнять обычный `apt install mariadb-server`**.
+Frappe v16 использует MariaDB 11.8. Стандартный repository Ubuntu 24.04 содержит MariaDB 10.11, поэтому сначала подключаем официальный MariaDB Foundation repository и **до установки проверяем Candidate**.
 
-Сначала подключаем официальный MariaDB repository, проверяем Candidate и только после этого устанавливаем сервер.
-
-### 4.1. Скачать официальный repository setup
+### 4.1. Добавить ключ MariaDB
 
 ```bash
-curl -fL --retry 3 \
-  https://dlm.mariadb.com/3/MariaDB/mariadb_repo_setup \
-  -o /tmp/mariadb_repo_setup
+sudo install -m 0755 -d /etc/apt/keyrings
 
-chmod +x /tmp/mariadb_repo_setup
+sudo curl -fsSL \
+  https://mariadb.org/mariadb_release_signing_key.pgp \
+  -o /etc/apt/keyrings/mariadb-keyring.asc
 ```
 
 Проверить:
 
 ```bash
-test -s /tmp/mariadb_repo_setup && echo "repo setup downloaded"
+test -s /etc/apt/keyrings/mariadb-keyring.asc && echo "MARIADB KEY OK"
 ```
 
 Ожидается:
 
 ```text
-repo setup downloaded
+MARIADB KEY OK
 ```
 
-### 4.2. Подключить именно MariaDB 11.8.9
+### 4.2. Добавить repository MariaDB 11.8 для Ubuntu Noble
 
 ```bash
-sudo /tmp/mariadb_repo_setup \
-  --mariadb-server-version="mariadb-11.8.9" \
-  --skip-maxscale
+sudo tee /etc/apt/sources.list.d/mariadb.sources >/dev/null <<'EOF'
+X-Repolib-Name: MariaDB
+Types: deb
+URIs: https://deb.mariadb.org/11.8/ubuntu
+Suites: noble
+Components: main
+Signed-By: /etc/apt/keyrings/mariadb-keyring.asc
+EOF
 
 sudo apt update
 ```
 
-До установки проверить:
+Показать политику пакета:
 
 ```bash
 apt-cache policy mariadb-server
 ```
 
-В `Candidate` должна быть версия `11.8.9`, например:
-
-```text
-Candidate: 1:11.8.9+maria~ubu2404
-```
-
-Автоматическая стоп-проверка:
+Затем выполнить контроль, который **не закрывает shell**:
 
 ```bash
 MARIADB_CANDIDATE="$(apt-cache policy mariadb-server | awk '/Candidate:/ {print $2}')"
 
-echo "MariaDB candidate: $MARIADB_CANDIDATE"
+echo "MARIADB_CANDIDATE=$MARIADB_CANDIDATE"
 
-case "$MARIADB_CANDIDATE" in
-  *11.8.9*)
-    echo "MARIADB REPOSITORY OK"
-    ;;
-  *)
-    echo "ERROR: expected MariaDB 11.8.9"
-    exit 1
-    ;;
-esac
+if [[ "$MARIADB_CANDIDATE" == *11.8.9* ]]; then
+  echo "MARIADB REPOSITORY OK"
+else
+  echo "ERROR: expected MariaDB 11.8.9; DO NOT CONTINUE"
+fi
 ```
 
-Должно закончиться:
+На текущем baseline нужно получить примерно:
 
 ```text
+MARIADB_CANDIDATE=1:11.8.9+maria~ubu2404
 MARIADB REPOSITORY OK
 ```
 
-Если Candidate `10.11.x` — **MariaDB не устанавливать**.
+Если Candidate содержит `10.11` или другую версию — **MariaDB не устанавливать**.
 
 ### 4.3. Установить MariaDB
+
+Только после `MARIADB REPOSITORY OK`:
 
 ```bash
 sudo apt install -y \
@@ -351,7 +341,7 @@ active
 ... Distrib 11.8.9-MariaDB ...
 ```
 
-### 4.4. Настроить MariaDB для Frappe
+### 4.4. Настроить charset для Frappe
 
 ```bash
 sudo tee /etc/mysql/mariadb.conf.d/99-frappe.cnf >/dev/null <<'EOF'
@@ -377,7 +367,7 @@ SHOW VARIABLES LIKE 'collation_server';
 "
 ```
 
-Должно быть:
+Ожидается:
 
 ```text
 11.8.9-MariaDB...
@@ -385,11 +375,9 @@ character_set_server    utf8mb4
 collation_server        utf8mb4_unicode_ci
 ```
 
-### 4.5. Создать отдельного администратора БД для Bench
+### 4.5. Создать администратора БД для Bench
 
-Системный MariaDB `root` оставляем работать штатно через `sudo mariadb`. Для Bench создаём отдельного локального администратора `frappe_admin`.
-
-Открыть MariaDB:
+Системный MariaDB `root` не меняем. Для Bench создаём отдельного локального администратора `frappe_admin`.
 
 ```bash
 sudo mariadb
@@ -401,16 +389,16 @@ sudo mariadb
 MariaDB [(none)]>
 ```
 
-Выполнить по одной строке:
+Выполнить, заменив пароль на свой:
 
 ```sql
-CREATE USER 'frappe_admin'@'localhost' IDENTIFIED BY 'ВАШ_ОТДЕЛЬНЫЙ_ПАРОЛЬ_MARIADB';
+CREATE USER 'frappe_admin'@'localhost' IDENTIFIED BY 'ВАШ_ПАРОЛЬ_MARIADB';
 GRANT ALL PRIVILEGES ON *.* TO 'frappe_admin'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 EXIT;
 ```
 
-Вместо `ВАШ_ОТДЕЛЬНЫЙ_ПАРОЛЬ_MARIADB` указать свой пароль и сохранить его в менеджере паролей.
+Сохранить пароль `frappe_admin` в менеджере паролей.
 
 Проверить:
 
@@ -418,13 +406,7 @@ EXIT;
 mariadb -u frappe_admin -p -e "SELECT VERSION();"
 ```
 
-После:
-
-```text
-Enter password:
-```
-
-ввести пароль `frappe_admin`.
+Ввести пароль `frappe_admin`.
 
 Результат должен содержать:
 
@@ -432,13 +414,11 @@ Enter password:
 11.8.9-MariaDB
 ```
 
-`mariadb-secure-installation` в этом сценарии **не используется**.
+`mariadb-secure-installation` в этом dev-сценарии не используется.
 
 ---
 
 ## 5. wkhtmltopdf с patched Qt
-
-Frappe требует wkhtmltopdf 0.12.6 с patched Qt. Используем пакет, который применяется в текущем Frappe CI:
 
 ```bash
 curl -fL --retry 3 \
@@ -454,21 +434,19 @@ sudo apt install -y /tmp/wkhtmltox_0.12.6.1-2.jammy_amd64.deb
 wkhtmltopdf --version
 ```
 
-Строго ожидается:
+Ожидается:
 
 ```text
 wkhtmltopdf 0.12.6.1 (with patched qt)
 ```
 
-Если `with patched qt` отсутствует — дальше не идти.
+Если `with patched qt` отсутствует — следующий шаг не выполнять.
 
 ---
 
 ## 6. GitHub SSH
 
-### 6.1. Автор Git
-
-Подставить свой GitHub email:
+### 6.1. Настроить автора Git
 
 ```bash
 git config --global user.name "lazuale"
@@ -484,13 +462,13 @@ git config --global user.email
 git config --global init.defaultBranch
 ```
 
-### 6.2. SSH-ключ
+### 6.2. Создать SSH-ключ
 
 ```bash
 ssh-keygen -t ed25519 -C "ВАШ_GITHUB_EMAIL"
 ```
 
-На:
+На вопрос о пути:
 
 ```text
 Enter file in which to save the key (.../.ssh/id_ed25519):
@@ -508,7 +486,7 @@ cat ~/.ssh/id_ed25519.pub
 
 Скопировать всю строку `ssh-ed25519 ...`.
 
-В GitHub открыть:
+В GitHub:
 
 ```text
 Avatar
@@ -549,10 +527,10 @@ Hi lazuale! You've successfully authenticated
 
 ## 7. Node.js 24.20.0 LTS + npm 11.19.0 + Yarn 1.22.22
 
-### 7.1. NVM 0.40.7
+### 7.1. NVM 0.40.6
 
 ```bash
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.6/install.sh | bash
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
@@ -567,7 +545,7 @@ nvm --version
 Строго:
 
 ```text
-0.40.7
+0.40.6
 ```
 
 ### 7.2. Node.js и npm
@@ -592,7 +570,7 @@ v24.20.0
 11.19.0
 ```
 
-**npm отдельно не обновлять.** `npm 11.19.0` входит в Node.js 24.20.0.
+**npm отдельно не обновлять.**
 
 ### 7.3. Yarn Classic
 
@@ -661,7 +639,7 @@ Python 3.14.7
 uv tool install --python 3.14.7 'frappe-bench==5.31.0'
 ```
 
-Если shell после установки не видит `bench`:
+Если `bench` не найден:
 
 ```bash
 uv tool update-shell
@@ -682,52 +660,43 @@ bench --version
 
 ---
 
-## 9. Контроль runtime перед созданием Bench
+## 9. Полный контроль runtime до Bench
 
 ```bash
-echo "=== OS ==="
+cd ~
 . /etc/os-release
-echo "$PRETTY_NAME"
 
-echo "=== MARIADB ==="
+printf 'UBUNTU=%s\n' "$VERSION_ID"
+printf 'MARIADB='
 mariadb --version
-
-echo "=== REDIS ==="
+printf 'REDIS='
 redis-cli ping
-
-echo "=== WKHTMLTOPDF ==="
+printf 'WKHTMLTOPDF='
 wkhtmltopdf --version
-
-echo "=== NVM ==="
+printf 'NVM='
 nvm --version
-
-echo "=== NODE ==="
+printf 'NODE='
 node --version
-
-echo "=== NPM ==="
+printf 'NPM='
 npm --version
-
-echo "=== YARN ==="
+printf 'YARN='
 yarn --version
-
-echo "=== UV ==="
+printf 'UV='
 uv --version
-
-echo "=== PYTHON ==="
+printf 'PYTHON='
 python --version
-
-echo "=== BENCH ==="
+printf 'BENCH='
 bench --version
 ```
 
-Контрольный baseline:
+Baseline:
 
 ```text
-Ubuntu                  24.04.x LTS
+Ubuntu                  24.04
 MariaDB                 11.8.9
 Redis                   PONG
 wkhtmltopdf             0.12.6.1 (with patched qt)
-NVM                     0.40.7
+NVM                     0.40.6
 Node.js                 v24.20.0
 npm                     11.19.0
 Yarn                    1.22.22
@@ -747,19 +716,23 @@ mkdir -p ~/frappe
 cd ~/frappe
 ```
 
-Убедиться, что каталог стенда отсутствует:
+Проверить, что каталога ещё нет:
 
 ```bash
-test ! -e ~/frappe/veqta-bench && echo "bench path is clean"
+if [ -e ~/frappe/veqta-bench ]; then
+  echo "ERROR: ~/frappe/veqta-bench already exists"
+else
+  echo "BENCH PATH OK"
+fi
 ```
 
-Ожидается:
+Нужно увидеть:
 
 ```text
-bench path is clean
+BENCH PATH OK
 ```
 
-Создать Bench на точном Frappe tag и точном Python:
+Создать Bench:
 
 ```bash
 bench init \
@@ -768,7 +741,7 @@ bench init \
   veqta-bench
 ```
 
-`bench init` создаёт virtual environment, скачивает Frappe, ставит зависимости и собирает assets. Вывод длинный — это нормально. Команда должна завершиться без `ERROR` и `Traceback`.
+Вывод будет длинным. Команда должна завершиться без `ERROR` и `Traceback`.
 
 Проверить:
 
@@ -783,21 +756,11 @@ git rev-parse HEAD
 cd ../..
 ```
 
-Нужно увидеть:
-
-```text
-frappe 16.32.0 ...
-Python 3.14.7
-v16.32.0
-```
-
-Последняя команда `git rev-parse HEAD` выведет точный commit SHA Frappe.
+Нужно увидеть Frappe `16.32.0`, Python `3.14.7` и tag `v16.32.0`.
 
 ---
 
 ## 11. Превратить repository VEQTA в Frappe app
-
-Сейчас repository `lazuale/veqta` содержит проектную документацию. На этом шаге создаём штатный scaffold Frappe app и сохраняем существующую Git history.
 
 ### 11.1. Клонировать существующий repository
 
@@ -814,9 +777,9 @@ git status
 git remote -v
 ```
 
-Ожидается чистый `main` и remote `git@github.com:lazuale/veqta.git`.
+Нужен чистый `main` и remote `git@github.com:lazuale/veqta.git`.
 
-### 11.2. Создать scaffold
+### 11.2. Создать штатный scaffold Frappe app
 
 ```bash
 cd ~/frappe/veqta-bench
@@ -848,25 +811,24 @@ Branch Name [version-16]:
 main
 ```
 
-Проверить scaffold:
+Проверить:
 
 ```bash
-test -f ~/frappe/veqta-bench/apps/veqta/pyproject.toml
-test -f ~/frappe/veqta-bench/apps/veqta/veqta/hooks.py
-echo "VEQTA scaffold OK"
+test -f ~/frappe/veqta-bench/apps/veqta/pyproject.toml && \
+test -f ~/frappe/veqta-bench/apps/veqta/veqta/hooks.py && \
+echo "VEQTA SCAFFOLD OK"
 ```
 
-Ожидается:
+Нужно увидеть:
 
 ```text
-VEQTA scaffold OK
+VEQTA SCAFFOLD OK
 ```
 
-### 11.3. Объединить scaffold с существующей Git history
+### 11.3. Совместить scaffold с существующей Git history
 
 ```bash
 rsync -a ~/veqta-existing/ ~/frappe/veqta-bench/apps/veqta/
-
 cd ~/frappe/veqta-bench/apps/veqta
 ```
 
@@ -877,40 +839,14 @@ git rev-parse --show-toplevel
 git remote -v
 git branch --show-current
 git status
+
+test -f pyproject.toml && \
+test -f veqta/hooks.py && \
+test -f veqta/__init__.py && \
+echo "VEQTA REPOSITORY + SCAFFOLD OK"
 ```
 
-Корень должен быть:
-
-```text
-.../frappe/veqta-bench/apps/veqta
-```
-
-Remote:
-
-```text
-git@github.com:lazuale/veqta.git
-```
-
-Branch:
-
-```text
-main
-```
-
-Проверить, что scaffold сохранился:
-
-```bash
-test -f pyproject.toml
-test -f veqta/hooks.py
-test -f veqta/__init__.py
-echo "VEQTA repository + scaffold OK"
-```
-
-Ожидается:
-
-```text
-VEQTA repository + scaffold OK
-```
+Remote должен быть `git@github.com:lazuale/veqta.git`, branch — `main`.
 
 Удалить временный clone:
 
@@ -925,7 +861,7 @@ grep -n "app_license" veqta/hooks.py
 grep -n "license" pyproject.toml
 ```
 
-Ожидаем `agpl-3.0`. Корневой `LICENSE` проекта не заменять.
+Ожидается `agpl-3.0`. Корневой `LICENSE` проекта не заменять.
 
 ---
 
@@ -939,15 +875,15 @@ bench new-site veqta.localhost \
   --db-root-username frappe_admin
 ```
 
-Bench попросит пароль суперпользователя БД. Несмотря на слово `root` в prompt, ввести **пароль MariaDB пользователя `frappe_admin`**, потому что мы передали `--db-root-username frappe_admin`.
+Bench попросит пароль суперпользователя БД. Ввести **пароль MariaDB пользователя `frappe_admin` из шага 4.5**.
 
-Затем появится:
+Затем:
 
 ```text
 Set Administrator password:
 ```
 
-Задать новый отдельный пароль **Frappe Administrator**.
+Задать отдельный пароль пользователя Frappe `Administrator`.
 
 После успешного создания site:
 
@@ -957,7 +893,7 @@ bench --site veqta.localhost install-app veqta
 bench --site veqta.localhost list-apps
 ```
 
-Должны быть как минимум:
+Должно быть как минимум:
 
 ```text
 frappe
@@ -971,7 +907,7 @@ veqta
 ```bash
 cd ~/frappe/veqta-bench
 
-bench set-config -g developer_mode 1
+bench set-config -g -p developer_mode 1
 bench --site veqta.localhost clear-cache
 ```
 
@@ -981,13 +917,7 @@ bench --site veqta.localhost clear-cache
 grep -n '"developer_mode"' sites/common_site_config.json
 ```
 
-Должно быть:
-
-```text
-"developer_mode": 1
-```
-
-Developer Mode нужен, чтобы metadata стандартных объектов приложения, создаваемых через Desk, могли попадать в исходное дерево `apps/veqta` и затем в Git.
+Ожидается значение `1`.
 
 ---
 
@@ -1003,7 +933,7 @@ echo "=== SITE APPS ==="
 bench --site veqta.localhost list-apps
 
 echo "=== SITE DIRECTORY ==="
-test -d sites/veqta.localhost && echo "site directory OK"
+test -d sites/veqta.localhost && echo "SITE DIRECTORY OK"
 
 echo "=== VEQTA GIT ==="
 cd apps/veqta
@@ -1014,12 +944,14 @@ cd ../..
 ```
 
 Нужно получить:
-- Frappe `16.32.0`;
-- apps `frappe` и `veqta`;
-- `site directory OK`;
-- remote `lazuale/veqta`;
-- branch `main`;
-- новые scaffold-файлы VEQTA видны в `git status` как изменения.
+
+```text
+Frappe        16.32.0
+Site apps     frappe + veqta
+Site dir      OK
+VEQTA remote  lazuale/veqta
+Branch        main
+```
 
 ---
 
@@ -1030,7 +962,7 @@ cd ~/frappe/veqta-bench
 bench start
 ```
 
-`bench start` остаётся работать в текущем окне и выводит логи процессов.
+`bench start` остаётся работать в текущем терминале и выводит логи.
 
 В Windows открыть:
 
@@ -1057,7 +989,7 @@ Ctrl+C
 
 ## 16. Первый commit Frappe scaffold VEQTA
 
-Только после успешного создания site, установки `veqta` и открытия Desk:
+Только после успешного запуска Desk:
 
 ```bash
 cd ~/frappe/veqta-bench/apps/veqta
@@ -1067,8 +999,9 @@ git diff
 ```
 
 Перед commit проверить:
+
 - сохранены `README.md`, `LICENSE`, `.gitignore`, `docs/`;
-- появились `pyproject.toml`, пакет `veqta/` и остальные штатные файлы Frappe app;
+- появились `pyproject.toml`, пакет `veqta/` и штатные файлы Frappe app;
 - нет паролей;
 - нет `sites/`, `env/`, `logs/` и всего `veqta-bench`.
 
@@ -1098,6 +1031,7 @@ nothing to commit, working tree clean
 ## 17. VS Code
 
 В Windows установить:
+
 - Visual Studio Code;
 - расширение Microsoft **WSL**.
 
@@ -1111,8 +1045,8 @@ code .
 Рабочие каталоги:
 
 ```text
-apps/frappe/   # исходники точного Frappe v16.32.0; читаем, но не коммитим в VEQTA
-apps/veqta/    # код VEQTA; именно этот Git repository отправляется в lazuale/veqta
+apps/frappe/   # Frappe v16.32.0; читаем, но не коммитим в VEQTA
+apps/veqta/    # код VEQTA; этот repository отправляется в lazuale/veqta
 ```
 
 ---
@@ -1122,12 +1056,12 @@ apps/veqta/    # код VEQTA; именно этот Git repository отправ
 В новом терминале Ubuntu:
 
 ```bash
+cd ~
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 
-echo "=== OS ==="
 . /etc/os-release
-echo "$PRETTY_NAME"
+echo "UBUNTU=$VERSION_ID"
 
 echo "=== DB ==="
 mariadb --version
@@ -1163,11 +1097,11 @@ systemctl is-active cron
 Эталон:
 
 ```text
-Ubuntu                  24.04.x LTS
+Ubuntu                  24.04
 MariaDB                 11.8.9
 Redis                   PONG
 wkhtmltopdf             0.12.6.1 (with patched qt)
-NVM                     0.40.7
+NVM                     0.40.6
 Node.js                 v24.20.0
 npm                     11.19.0
 Yarn                    1.22.22
@@ -1187,8 +1121,11 @@ cron service            active
 
 ## Что в этом baseline специально не делаем
 
-- не ставим MariaDB из стандартного Ubuntu repository до подключения MariaDB repo;
+- не используем `dlm.mariadb.com`;
+- не ставим MariaDB из стандартного Ubuntu repository до подключения MariaDB Foundation repo;
 - не используем MariaDB 10.11;
+- не запускаем `set -e` в основном интерактивном shell;
+- не используем `exit` в контрольных блоках, способный закрыть WSL-shell;
 - не обновляем npm отдельно до 12;
 - не используем Node Current 26;
 - не используем Python из Ubuntu для Frappe;
@@ -1198,4 +1135,4 @@ cron service            active
 - не кладём пароли в Git;
 - не коммитим весь Bench в repository VEQTA.
 
-Для обновления baseline сначала отдельно проверяются новые версии, затем меняются зафиксированные значения в этой инструкции.
+Для обновления baseline сначала проверяются новые версии и совместимость, затем меняются зафиксированные значения в этой инструкции.
