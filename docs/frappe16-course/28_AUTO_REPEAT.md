@@ -60,6 +60,14 @@ Allow Auto Repeat = ✓
 
 Без него Auto Repeat не разрешит использовать этот DocType как Reference Document Type.
 
+Когда это свойство включено, сам DocType v16 добавляет служебный site-level Custom Field:
+
+```text
+auto_repeat
+```
+
+Он связывает Document с текущим Auto Repeat. Создавать это поле вручную не нужно.
+
 ---
 
 # 2. Reference Document — образец для копирования
@@ -68,7 +76,7 @@ Allow Auto Repeat = ✓
 
 ```text
 Title: Monthly Check Template
-Run Date: 2026-08-30
+Run Date: YESTERDAY
 ```
 
 Затем Auto Repeat будет ссылаться на него:
@@ -84,7 +92,44 @@ Reference Document      = RN-...
 
 ---
 
-# 3. Основные поля Auto Repeat
+# 3. Не привязываем учебник к конкретной календарной дате
+
+Auto Repeat реально сравнивает `Next Schedule Date` с текущей датой Site.
+
+Поэтому значение вроде:
+
+```text
+2026-08-31
+```
+
+нельзя навечно зашить в такую лабораторную: через день она перестанет воспроизводиться.
+
+В начале практики получим текущую дату **из самого `learn.localhost`**:
+
+```bash
+TODAY=$(bench --site learn.localhost execute frappe.utils.nowdate)
+```
+
+А соседние даты посчитаем штатной утилитой Debian `date`:
+
+```bash
+YESTERDAY=$(date -d "$TODAY -1 day" +%F)
+TOMORROW=$(date -d "$TODAY +1 day" +%F)
+```
+
+После этого лаборатория использует обозначения:
+
+```text
+YESTERDAY
+TODAY
+TOMORROW
+```
+
+но ученик вводит в Desk реальные значения, которые напечатал терминал.
+
+---
+
+# 4. Основные поля Auto Repeat
 
 Для первого опыта нужны:
 
@@ -106,7 +151,7 @@ Next Schedule Date
 
 ---
 
-# 4. Частоты v16
+# 5. Частоты v16
 
 В `v16.32.0` доступны:
 
@@ -130,7 +175,7 @@ Daily
 
 ---
 
-# 5. Что происходит при запуске
+# 6. Что происходит при запуске
 
 Когда наступает `Next Schedule Date`, Frappe:
 
@@ -153,7 +198,7 @@ RN-2026-00002   ← создан Auto Repeat
 
 ---
 
-# 6. Mandatory Date-поля получают дату расписания
+# 7. Mandatory Date-поля получают дату расписания
 
 В текущем backend v16 для обязательных полей типа `Date` Auto Repeat устанавливает:
 
@@ -169,23 +214,23 @@ Run Date
 
 обязательное.
 
-Поэтому в лабораторной reference будет иметь:
+Поэтому reference будет иметь:
 
 ```text
-Run Date = 2026-08-30
+Run Date = YESTERDAY
 ```
 
 а созданная сегодня копия получит:
 
 ```text
-Run Date = 2026-08-31
+Run Date = TODAY
 ```
 
-Это даст видимый результат без чтения базы или Python.
+Это даст видимый результат без чтения базы или пользовательского Python-кода.
 
 ---
 
-# 7. Почему в учебнике не ждём до завтра
+# 8. Почему в учебнике не ждём до завтра
 
 Обычная работа Auto Repeat зависит от scheduler.
 
@@ -200,7 +245,7 @@ Run Date = 2026-08-31
 Поэтому мы сделаем расписание так, чтобы:
 
 ```text
-Next Schedule Date = 2026-08-31
+Next Schedule Date = TODAY
 ```
 
 а затем один раз вызовем штатную функцию v16 через уже установленный Bench.
@@ -217,31 +262,25 @@ bench --site learn.localhost execute <функция>
 
 ---
 
-# 8. Как получим Next Schedule Date = сегодня
-
-Сегодня на учебном стенде:
-
-```text
-2026-08-31
-```
+# 9. Как получим Next Schedule Date = TODAY
 
 Сначала создадим Auto Repeat:
 
 ```text
-Start Date = 2026-08-31
+Start Date = TODAY
 Frequency  = Daily
 ```
 
 После сохранения ожидается:
 
 ```text
-Next Schedule Date = 2026-09-01
+Next Schedule Date = TOMORROW
 ```
 
 Затем у уже существующего Auto Repeat временно изменим:
 
 ```text
-Start Date = 2026-08-30
+Start Date = YESTERDAY
 ```
 
 и сохраним.
@@ -249,14 +288,14 @@ Start Date = 2026-08-30
 Для Daily расписания ближайшая дата станет:
 
 ```text
-2026-08-31
+TODAY
 ```
 
-Теперь штатная функция создания повторений имеет точное условие для сегодняшнего запуска.
+Теперь штатная функция создания повторений имеет точное условие для текущего запуска независимо от того, в какой календарный день проходится курс.
 
 ---
 
-# 9. После запуска
+# 10. После запуска
 
 Если Auto Repeat имеет имя:
 
@@ -264,73 +303,75 @@ Start Date = 2026-08-30
 AUT-AR-00001
 ```
 
-и `Next Schedule Date = 2026-08-31`, вызов scheduled backend создаст новую `Recurring Note`.
+и `Next Schedule Date = TODAY`, вызов scheduled backend создаст новую `Recurring Note`.
 
 После этого:
 
 ```text
 новый Document создан
-Next Schedule Date → 2026-09-01
+Next Schedule Date → TOMORROW
 ```
 
 Так мы проверим и создание, и продвижение расписания.
 
 ---
 
-# 10. Эксперимент с Frequency
+# 11. Эксперимент с Frequency
 
 После успешного запуска временно переключим:
 
 ```text
 Frequency = Weekly
-Start Date = 2026-08-30
+Start Date = YESTERDAY
 ```
 
 Без выбранных отдельных weekdays обычный недельный шаг равен семи дням.
 
-Ожидается:
+Ожидаемая дата:
 
 ```text
-Next Schedule Date = 2026-09-06
+YESTERDAY + 7 days
 ```
+
+её заранее посчитает та же команда `date` в лабораторной.
 
 Затем вернём:
 
 ```text
 Frequency = Daily
-Start Date = 2026-08-31
+Start Date = TODAY
 ```
 
 и снова получим:
 
 ```text
-Next Schedule Date = 2026-09-01
+Next Schedule Date = TOMORROW
 ```
 
 ---
 
-# 11. Гарантированная ошибка с End Date
+# 12. Гарантированная ошибка с End Date
 
 На активном Auto Repeat попробуем указать:
 
 ```text
-Start Date = 2026-08-31
-End Date   = 2026-08-31
+Start Date = TODAY
+End Date   = TODAY
 ```
 
-Для текущей даты v16 отклоняет такую настройку:
+В текущем v16 такая настройка отклоняется сообщением:
 
 ```text
 End Date cannot be today.
 ```
 
-Это удобная безопасная ошибка: ни reference document, ни уже созданная копия не повреждаются.
+Это безопасная ошибка: ни reference document, ни уже созданная копия не повреждаются.
 
 После неё `End Date` очищаем и сохраняем рабочую настройку.
 
 ---
 
-# 12. Почему в конце Auto Repeat будет Disabled
+# 13. Почему в конце Auto Repeat будет Disabled
 
 Активное ежедневное правило продолжило бы создавать новые документы после лабораторной.
 
@@ -351,7 +392,7 @@ Next Schedule Date = пусто
 
 ---
 
-# 13. Что остаётся отдельным от Auto Repeat
+# 14. Что остаётся отдельным от Auto Repeat
 
 Auto Repeat не заменяет:
 
@@ -386,9 +427,11 @@ Notification
 1. Auto Repeat создаёт новый Document по расписанию.
 2. Reference Document остаётся обычным Document-образцом.
 3. Целевой DocType должен иметь `Allow Auto Repeat = ✓`.
-4. `Next Schedule Date` рассчитывает Framework.
-5. Mandatory Date-поле новой копии может получить дату расписания.
-6. Для учебной проверки не нужно ждать следующего дня: используем точный Bench-вызов штатной функции v16.
-7. После опыта ежедневное правило оставляем Disabled.
+4. Это свойство добавляет служебную связь `auto_repeat` автоматически.
+5. `Next Schedule Date` рассчитывает Framework.
+6. Mandatory Date-поле новой копии может получить дату расписания.
+7. Лаборатория берёт `TODAY` из Site и поэтому не зависит от даты прохождения курса.
+8. Для учебной проверки не нужно ждать следующего дня: используем точный Bench-вызов штатной функции v16.
+9. После опыта ежедневное правило оставляем Disabled.
 
 Теперь выполни [**лабораторную 28**](labs/28_AUTO_REPEAT_LAB.md).
