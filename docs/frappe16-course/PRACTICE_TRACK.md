@@ -708,46 +708,407 @@ Due Date получает условие status == Done вместо обрат�
 
 # После блока D — главы 17–22
 
-Есть:
+Блок D добавляет рабочую штатную permission model поверх уже существующего `Request`. Он не создаёт custom permission hooks и не требует будущего server-side кода.
+
+## Roles
+
+На Site существуют:
 
 ```text
-Roles:
 Training User
+  Desk Access: ✓
+  Disabled:    ☐
+
 Training Manager
+  Desk Access: ✓
+  Disabled:    ☐
+```
 
-Users:
+## Учебные Users
+
+```text
 student.user@example.test
+  Enabled:   ✓
+  User Type: System User
+  Roles:
+    Training User
+
 student.manager@example.test
+  Enabled:   ✓
+  User Type: System User
+  Roles:
+    Training User
+    Training Manager
+```
 
-DocType:
-Training Area
+Для обоих задан рабочий пароль disposable локального стенда, и оба проверены входом через:
 
-Areas:
+```text
+http://learn.localhost:8000/app
+```
+
+Контролируемый переход `Training User Desk Access = 0` полностью восстановлен; оба Users финально снова System User.
+
+## `Request` — новые Standard fields
+
+В metadata App постоянно добавлены:
+
+```text
+Internal Cost
+  internal_cost
+  Currency
+  Perm Level: 1
+
+Area
+  area
+  Link → Training Area
+  Ignore User Permissions: ☐
+```
+
+`Area` размещена в `Main → General` после `Due Date`.
+
+`Internal Cost` размещён в `Details` после `Notes`.
+
+То есть `request.json` изменился из-за собственных Standard DocFields глав 19–20, но **не** из-за Role Permissions Manager.
+
+## `Request` Role Permissions
+
+Runtime rules настроены через Role Permissions Manager и живут как site-level `Custom DocPerm`.
+
+Level 0:
+
+```text
+Training User
+  Read:    ✓
+  Write:   ✓
+  Create:  ✓
+  Delete:  ☐
+  Share:   ☐
+  Only if Creator: ☐
+
+Training Manager
+  Read:    ✓
+  Write:   ✓
+  Create:  ✓
+  Delete:  ✓
+  Share:   ✓
+  Only if Creator: ☐
+```
+
+Для этих учебных rows ненужные permissions оставлены выключенными:
+
+```text
+Select
+Print
+Email
+Report
+Import
+Export
+Mask
+```
+
+Level 1:
+
+```text
+Training User
+  rule отсутствует
+
+Training Manager
+  Read:  ✓
+  Write: ✓
+  Mask:  ☐
+```
+
+Временная Level 1 row Training User полностью удалена.
+
+## `Training Area`
+
+Standard DocType:
+
+```text
+Name:        Training Area
+Module:      Training
+Auto Name:   field:area_name
+Title Field: area_name
+```
+
+Поле:
+
+```text
+Area Name
+  area_name
+  Data
+  Mandatory
+```
+
+Documents:
+
+```text
 North
 South
 ```
 
-В `Request` добавлены:
-
-```text
-Area → Training Area
-Internal Cost → Permission Level 1
-```
-
-Рабочая модель доступа:
+Role Permissions Manager:
 
 ```text
 Training User
-→ работает с разрешёнными Request
-→ ограничен User Permission по North
-→ не видит Internal Cost
+→ Training Area Level 0: Read only
 
 Training Manager
-→ имеет расширенные права
-→ видит Internal Cost
+→ Training Area Level 0: Read only
 ```
 
-Есть один учебный пример Share.
+## User Permission
+
+Для обычного User существует ровно одна учебная Area permission:
+
+```text
+User:      student.user@example.test
+Allow:     Training Area
+For Value: North
+Is Default: ✓
+Apply To All Document Types: ✓
+```
+
+У:
+
+```text
+student.manager@example.test
+```
+
+User Permission `Training Area` отсутствует.
+
+Глобальный strict-mode ради курса не переключался.
+
+## Фиксированное распределение C12 по Area
+
+```text
+North:
+  C12-Open-High-1
+  C12-Open-Medium
+  C12-Progress-High
+
+South:
+  C12-Open-High-2
+  C12-Progress-Low
+  C12-Done-High
+```
+
+Поэтому при обычной финальной модели:
+
+```text
+student.user@example.test
+Subject Like C12-%
+→ 3 Documents
+
+student.manager@example.test
+Subject Like C12-%
+→ 6 Documents
+```
+
+`Request.area Ignore User Permissions` после эксперимента снова выключен.
+
+## D18 Documents и owner
+
+Постоянно существуют:
+
+```text
+D18-User-Record
+  owner:         student.user@example.test
+  Area:          North
+  Internal Cost: 101
+
+D18-Manager-Record
+  owner:         student.manager@example.test
+  Area:          North
+  Internal Cost: 202
+```
+
+Временный:
+
+```text
+D18-User-Delete-Probe
+```
+
+удалён менеджером в лабораторной 18.
+
+`Only if Creator` проверен на этих двух North-документах и финально снова:
+
+```text
+Training User
+Only if Creator = ☐
+```
+
+То есть owner **не является постоянным ограничением** финального Training User.
+
+## Shared South Request
+
+Постоянно существует:
+
+```text
+D21-Shared-South
+  owner:         student.manager@example.test
+  Area:          South
+  Notes:         Read-only shared example
+  Internal Cost: 404
+```
+
+Для него существует `DocShare`:
+
+```text
+User:  student.user@example.test
+Read:  ✓
+Write: ☐
+```
+
+Обычный User получает этот South Request как явное read-only исключение своей `Training Area = North` User Permission.
+
+Временный Share Write полностью снят.
+
+`Internal Cost` через Share обычному User не раскрывается, потому что у него нет Level 1 permission.
+
+Ещё один контрольный South Document:
+
+```text
+C12-Open-High-2
+  Area:          South
+  Internal Cost: 303
+  Share:         отсутствует
+```
+
+поэтому обычному User финально недоступен.
+
+## Итоговая контрольная матрица Training User
+
+```text
+D18-User-Record
+  North
+  свой owner
+  no Share
+  Read:  да
+  Write: да
+  Internal Cost: нет
+
+D18-Manager-Record
+  North
+  чужой owner
+  no Share
+  Read:  да
+  Write: да
+  Internal Cost: нет
+
+C12-Open-High-2
+  South
+  no Share
+  Read:  нет
+  Write: нет
+
+D21-Shared-South
+  South
+  Read Share
+  Read:  да
+  Write: нет
+  Internal Cost: нет
+```
+
+Training Manager видит и редактирует все четыре контрольных Request и имеет доступ к `Internal Cost`.
+
+## Sharing settings
+
+Глобально оставлено:
+
+```text
+Disable Document Sharing = ☐
+```
+
+Это нужно сохранить и для следующего блока, где Assignment может использовать Share как вспомогательный механизм доступа.
+
+## Что ученик уже проверил руками
+
+```text
+User vs Role
+System User vs Website User
+Role Desk Access
+реальный вход двух ограниченных Users
+Role Permissions Manager
+Read / Create / Write / Delete / Share
+additive permissions нескольких Roles
+Custom DocPerm vs Standard request.json
+Permission Level 0 vs 1
+field-level Read / Write
+User Permission по Link
+Is Default
+Apply To All Document Types
+Ignore User Permissions
+owner vs Responsible
+Only if Creator
+DocShare Read / Write
+Share как исключение User Permission/owner restrictions
+Permission Level поверх Share
+List access vs direct Document access
+```
+
+## Контролируемые ошибки блока D
+
+Все восстановлены:
+
+```text
+Training User Desk Access снят
+→ student.user становится Website User
+→ Desk Access возвращён, User снова System User
+
+Training User Write снят
+→ существующий Request read-only
+→ Write возвращён
+
+Training User получает Level 1 Read, затем лишний Write
+→ Internal Cost временно раскрывается и редактируется
+→ значение восстановлено, Training User Level 1 row удалена
+
+Request.area Ignore User Permissions = ✓
+→ C12-доступ Training User расширяется 3 → 6
+→ Ignore User Permissions возвращён в ☐
+
+Training User Only if Creator = ✓
+→ чужой North Request исчезает
+→ owner restriction возвращён в ☐
+
+D21-Shared-South получает временный Share Write
+→ обычный User меняет Notes
+→ Notes восстановлены, Share снова Read only
+
+Training User Read временно снят в финальной диагностике
+→ обычные Request исчезают, shared Request остаётся
+→ Read возвращён
+```
+
+## Граница к custom permission code
+
+На стенде после блока D **не создано**:
+
+```text
+permission_query_conditions hook
+custom has_permission hook
+Permission Query Server Script
+```
+
+Ученик знает эти extension points только как будущую границу, когда штатной permission model действительно недостаточно.
+
+## Handoff в блок E
+
+До начала главы 23:
+
+```text
+оба учебных User Enabled и System User
+оба могут войти в /app
+Training User имеет рабочий доступ к North Request
+Training Manager имеет расширенный доступ
+Sharing включён
+существует один read-only Share-пример
+Assignment / ToDo блок D ещё не создаёт как обязательное состояние
+```
+
+Это точное входное состояние главы 23: Assignment впервые изучается уже в блоке E.
 
 ---
 
