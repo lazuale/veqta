@@ -255,8 +255,8 @@ Course Note       course_note       Small Text = Block B settings
 Standard Tree DocType:
 
 ```text
-Is Tree:    1
-Auto Name:  field:category_name
+Is Tree:     1
+Auto Name:   field:category_name
 Title Field: category_name
 ```
 
@@ -390,21 +390,319 @@ Items
 
 # После блока C — главы 11–16
 
-`Request` имеет аккуратную Form layout.
+Блок C не создаёт новую предметную модель. Он превращает накопленные Documents и metadata блока B в рабочий интерфейс Desk и добавляет один явный слой site customization.
 
-Есть:
+## `Request` — итоговая Form View
+
+Standard layout:
 
 ```text
-List data
-Kanban по Status
-Calendar по Due Date
-при необходимости Start/End Date для Gantt
-Training Category Tree
-Training Workspace
-custom_local_note через Customize Form
+Main
+├── General
+│   ├── Subject | Priority
+│   ├── Status  | Due Date
+│   └── Is Urgent
+├── Responsibility
+│   ├── Responsible | Responsible Name
+│   └── Watchers
+└── Urgent Details
+    ├── Display Depends On: eval:doc.is_urgent
+    └── Estimate Hours
+
+Details
+├── Description
+│   ├── Description
+│   └── Notes
+├── Files
+│   └── Reference File
+└── Items
+    └── Items
 ```
 
-Ученик различает Standard metadata и site customization, но глубокий перенос ещё не изучает.
+У `General` нет `Display Depends On`.
+
+Экспериментальное условие лабораторной 16 полностью удалено:
+
+```text
+Request.due_date
+Display Depends On: пусто
+```
+
+## List View metadata
+
+Постоянно включено:
+
+```text
+Status
+  In List View:   ✓
+  In List Filter: ✓
+
+Priority
+  In List View:   ✓
+  In List Filter: ✓
+
+Due Date
+  In List View:   ✓
+```
+
+## Фиксированный набор главы 12
+
+На Site остаются шесть Requests:
+
+```text
+C12-Open-High-1
+C12-Open-High-2
+C12-Open-Medium
+C12-Progress-High
+C12-Progress-Low
+C12-Done-High
+```
+
+Их канонические значения:
+
+```text
+C12-Open-High-1
+  Status: Open
+  Priority: High
+  Due Date: 2026-09-01
+  Responsible: Administrator
+  Start Date: 2026-08-31
+  End Date:   2026-09-01
+
+C12-Open-High-2
+  Status: Open
+  Priority: High
+  Due Date: 2026-09-05
+  Responsible: Administrator
+  Start Date: 2026-09-03
+  End Date:   2026-09-05
+
+C12-Open-Medium
+  Status: Open
+  Priority: Medium
+  Due Date: 2026-09-03
+  Responsible: Guest
+  Start Date: 2026-09-02
+  End Date:   2026-09-03
+
+C12-Progress-High
+  Status: In Progress
+  Priority: High
+  Due Date: 2026-09-02
+  Responsible: Administrator
+  Start Date: 2026-09-01
+  End Date:   2026-09-02
+
+C12-Progress-Low
+  Status: In Progress
+  Priority: Low
+  Due Date: 2026-09-04
+  Responsible: Guest
+  Start Date: 2026-09-03
+  End Date:   2026-09-04
+
+C12-Done-High
+  Status: Done
+  Priority: High
+  Due Date: 2026-09-06
+  Responsible: Administrator
+  Start Date: 2026-09-05
+  End Date:   2026-09-06
+```
+
+## Calendar / Gantt fields
+
+`Request` постоянно содержит:
+
+```text
+Start Date  start_date  Date
+End Date    end_date    Date
+```
+
+DocType setting:
+
+```text
+Is Calendar and Gantt = ✓
+```
+
+Существует named Calendar View:
+
+```text
+Request Course Calendar
+  Reference Document Type: Request
+  Subject Field: subject
+  Start Date Field: start_date
+  End Date Field: end_date
+  All Day: ✓
+```
+
+Standard calendar mapping для Calendar/Gantt существует в App:
+
+```text
+apps/training/training/training/doctype/request/request_calendar.js
+```
+
+Содержит mapping:
+
+```text
+start → start_date
+end   → end_date
+id    → name
+title → subject
+allDay → 1
+```
+
+## Kanban
+
+Существует:
+
+```text
+Kanban Board: Request Status
+Reference Document Type: Request
+Field Name: status
+```
+
+Итоговые C12 Status после эксперимента восстановлены; в частности:
+
+```text
+C12-Open-Medium → Open
+```
+
+## Tree
+
+`Training Category` после эксперимента восстановлен:
+
+```text
+Operations
+└── Internal
+
+Analytics
+└── External
+```
+
+## Public Workspace `Training`
+
+Существует и используется дальше курса.
+
+Обязательные блоки:
+
+```text
+Shortcut: Requests
+  DocType → Request
+  View → List
+
+Shortcut: Request Kanban
+  DocType → Request
+  View → Kanban
+  Board → Request Status
+
+Shortcut: Training Categories
+  DocType → Training Category
+  View → Tree
+
+Quick List: Recent Requests
+  DocType → Request
+
+Number Card: Open Requests
+  Type → Document Type
+  Document Type → Request
+  Function → Count
+  Filter → status = Open
+  Is Public → ✓
+
+Dashboard Chart: Requests by Status
+  Chart Type → Group By
+  Document Type → Request
+  Group By Based On → status
+  Group By Type → Count
+  Visual Type → Bar
+  Is Public → ✓
+```
+
+## Site-level customization `Request`
+
+Постоянно остаётся Custom Field:
+
+```text
+Name:       Request-custom_local_note
+DocType:    Request
+Fieldname:  custom_local_note
+Field Type: Small Text
+```
+
+Минимум один Request содержит:
+
+```text
+custom_local_note = Local value from chapter 15
+```
+
+Постоянно остаётся Property Setter:
+
+```text
+Name:       Request-estimate_hours-description
+Doc Type:   Request
+Field Name: estimate_hours
+Property:   description
+Value:      Local customization from chapter 15
+```
+
+Временный Custom Field полностью удалён:
+
+```text
+Request-custom_ch15_required_test
+```
+
+Лабораторная 15 доказала через SHA-256 конкретного файла, что Customize Form не изменил:
+
+```text
+apps/training/training/training/doctype/request/request.json
+```
+
+между началом и концом самой лабораторной.
+
+## Desk Page
+
+В блоке C **не создано ни одного нового Page**.
+
+Ученик только установил границу:
+
+```text
+один Document              → Form
+много Documents            → List
+статусы                     → Kanban
+даты                        → Calendar
+интервалы                   → Gantt
+реальная иерархия           → Tree
+рабочая стартовая страница  → Workspace
+одна глобальная настройка   → Single Form
+собственный сложный UI      → кандидат на Page
+```
+
+## Контролируемые ошибки блока C
+
+После восстановления не оставляют сломанного состояния:
+
+```text
+General Section скрыта через ошибочный Display Depends On
+→ условие полностью удалено
+
+фильтр C12 + Done + Low даёт 0 строк
+→ фильтры очищены
+
+End Date временно создан как Data и недоступен Calendar View
+→ Field Type исправлен на Date до заполнения данных
+
+Number Card фильтруется по name = __NO_SUCH_REQUEST__ и показывает 0
+→ фильтр заменён на status = Open
+
+временный Mandatory Custom Field блокирует Save
+→ Custom Field удалён
+
+Due Date получает условие status == Done вместо обратного
+→ условие исправлено, проверено и затем полностью очищено
+```
+
+Это точное входное состояние блока D. Глава 17 должна начинаться с уже готового интерфейса и модели `Request`, но **без учебных ролей и отдельных учебных Users**: они впервые создаются в блоке D.
 
 ---
 
