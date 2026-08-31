@@ -25,6 +25,22 @@ Windows
 
 Выполнять по порядку. При ошибке не переходить к следующему шагу.
 
+### Как читать интерактивные шаги
+
+Если команда задаёт вопросы, ниже в инструкции указано, **что именно отвечать**. Не выбирать варианты наугад.
+
+Пароли при вводе в Linux обычно **никак не отображаются**: нет ни `*`, ни точек. Это нормально — ввести пароль и нажать `Enter`.
+
+В ходе установки появятся три разных учётных секрета:
+
+```text
+Linux / WSL user frappe   пароль пользователя Ubuntu
+MariaDB root              пароль администратора базы данных
+Frappe Administrator      пароль входа в Desk
+```
+
+Их не записывать в Git, README, Issue или исходный код. Хранить в менеджере паролей.
+
 ## 1. WSL2
 
 **Зачем:** получить нормальную Linux-среду разработки Frappe внутри Windows. Сам Frappe и его зависимости будут жить здесь, а браузер и VS Code можно использовать из Windows.
@@ -44,11 +60,32 @@ wsl -l -v
 wsl --install -d Ubuntu-24.04
 ```
 
+После установки открыть `Ubuntu 24.04` из меню Пуск. При первом запуске Ubuntu создаёт Linux-пользователя.
+
+Если появятся вопросы:
+
+```text
+Enter new UNIX username: frappe
+New password:             придумать пароль Linux-пользователя
+Retype new password:      повторить тот же пароль
+```
+
+Дальше в этой инструкции предполагается, что Linux-пользователь называется `frappe`.
+
 В Ubuntu проверить:
 
 ```bash
+whoami
 cat /etc/os-release
 ps -p 1 -o comm=
+```
+
+Ожидается:
+
+```text
+whoami        -> frappe
+Ubuntu        -> 24.04
+PID 1         -> systemd
 ```
 
 Если PID 1 не `systemd`:
@@ -59,6 +96,14 @@ sudo tee /etc/wsl.conf >/dev/null <<'EOF'
 systemd=true
 EOF
 ```
+
+При первом `sudo` Ubuntu может спросить:
+
+```text
+[sudo] password for frappe:
+```
+
+Ввести **пароль Linux-пользователя `frappe`**, созданный выше.
 
 Затем в PowerShell:
 
@@ -91,9 +136,27 @@ sudo apt install -y \
 sudo systemctl enable --now redis-server
 ```
 
+Ключ `-y` автоматически подтверждает установку пакетов. Если `sudo` снова спросит пароль — это пароль Linux-пользователя `frappe`.
+
+Проверить Redis:
+
+```bash
+systemctl is-active redis-server
+redis-cli ping
+```
+
+Ожидается:
+
+```text
+active
+PONG
+```
+
 ## 3. MariaDB 11.8
 
-**Зачем:** это база данных локального Frappe site. Для текущего стенда используем проверенную линию MariaDB 11.8, а не случайную версию из стандартного Ubuntu repository.
+**Зачем:** это база данных локального Frappe site. Для текущего стенда используем поддерживаемую Frappe линию MariaDB 11.8, а не случайную версию из стандартного Ubuntu repository.
+
+Подключить официальный repository MariaDB и установить сервер:
 
 ```bash
 curl -LsS https://r.mariadb.com/downloads/mariadb_repo_setup \
@@ -102,46 +165,202 @@ curl -LsS https://r.mariadb.com/downloads/mariadb_repo_setup \
 sudo apt update
 sudo apt install -y mariadb-server mariadb-client libmariadb-dev
 sudo systemctl enable --now mariadb
+```
+
+Проверить, что сервис запущен и установлена именно линия `11.8`:
+
+```bash
+systemctl is-active mariadb
 mariadb --version
 ```
 
-Вывод должен содержать `11.8`.
+Ожидается:
 
-Затем:
+```text
+active
+mariadb ... 11.8.x ...
+```
+
+Если версия не `11.8.x`, дальше не идти.
+
+### Первичная настройка безопасности MariaDB
+
+Запустить:
 
 ```bash
 sudo mariadb-secure-installation
 ```
 
-Запомнить реквизиты администратора MariaDB — они понадобятся при создании site. В Git их не сохранять.
+Для **этого локального стенда VEQTA** отвечать так:
+
+```text
+Enter current password for root (enter for none):
+-> просто Enter
+
+Switch to unix_socket authentication [Y/n]
+или Enable unix_socket authentication [Y/n]
+-> n
+
+Change the root password? [Y/n]
+-> Y
+
+New password:
+-> придумать отдельный пароль MariaDB root
+
+Re-enter new password:
+-> повторить тот же пароль
+
+Remove anonymous users? [Y/n]
+-> Y
+
+Disallow root login remotely? [Y/n]
+-> Y
+
+Remove test database and access to it? [Y/n]
+-> Y
+
+Reload privilege tables now? [Y/n]
+-> Y
+```
+
+То есть логика такая:
+
+```text
+unix_socket для root       -> нет
+root password              -> задать
+anonymous users            -> удалить
+disallow remote root       -> да
+test database              -> удалить
+reload privilege tables    -> да
+```
+
+Почему `unix_socket -> n`: позже `bench new-site` должен иметь возможность войти в MariaDB администратором базы по паролю. При этом удалённый вход `root` запрещаем — пароль используется только локально внутри WSL.
+
+В конце должен появиться текст о завершении настройки (`All done` / установка защищена).
+
+### Проверка пароля MariaDB root
+
+Сразу проверить, что пароль действительно работает:
+
+```bash
+mariadb -u root -p
+```
+
+Появится:
+
+```text
+Enter password:
+```
+
+Ввести **пароль MariaDB root**, который только что задали. Если вход успешен, появится приглашение вида:
+
+```text
+MariaDB [(none)]>
+```
+
+Внутри MariaDB выполнить:
+
+```sql
+SELECT VERSION();
+SELECT USER(), CURRENT_USER();
+EXIT;
+```
+
+`SELECT VERSION()` должен вернуть `11.8.x`, после `EXIT;` вернёмся в обычную Linux-консоль.
+
+**Запомнить пароль MariaDB root.** Он понадобится в разделе **8. Site**, когда `bench new-site` спросит `MariaDB root password`. В Git его не сохранять.
 
 ## 4. GitHub SSH
 
 **Зачем:** чтобы WSL мог клонировать `lazuale/veqta` и отправлять изменения обратно в GitHub без ручного копирования файлов.
 
+Создать SSH-ключ:
+
 ```bash
 ssh-keygen -t ed25519
+```
+
+Для локального стенда отвечать:
+
+```text
+Enter file in which to save the key (.../.ssh/id_ed25519):
+-> Enter
+
+Enter passphrase (empty for no passphrase):
+-> Enter
+
+Enter same passphrase again:
+-> Enter
+```
+
+То есть используем стандартный путь `~/.ssh/id_ed25519` без passphrase. Это допустимо для локального dev-стенда; доступ к самому Windows/WSL-профилю должен быть защищён.
+
+Показать публичный ключ:
+
+```bash
 cat ~/.ssh/id_ed25519.pub
 ```
 
-Содержимое `id_ed25519.pub` добавить в GitHub:
+Скопировать **всю одну строку**, начинающуюся с `ssh-ed25519`.
+
+В GitHub открыть:
 
 ```text
-Settings → SSH and GPG keys → New SSH key
+Avatar -> Settings -> SSH and GPG keys -> New SSH key
 ```
 
-Проверить:
+Заполнить:
+
+```text
+Title:    VEQTA WSL2
+Key type: Authentication Key
+Key:      вставить строку из id_ed25519.pub
+```
+
+Нажать `Add SSH key`.
+
+Проверить из Ubuntu:
 
 ```bash
 ssh -T git@github.com
 ```
 
-Настроить автора:
+При первом подключении может появиться:
+
+```text
+Are you sure you want to continue connecting (yes/no/[fingerprint])?
+```
+
+Ответить:
+
+```text
+yes
+```
+
+Ожидаемый результат содержит:
+
+```text
+Hi lazuale! You've successfully authenticated...
+```
+
+GitHub shell-доступ не предоставляет — соответствующее сообщение после успешной аутентификации нормально.
+
+Настроить автора Git-коммитов:
 
 ```bash
 git config --global user.name "lazuale"
 git config --global user.email "ВАШ_GITHUB_EMAIL"
 git config --global init.defaultBranch main
+```
+
+Вместо `ВАШ_GITHUB_EMAIL` указать email, который должен отображаться в Git-коммитах.
+
+Проверить:
+
+```bash
+git config --global user.name
+git config --global user.email
+git config --global init.defaultBranch
 ```
 
 ## 5. Node, Python, Bench
@@ -186,6 +405,8 @@ source ~/.bashrc
 uv python install 3.14.7 --default
 uv tool install 'frappe-bench==5.31.0'
 ```
+
+Эти команды не должны требовать выбора вариантов. Сообщения об успешной загрузке и установке — нормальны; при `error` дальше не идти.
 
 Проверить:
 
@@ -246,6 +467,10 @@ cd ~/frappe/veqta-bench
 bench version
 ```
 
+`bench init` скачивает Frappe, создаёт Python virtual environment, устанавливает зависимости и собирает assets. Вывод будет длинным — это нормально. На этом шаге ничего выбирать не требуется.
+
+Команда должна завершиться без `ERROR`/`Traceback` и вернуть обычное приглашение Linux-консоли.
+
 Зафиксировать версию и commit:
 
 ```bash
@@ -274,7 +499,7 @@ cd ~/frappe/veqta-bench
 bench new-app --no-git veqta
 ```
 
-Ответы:
+Команда интерактивная. Отвечать:
 
 ```text
 App Title: VEQTA
@@ -285,6 +510,8 @@ App License: agpl-3.0
 Create GitHub Workflow action for unittests: No
 Branch Name: main
 ```
+
+Если формулировка вопроса немного отличается, смысл значений сохранять. Пароли здесь не вводятся.
 
 Теперь объединить сгенерированный app с уже существующей Git history проекта:
 
@@ -328,9 +555,35 @@ git push origin main
 
 **Зачем:** app сам по себе — код. Site — локальный экземпляр Frappe с БД, в который этот app устанавливается и где мы будем работать через Desk.
 
+Создать site:
+
 ```bash
 cd ~/frappe/veqta-bench
 bench new-site veqta.localhost --db-type mariadb
+```
+
+Команда спросит как минимум два пароля.
+
+```text
+MariaDB root password:
+-> ввести пароль MariaDB root из раздела 3
+
+Set Administrator password:
+-> придумать пароль пользователя Frappe Administrator
+```
+
+Если попросит повторить пароль Administrator — ввести тот же пароль ещё раз.
+
+Это **разные пароли**:
+
+```text
+MariaDB root          -> нужен Bench для создания базы и DB user
+Frappe Administrator  -> нужен человеку для входа в Desk
+```
+
+После успешного создания site продолжить:
+
+```bash
 bench use veqta.localhost
 bench --site veqta.localhost install-app veqta
 bench --site veqta.localhost list-apps
@@ -361,21 +614,30 @@ cd ~/frappe/veqta-bench
 bench start
 ```
 
+`bench start` остаётся работать в текущем окне терминала и выводит логи процессов. Это нормально; приглашение shell не вернётся, пока Bench работает.
+
 В Windows открыть:
 
 ```text
 http://veqta.localhost:8000
 ```
 
-Войти пользователем `Administrator`.
+На странице входа:
 
-Остановка: `Ctrl+C`.
+```text
+User / Email: Administrator
+Password:     пароль Frappe Administrator из раздела 8
+```
+
+Если открылась Desk — стенд запущен.
+
+Остановка Bench в Ubuntu: `Ctrl+C`.
 
 ## 10. VS Code
 
 **Зачем:** видеть рядом код используемого Frappe и реальный код VEQTA, не смешивая их.
 
-В Windows установить VS Code и расширение Microsoft `WSL`.
+В Windows установить VS Code. Затем открыть Extensions (`Ctrl+Shift+X`), найти расширение Microsoft **WSL** и нажать `Install`.
 
 В Ubuntu:
 
@@ -383,6 +645,10 @@ http://veqta.localhost:8000
 cd ~/frappe/veqta-bench
 code .
 ```
+
+При первом запуске VS Code может несколько секунд устанавливать `VS Code Server` внутрь WSL. Это нормально; дождаться открытия окна VS Code, подключённого к WSL.
+
+В левом нижнем углу VS Code должно быть видно, что окно работает через WSL/Ubuntu.
 
 Рабочие каталоги:
 
