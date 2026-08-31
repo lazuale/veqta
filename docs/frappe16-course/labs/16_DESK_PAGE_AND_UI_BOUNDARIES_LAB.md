@@ -485,4 +485,4 @@ Custom Field Request-custom_local_note
 Property Setter Request-estimate_hours-description
 ```
 
-Это точное входное состояние следующего блока: [**17. User, System User, Website User и Role**](../17_USERS_AND_ROLES.md).
+Это точное входное состояние следующего блока: [**17. User и Role**](../17_USER_AND_ROLE.md).
