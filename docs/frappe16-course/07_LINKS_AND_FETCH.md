@@ -1,222 +1,210 @@
-# 07. Link, Dynamic Link и Fetch From
+# 07. Link, Dynamic Link и Fetch From на существующем `Request`
 
-Во Frappe документы редко живут изолированно. Заявка может ссылаться на отдел, сотрудника, проект или другой документ.
+До этого все значения `Request` жили внутри самого документа: текст, дата, приоритет, флаг, файл.
 
-Для этого есть несколько разных механизмов. Самые важные на старте — `Link`, `Dynamic Link` и `Fetch From`.
+Теперь заявке нужен ответственный пользователь. Пользователь уже существует как отдельный Document системного DocType `User`, поэтому копировать его имя обычным `Data` вручную было бы неправильно. Нужна связь между двумя Documents.
 
-Проверено: **2026-08-30**.
+В этой главе добавим к `Request` постоянную связь `Responsible → User`, автоматически подтянем `full_name` через `Fetch From` и отдельно проверим, чем обычный `Link` отличается от `Dynamic Link`.
 
-## 1. Link — ссылка на другой DocType
+Проверено для **Frappe Framework v16.32.0**. В системном DocType `User` этой версии поле `full_name` действительно существует.
 
-Допустим, есть справочник:
+---
+
+## Что уже есть на стенде
+
+`Request` сохраняет модель из лаборатории 06:
 
 ```text
-DocType: Department
-
-Documents:
-ANALYTICS
-FINANCE
-OPERATIONS
+subject
+description
+status
+due_date
+priority
+is_urgent
+estimate_hours
+notes
+reference_file
 ```
 
-В `Request` добавим поле:
+Naming:
 
 ```text
-Label: Department
-Fieldname: department
-Field Type: Link
-Options: Department
+Title Field: subject
+Auto Name:   REQ-.YYYY.-.#####
 ```
 
-Теперь пользователь не печатает название отдела вручную, а выбирает существующий Document.
+Есть старые Request Documents и новые Documents серии `REQ-2026-.....`.
 
-Если выбран `ANALYTICS`, в поле сохраняется:
+---
+
+## Зачем здесь нужен `Link`
+
+Мы хотим добавить поле:
 
 ```text
-department = "ANALYTICS"
+Responsible
 ```
 
-То есть обычный Link хранит **`name` целевого документа**.
+Ответственный — не произвольная строка. Это один из существующих пользователей Frappe.
 
-## 2. Что означает Options у Link
-
-Для Link:
+Поэтому модель будет такой:
 
 ```text
-Options = Department
+Request.responsible
+        │
+        └── Link → User
+```
+
+В `Options` поля Link указывается DocType цели:
+
+```text
+Options = User
+```
+
+Теперь Frappe знает, что значение должно ссылаться именно на Document `User`.
+
+---
+
+## Что хранит Link
+
+Обычный Link хранит системный `name` выбранного Document.
+
+Например:
+
+```text
+Responsible = Administrator
 ```
 
 означает:
 
-> это поле может ссылаться на Documents DocType `Department`.
-
-Тип цели известен заранее.
-
-Схема:
-
 ```text
-Request.department
-        │
-        └── Link → Department
-                     │
-                     └── name = ANALYTICS
+DocType цели: User
+name цели:    Administrator
 ```
 
-## 3. Почему не сделать Department обычным Data
-
-Можно было бы создать:
+Тип цели известен из metadata поля:
 
 ```text
-Department
+Field Type: Link
+Options:    User
+```
+
+Поэтому в самом значении достаточно хранить `name`.
+
+---
+
+## Почему не использовать обычный `Data`
+
+Если сделать Responsible строкой, можно получить:
+
+```text
+Administrator
+administrator
+Admin
+Аминистратор
+```
+
+Frappe не будет знать, какой реальный User имеется в виду.
+
+Link даёт другую модель:
+
+```text
+выбираем существующий Document
+→ Frappe знает его DocType
+→ Frappe проверяет существование ссылки
+```
+
+В лабораторной мы намеренно введём несуществующего User и увидим штатный отказ.
+
+---
+
+## `Fetch From`: копируем понятное значение из связанного Document
+
+Системный `User` имеет поле:
+
+```text
+full_name
+```
+
+К `Request` добавим второе поле:
+
+```text
+Responsible Name
+Fieldname: responsible_name
 Field Type: Data
+Read Only: включено
+Fetch From: responsible.full_name
 ```
 
-и писать руками:
+Последовательность будет такой:
 
 ```text
-Analytics
-analytics
-ANALYTICS
-Аналитика
-```
-
-Через месяц получим несколько написаний одного и того же отдела.
-
-Link решает эту проблему: значение выбирается из существующих Documents.
-
-Кроме того, Frappe понимает, что это связь, и добавляет вокруг неё поиск, permissions, переход к записи и link validation.
-
-## 4. Link хранится как значение, но ведёт себя как ссылка
-
-На уровне БД Link обычно хранится как строковое значение `name`, а не как вложенный объект.
-
-Например:
-
-```text
-ANALYTICS
-```
-
-Но metadata поля говорит Frappe:
-
-```text
-fieldtype = Link
-options = Department
-```
-
-Поэтому Framework знает, что `ANALYTICS` нужно искать именно среди Documents `Department`.
-
-Это **application-level reference**. Его не стоит путать с обычным SQL foreign key constraint.
-
-## 5. Проверка существования ссылки
-
-При нормальном `insert`/`save` Frappe проверяет Link-поля.
-
-Если написать:
-
-```text
-department = DOES-NOT-EXIST
-```
-
-а такого Department нет, сохранение обычно завершится `LinkValidationError`.
-
-Это полезная защита от битых ссылок.
-
-Технически низкоуровневый код может обходить некоторые проверки специальными флагами, но в обычной разработке этого без причины делать не нужно.
-
-## 6. Что пользователь видит в Link-поле
-
-В Desk Link выглядит как поле с поиском и подсказками.
-
-Пользователь начинает печатать:
-
-```text
-ana...
-```
-
-и получает варианты.
-
-Поиск может учитывать не только `name`, но и title/search fields целевого DocType.
-
-Например:
-
-```text
-name = DEP-0017
-title = Analytics
-```
-
-Пользователь может видеть понятное `Analytics`, хотя в ссылке хранится `DEP-0017`.
-
-## 7. Permissions тоже влияют на Link
-
-Пользователь обычно не должен выбирать документы, к которым у него нет доступа.
-
-Поэтому Link search связан с permission engine и User Permissions.
-
-Пример:
-
-```text
-Пользователь имеет доступ только к Department = ANALYTICS
-```
-
-Тогда список доступных значений Link может быть ограничен этим отделом.
-
-Свойство `Ignore User Permissions` существует, но применять его нужно осознанно: оно отключает часть стандартного ограничения.
-
-## 8. Как ограничить варианты Link
-
-Иногда из всех Departments нужны только активные.
-
-Идея фильтра:
-
-```text
-is_active = 1
-```
-
-Для простых случаев используются штатные link filters. Для динамических условий на форме можно настраивать query через Client Script, например `frm.set_query`.
-
-Пример задачи:
-
-```text
-Сначала пользователь выбрал Company
+выбрали Responsible = Administrator
         ↓
-в поле Department показать только отделы этой Company
+Frappe открыл связанную запись User
+        ↓
+взял full_name
+        ↓
+заполнил Responsible Name
 ```
 
-Это уже динамический фильтр Link.
+Для простой автоподстановки не нужен Client Script.
 
-## 9. Что происходит при Rename
+---
 
-Допустим:
+## Link и Fetch From решают разные задачи
+
+После настройки у `Request` будут два значения:
 
 ```text
-Department.name = ANALYTICS
+responsible
+→ ссылка на конкретный User
+
+responsible_name
+→ скопированное значение full_name этого User
 ```
 
-переименовали в:
+`responsible` отвечает на вопрос:
+
+> на какой Document мы ссылаемся?
+
+`responsible_name` отвечает:
+
+> какое удобное значение мы скопировали из связанного Document?
+
+Это не одна и та же роль поля.
+
+---
+
+## Fetch From — не живая формула
+
+Важно не ожидать от `responsible_name` поведения постоянного JOIN.
+
+При Fetch From Frappe подставляет значение из связанного Document в поле текущего документа.
+
+Если позже исходный `User.full_name` изменится, уже сохранённый `Request` не нужно воспринимать как автоматически синхронизирующуюся витрину.
+
+Для курса достаточно модели:
 
 ```text
-DATA-ANALYTICS
+Link       → связь
+Fetch From → копирование значения по этой связи
 ```
 
-Штатный Rename Frappe умеет обновлять известные Link references.
+---
 
-Именно поэтому нельзя безопасно заменить Rename ручным SQL вроде:
+## Что такое `Dynamic Link`
 
-```sql
-UPDATE tabDepartment SET name = ...
+У обычного Link тип цели фиксирован заранее:
+
+```text
+Responsible
+→ всегда User
 ```
 
-Frappe должен знать об операции, чтобы обработать связи.
+Иногда тип цели должен определяться другим полем.
 
-## 10. Dynamic Link — когда тип цели заранее неизвестен
-
-Обычный Link всегда знает DocType цели.
-
-Но иногда один документ должен ссылаться на **разные типы документов**.
-
-Пример: `Activity` может относиться либо к `Request`, либо к `Department`.
-
-Тогда можно хранить два поля:
+Для краткого опыта добавим временную пару:
 
 ```text
 Reference Type
@@ -228,228 +216,141 @@ Field Type: Dynamic Link
 Options: reference_type
 ```
 
-Если:
+Теперь сначала выбирается тип документа:
 
 ```text
-reference_type = Request
-reference_name = REQ-0042
+Reference Type = User
 ```
 
-ссылка ведёт на Request.
-
-Если:
+а второе поле уже ссылается на Document этого типа:
 
 ```text
-reference_type = Department
-reference_name = ANALYTICS
+Reference Name = Administrator
 ```
 
-то уже на Department.
-
-## 11. Как мыслить о Dynamic Link
-
-Обычный Link хранит одну часть:
+Если поменять:
 
 ```text
-name
+Reference Type = Request
 ```
 
-а тип цели известен из metadata.
+то `Reference Name` начинает выбирать уже Request Documents.
 
-Dynamic Link требует две части:
+---
+
+## Разница в одной схеме
+
+### Обычный Link
 
 ```text
-doctype + name
+metadata знает тип цели
+
+Responsible
+Link → User
+value = Administrator
 ```
 
-То есть фактически:
+### Dynamic Link
 
 ```text
-(Request, REQ-0042)
+тип цели хранится в другом поле
+
+Reference Type = Request
+Reference Name = REQ-2026-00001
 ```
 
-или:
+То есть для Dynamic Link нужны две части:
 
 ```text
-(Department, ANALYTICS)
+DocType цели
++
+name цели
 ```
 
-## 12. Когда Dynamic Link действительно нужен
+---
 
-Хороший случай:
+## Почему Dynamic Link не оставляем в `Request`
+
+Наш `Request` по своей модели уже имеет конкретную связь:
 
 ```text
-универсальный журнал, комментарий или интеграционная запись,
-которая по смыслу может относиться к разным DocTypes
+Responsible → User
 ```
 
-Плохой случай:
+Универсальная пара `Reference Type / Reference Name` дальше курсу не нужна и только размоет модель.
+
+Поэтому в лабораторной Dynamic Link будет **временным экспериментом**:
 
 ```text
-«Я пока не знаю модель, поэтому пусть поле ссылается на что угодно»
+добавили
+→ увидели переключение типа цели
+→ удалили оба временных поля
 ```
 
-Dynamic Link делает модель гибче, но одновременно слабее: тип связи уже нельзя понять только по одному fieldname.
+Итоговое состояние снова будет однозначным.
 
-Если связь по смыслу всегда ведёт на `Department`, обычный Link лучше.
+---
 
-## 13. Fetch From — взять значение из связанного документа
+## Что пока не изучаем
 
-Допустим, в `Department` есть:
+Вокруг Link есть дополнительные механизмы:
 
 ```text
-manager_name = Иван Петров
+фильтрация вариантов
+User Permissions
+Ignore User Permissions
+динамические query из Client Script
+Rename связанных Documents
 ```
 
-А в `Request` есть:
+Они появятся позже там, где будут нужны практике.
+
+Сейчас задача уже достаточная:
 
 ```text
-department   Link → Department
-manager_name Data
-```
-
-Для `manager_name` можно настроить:
-
-```text
-Fetch From = department.manager_name
-```
-
-Пользователь выбирает Department, и Frappe подставляет имя руководителя.
-
-Пример:
-
-```text
-Department = ANALYTICS
-        ↓
+Link
+Dynamic Link
 Fetch From
-        ↓
-Manager Name = Иван Петров
+проверка существования ссылки
 ```
 
-Для такой простой автоподстановки Client Script не нужен.
+---
 
-## 14. Fetch From — это копия, а не живая формула
+## Что произойдёт в лабораторной
 
-Это один из самых важных моментов.
+Ты:
 
-Допустим, сегодня:
+1. добавишь `Responsible → User`;
+2. добавишь `Responsible Name` с `Fetch From = responsible.full_name`;
+3. выберешь разных Users и увидишь изменение fetched value;
+4. намеренно введёшь несуществующего User и получишь отказ Link validation;
+5. восстановишь корректную ссылку;
+6. временно добавишь Dynamic Link пару;
+7. переключишь её между `User` и `Request`;
+8. удалишь временную пару;
+9. оставишь только постоянные поля `Responsible` и `Responsible Name`.
 
-```text
-ANALYTICS.manager_name = Иван Петров
-```
-
-Создали Request, и туда скопировалось:
-
-```text
-manager_name = Иван Петров
-```
-
-Завтра в Department поменяли руководителя:
-
-```text
-manager_name = Анна Смирнова
-```
-
-Старый Request не обязан автоматически превратиться в `Анна Смирнова` только потому, что использовался Fetch From.
-
-Fetch From — это **денормализованная копия значения в документ**.
-
-## 15. Зачем тогда вообще копировать данные
-
-Иногда это именно то, что нужно.
-
-Например, документ должен сохранить историческое состояние:
-
-```text
-кто был руководителем отдела на момент создания заявки
-```
-
-Тогда копия полезна.
-
-А если всегда нужно показывать **текущее** значение из Department, возможно, отдельное сохранённое поле вообще не нужно — достаточно читать связанный Document в нужном месте.
-
-## 16. Fetch If Empty
-
-У режима fetch есть вариант не перезаписывать уже заполненное значение.
-
-Сценарий:
-
-```text
-Frappe автоматически подставил адрес
-        ↓
-пользователь вручную уточнил его для конкретного документа
-        ↓
-повторный fetch не должен затереть исправление
-```
-
-Тогда полезен режим `Fetch If Empty`.
-
-## 17. Когда нужна отдельная сущность связи
-
-Представь связь «Сотрудник участвует в Проекте».
-
-Если нужно хранить только факт выбора нескольких сотрудников, иногда хватит простой структуры.
-
-Но если у самой связи есть данные:
-
-```text
-Employee
-Project
-Role in Project
-Start Date
-End Date
-Allocation %
-```
-
-это уже самостоятельный объект предметной области.
-
-Лучше сделать отдельный DocType вроде `Project Member`, а не пытаться спрятать всю модель в Dynamic Link или MultiSelect.
-
-## Мини-практика
-
-Представь два DocType:
-
-```text
-Department
-- department_name
-- manager_name
-
-Request
-- subject
-- department
-- manager_name
-```
-
-Настрой мысленно:
-
-```text
-Request.department
-→ Link → Department
-
-Request.manager_name
-→ Fetch From → department.manager_name
-```
-
-Теперь ответь:
-
-1. Что хранится в `department`? **`name` выбранного Department.**
-2. Если Department переименовали штатным Rename, понимает ли Frappe эту связь? **Да, Link metadata известна Framework.**
-3. Если изменился `manager_name` в Department, обновится ли автоматически каждый старый Request? **Не обязательно; Fetch From хранит копию.**
-4. Когда нужен Dynamic Link? **Когда один field по смыслу может ссылаться на документы разных DocTypes.**
+---
 
 ## Что запомнить
 
-- `Link` → один заранее известный DocType.
-- Link хранит `name` целевого Document.
-- `Dynamic Link` → тип цели берётся из другого поля.
-- `Fetch From` → копирует значение из связанного документа.
-- Если у самой связи появляются собственные важные поля и lifecycle, подумай об отдельном DocType.
+1. `Link` ссылается на Document одного заранее известного DocType.
+2. В Link хранится `name` целевого Document.
+3. `Options` Link определяет DocType цели.
+4. `Fetch From` копирует значение из связанного Document.
+5. `Dynamic Link` берёт DocType цели из другого поля.
+6. Dynamic Link нужен только тогда, когда тип цели действительно должен меняться.
+7. Для постоянной модели `Request` оставляем `Responsible → User` и `Responsible Name`.
+
+---
 
 ## Официальные источники
 
 - [Field Types — Link and Dynamic Link](https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes)
 - [Fetch From guide](https://docs.frappe.io/framework/user/en/guides/app-development/fetch-custom-field-value-from-master-to-all-related-transactions)
-- [Document link validation, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/model/base_document.py)
-- [Rename implementation, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/model/rename_doc.py)
+- [User DocType — `full_name`, v16.32.0](https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/user/user.json)
+- [Link validation source — v16.32.0](https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/base_document.py)
 
-Следующая глава: [**08. Child Table и Table MultiSelect**](08_CHILD_TABLES.md).
+Теперь выполни [**лабораторную 07**](labs/07_LINKS_AND_FETCH_LAB.md).
+
+После неё переходи к [**08. Child Table и Table MultiSelect**](08_CHILD_TABLES.md).
