@@ -396,4 +396,4 @@ Document permissions
 
 Теперь выполни [**лабораторную 16**](labs/16_DESK_PAGE_AND_UI_BOUNDARIES_LAB.md).
 
-После неё блок C завершён. Следующий блок начинается с [**17. User, System User, Website User и Role**](17_USERS_AND_ROLES.md).
+После неё блок C завершён. Следующий блок начинается с [**17. User и Role**](17_USER_AND_ROLE.md).
