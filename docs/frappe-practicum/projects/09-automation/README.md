@@ -21,14 +21,10 @@ L9 автоматизирует уже работающий `Service Request`, �
 Ключевые правила:
 
 ```text
-Assignment
-≠ Workflow
-
-Assignment
-≠ authorization
-
-Target Date
-= optional
+Assignment ≠ Workflow
+Assignment ≠ authorization
+Automation ≠ permission escalation
+Target Date = optional
 ```
 
 ---
@@ -56,7 +52,7 @@ workers доступны
 working tree clean
 ```
 
-Workflow L7 использует:
+Workflow L7:
 
 ```text
 New
@@ -66,7 +62,7 @@ Resolved
 Closed
 ```
 
-и действия:
+Actions:
 
 ```text
 Accept
@@ -77,7 +73,41 @@ Close
 
 ---
 
-# 2. Все тестовые Documents соблюдают L4
+# 2. Permission model не меняется в L9
+
+После L7 продолжает действовать:
+
+```text
+Service Request Level 0
+Requester   → Create + Read own; Write/Delete No
+Technician  → Read/Write; Create/Delete No
+Supervisor  → Read/Write/Create; Delete No
+
+Service Request Level 1 content
+Requester   → Read/Write
+Technician  → Read only
+Supervisor  → Read/Write
+```
+
+На Level 1 находятся:
+
+```text
+subject
+location
+equipment
+description
+priority
+target_date
+attachment
+```
+
+`status` остаётся Level 0.
+
+Assignment Rule не должен выдавать Technician Level 1 Write.
+
+---
+
+# 3. Все тестовые Documents соблюдают L4
 
 Каждая создаваемая в L9 заявка содержит:
 
@@ -92,13 +122,9 @@ Priority
 
 `Target Date` заполняем только в тестах, где нужна due/date-based automation.
 
-Не сокращать примеры так, чтобы они нарушали Mandatory metadata.
-
 ---
 
-# 3. Создать второго Technician
-
-Только теперь создаём:
+# 4. Создать второго Technician
 
 ```text
 Email:              technician.two@example.com
@@ -109,52 +135,38 @@ Send Welcome Email: No
 Role:               Facility Technician
 ```
 
-Не выдавать:
+Не выдавать System Manager/Administrator.
+
+Проверить у обоих Technician:
 
 ```text
-System Manager
-Administrator
+нет постоянного Location User Permission
+Level 1 Service Request Write = No
 ```
-
-Проверить у обоих:
-
-```text
-technician.one@example.com
-technician.two@example.com
-```
-
-отсутствие постоянного Location User Permission.
 
 ---
 
-# 4. Почему это важно для Assignment Rule
+# 5. Почему одинаковый базовый доступ важен Assignment Rule
 
-В `v16.32.0` штатный `Assign To` после создания ToDo проверяет, может ли assignee открыть reference document.
+`Assign To` в `v16.32.0` проверяет, может ли assignee открыть reference document.
 
 Если доступа нет:
 
 ```text
-document sharing включён
-→ Frappe может автоматически создать DocShare Read
+sharing включён
+→ Frappe может создать DocShare Read
 
-document sharing отключён
-→ операция может завершиться Missing Permission
+sharing выключен
+→ возможен Missing Permission
 ```
 
-Поэтому основной deployment курса устроен так:
+Поэтому оба Technician имеют одинаковый Role-based document access.
 
-```text
-оба Facility Technician
-→ имеют одинаковый базовый Role Permission на Service Request
-```
-
-Assignment не должен незаметно превращаться в механизм выдачи permission exceptions.
-
-Это более точная причина cleanup User Permission в L5.
+Но одинаковый document access **не означает** одинаковое право с Supervisor на Level 1 content.
 
 ---
 
-# 5. Notification на новую заявку
+# 6. Notification на новую заявку
 
 Создать Standard Notification:
 
@@ -177,10 +189,6 @@ Recipient:
 Receiver By Role = Facility Supervisor
 ```
 
----
-
-# 6. Проверить New Notification
-
 Под Requester создать:
 
 ```text
@@ -190,9 +198,7 @@ Description: Проверка System Notification на создание заяв
 Priority:    Medium
 ```
 
-`Target Date` можно оставить пустым: для Notification Event `New` он не нужен.
-
-Под Supervisor проверить верхнее уведомление и `Notification Log`.
+Под Supervisor проверить уведомление и `Notification Log`.
 
 ---
 
@@ -213,12 +219,6 @@ Days Before or After: 1
 Notification Type:    Alert
 Notification Title:   Overdue service request {{ doc.name }}
 Notification Message: {{ doc.subject }}
-```
-
-Condition Type:
-
-```text
-Filters
 ```
 
 Filter:
@@ -242,33 +242,31 @@ Days After = 1
 → подходит сегодня
 ```
 
-Это не «все документы, которые когда-либо просрочены».
+Это не «любой давно просроченный Document».
 
 ---
 
-# 8. Target Date — условный инвариант
-
-`Target Date` остаётся Optional.
-
-Поэтому нельзя обещать каждой заявке Due Date.
-
-Правильная модель:
+# 8. Target Date — conditional invariant
 
 ```text
 Target Date заполнен
-→ ToDo Assignment Rule может получить эту Due Date
+→ Assignment Rule ToDo может получить Due Date
 → date-based Notification может быть рассчитана
 
 Target Date пуст
 → Due Date не обещается
-→ One Day Overdue к такой записи неприменима
+→ One Day Overdue неприменима
 ```
+
+`Target Date` остаётся Optional и находится на Permission Level 1.
+
+Следовательно Technician не получает право менять срок только потому, что он assignee.
 
 ---
 
 # 9. Проверить date-based Notification
 
-Создать:
+Создать под Requester или Supervisor:
 
 ```text
 Subject:     Overdue automation test
@@ -282,11 +280,9 @@ Target Date: вчера
 
 Использовать Preview / Meets Condition / Get Alerts for Today.
 
-Затем выполнить:
+Затем:
 
 ```bash
-cd ~/frappe/facility-ops-bench
-
 bench --site facility-ops.localhost execute \
   frappe.email.doctype.notification.notification.trigger_daily_alerts
 ```
@@ -318,19 +314,9 @@ Close Condition:
 status == "Closed"
 ```
 
-Unassign Condition:
+Unassign Condition: пусто.
 
-```text
-пусто
-```
-
-Assignment Days:
-
-```text
-All Days
-```
-
-В `Assignment Rule v16.32.0` поля документа передаются непосредственно в expression context, поэтому форма `status == "New"` корректна именно для этого механизма.
+Assignment Days: All Days.
 
 ---
 
@@ -348,8 +334,6 @@ technician.two@example.com
 ```
 
 Сохранить.
-
-`Last User` хранится в Assignment Rule.
 
 ---
 
@@ -382,12 +366,7 @@ Due Date        = Target Date заявки
 Assignment Rule = Service Request Auto Assignment
 ```
 
-Главный вывод:
-
-```text
-Assignment Rule создал ответственность
-но не выполнил Workflow transition
-```
+Assignment Rule создаёт ответственность, но не Workflow transition и не Level 1 permission.
 
 ---
 
@@ -403,8 +382,6 @@ Priority:    Medium
 Target Date: будущая дата
 ```
 
-Ожидается Technician Two.
-
 Третья:
 
 ```text
@@ -415,21 +392,17 @@ Priority:    Low
 Target Date: будущая дата
 ```
 
-Ожидается Technician One.
-
-Последовательность:
+Ожидаемая последовательность:
 
 ```text
 One → Two → One
 ```
 
-Проверить, что оба Technician открывают свои assigned Documents без автоматических DocShare exceptions.
+Проверить, что оба Technician открывают assigned Documents без auto-Share exceptions.
 
 ---
 
 # 14. Assignment не является authorization
-
-После появления второго Technician доказать отдельно:
 
 ```text
 ToDo назначен Technician One
@@ -438,25 +411,25 @@ ToDo назначен Technician One
 не означает:
 
 ```text
-Technician Two автоматически лишён Role Permission на этот Service Request
+Technician Two лишён Role Permission
 ```
 
-В базовой архитектуре:
+и не означает:
 
 ```text
-Role = полномочие
-ToDo = ответственность
+Technician One получил Level 1 Write
 ```
 
-Это сознательная модель, а не недостаток, который маскируем учебным текстом.
+Правильная модель:
 
-Если будущему продукту понадобится `assignee-only write`, потребуется отдельная server-side permission architecture следующего уровня.
+```text
+Role/Permission Level = полномочия
+ToDo                  = ответственность
+```
 
 ---
 
 # 15. Провести заявку через Workflow
-
-На автоматически назначенной заявке:
 
 ```text
 Supervisor → Accept
@@ -471,26 +444,33 @@ Supervisor → Close
 Status = Closed
 ```
 
-Assignment Rule Close Condition должен закрыть связанный ToDo.
+Assignment Rule Close Condition должен закрыть Rule-owned ToDo.
 
-На основном site это deployment behavior L9.
-
-Это **не универсальное свойство Workflow** и не будет автоматически существовать на clean site L11 без Assignment Rule.
+Это main-site deployment behavior L9, не универсальное свойство Workflow.
 
 ---
 
-# 16. Due Date synchronization
+# 16. Due Date synchronization без permission-размывания
 
-На заявке с заполненным `Target Date` изменить его под пользователем, которому разрешено изменение документа в текущем сценарии.
+На заявке с заполненным `Target Date` войти **Supervisor**, потому что `Target Date` — Level 1 content, а Technician Level 1 Write не имеет.
 
-Проверить соответствующий открытый ToDo:
+Изменить Target Date и сохранить.
+
+Проверить открытый Rule-owned ToDo:
 
 ```text
 ToDo.date
 → новое Target Date
 ```
 
-Не распространять этот вывод на заявки с пустым Target Date.
+Затем под Technician убедиться, что Target Date остаётся read-only.
+
+Главный вывод:
+
+```text
+automation синхронизирует Due Date
+≠ Technician получает право менять source Target Date
+```
 
 ---
 
@@ -519,8 +499,6 @@ Priority:    Medium
 Assign To → technician.one@example.com
 ```
 
-Сравнить ручной и автоматический ToDo.
-
 После теста снова включить Rule.
 
 ---
@@ -543,11 +521,7 @@ Assigned To = один из Technician
 Status = New
 ```
 
-Только Supervisor выполняет:
-
-```text
-Accept
-```
+Только Supervisor выполняет `Accept`.
 
 После него:
 
@@ -561,26 +535,13 @@ Status = Accepted
 
 # 19. Optional: Load Balancing
 
-Перед тестом посмотреть открытые ToDo `Service Request` обоих Technician.
-
 Временно:
 
 ```text
 Rule = Load Balancing
 ```
 
-Создать:
-
-```text
-Subject:     Load balancing check
-Location:    Warehouse
-Description: Проверка второго штатного алгоритма
-Priority:    Medium
-```
-
-Проверить выбор пользователя с меньшим количеством открытых ToDo.
-
-Если counts одинаковы, подготовить очевидную разницу.
+Создать валидную test request и проверить выбор пользователя с меньшим количеством открытых ToDo.
 
 После проверки обязательно:
 
@@ -592,8 +553,6 @@ Rule = Round Robin
 
 # 20. Посмотреть служебные Documents
 
-Открыть:
-
 ```text
 Notification
 Notification Log
@@ -601,7 +560,7 @@ Assignment Rule
 ToDo
 ```
 
-Не создавать своих automation log/dispatcher DocType.
+Не создавать собственных automation log DocType.
 
 ---
 
@@ -622,36 +581,20 @@ Service Request Auto Assignment
 
 потому что Rule содержит конкретных Users.
 
-Эта граница будет проверена в L11.
-
 ---
 
 # 22. Git
-
-Проверить Standard Notification files:
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
 
 git status --short
-
-find facility_ops/facility_operations \
-  -type f \
-  | sort \
-  | grep -i notification
+find facility_ops/facility_operations -type f | sort | grep -i notification
 ```
 
 Закоммитить app-owned Notification source.
 
-Не добавлять:
-
-```text
-Users
-ToDo
-Notification Log
-Assignment Rule database record
-Service Request working data
-```
+Не добавлять Users/ToDo/Notification Log/Assignment Rule/runtime Service Request.
 
 ---
 
@@ -660,17 +603,18 @@ Service Request working data
 L9 принят, если:
 
 - `technician.two@example.com` впервые создан здесь;
-- оба Technician имеют одинаковую базовую Service Request permission-area;
-- ученик объясняет automatic Share boundary `Assign To`;
-- все тестовые Documents соблюдают Mandatory L4;
+- оба Technician имеют одинаковый document access и Level 1 Write = No;
+- Assignment Rule не создаёт скрытые permission exceptions в нормальном сценарии;
+- все test Documents соблюдают Mandatory L4;
 - New Notification работает;
-- `Service Request One Day Overdue` понимается как точка `+1 day`;
-- Target Date понимается как Optional/conditional automation input;
+- `One Day Overdue` понимается как точка `+1 day`;
+- Target Date понимается как Optional Level 1 automation input;
 - Round Robin даёт One → Two → One;
 - Assignment Rule не меняет `Status = New`;
-- Supervisor выполняет `Accept`, не `Mark Assigned`;
-- `Accepted` не означает наличие конкретного assignee;
-- Assignment не трактуется как authorization;
+- Assignment не трактуется как authorization или permission escalation;
+- Technician не может менять Target Date только из-за assignment;
+- Supervisor меняет Target Date, а Rule-owned ToDo синхронизирует Due Date;
+- `Accept` остаётся отдельным Workflow action;
 - Closed закрывает Rule-owned ToDo только как site policy L9;
 - optional Load Balancing возвращён в Round Robin;
 - Assignment Rule остаётся site-specific;
