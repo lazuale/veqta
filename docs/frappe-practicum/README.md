@@ -44,7 +44,7 @@
 
 | Код | Проект | Что изучаем |
 |---|---|---|
-| P0 | Учебное приложение | Bench, site, app, Developer Mode, Module, Desk v16, Git |
+| [P0](projects/00-lab/README.md) | Учебное приложение | Bench, site, app, Developer Mode, Module, Desk v16, Git |
 | P1 | Реестр оборудования | DocType, поля, связи, Naming, Tree, Child Table, List, import/export |
 | P2 | Кастомизация и переносимость | Customize Form, Custom Field, Property Setter, DocType Layout, fixtures, Export Customizations, второй site |
 | P3 | Внутренние заявки | User, Role, Permissions, User Permission, Share, Assign To, ToDo, Kanban |
@@ -85,4 +85,6 @@
 - [ROADMAP.md](ROADMAP.md) — P0–P8, действия и проверки;
 - [REFERENCES.md](REFERENCES.md) — официальная документация и исходники, по которым сверяется курс.
 
-Практические файлы будут добавляться в `projects/` только после проверки соответствующего проекта на чистом стенде v16.32.0.
+Первый практикум: **[P0 — Учебное приложение](projects/00-lab/README.md)**.
+
+Следующий проект добавляется в `projects/` только после фактического прохождения и принятия предыдущего на стенде v16.32.0.
