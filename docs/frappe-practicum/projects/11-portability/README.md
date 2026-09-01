@@ -2,9 +2,9 @@
 
 L11 завершает основной маршрут практикума.
 
-До этого момента приложение собиралось на одном site. Теперь нужно доказать, что `facility_ops` действительно является приложением, а не набором ручных настроек конкретной базы.
+До этого момента `facility_ops` собирался на одном site. Теперь нужно доказать, что это действительно приложение, а не набор ручных настроек одной базы.
 
-Цель урока:
+Цель:
 
 ```text
 app source
@@ -24,7 +24,7 @@ migrate
 
 ---
 
-# 1. Проверить исходный site
+# 1. Проверить исходный стенд
 
 В терминале:
 
@@ -38,7 +38,7 @@ cd apps/facility_ops
 git status
 ```
 
-Нужно подтвердить:
+Нужно получить:
 
 ```text
 Frappe 16.32.0
@@ -46,7 +46,7 @@ facility_ops установлен
 working tree clean
 ```
 
-На исходном site уже должны существовать:
+На исходном site к этому моменту должны существовать:
 
 ```text
 Facility Location
@@ -64,27 +64,33 @@ Overdue Service Request
 
 Service Request Auto Assignment
 
-Facility Operations Workspace
-Report a Facility Issue Web Form
+Facility Operations
+Service Requests Overview
+Open Requests
+High Priority Requests
+Closed Requests
+Service Requests by Status
+
+Report a Facility Issue
 ```
+
+`Facility Operations` здесь — **Title Workspace**, созданного в L8.
 
 ---
 
-# 2. Главный вопрос L11
+# 2. Четыре класса объектов
 
-Не всё, что есть в базе, должно ехать вместе с приложением.
-
-Для каждого объекта задаём один вопрос:
+Для каждого объекта задаём вопрос:
 
 ```text
 это часть приложения
-или данные конкретного site?
+или содержимое конкретного site?
 ```
 
 Используем четыре класса:
 
 ```text
-1. Standard metadata
+1. Standard source
 2. app configuration
 3. site-specific configuration
 4. working data
@@ -92,45 +98,44 @@ Report a Facility Issue Web Form
 
 ---
 
-# 3. Классифицировать всё созданное
+# 3. Standard source
 
-## 3.1 Standard metadata
-
-Это уже находится в source app и Git.
-
-Сюда относятся:
+Уже находится в source `facility_ops` и Git:
 
 ```text
 Facility Location DocType
 Equipment DocType
 Service Request DocType
 
-Standard Report
-Standard Number Card
-Standard Dashboard Chart
-Standard Workspace
-Standard Notification
-Standard Web Form
+Service Requests Overview Report
+Open Requests Number Card
+High Priority Requests Number Card
+Closed Requests Number Card
+Service Requests by Status Dashboard Chart
+Facility Operations Workspace
+
+New Service Request Notification
+Overdue Service Request Notification
+
+Report a Facility Issue Web Form
 ```
 
-Они не требуют fixtures.
+Эти объекты **не экспортируем fixtures**.
 
-Особенно важно:
+Особенно:
 
 ```text
-DocType
-не экспортируем как fixture
+Standard DocType
+≠ fixture
 ```
 
-Standard DocType уже поставляется файлами app.
+Standard metadata уже поставляется файлами app.
 
 ---
 
-## 3.2 App configuration
+# 4. App configuration
 
-Эти records нужны приложению на любом новом site, но сами по себе не являются Standard source-объектами.
-
-Для нашего курса:
+Нужна на любом новом site, но не является Standard source-объектами:
 
 ```text
 Facility Requester
@@ -153,43 +158,37 @@ Workflow Action Master:
 Service Request Workflow
 ```
 
-Их будем поставлять через fixtures.
+Эту конфигурацию поставляем fixtures.
 
 ---
 
-## 3.3 Site-specific configuration
+# 5. Site-specific configuration
 
-Это настройки, которые зависят от конкретного развёртывания.
-
-В нашем стенде:
+Зависит от конкретного развёртывания:
 
 ```text
 Users
 User Permission
 Share
-Assignment Rule
+Assignment Rule с конкретными Users
 ```
 
-Почему `Assignment Rule` не включаем в fixtures:
+`Service Request Auto Assignment` из L9 содержит:
 
 ```text
-Service Request Auto Assignment
-→ содержит конкретных Users
-→ technician.one@example.com
-→ technician.two@example.com
+technician.one@example.com
+technician.two@example.com
 ```
 
 На другом site исполнители будут другими.
 
-Поэтому правило распределения не является универсальной частью app.
-
-Его создают уже после развёртывания под реальных пользователей конкретного site.
+Поэтому Assignment Rule **не входит** в универсальные fixtures приложения.
 
 ---
 
-## 3.4 Working data
+# 6. Working data
 
-Это никогда не должно приезжать вместе с приложением:
+Не должны приехать на clean site:
 
 ```text
 Facility Location Documents
@@ -197,64 +196,65 @@ Equipment Documents
 Service Request Documents
 ToDo
 Comments
-Files заявок
+Files
 Notification Log
 Workflow Action records
 ```
 
-На чистом site они должны отсутствовать.
+Clean site должен получить структуру и универсальную конфигурацию, а не копию учебной базы.
 
 ---
 
-# 4. Разобраться с Role Permission Manager
+# 7. Почему permissions нужно экспортировать отдельно
 
-В L5 права были настроены через:
+В L5 Role Permission Manager изменил права Standard DocType.
 
-```text
-Role Permission Manager
-```
-
-Для Standard DocType такие изменения хранятся как:
+Эти изменения хранятся как:
 
 ```text
 Custom DocPerm
 ```
 
-Они не находятся автоматически в JSON наших DocType.
+Они не становятся автоматически частью исходного DocType JSON.
 
-Но права являются частью поведения приложения и должны восстанавливаться на новом site.
-
-Для них используем штатный:
+Поэтому права трёх core DocType экспортируем штатным:
 
 ```text
 Export Customizations
 ```
 
-с экспортом Custom Permissions.
+с:
+
+```text
+Export Custom Permissions = Yes
+Sync on Migrate = Yes
+```
 
 ---
 
-# 5. Экспортировать permissions Facility Location
+# 8. Экспортировать permissions трёх DocType
 
-В Desk открыть:
+Под `Administrator` открыть:
 
 ```text
 Customize Form
 ```
 
-Выбрать:
+Последовательно выбрать:
 
 ```text
 Facility Location
+Equipment
+Service Request
 ```
 
-Открыть:
+Для каждого выполнить:
 
 ```text
 Actions → Export Customizations
 ```
 
-В диалоге задать:
+Параметры:
 
 ```text
 Module to Export:          Facility Operations
@@ -263,54 +263,11 @@ Export Custom Permissions: Yes
 Apply Module Export Filter: No
 ```
 
-Выполнить экспорт.
-
-Даже если у DocType нет Custom Field или Property Setter, нам нужен экспорт его `Custom DocPerm`.
+После каждого экспорта не редактировать JSON вручную.
 
 ---
 
-# 6. Экспортировать permissions Equipment
-
-Повторить для:
-
-```text
-Equipment
-```
-
-Настройки те же:
-
-```text
-Module to Export:          Facility Operations
-Sync on Migrate:           Yes
-Export Custom Permissions: Yes
-Apply Module Export Filter: No
-```
-
----
-
-# 7. Экспортировать permissions Service Request
-
-Повторить для:
-
-```text
-Service Request
-```
-
-С теми же параметрами.
-
-Именно здесь должны сохраниться права:
-
-```text
-Facility Requester
-Facility Technician
-Facility Supervisor
-```
-
-включая `If Owner`, Report/Export и остальные настройки L5.
-
----
-
-# 8. Посмотреть exported customizations
+# 9. Проверить exported customizations
 
 В терминале:
 
@@ -324,18 +281,18 @@ find facility_ops/facility_operations/custom \
   | sort
 ```
 
-Ожидаются JSON-файлы минимум для:
+Ожидаются файлы для:
 
 ```text
-Facility Location
-Equipment
-Service Request
+facility_location
+equipment
+service_request
 ```
 
-Открыть их только для чтения:
+Проверить один из них:
 
 ```bash
-sed -n '1,220p' \
+sed -n '1,260p' \
   facility_ops/facility_operations/custom/service_request.json
 ```
 
@@ -346,13 +303,11 @@ sed -n '1,220p' \
 "custom_perms"
 ```
 
-Не исправлять JSON вручную.
-
-Если permissions неправильные — исправить их через Role Permission Manager и повторить Export Customizations.
+Если permissions неверные, исправить их через Role Permission Manager и повторить Export Customizations.
 
 ---
 
-# 9. Подготовить fixtures в hooks.py
+# 10. Добавить fixtures в hooks.py
 
 Открыть:
 
@@ -360,7 +315,7 @@ sed -n '1,220p' \
 apps/facility_ops/facility_ops/hooks.py
 ```
 
-Добавить конфигурацию fixtures:
+Добавить:
 
 ```python
 fixtures = [
@@ -418,68 +373,68 @@ fixtures = [
 fixture_auto_order = True
 ```
 
-Это штатная конфигурация Frappe app.
-
-Никакого собственного runtime-кода здесь нет.
+Это конфигурация штатного механизма fixtures, а не собственная runtime-логика.
 
 ---
 
-# 10. Почему fixture_auto_order нужен
+# 11. Почему fixture_auto_order нужен
 
 Fixtures зависят друг от друга:
 
 ```text
 Role
 ↓
-Workflow State / Action Master
+Workflow State / Workflow Action Master
 ↓
 Workflow
 ```
 
-При:
+В `v16.32.0` `fixture_auto_order = True` добавляет fixture-файлам порядковые префиксы в соответствии с порядком hooks.
 
-```python
-fixture_auto_order = True
-```
-
-Frappe добавляет к fixture-файлам порядковые префиксы согласно порядку в `hooks.py`.
-
-Это делает порядок импорта явным.
-
-Не пытаться решать зависимости ручным переименованием JSON-файлов.
+Не переименовывать fixture JSON вручную.
 
 ---
 
-# 11. Что специально НЕ добавляем в fixtures
+# 12. Что не включать в fixtures
 
-В `hooks.py` не должно быть:
+Не добавлять:
 
 ```text
 User
 User Permission
 DocShare
+Assignment Rule
 Facility Location
 Equipment
 Service Request
 ToDo
 File
 Notification Log
-Assignment Rule
+DocType
+Report
+Number Card
+Dashboard Chart
+Workspace
+Notification
+Web Form
 ```
 
-Также не добавляем:
+Причины разные:
 
 ```text
-DocType
-```
+Standard source objects
+→ уже находятся в app source
 
-Standard DocType уже является source приложения.
+site-specific configuration
+→ зависит от развёртывания
+
+working data
+→ содержимое конкретного site
+```
 
 ---
 
-# 12. Экспортировать fixtures
-
-Из bench:
+# 13. Экспортировать fixtures
 
 ```bash
 cd ~/frappe/facility-ops-bench
@@ -487,7 +442,7 @@ cd ~/frappe/facility-ops-bench
 bench --site facility-ops.localhost export-fixtures --app facility_ops
 ```
 
-Затем:
+Проверить:
 
 ```bash
 cd apps/facility_ops
@@ -499,7 +454,7 @@ find facility_ops/fixtures \
   | sort
 ```
 
-Должны появиться fixture JSON для:
+Должны быть fixture-файлы для:
 
 ```text
 Role
@@ -510,18 +465,16 @@ Workflow
 
 ---
 
-# 13. Проверить содержимое fixtures
-
-Посмотреть файлы:
+# 14. Проверить fixtures на мусор
 
 ```bash
 for f in facility_ops/fixtures/*.json; do
   echo "===== $f ====="
-  sed -n '1,220p' "$f"
+  sed -n '1,260p' "$f"
 done
 ```
 
-Проверить, что там нет:
+Не должно быть:
 
 ```text
 requester.one@example.com
@@ -530,22 +483,16 @@ technician.one@example.com
 technician.two@example.com
 supervisor.one@example.com
 web.requester@example.com
-```
 
-Также не должно быть рабочих номеров:
-
-```text
 SR-00001
 EQ-0001
 ```
 
-Fixtures должны содержать конфигурацию, а не содержимое рабочего site.
+Fixtures содержат конфигурацию, а не учебные Documents.
 
 ---
 
-# 14. Проверить source Standard objects
-
-Убедиться, что Standard configuration уже находится в app source:
+# 15. Проверить Standard source objects
 
 ```bash
 find facility_ops/facility_operations \
@@ -555,25 +502,13 @@ find facility_ops/facility_operations \
     'report|number_card|dashboard_chart|workspace|notification|web_form'
 ```
 
-Здесь должны быть объекты предыдущих уроков:
+Нужно увидеть source объектов L8–L10.
 
-```text
-Service Requests Overview
-Open Requests
-High Priority Requests
-Closed Requests
-Service Requests by Status
-Facility Operations Workspace
-New Service Request
-Overdue Service Request
-Report a Facility Issue
-```
-
-Они не дублируются fixtures.
+Их не дублируем fixtures.
 
 ---
 
-# 15. Проверить полный Git diff
+# 16. Зафиксировать поставку в Git
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
@@ -582,27 +517,25 @@ git status --short
 git diff
 ```
 
-В L11 ожидаются изменения примерно такого типа:
+Ожидаемые изменения L11:
 
 ```text
-hooks.py
-fixtures/*.json
+facility_ops/hooks.py
+facility_ops/fixtures/*.json
 facility_ops/facility_operations/custom/*.json
 ```
 
 Не должно быть:
 
 ```text
-дампа database
+database dump
 CSV рабочих данных
 паролей
 site_config.json
 private files
 ```
 
----
-
-# 16. Commit поставки приложения
+Добавить только нужное:
 
 ```bash
 git add \
@@ -620,7 +553,7 @@ git commit -m "Package facility operations configuration"
 git status
 ```
 
-Ожидается:
+Нужно получить:
 
 ```text
 working tree clean
@@ -628,9 +561,9 @@ working tree clean
 
 ---
 
-# 17. Создать второй чистый site
+# 17. Создать clean site
 
-Вознуться в bench:
+Вернуться в bench:
 
 ```bash
 cd ~/frappe/facility-ops-bench
@@ -644,13 +577,13 @@ bench new-site facility-ops-clean.localhost \
   --db-root-username frappe_admin
 ```
 
-Задать новый Administrator password для этого site.
+Задать новый пароль Frappe `Administrator`.
 
-Не копировать database исходного `facility-ops.localhost`.
+Не копировать database `facility-ops.localhost`.
 
 ---
 
-# 18. Установить facility_ops на clean site
+# 18. Установить app и выполнить migrate
 
 ```bash
 bench --site facility-ops-clean.localhost install-app facility_ops
@@ -664,31 +597,22 @@ frappe
 facility_ops
 ```
 
-После install выполнить:
+Затем:
 
 ```bash
 bench --site facility-ops-clean.localhost migrate
 bench --site facility-ops-clean.localhost clear-cache
 ```
 
-`migrate` штатно синхронизирует:
-
-```text
-schema
-fixtures
-customizations
-standard app configuration
-```
+В `v16.32.0` migrate синхронизирует schema, fixtures, exported customizations и Standard app configuration.
 
 ---
 
-# 19. Переключить bench на clean site
+# 19. Открыть clean site
 
 ```bash
 bench use facility-ops-clean.localhost
 ```
-
-Если `bench start` уже запущен, обновить страницу браузера.
 
 Открыть:
 
@@ -696,13 +620,13 @@ bench use facility-ops-clean.localhost
 http://facility-ops-clean.localhost:8000
 ```
 
-Войти как Administrator нового site.
+Войти под `Administrator` нового site.
 
 ---
 
 # 20. Проверить Standard metadata
 
-На clean site должны существовать:
+Должны существовать:
 
 ```text
 Facility Location
@@ -710,18 +634,18 @@ Equipment
 Service Request
 ```
 
-Проверить поля и настройки:
+Проверить минимум:
 
 ```text
 Equipment.notes → Permission Level 1
 Service Request.status → Read Only
 ```
 
-Это доказывает перенос Standard DocType metadata.
+Это source metadata приложения.
 
 ---
 
-# 21. Проверить Roles
+# 21. Проверить fixtures
 
 Через `Role` найти:
 
@@ -731,21 +655,7 @@ Facility Technician
 Facility Supervisor
 ```
 
-Они должны существовать без ручного повторного создания.
-
-Это результат fixtures.
-
----
-
-# 22. Проверить Workflow
-
-Открыть:
-
-```text
-Workflow
-```
-
-Найти:
+Через `Workflow` найти:
 
 ```text
 Service Request Workflow
@@ -768,7 +678,7 @@ Resolved
 Closed
 ```
 
-Transitions:
+Actions:
 
 ```text
 Mark Assigned
@@ -777,57 +687,49 @@ Resolve
 Close
 ```
 
-Ничего вручную пересобирать не нужно.
-
 ---
 
-# 23. Проверить permissions
+# 22. Проверить permissions
 
-Открыть:
+Открыть Role Permission Manager для:
 
 ```text
-Role Permission Manager
+Facility Location
+Equipment
+Service Request
 ```
 
-Проверить минимум `Service Request`.
+Права L5 должны восстановиться из exported customizations.
 
-Должны восстановиться права L5 для:
-
-```text
-Facility Requester
-Facility Technician
-Facility Supervisor
-```
-
-Затем проверить `Equipment` и `Facility Location`.
-
-Это результат Export Customizations с:
+Особенно проверить:
 
 ```text
-Sync on Migrate = Yes
-Export Custom Permissions = Yes
+Requester → Only If Creator
+Supervisor → Report / Export
+Equipment.notes → Level 1 только Supervisor
 ```
 
 ---
 
-# 24. Проверить Workspace и аналитику
+# 23. Проверить Standard UI/config
 
-На clean site должны существовать app-owned Standard objects L8:
+На clean site должны существовать:
 
 ```text
-Facility Operations Workspace
-Service Requests Overview
-Open Requests
-High Priority Requests
-Closed Requests
-Service Requests by Status
+Workspace:       Facility Operations
+Report:          Service Requests Overview
+Number Card:     Open Requests
+Number Card:     High Priority Requests
+Number Card:     Closed Requests
+Dashboard Chart: Service Requests by Status
+Notification:    New Service Request
+Notification:    Overdue Service Request
+Web Form:        Report a Facility Issue
 ```
 
-Пока рабочих заявок нет, значения Number Card могут быть нулевыми.
+Пока Service Request нет, карты могут показывать `0`.
 
-Это нормально.
-
-Главное:
+Правильный результат:
 
 ```text
 интерфейс приехал
@@ -836,30 +738,9 @@ Service Requests by Status
 
 ---
 
-# 25. Проверить Notifications
+# 24. Проверить финальный Web Form
 
-Через `Notification` найти:
-
-```text
-New Service Request
-Overdue Service Request
-```
-
-Они должны существовать как Standard Notification из source app.
-
-Fixtures для них не нужны.
-
----
-
-# 26. Проверить Web Form
-
-Через `Web Form` найти:
-
-```text
-Report a Facility Issue
-```
-
-Проверить финальную конфигурацию L10:
+У `Report a Facility Issue` проверить:
 
 ```text
 Route = facility-request
@@ -871,85 +752,80 @@ Show List = Yes
 Apply Document Permissions = No
 ```
 
-Проверить, что `Location` и `Equipment` снова видимы и имеют:
+У полей:
+
+```text
+Location
+Equipment
+```
+
+проверить:
 
 ```text
 Allow Read On All Link Options = Yes
 ```
 
+`Status` не должен быть пользовательским полем Web Form.
+
 ---
 
-# 27. Проверить, чего на clean site НЕТ
+# 25. Доказать, что рабочие данные не перенеслись
 
-Не должно быть старых:
+На clean site не должно быть старых:
 
 ```text
-Facility Location Documents
-Equipment Documents
-Service Request Documents
 Users курса
 User Permission
 Share
+Service Request Auto Assignment
 ToDo
-Assignment Rule Service Request Auto Assignment
+Facility Location Documents
+Equipment Documents
+Service Request Documents
 ```
 
-Особенно важно проверить:
+Проверить:
 
 ```text
-Service Request → List
-Equipment → List
 Facility Location → Tree
+Equipment → List
+Service Request → List
 ```
 
-Рабочая часть должна быть пустой.
+Рабочая часть clean site должна быть пустой.
 
 ---
 
-# 28. Создать пользователей clean site
+# 26. Создать site-specific пользователей заново
 
-Теперь создаём site-specific пользователей заново.
-
-## Requester
+Создать:
 
 ```text
 requester.clean@example.com
 System User
 Role: Facility Requester
-```
 
-## Technician
-
-```text
 technician.clean@example.com
 System User
 Role: Facility Technician
-```
 
-## Supervisor
-
-```text
 supervisor.clean@example.com
 System User
 Role: Facility Supervisor
-```
 
-## Website User
-
-```text
 web.clean@example.com
 Website User
 ```
 
 У каждого свой учебный пароль.
 
-Эти Users не являются частью app source.
+Эти Users не являются app source.
 
 ---
 
-# 29. Создать новые рабочие данные
+# 27. Создать новые рабочие данные
 
-На clean site создать минимальную структуру:
+Под подходящим пользователем создать:
 
 ```text
 Main Site
@@ -957,7 +833,7 @@ Main Site
     └── Room 101
 ```
 
-Создать Equipment:
+Затем Equipment:
 
 ```text
 Equipment Code: EQ-CLEAN-001
@@ -967,11 +843,11 @@ Category:       Pump
 Status:         Active
 ```
 
-Это новые Documents именно clean site.
+Это новые Documents clean site.
 
 ---
 
-# 30. Создать Service Request под Requester
+# 28. Создать заявку под Requester
 
 Войти:
 
@@ -998,91 +874,55 @@ Target Date: будущая дата
 Status = New
 ```
 
-Assignment Rule отсутствует, поэтому автоматического назначения быть не должно.
-
-Это ожидаемо.
+Автоматического назначения быть не должно, потому что Assignment Rule намеренно не переносился.
 
 ---
 
-# 31. Проверить ручной Assign To
+# 29. Проверить Assign To и Workflow
 
-Войти:
+Под:
 
 ```text
 supervisor.clean@example.com
 ```
 
-Открыть новую заявку.
-
-Выполнить:
+выполнить:
 
 ```text
-Assign To
-→ technician.clean@example.com
-```
-
-Проверить созданный `ToDo`.
-
-Затем выполнить Workflow Action:
-
-```text
+Assign To → technician.clean@example.com
 Mark Assigned
 ```
 
-Получить:
+Проверить созданный ToDo и:
 
 ```text
 Status = Assigned
 ```
 
----
-
-# 32. Проверить Workflow на clean site
-
-Под:
-
-```text
-technician.clean@example.com
-```
-
-выполнить:
+Под Technician выполнить:
 
 ```text
 Start Work
 Resolve
 ```
 
-Под:
-
-```text
-supervisor.clean@example.com
-```
-
-выполнить:
+Под Supervisor:
 
 ```text
 Close
 ```
 
-Финальное состояние:
+Финал:
 
 ```text
-Closed
+Status = Closed
 ```
-
-Если этот маршрут работает, Workflow действительно приехал вместе с приложением.
 
 ---
 
-# 33. Проверить Workspace на новых данных
+# 30. Проверить Workspace на новых данных
 
-Войти под:
-
-```text
-supervisor.clean@example.com
-```
-
-Открыть:
+Под Supervisor открыть:
 
 ```text
 Facility Operations
@@ -1094,14 +934,14 @@ Facility Operations
 Number Cards
 Dashboard Chart
 Shortcuts
-Report
+Service Requests Overview
 ```
 
-Теперь они должны отображать данные clean site, а не исходного стенда.
+Они должны показывать данные clean site.
 
 ---
 
-# 34. Проверить Web Form на clean site
+# 31. Проверить Web Form end-to-end
 
 Войти:
 
@@ -1115,7 +955,7 @@ web.clean@example.com
 http://facility-ops-clean.localhost:8000/facility-request
 ```
 
-Создать новую заявку:
+Создать:
 
 ```text
 Subject:     Clean site web request
@@ -1127,9 +967,9 @@ Attachment:  небольшой файл
 
 Сохранить.
 
-Затем под Supervisor найти тот же `Service Request` в Desk.
+Под Supervisor найти тот же Service Request в Desk.
 
-Получаем цепочку:
+Доказанная цепочка:
 
 ```text
 Web Form
@@ -1145,37 +985,25 @@ Workflow
 
 ---
 
-# 35. Что делать с Assignment Rule на новом site
+# 32. Assignment Rule на новом site
 
-После доказательства переносимости можно настроить автоматическое назначение уже под пользователей clean site.
+После приёмки L11 при желании создать новый Assignment Rule уже под Users clean site.
 
-Например:
-
-```text
-technician.clean@example.com
-```
-
-Но это отдельная site deployment-настройка.
-
-Она не является доказательством установки app и не нужна для приёмки L11.
-
-Главное различие:
+Это deployment-настройка конкретного site, а не обязательная часть установки `facility_ops`.
 
 ```text
 Workflow
-= общий процесс приложения
-→ fixtures
+→ универсальный процесс приложения
+→ fixture
 
 Assignment Rule с конкретными Users
-= конфигурация конкретного развёртывания
-→ настраивается на site
+→ локальное распределение работы
+→ site-specific configuration
 ```
 
 ---
 
-# 36. Проверить повторный migrate
-
-Выполнить:
+# 33. Повторить migrate
 
 ```bash
 cd ~/frappe/facility-ops-bench
@@ -1183,61 +1011,58 @@ cd ~/frappe/facility-ops-bench
 bench --site facility-ops-clean.localhost migrate
 ```
 
-После migrate проверить:
+После повторного migrate должны сохраниться:
 
-- Roles остались;
-- Workflow остался;
-- permissions остались;
-- Workspace/Web Form/Notification остались;
-- созданные на clean site рабочие Documents не исчезли.
+```text
+Roles
+Workflow
+permissions
+Workspace
+Report / Cards / Chart
+Notifications
+Web Form
+новые рабочие Documents clean site
+```
 
-`migrate` синхронизирует приложение, а не очищает рабочую базу.
+`migrate` синхронизирует приложение, а не очищает рабочие данные.
 
 ---
 
-# 37. Проверить Git после второго site
+# 34. Проверить Git после работы на втором site
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
-
 git status
 ```
 
-Создание:
+Создание на clean site:
 
 ```text
-facility-ops-clean.localhost
 Users
-Facility Locations
+Locations
 Equipment
 Service Requests
 ToDo
 ```
 
-не должно создавать новый Git diff приложения.
+не должно менять Git приложения.
 
-Если Git изменился — выяснить, какой app-owned объект был изменён через Developer Mode.
+Если Git изменился, выяснить, какой app-owned metadata/config object был изменён через Developer Mode.
 
 ---
 
-# 38. Финальная модель поставки
-
-После L11 ученик должен видеть приложение так:
+# 35. Финальная карта поставки
 
 ```text
 facility_ops Git repository
 │
-├── Standard DocTypes
-│   ├── Facility Location
-│   ├── Equipment
-│   └── Service Request
-│
-├── Standard UI/config source
+├── Standard source
+│   ├── DocTypes
 │   ├── Report
-│   ├── Number Card
+│   ├── Number Cards
 │   ├── Dashboard Chart
 │   ├── Workspace
-│   ├── Notification
+│   ├── Notifications
 │   └── Web Form
 │
 ├── fixtures
@@ -1263,9 +1088,9 @@ site database
 
 ---
 
-# 39. Самостоятельная проверка
+# 36. Самостоятельная классификация
 
-Без подсказки ответить для каждого объекта, где он должен жить:
+Без подсказки определить слой для каждого объекта:
 
 ```text
 Equipment DocType
@@ -1275,16 +1100,16 @@ supervisor.clean@example.com
 Service Request Workflow
 Service Request Auto Assignment
 Facility Operations Workspace
-SR-00001
+Service Request Document
 User Permission
 Report a Facility Issue Web Form
 ```
 
-Правильная логика важнее заученного пути к файлу.
+Правильная логика важнее пути к конкретному JSON.
 
 ---
 
-# 40. Приёмка L11
+# 37. Приёмка L11
 
 L11 принят, если ученик может показать два site:
 
@@ -1293,122 +1118,25 @@ facility-ops.localhost
 facility-ops-clean.localhost
 ```
 
-и доказать следующее.
+и доказать:
 
-## App source
+- Standard metadata приехала из app source;
+- Roles и Workflow приехали через fixtures;
+- Custom Permissions восстановились через exported customizations;
+- `Facility Operations` Workspace, Report, Cards, Chart, Notifications и Web Form приехали как Standard source objects;
+- старые Users, Assignment Rule и рабочие Documents не приехали;
+- на clean site можно создать новых пользователей и данные;
+- Assign To + Workflow работают;
+- Web Form создаёт обычный Service Request;
+- повторный migrate не уничтожает рабочие данные;
+- создание рабочих Documents на втором site не меняет Git.
 
-На clean site автоматически появились:
-
-```text
-Facility Location DocType
-Equipment DocType
-Service Request DocType
-Workspace
-Reports / Cards / Chart
-Notifications
-Web Form
-```
-
-## Fixtures
-
-Автоматически появились:
+Главный результат:
 
 ```text
-Facility Requester
-Facility Technician
-Facility Supervisor
-Workflow States
-Workflow Action Masters
-Service Request Workflow
+app
+≠
+копия database
 ```
 
-## Customizations
-
-Восстановились permissions из Role Permission Manager.
-
-## Не приехали
-
-```text
-старые Users
-User Permission
-Share
-Assignment Rule с исходными Users
-старые Locations
-старые Equipment
-старые Service Requests
-старые ToDo
-```
-
-## End-to-end
-
-На clean site можно:
-
-```text
-создать Location
-→ создать Equipment
-→ создать Service Request
-→ Assign To
-→ пройти Workflow
-→ увидеть данные в Workspace
-→ создать новую заявку через Web Form
-```
-
-## Git
-
-После создания рабочих данных clean site:
-
-```text
-git status
-→ working tree clean
-```
-
----
-
-# 41. Что ученик должен унести из базового курса
-
-Не список экранов Frappe, а модель платформы:
-
-```text
-DocType
-= схема
-
-Document
-= рабочая запись
-
-Link
-= связь
-
-Role Permission
-= что разрешено
-
-User Permission
-= какие данные разрешены
-
-Assign To / ToDo
-= кому поручена работа
-
-Workflow
-= какие переходы допустимы
-
-Report / Card / Chart / Workspace
-= представление рабочих данных
-
-Notification / Assignment Rule
-= штатная автоматизация
-
-Web Form
-= внешний интерфейс к тому же Document
-
-Git
-= поставка app-owned source
-
-Fixtures / Export Customizations
-= поставка нужной конфигурации
-
-site database
-= пользователи, локальная конфигурация и рабочие данные
-```
-
-На этом основной маршрут **L0–L11 завершён**.
-
-Дальше идут отдельные лаборатории, которые расширяют знания Frappe, но не меняют минимальную архитектуру приложения.
+Приложение поставляет структуру и универсальное поведение. Site хранит своих пользователей, локальные правила распределения и рабочие данные.
