@@ -38,6 +38,7 @@ Node >=24
 - DocType source: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/doctype/doctype.json
 - DocField: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/docfield/docfield.json
 - Document lifecycle: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py
+- BaseDocument: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/base_document.py
 - model standard/optional fields: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/__init__.py
 
 `_assign` — штатное optional field Frappe, не business field `facility_ops`.
@@ -59,6 +60,9 @@ Node >=24
 - DocPerm: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/docperm/docperm.json
 - Custom DocPerm: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/custom_docperm/custom_docperm.json
 - permission engine: https://github.com/frappe/frappe/blob/v16.32.0/frappe/permissions.py
+- metadata permission helpers: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/meta.py
+- Document permission enforcement: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py
+- BaseDocument high-permlevel reset: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/base_document.py
 - Permission Manager: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/page/permission_manager/permission_manager.js
 
 ## If Owner / Create
@@ -69,7 +73,7 @@ Exact `get_role_permissions()` owner-only folding исключает:
 ptype == "create"
 ```
 
-Поэтому работает финальная Desk policy:
+Поэтому работает Desk policy:
 
 ```text
 Requester
@@ -79,7 +83,55 @@ Write = No
 If Owner = Yes
 ```
 
-то есть Create возможен, owner read остаётся, post-create Write не выдаётся.
+Новый Document создать можно, owner read остаётся, post-create document Write не выдаётся.
+
+## Permission Level — server enforcement
+
+Критический exact-source факт:
+
+```text
+Document.insert()
+→ validate_higher_perm_levels()
+
+Document._save()
+→ validate_higher_perm_levels()
+```
+
+`validate_higher_perm_levels()` вычисляет разрешённые пользователю write-permlevels и для high-permlevel fields без write access вызывает:
+
+```text
+reset_values_if_no_permlevel_access(...)
+```
+
+то есть недопустимые изменения возвращаются к исходным/default values перед DB write.
+
+Поэтому финальная Service Request модель:
+
+```text
+Level 0
+Requester   → Create + Read own; Write No
+Technician  → Read/Write
+Supervisor  → Read/Write/Create
+
+Level 1 content
+Requester   → Read/Write
+Technician  → Read only
+Supervisor  → Read/Write
+```
+
+сохраняет две независимые гарантии:
+
+```text
+Requester
+→ может заполнить новый high-permlevel Document
+→ после insert не может save существующий Document
+
+Technician
+→ может save Level 0 Workflow state
+→ не получает ordinary permission-aware write Level 1 content
+```
+
+Важно: explicit `ignore_permissions=True` обходит эту permission validation. Именно поэтому Web Form update нельзя оставлять включённым как рабочий editor.
 
 ## Delete
 
@@ -101,6 +153,8 @@ Delete — обычный DocPerm permission type. В финале `Service Requ
 ```text
 Assignment ≠ authorization
 ```
+
+Assignment также не выдаёт Technician Level 1 content write.
 
 ---
 
@@ -135,7 +189,11 @@ Only Allow Edit For
 if (doc.__islocal) return false
 ```
 
-поэтому New state с edit role Supervisor не мешает Requester заполнить новый local Document. После insert Role Permission `Write = No` становится настоящей boundary.
+поэтому New state с edit role Supervisor не мешает Requester заполнить новый local Document.
+
+После insert Role Permission `Write = No` становится Requester boundary.
+
+Workflow state `status` намеренно остаётся Permission Level 0, поэтому Technician может выполнить разрешённый transition, не получая Level 1 Write на business content.
 
 ---
 
@@ -219,6 +277,7 @@ new target Document
 ```text
 Web Form submit
 ≠ Role Permission Create check
+≠ Permission Level proof
 ```
 
 `Apply Document Permissions` не меняет это поведение нового insert.
@@ -227,7 +286,7 @@ Web Form submit
 
 ```text
 Desk Requester create
-→ proof Role Permission Create
+→ proof Role Permission + Level 1 intake
 
 Website User Web Form create
 → proof Web Form intake capability
@@ -257,6 +316,8 @@ doc.save(ignore_permissions=True)
 Allow Editing After Submit = No
 ```
 
+Это закрывает обходной update path поверх Workflow и Level 1 protected content.
+
 ## Link options
 
 Login-required Link options без `Allow Read On All Link Options` получают owner filter. Включение этой настройки сознательно раскрывает authenticated reporters общий каталог имён.
@@ -273,6 +334,8 @@ Login-required Link options без `Allow Read On All Link Options` получа
 - source sync: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/sync.py
 
 `install_app()` выполняет initial source/fixtures/customizations/dashboard sync. Последующий migrate в L11 — convergence test.
+
+Exported `Custom DocPerm` должен содержать как Level 0, так и Level 1 rows финальной permission model.
 
 ---
 
