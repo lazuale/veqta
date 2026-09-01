@@ -4,13 +4,13 @@ L5 делает `facility_ops` многопользовательским.
 
 Новых предметных DocType в уроке нет.
 
-Цель: настроить реальные роли и доступ к уже существующим `Facility Location`, `Equipment` и `Service Request`, затем проверить ограничения отдельными входами под обычными пользователями.
+Цель: настроить роли и права на уже существующие `Facility Location`, `Equipment` и `Service Request`, проверить `If Owner`, Permission Level, User Permission и Share под реальными пользователями, а затем вернуть стенд в состояние, пригодное для следующих уроков.
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
 ## Что должно получиться
 
-Роли:
+Постоянные учебные роли:
 
 ```text
 Facility Requester
@@ -18,7 +18,7 @@ Facility Technician
 Facility Supervisor
 ```
 
-Учебные пользователи:
+Постоянные учебные пользователи после L5:
 
 ```text
 requester.one@example.com
@@ -39,7 +39,7 @@ Requester
 
 Technician
 → читает места и оборудование
-→ читает и редактирует доступные Service Request
+→ читает и редактирует Service Request
 → не создаёт и не удаляет их
 
 Supervisor
@@ -48,37 +48,39 @@ Supervisor
 → имеет расширенные права на отчёт/экспорт
 ```
 
-В конце урока дополнительно:
+Дополнительно в середине урока создаётся временный пользователь:
 
-- `technician.one@example.com` ограничен через `User Permission` заявками для `Room 101`;
-- одна заявка из другого помещения разово открыта этому пользователю через `Share`;
-- поле `Equipment.notes` имеет Permission Level 1 и доступно только Supervisor.
+```text
+technician.restricted@example.com
+```
 
-Главное различие урока:
+Он нужен только для изолированной проверки `User Permission` и `Share`. После проверки ограничения удаляются, а пользователь отключается. Это важно: следующие уроки не должны наследовать случайное ограничение Technician по одному помещению.
+
+Главные различия:
 
 ```text
 Role Permission
-= что пользователь в принципе может делать с DocType
+= что роль в принципе может делать с DocType
 
 If Owner
-= те же права только для Documents, которые пользователь создал
+= разрешение действует только для Documents текущего owner
+
+Permission Level
+= доступ к отдельным полям
 
 User Permission
-= какие значения связанных данных пользователь может видеть
+= систематически ограничивает допустимые связанные значения
 
 Share
-= точечное исключение для конкретного Document
+= точечно открывает конкретный Document
 ```
 
 ---
 
 # 1. Проверить состояние после L4
 
-В терминале:
-
 ```bash
 cd ~/frappe/facility-ops-bench
-
 bench version
 bench --site facility-ops.localhost list-apps
 
@@ -94,7 +96,7 @@ facility_ops установлен
 Git working tree clean
 ```
 
-В Desk должны существовать:
+В Desk уже существуют:
 
 ```text
 Facility Location
@@ -102,38 +104,13 @@ Equipment
 Service Request
 ```
 
-и несколько Service Request из L4.
+и несколько заявок из L4.
 
 ---
 
-# 2. Не путать права и назначение
+# 2. Создать три роли
 
-В L5 мы ещё не используем `Assign To`.
-
-Сейчас решаем только вопрос доступа:
-
-```text
-кто может открыть DocType
-кто может читать Document
-кто может создавать
-кто может изменять
-кто может удалять
-какие Documents видны
-```
-
-Назначение конкретной заявки конкретному исполнителю будет в L6.
-
----
-
-# 3. Создать три роли
-
-Через Awesomebar открыть:
-
-```text
-Role
-```
-
-Создать:
+Через Awesomebar открыть `Role` и создать:
 
 ```text
 Facility Requester
@@ -141,84 +118,54 @@ Facility Technician
 Facility Supervisor
 ```
 
-Дополнительные поля Role без необходимости не менять.
-
-Проверить, что все три роли активны.
+Проверить, что все роли активны.
 
 ---
 
-# 4. Создать четырёх System User
+# 3. Создать четырёх постоянных System User
 
-Через Awesomebar открыть:
+Через `User` создать:
 
 ```text
-User
+requester.one@example.com
+First Name: Requester One
+Role: Facility Requester
+
+requester.two@example.com
+First Name: Requester Two
+Role: Facility Requester
+
+technician.one@example.com
+First Name: Technician One
+Role: Facility Technician
+
+supervisor.one@example.com
+First Name: Supervisor One
+Role: Facility Supervisor
 ```
 
-Создать четыре пользователя.
-
-## Requester One
+Для каждого:
 
 ```text
-Email:              requester.one@example.com
-First Name:         Requester One
-User Type:          System User
-Enabled:            Yes
+User Type: System User
+Enabled: Yes
 Send Welcome Email: No
-Role:               Facility Requester
 ```
 
-## Requester Two
+Задать отдельный учебный пароль.
 
-```text
-Email:              requester.two@example.com
-First Name:         Requester Two
-User Type:          System User
-Enabled:            Yes
-Send Welcome Email: No
-Role:               Facility Requester
-```
-
-## Technician One
-
-```text
-Email:              technician.one@example.com
-First Name:         Technician One
-User Type:          System User
-Enabled:            Yes
-Send Welcome Email: No
-Role:               Facility Technician
-```
-
-## Supervisor One
-
-```text
-Email:              supervisor.one@example.com
-First Name:         Supervisor One
-User Type:          System User
-Enabled:            Yes
-Send Welcome Email: No
-Role:               Facility Supervisor
-```
-
-Для каждого пользователя задать отдельный учебный пароль через поле/действие установки пароля, доступное на форме User в фактическом v16.32.0.
-
-Пароли в Git не сохранять.
-
-Не выдавать этим пользователям:
+Не выдавать:
 
 ```text
 System Manager
 Administrator
 ```
 
-иначе проверка прав теряет смысл.
+`technician.two@example.com` здесь **не создаём**. Этот пользователь появится только в L9, когда действительно понадобится второй исполнитель для Round Robin.
 
 ---
 
-# 5. Зафиксировать матрицу до настройки
-
-Используем минимальную матрицу.
+# 4. Зафиксировать матрицу прав
 
 ## Facility Location
 
@@ -227,8 +174,6 @@ Administrator
 | Facility Requester | Yes | No | No | No |
 | Facility Technician | Yes | No | No | No |
 | Facility Supervisor | Yes | Yes | Yes | No |
-
-Удаление узлов дерева Supervisor не выдаём в базовом уроке.
 
 ## Equipment
 
@@ -246,164 +191,60 @@ Administrator
 | Facility Technician | Yes | Yes | No | No | No | No | No |
 | Facility Supervisor | Yes | Yes | Yes | Yes | Yes | Yes | No |
 
-`If Owner` включаем только у Requester и только на Permission Level 0.
+`If Owner` используем только для Requester на Permission Level 0.
 
 ---
 
-# 6. Настроить Facility Location в Role Permission Manager
+# 5. Настроить Role Permission Manager
 
-Через Awesomebar открыть:
+Через `Role Permission Manager` последовательно настроить:
 
 ```text
-Role Permission Manager
+Facility Location
+Equipment
+Service Request
 ```
 
-Выбрать:
+строго по матрицам выше.
+
+Для Requester у `Service Request` включить:
 
 ```text
-DocType: Facility Location
-```
-
-Добавить/настроить роли по матрице:
-
-```text
-Facility Requester
 Read = Yes
-
-Facility Technician
-Read = Yes
-
-Facility Supervisor
-Read   = Yes
-Write  = Yes
+Write = Yes
 Create = Yes
-```
-
-Не включать Delete.
-
-Сохранить изменения.
-
----
-
-# 7. Настроить Equipment
-
-В Role Permission Manager выбрать:
-
-```text
-DocType: Equipment
-```
-
-Настроить:
-
-## Facility Requester
-
-```text
-Read = Yes
-```
-
-## Facility Technician
-
-```text
-Read = Yes
-```
-
-## Facility Supervisor
-
-```text
-Read   = Yes
-Write  = Yes
-Create = Yes
-Import = Yes
-Export = Yes
-```
-
-Delete не включать.
-
----
-
-# 8. Настроить Service Request
-
-В Role Permission Manager выбрать:
-
-```text
-DocType: Service Request
-```
-
-## Facility Requester
-
-Permission Level:
-
-```text
-0
-```
-
-Включить:
-
-```text
-Read            = Yes
-Write           = Yes
-Create          = Yes
 Only If Creator = Yes
 ```
 
-В интерфейсе `Only If Creator` соответствует `if_owner`.
-
-Не включать:
+Для Technician:
 
 ```text
-Delete
-Report
-Export
-```
-
-## Facility Technician
-
-```text
-Read  = Yes
+Read = Yes
 Write = Yes
 ```
 
-Не включать:
+Для Supervisor:
 
 ```text
-Create
-Delete
-Report
-Export
-```
-
-## Facility Supervisor
-
-```text
-Read   = Yes
-Write  = Yes
+Read = Yes
+Write = Yes
 Create = Yes
 Delete = Yes
 Report = Yes
 Export = Yes
 ```
 
-`Only If Creator` выключен.
-
 ---
 
-# 9. Проверить Requester One
+# 6. Проверить Requester One
 
-Выйти из `Administrator`.
-
-Войти:
+Войти как:
 
 ```text
 requester.one@example.com
 ```
 
-Проверить:
-
-1. `Facility Location` открывается для чтения.
-2. `Equipment` открывается для чтения.
-3. создать новый Equipment нельзя.
-4. изменить Equipment нельзя.
-5. `Service Request` позволяет создать новую заявку.
+Проверить чтение `Facility Location` и `Equipment`, отсутствие создания/редактирования Equipment.
 
 Создать заявку:
 
@@ -416,25 +257,21 @@ Priority:    Medium
 Status:      New
 ```
 
-Сохранить.
+Сохранить и запомнить номер.
 
-Запомнить номер созданной заявки.
-
-Проверить, что Requester One может её открыть и изменить Description.
+Requester One должен иметь возможность открыть и изменить собственную заявку.
 
 ---
 
-# 10. Проверить Requester Two и доказать If Owner
+# 7. Проверить Requester Two и If Owner
 
-Выйти.
-
-Войти:
+Войти как:
 
 ```text
 requester.two@example.com
 ```
 
-Создать свою заявку:
+Создать:
 
 ```text
 Subject:     Requester Two test
@@ -444,28 +281,20 @@ Priority:    Low
 Status:      New
 ```
 
-Сохранить.
+Requester Two не должен получать обычный доступ к заявке Requester One, а Requester One — к заявке Requester Two.
 
-Теперь открыть список `Service Request`.
-
-Requester Two не должен получить обычный доступ к заявке, созданной Requester One.
-
-А Requester One не должен получить обычный доступ к заявке Requester Two.
-
-Это и есть проверка:
+Фиксируем:
 
 ```text
 If Owner
 = owner Document должен совпадать с текущим пользователем
 ```
 
-Не считать проверкой ситуацию, когда тест выполнен только одним Requester.
-
 ---
 
-# 11. Проверить Technician до User Permission
+# 8. Проверить Technician до дополнительных ограничений
 
-Войти:
+Войти как:
 
 ```text
 technician.one@example.com
@@ -479,29 +308,17 @@ Equipment         → Read
 Service Request   → Read + Write
 ```
 
-Technician не должен:
+Technician не должен создавать или удалять `Service Request`.
 
-```text
-создавать Equipment
-создавать Service Request
-удалять Service Request
-```
+Изменить Description существующей заявки и сохранить.
 
-Проверить изменение существующей заявки:
-
-```text
-Description → добавить строку "Technician permission test"
-```
-
-Сохранить.
-
-Пока User Permission не создан, Technician должен видеть доступные по Role Permission заявки независимо от их owner.
+Важно: `technician.one@example.com` остаётся обычным универсальным Technician. На него не накладываем постоянный `User Permission` по Location.
 
 ---
 
-# 12. Проверить Supervisor
+# 9. Проверить Supervisor
 
-Войти:
+Войти как:
 
 ```text
 supervisor.one@example.com
@@ -509,16 +326,12 @@ supervisor.one@example.com
 
 Проверить:
 
-- видны все Service Request независимо от owner;
-- можно создавать и редактировать Service Request;
-- доступно удаление Service Request;
-- Equipment можно создавать и изменять;
-- Facility Location можно создавать и изменять;
-- у Equipment доступны Export/Import в рамках выданных прав.
+- все Service Request независимо от owner;
+- Create / Write / Delete для Service Request;
+- Create / Write для Facility Location и Equipment;
+- Import / Export для Equipment.
 
-Удаление реальных учебных данных для проверки не требуется.
-
-Если нужно проверить Delete, создать временную заявку:
+Для Delete создать отдельную временную заявку:
 
 ```text
 Subject:     Delete permission test
@@ -532,22 +345,14 @@ Status:      New
 
 ---
 
-# 13. Изучить Permission Level без нового поля
+# 10. Permission Level без нового поля
 
-Вознуться под `Administrator`.
+Вернуться под Administrator.
 
-Используем уже существующее поле:
+У существующего поля:
 
 ```text
 Equipment.notes
-```
-
-Считаем его внутренней технической заметкой.
-
-Открыть Standard DocType `Equipment` и для поля:
-
-```text
-Notes
 ```
 
 установить:
@@ -556,111 +361,82 @@ Notes
 Permission Level = 1
 ```
 
-Сохранить DocType.
-
-Это изменение metadata приложения.
-
-Теперь в Role Permission Manager для `Equipment` добавить для:
+В Role Permission Manager для `Equipment` добавить:
 
 ```text
-Facility Supervisor
-Permission Level = 1
-Read  = Yes
-Write = Yes
+Role: Facility Supervisor
+Permission Level: 1
+Read: Yes
+Write: Yes
 ```
 
-Requester и Technician Permission Level 1 не получают.
+Requester и Technician Level 1 не получают.
 
----
+Проверить под Supervisor и под обычными пользователями.
 
-# 14. Проверить Permission Level
-
-Под `supervisor.one@example.com` открыть Equipment с заполненным `Notes`.
-
-Supervisor должен видеть поле и иметь возможность его изменить.
-
-Под:
+Главный вывод:
 
 ```text
-requester.one@example.com
-technician.one@example.com
-```
-
-поле `Notes` не должно быть доступно на тех же правах, что обычные поля Permission Level 0.
-
-Главное:
-
-```text
-Role Permission Level 0
+Permission Level 0
 не даёт автоматически доступ к полям Level 1
 ```
 
-`If Owner` в этом курсе не используем выше Permission Level 0.
-
 ---
 
-# 15. Посмотреть metadata после Permission Level
-
-В терминале:
+# 11. Проверить metadata в Git
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
 
-git status --short
 git diff -- \
   facility_ops/facility_operations/doctype/equipment/equipment.json
 ```
 
-Найти изменение `permlevel` у поля `notes`.
+Изменение `Equipment.notes.permlevel` относится к Standard metadata приложения.
 
-Это попало в Git, потому что изменилось Standard metadata `Equipment`.
-
-Но роли и изменения через Role Permission Manager в текущем уроке являются конфигурационными records конкретного site.
-
-Их переносимость будет разобрана отдельно в L11.
+Роли и Role Permission Manager пока являются site configuration. Их переносимость разберём в L11.
 
 ---
 
-# 16. Создать User Permission для Technician
+# 12. Создать временного Restricted Technician
 
-Под `Administrator` через Awesomebar открыть:
-
-```text
-User Permission
-```
+Теперь отдельно изучаем `User Permission` и `Share`, не меняя постоянного Technician.
 
 Создать:
 
 ```text
-User:           technician.one@example.com
+Email:              technician.restricted@example.com
+First Name:         Restricted Technician
+User Type:          System User
+Enabled:            Yes
+Send Welcome Email: No
+Role:               Facility Technician
+```
+
+Задать учебный пароль.
+
+---
+
+# 13. User Permission как временный эксперимент
+
+Создать `User Permission`:
+
+```text
+User:           technician.restricted@example.com
 Allow:          Facility Location
 For Value:      Room 101
 Applicable For: Service Request
 ```
 
-Сохранить.
+Войти под этим пользователем.
 
-Если форма показывает настройку descendants, для `Room 101` она не нужна: это конечный узел.
-
----
-
-# 17. Проверить User Permission
-
-Войти:
-
-```text
-technician.one@example.com
-```
-
-Открыть `Service Request`.
-
-Пользователь должен получать обычный доступ к заявкам, допустимым значением Location которых является:
+Он должен получать обычный доступ к Service Request для:
 
 ```text
 Room 101
 ```
 
-Заявки из:
+и не получать обычный доступ к заявкам для:
 
 ```text
 Room 102
@@ -668,168 +444,119 @@ Warehouse
 Floor 2
 ```
 
-не должны попадать в обычную доступную выборку только потому, что Role `Facility Technician` имеет Read.
-
-Итог:
+Это демонстрирует:
 
 ```text
 Role Permission
-говорит: Service Request читать можно
+→ DocType доступен
 
 User Permission
-говорит: но только для разрешённого значения Facility Location
+→ набор Documents дополнительно ограничен связанным значением
 ```
 
 ---
 
-# 18. Разово открыть чужую заявку через Share
+# 14. Share как точечное исключение
 
-Под `Administrator` или пользователем с правом Share открыть одну Service Request с:
+Под Administrator открыть одну заявку:
 
 ```text
 Location = Room 102
 ```
 
-которую `technician.one@example.com` после User Permission обычно не видит.
-
-Использовать стандартное действие:
+Использовать `Share`:
 
 ```text
-Share
-```
-
-Добавить:
-
-```text
-User:  technician.one@example.com
+User:  technician.restricted@example.com
 Read:  Yes
 Write: No
 ```
 
-Сохранить Share.
+Снова войти под Restricted Technician.
+
+Проверить одновременно:
+
+```text
+обычные Room 102 заявки
+→ недоступны
+
+конкретная shared Room 102 заявка
+→ доступна для чтения
+```
+
+Share не должен давать Write, если его не включали.
 
 ---
 
-# 19. Проверить Share
+# 15. Обязательная очистка эксперимента
 
-Снова войти:
+Этот шаг является частью L5, а не необязательной уборкой.
+
+Под Administrator:
+
+1. удалить созданный `Share`;
+2. удалить `User Permission` для `technician.restricted@example.com`;
+3. открыть временного пользователя и установить:
+
+```text
+Enabled = No
+```
+
+После очистки проверить под:
 
 ```text
 technician.one@example.com
 ```
 
-Проверить два факта одновременно:
+что обычный Technician снова видит все Service Request, разрешённые его Role Permission, независимо от Location.
 
-1. обычные заявки вне `Room 101` по-прежнему не видны;
-2. конкретная shared-заявка из `Room 102` стала доступна для чтения.
-
-Поскольку Share создан без Write, пользователь не должен получать через него право редактирования этой заявки.
-
-Главное:
+Причина очистки:
 
 ```text
-User Permission
-= систематическое ограничение набора данных
+User Permission / Share
+= изученный механизм
 
-Share
-= точечное разрешение на один Document
+но
+
+не часть итоговой модели доступа facility_ops
 ```
 
-После проверки Share можно оставить до конца курса как учебный пример.
+Если оставить Location-ограничение жить дальше, L9 Round Robin сможет назначить человеку заявку, которую тот сам не может открыть.
 
 ---
 
-# 20. Проверить отрицательные сценарии
+# 16. Отрицательные проверки
 
-Нужно получить минимум четыре реальных отказа.
+Получить реальные отказы:
 
-## Requester пытается создать Equipment
+```text
+Requester → Create Equipment запрещён
+Requester → чужая Service Request запрещена
+Technician → Create Service Request запрещён
+Restricted Technician до cleanup → обычная Room 102 заявка запрещена
+```
 
-Ожидается отказ/отсутствие действия Create.
-
-## Requester пытается открыть заявку другого Requester
-
-Ожидается отсутствие обычного доступа из-за `If Owner`.
-
-## Technician пытается создать Service Request
-
-Ожидается отсутствие Create.
-
-## Technician пытается открыть неразрешённую Room 102 заявку, которая не Shared
-
-Ожидается отсутствие доступа из-за User Permission.
-
-Проверка прав считается выполненной только если есть успешные и отрицательные сценарии.
+Administrator не использовать как доказательство пользовательских прав.
 
 ---
 
-# 21. Не делать Administrator доказательством прав
-
-`Administrator` нужен для настройки.
-
-Он не является тестовым пользователем приложения.
-
-Неверная проверка:
-
-```text
-Administrator открыл Service Request
-→ значит permissions работают
-```
-
-Правильная проверка:
-
-```text
-Requester One
-Requester Two
-Technician One
-Supervisor One
-→ каждый вошёл отдельно
-→ каждый получил именно свой набор разрешений и отказов
-```
-
----
-
-# 22. Зафиксировать metadata L5 в Git
-
-В этом уроке Standard metadata изменилось только осознанно:
-
-```text
-Equipment.notes
-→ Permission Level 1
-```
-
-Проверить:
+# 17. Зафиксировать metadata L5 в Git
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
 
 git status
 git diff
-```
 
-Добавить metadata:
-
-```bash
 git add \
   facility_ops/facility_operations/doctype/equipment/equipment.json
 
 git diff --cached
-```
-
-Commit:
-
-```bash
 git commit -m "Restrict equipment notes by permission level"
 git status
 ```
 
-Ожидается:
-
-```text
-working tree clean
-```
-
-Не пытаться вручную копировать в Git:
+Не добавлять вручную в Git:
 
 ```text
 User
@@ -839,103 +566,48 @@ DocShare
 Custom DocPerm
 ```
 
-В L11 разберём, какие конфигурационные records должны поставляться вместе с app и каким штатным способом.
-
 ---
 
-# 23. Самостоятельная работа
+# 18. Самостоятельная проверка
 
-Без готовой последовательности выполнить задачу:
+Без готовой последовательности:
 
-> Создать нового System User `technician.two@example.com`, выдать ему только `Facility Technician`, ограничить его Service Request значением `Warehouse` через User Permission и доказать отдельным входом, что Room 101 заявки ему недоступны.
+> Временно снова включить `technician.restricted@example.com`, создать для него User Permission на `Warehouse`, доказать отдельным входом, что `Room 101` недоступен, затем удалить User Permission и снова отключить пользователя.
 
 Условия:
 
-- новые предметные DocType не создавать;
+- `technician.two@example.com` не создавать;
 - `System Manager` не выдавать;
-- `Administrator` не использовать для проверки результата;
-- Share не использовать для обхода задания;
-- Git после создания пользователя и User Permission должен остаться чистым.
+- Share для обхода задания не использовать;
+- после упражнения Restricted Technician снова отключён;
+- Git остаётся чистым.
 
 ---
 
-# 24. Приёмка L5
+# 19. Приёмка L5
 
-L5 принят, если ученик может показать следующее.
+L5 принят, если:
 
-## Пользователи
+- существуют три роли;
+- четыре постоянных пользователя работают отдельными входами;
+- Requester ограничен `If Owner`;
+- Technician имеет общий Read/Write на Service Request без постоянного Location-фильтра;
+- Supervisor имеет расширенные права;
+- `Equipment.notes = Permission Level 1` и Level 1 доступен Supervisor;
+- User Permission и Share реально проверены на временном пользователе;
+- после проверки Share и User Permission удалены, Restricted Technician отключён;
+- `technician.two@example.com` ещё не существует;
+- Git чист после commit metadata.
 
-Существуют и работают отдельные входы:
+Ученик должен объяснить:
 
-```text
-requester.one@example.com
-requester.two@example.com
-technician.one@example.com
-supervisor.one@example.com
-```
+1. чем Role отличается от User;
+2. что задаёт Role Permission Manager;
+3. что делает `If Owner`;
+4. чем Permission Level отличается от обычного DocType permission;
+5. чем User Permission отличается от Role Permission;
+6. чем Share отличается от User Permission;
+7. почему User Permission нельзя бездумно оставлять перед глобальным Assignment Rule;
+8. почему изменение `Equipment.notes.permlevel` попало в Git, а User Permission — нет.
 
-## Role Permission Manager
-
-Настроены права для:
-
-```text
-Facility Location
-Equipment
-Service Request
-```
-
-## If Owner
-
-Requester One и Requester Two видят/изменяют собственные заявки, но не получают обычный доступ к заявкам друг друга.
-
-## Permission Level
-
-```text
-Equipment.notes = Permission Level 1
-```
-
-и поле доступно Supervisor на соответствующем уровне.
-
-## User Permission
-
-```text
-technician.one@example.com
-→ Facility Location = Room 101
-→ Applicable For = Service Request
-```
-
-ограничивает набор заявок.
-
-## Share
-
-Одна заявка из Room 102 разово доступна Technician для чтения, несмотря на обычное ограничение User Permission.
-
-## Отрицательные проверки
-
-Есть реальные примеры запрещённых Create / Read / Write/Delete действий.
-
-## Git
-
-```bash
-cd ~/frappe/facility-ops-bench/apps/facility_ops
-git status
-```
-
-Рабочее дерево чистое после commit metadata.
-
-## Объяснение
-
-Ученик без подсказки отвечает:
-
-1. Чем Role отличается от User?
-2. Что задаёт Role Permission Manager?
-3. Что делает `If Owner`?
-4. Почему для проверки `If Owner` понадобились два Requester?
-5. Чем Permission Level поля отличается от Permission Level роли?
-6. Чем User Permission отличается от Role Permission?
-7. Чем Share отличается от User Permission?
-8. Почему Technician ещё не считается назначенным на заявку, даже если имеет Write?
-9. Почему изменение `Equipment.notes.permlevel` попало в Git, а User Permission — нет?
-10. Почему проверка под Administrator ничего не доказывает о правах обычных пользователей?
-
-После принятия L5 переходим к **L6 — совместная работа**, где на уже настроенные права накладываются `Assign To`, `ToDo`, Comments, Timeline, Tags и Kanban.
+После L5 переходим к **L6 — совместная работа**. Стенд входит в L6 без постоянных User Permission/Share ограничений на основных Technician.
