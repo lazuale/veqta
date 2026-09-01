@@ -1,70 +1,71 @@
-# P0. Учебное приложение
+# P0. Основа приложения
 
-P0 нужен для одного: разобраться, **из чего реально состоит Frappe-приложение**, как связаны Bench, app, site, Module, Desk, база данных и файлы в Git.
+P0 нужен для одного: разобраться, **из чего реально состоит Frappe-приложение**, и создать app, который будет развиваться весь курс.
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
 ## Что должно получиться
 
-К концу P0 есть отдельный учебный стенд:
-
 ```text
-Bench: frappe-practicum-bench
-App:   frappe_practicum
-Site:  frappe-practicum.localhost
-Module: Frappe Practicum
+Bench:  facility-ops-bench
+App:    facility_ops
+Site:   facility-ops.localhost
+Module: Facility Operations
 ```
 
-И ученик может показать:
+`facility_ops` не является временным лабораторным app. P1–P8 будут развивать именно его.
+
+Временным объектом P0 будет только `Lab Note`: он нужен, чтобы руками увидеть связь между Standard DocType, generated files, database и Git. В конце P0 `Lab Note` удаляется.
+
+## К концу P0 ученик может показать
 
 - точную версию Frappe;
-- app, установленный на site;
-- включённый Developer Mode;
-- default Module, созданный вместе с app;
+- `facility_ops`, установленный на site;
+- Developer Mode;
+- default Module;
 - структуру app и основные файлы;
-- работающий Desk v16;
+- Desk v16;
 - scheduler и workers;
-- первый стандартный DocType;
-- файлы этого DocType в app;
+- Standard DocType и его generated metadata;
 - обычный Document в базе site;
-- разницу между изменением metadata приложения и созданием рабочих данных;
-- штатное удаление стандартного DocType и соответствующее удаление его файлов из app.
+- Git diff изменения metadata;
+- штатное удаление Standard DocType и его файлов.
 
-PDF в P0 не проверяем. Он впервые понадобится в P5.
+PDF в P0 не проверяем. Он понадобится в P5.
 
 ---
 
-# 1. Поднять отдельный стенд
+# 1. Поднять стенд
 
-Если учебного стенда ещё нет, пройти:
+Если стенда ещё нет, пройти:
 
 [SETUP_WSL2.md](SETUP_WSL2.md)
 
 После установки ожидается:
 
 ```text
-~/frappe/frappe-practicum-bench/
+~/frappe/facility-ops-bench/
 ├── apps/
 │   ├── frappe/
-│   └── frappe_practicum/
+│   └── facility_ops/
 └── sites/
-    └── frappe-practicum.localhost/
+    └── facility-ops.localhost/
 ```
 
 Проверить:
 
 ```bash
-cd ~/frappe/frappe-practicum-bench
+cd ~/frappe/facility-ops-bench
 
 bench version
-bench --site frappe-practicum.localhost list-apps
+bench --site facility-ops.localhost list-apps
 
 cd apps/frappe
 git describe --tags --exact-match
 cd ../..
 ```
 
-Нужно увидеть Frappe `16.32.0`, приложения `frappe` и `frappe_practicum`, а `git describe` должен вернуть:
+Нужно увидеть Frappe `16.32.0`, приложения `frappe` и `facility_ops`, а `git describe` должен вернуть:
 
 ```text
 v16.32.0
@@ -74,16 +75,16 @@ v16.32.0
 
 ---
 
-# 2. Bench, app и site — это разные вещи
-
-Открыть корень Bench:
+# 2. Разделить Bench, app и site
 
 ```bash
-cd ~/frappe/frappe-practicum-bench
+cd ~/frappe/facility-ops-bench
 ls -la
+ls -la apps
+ls -la sites
 ```
 
-Для начала достаточно трёх каталогов:
+Для начала достаточно:
 
 ```text
 apps/    код приложений
@@ -91,31 +92,24 @@ sites/   отдельные экземпляры Frappe и их данные
 logs/    журналы процессов Bench
 ```
 
-Посмотреть:
-
-```bash
-ls -la apps
-ls -la sites
-```
-
-Зафиксировать главное:
+Главное различие:
 
 ```text
-frappe_practicum
+facility_ops
 = app
 
-frappe-practicum.localhost
+facility-ops.localhost
 = site, на который app установлен
 ```
 
-Один app можно устанавливать на разные sites. Это будет отдельно проверено в P2.
+Один app можно устанавливать на несколько sites. В P4 это будет проверено на втором чистом site, а в P8 — повторено как финальная приёмка.
 
 ---
 
-# 3. Посмотреть структуру учебного app
+# 3. Посмотреть структуру `facility_ops`
 
 ```bash
-cd ~/frappe/frappe-practicum-bench/apps/frappe_practicum
+cd ~/frappe/facility-ops-bench/apps/facility_ops
 pwd
 git status
 find . -maxdepth 2 -type f | sort
@@ -125,21 +119,21 @@ find . -maxdepth 2 -type f | sort
 
 ```text
 pyproject.toml
-frappe_practicum/hooks.py
-frappe_practicum/modules.txt
-frappe_practicum/patches.txt
+facility_ops/hooks.py
+facility_ops/modules.txt
+facility_ops/patches.txt
 ```
 
 Проверить Module:
 
 ```bash
-cat frappe_practicum/modules.txt
+cat facility_ops/modules.txt
 ```
 
 Ожидается:
 
 ```text
-Frappe Practicum
+Facility Operations
 ```
 
 Этот Module уже создал `bench new-app`. Второй раз создавать его не нужно.
@@ -147,7 +141,7 @@ Frappe Practicum
 Посмотреть начало `hooks.py`:
 
 ```bash
-sed -n '1,120p' frappe_practicum/hooks.py
+sed -n '1,120p' facility_ops/hooks.py
 ```
 
 Пока ничего не менять.
@@ -157,7 +151,7 @@ sed -n '1,120p' frappe_practicum/hooks.py
 - `pyproject.toml` описывает Python package app;
 - `hooks.py` — штатная точка конфигурации приложения;
 - `modules.txt` перечисляет Module приложения;
-- `patches.txt` используется для patches/migrations;
+- `patches.txt` используется для migrations/patches;
 - Module — логическая часть app, а не отдельное приложение.
 
 ---
@@ -165,7 +159,7 @@ sed -n '1,120p' frappe_practicum/hooks.py
 # 4. Проверить Developer Mode
 
 ```bash
-cd ~/frappe/frappe-practicum-bench
+cd ~/frappe/facility-ops-bench
 grep '"developer_mode"' sites/common_site_config.json
 ```
 
@@ -179,31 +173,31 @@ grep '"developer_mode"' sites/common_site_config.json
 
 ```bash
 bench set-config -g developer_mode 1
-bench --site frappe-practicum.localhost clear-cache
+bench --site facility-ops.localhost clear-cache
 ```
 
-В Developer Mode стандартные объекты своего app могут сохраняться как файлы приложения и попадать в Git.
+В Developer Mode Standard objects своего app могут сохраняться как version-controlled metadata внутри приложения.
 
 ---
 
-# 5. Запустить Desk и пройти базовую навигацию v16
+# 5. Запустить Desk и пройти базовую навигацию
 
 В первом терминале:
 
 ```bash
-cd ~/frappe/frappe-practicum-bench
+cd ~/frappe/facility-ops-bench
 bench start
 ```
 
 В браузере открыть:
 
 ```text
-http://frappe-practicum.localhost:8000
+http://facility-ops.localhost:8000
 ```
 
 Войти как `Administrator`.
 
-Найти в интерфейсе:
+Найти:
 
 - Apps Page;
 - Workspace Sidebar;
@@ -214,7 +208,7 @@ http://frappe-practicum.localhost:8000
 - Form View;
 - меню пользователя и Settings.
 
-Ничего специально не настраивать. P0 нужен только для ориентации в Desk.
+P0 не собирает Workspace. Здесь нужна только ориентация в Desk.
 
 ---
 
@@ -225,47 +219,39 @@ http://frappe-practicum.localhost:8000
 Во втором терминале:
 
 ```bash
-cd ~/frappe/frappe-practicum-bench
-bench --site frappe-practicum.localhost scheduler status
+cd ~/frappe/facility-ops-bench
+bench --site facility-ops.localhost scheduler status
 ```
 
 Если scheduler выключен:
 
 ```bash
-bench --site frappe-practicum.localhost scheduler enable
+bench --site facility-ops.localhost scheduler enable
 ```
 
-Повторить проверку:
+Повторить:
 
 ```bash
-bench --site frappe-practicum.localhost scheduler status
-bench --site frappe-practicum.localhost doctor
-bench --site frappe-practicum.localhost show-pending-jobs
+bench --site facility-ops.localhost scheduler status
+bench --site facility-ops.localhost doctor
+bench --site facility-ops.localhost show-pending-jobs
 ```
 
-Пустая очередь на новом стенде нормальна.
-
-Точное количество workers не фиксируем. Важно, чтобы команды выполнялись без ошибок Redis/queues и scheduler был enabled.
+Пустая очередь на новом стенде нормальна. Точное количество workers не фиксируем.
 
 ---
 
-# 7. Создать первый стандартный DocType
+# 7. Создать временный Standard DocType
 
-В Desk через Awesomebar открыть:
-
-```text
-DocType
-```
-
-Создать новый DocType:
+В Desk через Awesomebar открыть `DocType` и создать:
 
 ```text
 Name:   Lab Note
-Module: Frappe Practicum
+Module: Facility Operations
 Custom: выключено
 ```
 
-Добавить три поля:
+Поля:
 
 | Label | Type | Mandatory | Default |
 |---|---|---:|---|
@@ -273,27 +259,23 @@ Custom: выключено
 | Note | Small Text | No | |
 | Is Active | Check | No | 1 |
 
-Никакие другие свойства пока не настраивать.
-
-Naming, Title Field, Search Fields, permissions и расширенная модель данных начинаются в следующих проектах.
+Naming, полноценная модель данных и расширенные свойства начинаются в P1.
 
 Сохранить DocType.
 
 ---
 
-# 8. Найти созданные файлы
-
-В терминале:
+# 8. Найти generated files
 
 ```bash
-cd ~/frappe/frappe-practicum-bench/apps/frappe_practicum
+cd ~/frappe/facility-ops-bench/apps/facility_ops
 git status --short
 ```
 
-Найти каталог DocType:
+Найти каталог:
 
 ```bash
-find frappe_practicum/frappe_practicum/doctype/lab_note \
+find facility_ops/facility_operations/doctype/lab_note \
   -maxdepth 1 -type f -printf '%f\n' | sort
 ```
 
@@ -307,32 +289,26 @@ lab_note.py
 test_lab_note.py
 ```
 
-Главный файл сейчас:
-
-```text
-lab_note.json
-```
-
-Посмотреть:
+Посмотреть JSON:
 
 ```bash
 sed -n '1,240p' \
-  frappe_practicum/frappe_practicum/doctype/lab_note/lab_note.json
+  facility_ops/facility_operations/doctype/lab_note/lab_note.json
 ```
 
-Найти в JSON:
+Найти:
 
 - `name`;
 - `module`;
 - `fields`;
 - `fieldname`;
 - типы полей;
-- mandatory для `Title`;
-- default для `Is Active`.
+- mandatory;
+- default.
 
 JSON вручную не редактировать.
 
-Сейчас нужно увидеть цепочку:
+Сейчас важно увидеть цепочку:
 
 ```text
 DocType в Desk
@@ -344,7 +320,7 @@ JSON + boilerplate в app
 Git
 ```
 
-`.py` и `.js` рядом с DocType — штатный boilerplate. В P0 их не редактируем.
+`.py` и `.js` созданы Frappe как boilerplate. В P0 их не редактируем.
 
 ---
 
@@ -360,22 +336,21 @@ Is Active: включено
 
 Сохранить.
 
-Снова выполнить:
+Снова:
 
 ```bash
-cd ~/frappe/frappe-practicum-bench/apps/frappe_practicum
+cd ~/frappe/facility-ops-bench/apps/facility_ops
 git status --short
 ```
 
-Создание ещё одной записи `Lab Note` не должно создавать новый исходный файл app.
+Создание ещё одного `Lab Note` Document не должно создавать новый исходный файл app.
 
-Главная разница:
+Главное различие:
 
 ```text
 DocType
 = описание типа документов
-= metadata
-= стандартный DocType своего app хранится в файлах app
+= Standard metadata своего app хранится в файлах app
 
 Document
 = конкретная запись DocType
@@ -383,15 +358,15 @@ Document
 = хранится в базе данных
 ```
 
-Git не является резервной копией рабочих данных site.
+Git не является backup рабочих данных site.
 
 ---
 
-# 10. Увидеть реальный Git diff
+# 10. Увидеть Git diff metadata
 
 Вернуться в `DocType: Lab Note`.
 
-Изменить label поля:
+Изменить label:
 
 ```text
 Note → Comment
@@ -402,52 +377,32 @@ Note → Comment
 В терминале:
 
 ```bash
-cd ~/frappe/frappe-practicum-bench/apps/frappe_practicum
+cd ~/frappe/facility-ops-bench/apps/facility_ops
 
 git diff -- \
-  frappe_practicum/frappe_practicum/doctype/lab_note/lab_note.json
+  facility_ops/facility_operations/doctype/lab_note/lab_note.json
 ```
 
-Убедиться, что metadata изменилась в JSON.
+Убедиться, что изменилась metadata.
 
-Вернуть label обратно в `Note`, снова сохранить и повторить `git diff`.
-
-Нужно руками увидеть цикл:
-
-```text
-Desk → Save DocType → файл app → Git diff
-```
+Вернуть label обратно в `Note`, снова сохранить и повторить diff.
 
 ---
 
-# 11. Зафиксировать создание DocType в локальном Git
-
-Проверить изменения:
+# 11. Зафиксировать создание DocType
 
 ```bash
-cd ~/frappe/frappe-practicum-bench/apps/frappe_practicum
+cd ~/frappe/facility-ops-bench/apps/facility_ops
 
 git status
 git diff
-```
-
-Затем:
-
-```bash
 git add .
 git diff --cached
 git commit -m "Add Lab Note doctype"
-```
-
-Проверить:
-
-```bash
 git status
 ```
 
-Ожидается чистое рабочее дерево.
-
-Удалённый GitHub-репозиторий для P0 не требуется. Здесь важно понять локальную version-control модель Frappe app.
+Удалённый GitHub repository для учебного app на этом этапе не обязателен. Важно понять локальную version-control модель Frappe app.
 
 ---
 
@@ -455,6 +410,7 @@ git status
 
 Пока не нужно:
 
+- строить реестр Equipment;
 - писать Python controller;
 - писать JavaScript;
 - Client Script;
@@ -462,7 +418,6 @@ git status
 - Workflow;
 - роли и permissions;
 - Customize Form;
-- Export Customizations;
 - fixtures;
 - Reports;
 - Workspace;
@@ -470,62 +425,62 @@ git status
 - REST API;
 - PDF.
 
-Эти вещи не запрещены. Просто у каждой будет свой практический сценарий дальше.
+Каждый из этих механизмов появится позже только по реальной задаче `facility_ops`.
 
 ---
 
 # 13. Приёмка P0
 
-До удаления учебного DocType ученик должен без подсказки выполнить и объяснить:
+До cleanup ученик может выполнить и объяснить:
 
 ```bash
-cd ~/frappe/frappe-practicum-bench
+cd ~/frappe/facility-ops-bench
 bench version
-bench --site frappe-practicum.localhost list-apps
-bench --site frappe-practicum.localhost scheduler status
-bench --site frappe-practicum.localhost doctor
+bench --site facility-ops.localhost list-apps
+bench --site facility-ops.localhost scheduler status
+bench --site facility-ops.localhost doctor
 
-cd apps/frappe_practicum
+cd apps/facility_ops
 git status
-cat frappe_practicum/modules.txt
+cat facility_ops/modules.txt
 ```
 
 И показать:
 
 - Frappe `v16.32.0`;
-- app `frappe_practicum`;
-- site `frappe-practicum.localhost`;
-- Module `Frappe Practicum`;
+- app `facility_ops`;
+- site `facility-ops.localhost`;
+- Module `Facility Operations`;
 - Developer Mode;
-- каталог `Lab Note` в app;
+- каталог `Lab Note`;
 - `lab_note.json`;
-- обычную запись `Lab Note` в Desk;
-- объяснение, почему metadata DocType попадает в Git, а Document — в базу site;
-- разницу между Bench, app, site и Module.
+- обычный Document `Lab Note`;
+- объяснение metadata против рабочих данных;
+- разницу Bench / app / site / Module.
 
 ---
 
-# 14. Удалить учебный DocType и оставить чистый app
+# 14. Удалить `Lab Note` и оставить чистый `facility_ops`
 
-`Lab Note` нужен только для P0. Перед P1 его удаляем штатно и заодно смотрим обратную сторону lifecycle metadata.
+`Lab Note` нужен только как диагностический объект P0.
 
-Сначала удалить созданную запись `Lab Note` через обычный List/Form View.
+1. Удалить созданный Document `Lab Note`.
+2. Под `Administrator` открыть `DocType: Lab Note`.
+3. Выполнить стандартное действие `Delete`.
 
-Затем под `Administrator` открыть сам `DocType: Lab Note` и выполнить стандартное действие `Delete`.
-
-Для стандартного DocType это разрешено в Developer Mode. Frappe v16.32.0 при таком удалении удаляет каталог controller/metadata этого DocType из Module приложения.
+В Developer Mode Frappe v16.32.0 позволяет удалить Standard DocType и удаляет его controller/metadata directory из app.
 
 Проверить:
 
 ```bash
-cd ~/frappe/frappe-practicum-bench/apps/frappe_practicum
+cd ~/frappe/facility-ops-bench/apps/facility_ops
 
 git status --short
-find frappe_practicum/frappe_practicum/doctype/lab_note \
+find facility_ops/facility_operations/doctype/lab_note \
   -maxdepth 1 -type f -printf '%f\n' 2>/dev/null || true
 ```
 
-Каталога `lab_note` в app больше быть не должно, а Git должен показывать удаление ранее закоммиченных файлов.
+Каталога `lab_note` больше быть не должно.
 
 Зафиксировать cleanup:
 
@@ -538,12 +493,12 @@ git status
 
 Финальное состояние перед P1:
 
-- учебный app установлен и работает;
+- `facility_ops` установлен и работает;
+- Module `Facility Operations` существует;
 - Developer Mode включён;
 - scheduler/workers проверены;
-- устройство standard DocType и Document понятно;
-- цикл `create → change → delete` standard metadata пройден;
-- одноразового `Lab Note` в app больше нет;
+- lifecycle Standard metadata `create → change → delete` пройден;
+- временного DocType больше нет;
 - Git working tree чистый.
 
-После этого можно переходить к P1.
+После этого P1 начинает строить уже настоящую модель службы эксплуатации.
