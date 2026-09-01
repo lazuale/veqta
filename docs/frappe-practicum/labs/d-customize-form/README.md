@@ -10,7 +10,7 @@ Equipment
 
 Временно добавим локальное поле и изменим одно свойство штатного поля.
 
-После лаборатории кастомизация будет полностью удалена, а экспортированный файл снова приведён к базовому состоянию L11.
+После лаборатории исходный site и экспортированный файл будут возвращены к базовому состоянию L11. Если эксперимент уже синхронизировали на другой site, его локальные Custom Field / Property Setter очищаются там отдельно — отсутствие записи в exported JSON само по себе не является командой удаления.
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
@@ -175,13 +175,7 @@ Administrator
 Customize Form
 ```
 
-В поле:
-
-```text
-Enter Form Type
-```
-
-выбрать:
+В поле выбора формы выбрать:
 
 ```text
 Equipment
@@ -295,7 +289,7 @@ Insert After  = notes
 
 ---
 
-# 9. Проверить колонку в базе через штатный metadata-механизм
+# 9. Понять изменение схемы
 
 Возвращаться к MariaDB вручную для работы не нужно.
 
@@ -478,19 +472,11 @@ Lab D local customization
 Custom Field → Equipment-custom_internal_comment
 ```
 
-Найти поле:
-
-```text
-Module (for export)
-```
-
-Если оно доступно, установить:
+Найти поле модуля для экспорта, если оно отображается, и установить:
 
 ```text
 Facility Operations
 ```
-
-Сохранить.
 
 Открыть Property Setter:
 
@@ -504,13 +490,13 @@ Equipment-notes-label
 Module = Facility Operations
 ```
 
-Это понадобится, если мы захотим использовать строгий:
+Это понадобится при использовании:
 
 ```text
 Apply Module Export Filter = Yes
 ```
 
-Для основной лаборатории фильтр пока не включаем, чтобы не потерять уже существующие customization records Equipment.
+Для основной лаборатории фильтр не включаем, чтобы не исключить другие существующие customization records Equipment.
 
 ---
 
@@ -538,15 +524,9 @@ Export Custom Permissions:    Yes
 Apply Module Export Filter:   No
 ```
 
-Почему:
+`Export Custom Permissions = Yes` в этой лаборатории обязателен.
 
-```text
-Export Custom Permissions = Yes
-```
-
-обязательно в нашем курсе:
-
-в L11 `equipment.json` уже используется для переноса прав. Если экспортировать сейчас без permissions, можно перезаписать файл версией без `custom_perms`.
+В L11 `equipment.json` уже используется для переноса прав. Если сейчас экспортировать без permissions, файл можно перезаписать версией без `custom_perms`.
 
 Не теряем ранее настроенные права ради лаборатории.
 
@@ -667,7 +647,7 @@ custom/equipment.json
 
 ---
 
-# 21. Проверить на clean site
+# 21. Проверить установку customization на clean site
 
 Если clean site из L11 ещё существует:
 
@@ -694,6 +674,8 @@ Maintenance Notes
 ```
 
 То есть переносится customization definition, а не данные исходного site.
+
+Зафиксировать, что именно этот clean site **получил эксперимент**. Это понадобится в конце лаборатории для проверки семантики удаления.
 
 ---
 
@@ -782,11 +764,11 @@ Frappe сравнит значение с исходным Standard DocField.
 Equipment / notes / label
 ```
 
-должен быть удалён.
+должен быть удалён **на текущем site**.
 
 ---
 
-# 25. Проверить удаление Property Setter
+# 25. Проверить удаление Property Setter на исходном site
 
 Открыть:
 
@@ -834,11 +816,13 @@ Frappe должен удалить соответствующий:
 Custom Field Equipment-custom_internal_comment
 ```
 
+на текущем site.
+
 Не удалять стандартные поля — Customize Form штатно блокирует такую операцию.
 
 ---
 
-# 27. Проверить удаление Custom Field
+# 27. Проверить удаление Custom Field на исходном site
 
 Через `Custom Field` убедиться, что записи:
 
@@ -979,9 +963,15 @@ baseline
 
 ---
 
-# 32. Проверить clean site после rollback
+# 32. Доказать, что Export Customizations не удаляет stale customization на другом site
 
-Если используется `facility-ops-clean.localhost`:
+Этот тест выполняется только если в шаге 21 эксперимент уже был применён к:
+
+```text
+facility-ops-clean.localhost
+```
+
+После очистки исходного site и повторного экспорта выполнить:
 
 ```bash
 cd ~/frappe/facility-ops-bench
@@ -990,20 +980,80 @@ bench --site facility-ops-clean.localhost migrate
 bench --site facility-ops-clean.localhost clear-cache
 ```
 
-После migrate на clean site также не должно быть:
+Теперь открыть Equipment на clean site.
+
+Важный результат `v16.32.0`:
+
+```text
+отсутствие Custom Field / Property Setter
+в новом equipment.json
+не является инструкцией удалить уже существующий record на site
+```
+
+`sync_customizations()` синхронизирует записи, которые перечислены в файле: создаёт или обновляет Custom Field / Property Setter. Для этих двух типов он не выполняет декларативное удаление всех записей, которых больше нет в JSON.
+
+Поэтому ранее установленный эксперимент на clean site может остаться:
 
 ```text
 Internal Comment
 Maintenance Notes
 ```
 
-Но permissions Equipment должны сохраниться.
+Это **не ошибка migrate**.
 
-Это доказывает, что экспортируемый customization-файл работает в обе стороны жизненного цикла приложения.
+Это граница механизма Export Customizations.
 
 ---
 
-# 33. Что должен уметь объяснить студент
+# 33. Точечно очистить ранее синхронизированный clean site
+
+Если на `facility-ops-clean.localhost` остались лабораторные Custom Field / Property Setter, войти на этот site как Administrator и выполнить тот же точечный rollback:
+
+```text
+Customize Form → Equipment
+```
+
+1. вернуть:
+
+```text
+Maintenance Notes → Notes
+```
+
+2. удалить только:
+
+```text
+Internal Comment
+```
+
+Не использовать:
+
+```text
+Reset All Customizations
+```
+
+После этого проверить на clean site:
+
+```text
+Property Setter Equipment-notes-label отсутствует
+Custom Field Equipment-custom_internal_comment отсутствует
+Equipment снова показывает Notes
+Internal Comment отсутствует
+```
+
+Затем ещё раз выполнить:
+
+```bash
+bench --site facility-ops-clean.localhost migrate
+bench --site facility-ops-clean.localhost clear-cache
+```
+
+Лабораторные customization records **не должны появиться снова**, потому что их уже нет и в site DB, и в актуальном exported `equipment.json`.
+
+Именно так выглядит корректная очистка временной customization, которая уже была развёрнута на другом site.
+
+---
+
+# 34. Что должен уметь объяснить студент
 
 После Lab D без подсказки объяснить:
 
@@ -1019,12 +1069,13 @@ Maintenance Notes
 зачем сохранять Custom Permissions при повторном экспорте;
 почему Reset All Customizations опасен на уже настроенном DocType;
 почему удаление Custom Field не равно немедленному DROP COLUMN;
+почему удаление записи из exported JSON не удаляет автоматически ранее синхронизированный Custom Field / Property Setter на другом site;
 чем Export Customizations отличается от fixtures.
 ```
 
 ---
 
-# 34. Финальная приёмка Lab D
+# 35. Финальная приёмка Lab D
 
 Лаборатория пройдена, если выполнено всё:
 
@@ -1038,13 +1089,16 @@ Maintenance Notes
 [ ] выполнен Export Customizations
 [ ] equipment.json содержит custom_fields/property_setters/custom_perms во время эксперимента
 [ ] bench migrate сохраняет customization
-[ ] на clean site customization переносится без рабочих Equipment Documents
-[ ] Label возвращён к Notes
-[ ] Property Setter удалён штатно
-[ ] Custom Field удалён штатно
+[ ] на clean site customization устанавливается без рабочих Equipment Documents
+[ ] Label возвращён к Notes на исходном site
+[ ] Property Setter удалён штатно на исходном site
+[ ] Custom Field удалён штатно на исходном site
 [ ] Trim Table не запускался
 [ ] повторный Export Customizations сохранил permissions L11
-[ ] лабораторные customization records исчезли из exported JSON
+[ ] лабораторные customization records исчезли из актуального exported JSON
+[ ] проверено, что migrate сам не является механизмом удаления stale Custom Field / Property Setter на ранее синхронизированном site
+[ ] ранее синхронизированный clean site очищен точечно
+[ ] повторный migrate после точечной очистки не возвращает лабораторные customization records
 [ ] Git содержит отдельный commit эксперимента и cleanup
 [ ] итоговая модель приложения снова не расширена
 ```
