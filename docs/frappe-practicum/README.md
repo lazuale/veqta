@@ -142,7 +142,7 @@ Facility Supervisor
 | [L4](projects/04-service-request/README.md) | Service Request | рабочий DocType, Links, Status, Priority, Attachments |
 | [L5](projects/05-users-permissions/README.md) | пользователи и доступ | User, Role, Permissions, If Owner, Permission Level, User Permission, Share |
 | [L6](projects/06-collaboration/README.md) | совместная работа | Assign To, ToDo, Comments, Timeline, Tags, Kanban |
-| L7 | управляемый процесс | Workflow, Workflow State, Transition, Workflow Action |
+| [L7](projects/07-workflow/README.md) | управляемый процесс | Workflow, Workflow State, Transition, Workflow Action |
 | L8 | контроль работы | Report Builder, Number Card, Dashboard Chart, Workspace |
 | L9 | автоматизация | Notification, Assignment Rule, scheduler |
 | L10 | внешний ввод | Web Form, Guest, Website User, permissions, attachments |
