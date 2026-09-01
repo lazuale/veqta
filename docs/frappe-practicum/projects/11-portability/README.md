@@ -14,10 +14,10 @@ clean site
         ↓
 install-app
         ↓
-working core without old runtime data
+рабочее core без старого runtime state
 ```
 
-Важно: L11 доказывает **clean-site portability**, а не автоматическую бесконфликтную co-installation совместимость с любым сторонним app.
+L11 доказывает clean-site portability, а не произвольную co-installation совместимость с любым сторонним app.
 
 ---
 
@@ -30,13 +30,11 @@ working core without old runtime data
 4. working data
 ```
 
-Эти слои не смешиваем.
-
 ---
 
 # 2. Standard source
 
-Уже находится в `facility_ops`:
+В `facility_ops` уже находятся:
 
 ```text
 Facility Location
@@ -56,13 +54,13 @@ Service Request One Day Overdue
 Report a Facility Issue
 ```
 
-Standard DocType/Report/Card/Chart/Workspace/Notification/Web Form не дублируются fixtures.
+Standard objects не дублируются fixtures.
 
 ---
 
 # 3. Universal app configuration
 
-На любом clean site должны появиться:
+Fixtures должны поставить:
 
 ```text
 Facility Requester
@@ -85,13 +83,13 @@ Close
 Service Request Workflow
 ```
 
-Это поставляем fixtures.
+Custom Permissions поставляются exported customizations.
 
 ---
 
 # 4. Site-specific configuration
 
-Не является universal app behavior:
+Не является universal:
 
 ```text
 Users
@@ -100,20 +98,13 @@ Share
 Assignment Rule с конкретными Users
 ```
 
-На основном site L9 существует:
+Main-site L9 Rule:
 
 ```text
 Service Request Auto Assignment
 ```
 
-с:
-
-```text
-technician.one@example.com
-technician.two@example.com
-```
-
-На clean site таких Users нет, поэтому Rule не fixture.
+ссылается на локальных Technician One/Two и поэтому не fixture.
 
 ---
 
@@ -133,8 +124,6 @@ Notification Log
 Workflow Action records
 ```
 
-Приложение переносит структуру и конфигурацию, а не копию database.
-
 ---
 
 # 6. Проверить исходный site
@@ -148,7 +137,7 @@ cd apps/facility_ops
 git status
 ```
 
-Нужно получить:
+Ожидается:
 
 ```text
 Frappe 16.32.0
@@ -156,17 +145,14 @@ facility_ops установлен
 working tree clean
 ```
 
-На исходном site должны существовать финальные имена:
+Проверить финальные names:
 
 ```text
-Service Request Workflow
+States:
 New / Accepted / In Progress / Resolved / Closed
-Accept / Start Work / Resolve / Close
 
-Facility Operations Control
-New Service Request
-Service Request One Day Overdue
-Report a Facility Issue
+Actions:
+Accept / Start Work / Resolve / Close
 ```
 
 У Web Form:
@@ -174,6 +160,16 @@ Report a Facility Issue
 ```text
 Allow Editing After Submit = No
 ```
+
+У Service Request Role Permissions до экспорта:
+
+```text
+Requester → Create + Read own, Write/Delete No
+Technician → Read/Write, Create/Delete No
+Supervisor → Read/Write/Create, Delete No, Report/Export
+```
+
+Если эта матрица не соблюдается — L11 не начинать.
 
 ---
 
@@ -212,7 +208,6 @@ JSON вручную не редактировать.
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
-
 find facility_ops/facility_operations/custom \
   -maxdepth 1 -type f -print | sort
 ```
@@ -224,60 +219,49 @@ find facility_ops/facility_operations/custom \
 "custom_perms"
 ```
 
-`Equipment.notes` Permission Level 1 находится в Standard metadata, а соответствующие Role permissions приходят через exported custom permissions.
+Особенно убедиться, что `service_request.json` отражает финальный hardening, а не временный Delete experiment L5.
+
+Финал должен означать:
+
+```text
+Requester Write = 0
+Requester Delete = 0
+Technician Delete = 0
+Supervisor Delete = 0
+```
 
 ---
 
 # 9. Fixtures в hooks.py
 
-Добавить:
-
 ```python
 fixtures = [
     {
         "doctype": "Role",
-        "filters": [
-            [
-                "name",
-                "in",
-                [
-                    "Facility Requester",
-                    "Facility Technician",
-                    "Facility Supervisor",
-                ],
-            ]
-        ],
+        "filters": [["name", "in", [
+            "Facility Requester",
+            "Facility Technician",
+            "Facility Supervisor",
+        ]]],
     },
     {
         "doctype": "Workflow State",
-        "filters": [
-            [
-                "name",
-                "in",
-                [
-                    "New",
-                    "Accepted",
-                    "In Progress",
-                    "Resolved",
-                    "Closed",
-                ],
-            ]
-        ],
+        "filters": [["name", "in", [
+            "New",
+            "Accepted",
+            "In Progress",
+            "Resolved",
+            "Closed",
+        ]]],
     },
     {
         "doctype": "Workflow Action Master",
-        "filters": [
-            [
-                "name",
-                "in",
-                [
-                    "Accept",
-                    "Start Work",
-                    "Resolve",
-                    "Close",
-                ],
-            ]
-        ],
+        "filters": [["name", "in", [
+            "Accept",
+            "Start Work",
+            "Resolve",
+            "Close",
+        ]]],
     },
     {
         "doctype": "Workflow",
@@ -288,7 +272,7 @@ fixtures = [
 fixture_auto_order = True
 ```
 
-Зависимости:
+Порядок зависимостей:
 
 ```text
 Role
@@ -297,8 +281,6 @@ Workflow State / Action Master
 ↓
 Workflow
 ```
-
-`fixture_auto_order` использует hooks order для fixture filenames.
 
 ---
 
@@ -311,9 +293,9 @@ User
 User Permission
 DocShare
 Assignment Rule
-Facility Location working Documents
-Equipment working Documents
-Service Request working Documents
+working Facility Location
+working Equipment
+working Service Request
 ToDo
 File
 Notification Log
@@ -326,8 +308,6 @@ Notification
 Web Form
 ```
 
-Standard source уже поставляется source-механизмом, runtime/site-specific data не должны становиться fixtures.
-
 ---
 
 # 11. Export fixtures
@@ -337,34 +317,13 @@ cd ~/frappe/facility-ops-bench
 bench --site facility-ops.localhost export-fixtures --app facility_ops
 ```
 
-Проверить каталог:
-
-```bash
-cd apps/facility_ops
-find facility_ops/fixtures -maxdepth 1 -type f -print | sort
-```
-
-Ожидаются:
-
-```text
-Role
-Workflow State
-Workflow Action Master
-Workflow
-```
+Проверить `facility_ops/fixtures`.
 
 ---
 
-# 12. Проверить fixtures на runtime мусор
+# 12. Проверить fixtures на runtime мусор и legacy names
 
-```bash
-for f in facility_ops/fixtures/*.json; do
-  echo "===== $f ====="
-  sed -n '1,280p' "$f"
-done
-```
-
-Не должно быть:
+В fixtures не должно быть:
 
 ```text
 requester.one@example.com
@@ -379,14 +338,14 @@ SR-00001
 EQ-0001
 ```
 
-Должны быть новые universal Workflow names:
+Должны быть:
 
 ```text
 Accepted
 Accept
 ```
 
-и не должно остаться старых:
+Не должно быть legacy process names:
 
 ```text
 Assigned
@@ -395,15 +354,28 @@ Mark Assigned
 
 ---
 
-# 13. Проверить Standard source
+# 13. Проверить Workflow configuration перед поставкой
 
-```bash
-find facility_ops/facility_operations \
-  -type f | sort \
-  | grep -E 'report|number_card|dashboard_chart|workspace|notification|web_form'
+У `Service Request Workflow` проверить:
+
+| State | Only Allow Edit For |
+|---|---|
+| New | Facility Supervisor |
+| Accepted | Facility Technician |
+| In Progress | Facility Technician |
+| Resolved | Facility Supervisor |
+| Closed | Facility Supervisor |
+
+Это должно приехать через fixture Workflow.
+
+Напомнить:
+
+```text
+Only Allow Edit For
+= Desk guard
 ```
 
-L8–L10 находятся в app source.
+Hard post-create запрет Requester обеспечивается Custom DocPerm `Write = No`.
 
 ---
 
@@ -439,43 +411,27 @@ bench new-site facility-ops-clean.localhost \
   --db-root-username frappe_admin
 ```
 
-Новый пароль Administrator задаётся отдельно.
-
 Database старого site не копировать.
 
 ---
 
-# 16. install-app и migrate — точная семантика
+# 16. install-app и migrate
 
 ```bash
 bench --site facility-ops-clean.localhost install-app facility_ops
 bench --site facility-ops-clean.localhost list-apps
 ```
 
-В `v16.32.0` `install_app()` уже выполняет первоначальный install flow, включая:
+В exact `v16.32.0` install flow уже синхронизирует app source, fixtures, customizations и dashboards.
 
-```text
-sync source
-sync fixtures
-sync customizations
-sync dashboards
-```
-
-Поэтому последующий:
+Затем для проверки повторного convergence path:
 
 ```bash
 bench --site facility-ops-clean.localhost migrate
 bench --site facility-ops-clean.localhost clear-cache
 ```
 
-используется как проверка обычного update/convergence path уже установленного приложения.
-
-Не учим ложной модели:
-
-```text
-install-app = половина установки
-migrate = обязательная вторая половина
-```
+Не учить ложной модели `install-app = половина установки`.
 
 ---
 
@@ -503,64 +459,35 @@ Equipment
 Service Request
 ```
 
-Проверить:
+`Service Request.status`:
 
 ```text
-Service Request.status
-Options:
 New
 Accepted
 In Progress
 Resolved
 Closed
-
-Read Only = Yes
 ```
 
 и:
 
 ```text
-Equipment.notes → Permission Level 1
+Read Only = Yes
+```
+
+`Equipment.notes`:
+
+```text
+Permission Level = 1
 ```
 
 ---
 
 # 19. Проверить fixtures
 
-Роли:
+Роли, Workflow, States и Actions должны существовать.
 
-```text
-Facility Requester
-Facility Technician
-Facility Supervisor
-```
-
-Workflow:
-
-```text
-Service Request Workflow
-```
-
-States:
-
-```text
-New
-Accepted
-In Progress
-Resolved
-Closed
-```
-
-Actions:
-
-```text
-Accept
-Start Work
-Resolve
-Close
-```
-
-Проверить transitions:
+Transitions:
 
 ```text
 New → Accept → Accepted
@@ -569,23 +496,44 @@ In Progress → Resolve → Resolved
 Resolved → Close → Closed
 ```
 
----
-
-# 20. Проверить permission semantics
-
-Role Permission Manager должен восстановить L5 configuration.
-
-При этом помнить:
+`New.only_allow_edit_for` должен быть:
 
 ```text
-Role Permission
-= server access boundary
-
-Only Allow Edit For
-= state-dependent Desk behavior
+Facility Supervisor
 ```
 
-Не использовать clean-site проверку UI как доказательство более сильной ACL, чем реально настроено.
+---
+
+# 20. Критическая проверка восстановленных permissions
+
+В Role Permission Manager на clean site проверить **точно**:
+
+## Service Request
+
+```text
+Facility Requester
+Read = Yes
+Write = No
+Create = Yes
+Delete = No
+If Owner = Yes
+
+Facility Technician
+Read = Yes
+Write = Yes
+Create = No
+Delete = No
+
+Facility Supervisor
+Read = Yes
+Write = Yes
+Create = Yes
+Delete = No
+Report = Yes
+Export = Yes
+```
+
+Если Supervisor Delete = Yes или Requester Write = Yes — exported customizations не соответствуют финальной архитектуре, и L11 провален.
 
 ---
 
@@ -634,13 +582,11 @@ Attachment  Optional
 
 `Status` отсутствует.
 
-Для Location/Equipment `Allow Read On All Link Options = Yes` рассматривается как trust decision для внутренних authenticated Website Users.
-
 ---
 
-# 23. Доказать отсутствие старого runtime состояния
+# 23. Доказать отсутствие старого runtime state
 
-На clean site не должно быть старых:
+Не должно быть старых:
 
 ```text
 Users курса
@@ -659,22 +605,17 @@ Service Request data
 
 ```text
 requester.clean@example.com
-System User
-Role: Facility Requester
+→ System User → Facility Requester
 
 technician.clean@example.com
-System User
-Role: Facility Technician
+→ System User → Facility Technician
 
 supervisor.clean@example.com
-System User
-Role: Facility Supervisor
+→ System User → Facility Supervisor
 
 web.clean@example.com
-Website User
+→ Website User
 ```
-
-Это site data, не app source.
 
 ---
 
@@ -698,36 +639,61 @@ Category:       Other
 Status:         Active
 ```
 
-`Pump` — название объекта, не новое значение Category.
-
 ---
 
-# 26. Создать Service Request
+# 26. Критический Requester acceptance
 
-Под Requester:
+Под:
+
+```text
+requester.clean@example.com
+```
+
+создать:
 
 ```text
 Subject:     Clean site request
 Location:    Room 101
 Equipment:   EQ-CLEAN-001
-Description: End-to-end portability test
+Description: End-to-end portability and permission test
 Priority:    Medium
 Target Date: будущая дата или пусто
 ```
 
-Получить:
+Ожидается:
 
 ```text
+Create проходит
 Status = New
+Owner = requester.clean@example.com
 ```
 
-Assignment Rule отсутствует, поэтому auto assignment не ожидается.
+Сразу после Save попытаться изменить Description.
+
+Ожидается:
+
+```text
+Write запрещён
+```
+
+Requester при этом должен иметь возможность читать свой Document.
+
+Это главный proof, что packaging восстановил hard intake model, а не только внешний вид Workflow.
 
 ---
 
-# 27. Manual Assignment + Workflow
+# 27. Supervisor New-state acceptance
 
-Под Supervisor:
+Под Supervisor открыть эту New-заявку.
+
+Проверить:
+
+```text
+New state доступен для Desk обработки Supervisor
+Requester уже не является editor сохранённой New-заявки
+```
+
+Под Supervisor выполнить:
 
 ```text
 Assign To → technician.clean@example.com
@@ -740,6 +706,10 @@ Accept
 Assigned To = technician.clean@example.com
 Status = Accepted
 ```
+
+---
+
+# 28. Technician process
 
 Под Technician:
 
@@ -754,28 +724,22 @@ Resolve
 Status = Resolved
 ```
 
+Technician не должен иметь Create/Delete Service Request.
+
 ---
 
-# 28. Важная граница ToDo на clean site
+# 29. Manual ToDo boundary на clean site
 
-На основном site L9 Assignment Rule имеет:
+Main-site Assignment Rule отсутствует.
 
-```text
-Close Condition: status == "Closed"
-```
-
-и поэтому закрывает Rule-managed ToDo.
-
-На clean site Assignment Rule **намеренно отсутствует**.
-
-Следовательно нельзя ожидать:
+Поэтому нельзя ожидать:
 
 ```text
 Workflow Close
-→ автоматически закроет ручной ToDo
+→ автоматически закрывает manual ToDo
 ```
 
-Перед финальным Close Technician может штатно завершить своё ToDo вручную.
+Technician штатно завершает свой ToDo отдельно.
 
 Проверить:
 
@@ -784,56 +748,40 @@ ToDo Status = Closed
 Service Request Status = Resolved
 ```
 
-Это снова доказывает:
-
-```text
-ToDo lifecycle
-≠ Workflow lifecycle
-```
-
 ---
 
-# 29. Закрыть процесс
+# 30. Закрыть процесс и проверить no-delete
 
 Под Supervisor:
 
 ```text
 Close
+→ Status = Closed
 ```
 
-Получить:
+Затем проверить, что обычный Supervisor **не может удалить** эту рабочую Service Request.
+
+Это отдельный hard permission proof:
 
 ```text
-Status = Closed
+Closed terminal state
++
+Supervisor Delete = No
 ```
 
-Closed — terminal Workflow state.
-
-Не объявлять его абсолютной физической immutability record без отдельной server validation policy.
+не равен абсолютной API immutability, но рабочая роль не может стереть запись штатным Delete.
 
 ---
 
-# 30. Проверить Workspace
+# 31. Проверить Workspace
 
-Под Supervisor открыть:
-
-```text
-Facility Operations Control
-```
-
-Проверить Cards, Chart, Shortcuts, Quick List и Report на новых clean-site данных.
+Под Supervisor открыть `Facility Operations Control` и проверить Cards/Chart/Report на clean data.
 
 ---
 
-# 31. Проверить Web Form end-to-end
+# 32. Проверить Web Form end-to-end
 
-Под:
-
-```text
-web.clean@example.com
-```
-
-открыть:
+Под `web.clean@example.com` открыть:
 
 ```text
 http://facility-ops-clean.localhost:8000/facility-request
@@ -850,15 +798,13 @@ Priority:    High
 Attachment:  небольшой файл
 ```
 
-Под Supervisor найти тот же Service Request.
-
-Проверить:
+Проверить в Desk:
 
 ```text
 Status = New
 ```
 
-и отсутствие Web Form edit после submit:
+и отсутствие Web Form update после submit:
 
 ```text
 Allow Editing After Submit = No
@@ -866,17 +812,15 @@ Allow Editing After Submit = No
 
 ---
 
-# 32. Assignment Rule на новом site
+# 33. Assignment Rule на новом site
 
-После основной acceptance при желании создать новый локальный Assignment Rule уже с clean Users.
+После основной acceptance при желании создать локальный Assignment Rule с clean Users.
 
-Это deployment configuration, а не доказательство переносимости core.
-
-После его добавления поведение ToDo может отличаться от чистого manual-assignment сценария — именно поэтому Rule не fixture.
+Это deployment configuration, не часть proof portable core.
 
 ---
 
-# 33. Повторный migrate
+# 34. Повторный migrate
 
 ```bash
 cd ~/frappe/facility-ops-bench
@@ -891,32 +835,20 @@ clean Users
 clean working data
 ```
 
-`migrate` не является очисткой runtime data.
-
 ---
 
-# 34. Git после clean site
+# 35. Git после clean site
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
 git status
 ```
 
-Создание clean:
-
-```text
-Users
-Locations
-Equipment
-Service Requests
-ToDo
-```
-
-не должно менять app Git.
+Создание clean Users/Locations/Equipment/Requests/ToDo не должно менять Git.
 
 ---
 
-# 35. Карта поставки
+# 36. Карта поставки
 
 ```text
 facility_ops Git
@@ -949,58 +881,88 @@ site database
 
 ---
 
-# 36. Scope portability
+# 37. Portability scope
 
-L11 доказывает:
+Доказано:
 
 ```text
 facility_ops
 → устанавливается на новый clean Frappe site
 ```
 
-L11 не доказывает:
+Не доказано автоматически:
 
 ```text
 facility_ops
-→ гарантированно не конфликтует
-с любым произвольным сторонним app
-на уже насыщенном site
+→ бесконфликтен с любым сторонним app
 ```
-
-Глобальные имена DocType/Workflow State/Action Master требуют отдельного integration audit при co-installation.
 
 ---
 
-# 37. Вернуть основной site
-
-Обязательный финальный шаг:
+# 38. Вернуть основной site
 
 ```bash
 cd ~/frappe/facility-ops-bench
 bench use facility-ops.localhost
 ```
 
-Проверить:
-
-```bash
-bench --site facility-ops.localhost list-apps
-```
-
 Labs A–F продолжают основной накопленный стенд.
 
 ---
 
-# 38. Приёмка L11
+# 39. State contract L11
+
+## Preconditions
+
+```text
+L10 final Allow Edit = No
+L5 final permission matrix active
+Workflow uses Accepted/Accept
+Git clean
+```
+
+## Persistent app delivery
+
+```text
+Standard source
+fixtures
+exported Custom DocPerm
+```
+
+## Site-specific
+
+```text
+clean Users
+clean runtime data
+optional local Assignment Rule only after acceptance
+```
+
+## Output proof
+
+```text
+Requester can Create + Read own but cannot Write saved request
+Supervisor cannot Delete Service Request
+New state Desk owner = Supervisor
+Workflow portable
+Web Form create/read-only
+runtime data not copied
+```
+
+---
+
+# 40. Приёмка L11
 
 L11 принят, если доказано:
 
 - Standard source устанавливается на clean site;
-- fixtures содержат `Accepted` и `Accept`, а не старые `Assigned/Mark Assigned`;
-- permissions восстановлены exported customizations;
-- Web Form финально `Allow Edit = No`;
+- fixtures содержат `Accepted/Accept`, не `Assigned/Mark Assigned`;
+- `New.only_allow_edit_for = Facility Supervisor`;
+- exported customizations восстанавливают exact final Role Permission matrix;
+- Requester clean реально создаёт заявку, читает её и не может переписать после Save;
+- Supervisor clean реально не может удалить рабочую Service Request;
+- Web Form final `Allow Edit = No`;
 - старые Users/Share/User Permission/Assignment Rule/runtime data не приехали;
-- manual ToDo на clean site не ошибочно связывается с Workflow Close;
-- main-site auto-close ToDo понимается как L9 Assignment Rule policy;
+- manual ToDo не ошибочно связывается с Workflow Close;
 - clean Equipment использует допустимую Category;
 - Web Form создаёт валидный Service Request;
 - повторный migrate сохраняет runtime data;
