@@ -79,7 +79,9 @@ Service Request.location = historical event location
 Equipment.location       = current equipment location
 ```
 
-Final Desk permissions:
+## Финальная Desk security model
+
+Permission Level 0 управляет document-level operations:
 
 ```text
 Requester   → Create + Read own; Write/Delete No
@@ -87,7 +89,46 @@ Technician  → Read/Write; Create/Delete No
 Supervisor  → Read/Write/Create; Delete No; Report/Export
 ```
 
-Final Web Form:
+Содержательные поля `Service Request` находятся на Permission Level 1:
+
+```text
+subject
+location
+equipment
+description
+priority
+target_date
+attachment
+```
+
+Level 1:
+
+```text
+Requester   → Read/Write
+Technician  → Read only
+Supervisor  → Read/Write
+```
+
+`status` остаётся Level 0.
+
+Итоговая модель:
+
+```text
+Level 0 Role Permission
+→ право создать/читать/save/delete Document
+
+Level 1 Permission
+→ право читать/изменять business content
+
+Workflow
+→ право менять process state
+```
+
+Requester Level 1 Write нужен для заполнения нового Document; после insert Level 0 `Write = No` запрещает повторный save.
+
+Technician Level 0 Write нужен для Workflow; Level 1 `Write = No` не даёт штатным permission-aware save переписывать исходные реквизиты заявки.
+
+## Финальный Web Form
 
 ```text
 Published = Yes
@@ -107,6 +148,8 @@ Web Form create
 = separate Web Form intake path
 = new doc insert with ignore_permissions
 ```
+
+Поэтому финальный запрет Web Form update обязателен: `ignore_permissions=True` не должен оставаться параллельным редактором рабочего Document.
 
 ---
 
@@ -183,12 +226,30 @@ Closed
 
 Создать роли и основных Users.
 
+Построить двухуровневую permission model:
+
+```text
+Level 0
+→ document authority
+
+Level 1
+→ Service Request content authority
+```
+
 Финальный output:
 
 ```text
-Requester = append-only after insert
-Technician = general Read/Write
-Supervisor = manage without Delete
+Requester
+→ create/read-own
+→ no post-create save
+
+Technician
+→ document Write для Workflow
+→ business content read-only
+
+Supervisor
+→ business content write
+→ no Service Request Delete
 ```
 
 Temporary experiments:
@@ -217,6 +278,8 @@ Kanban
 
 Assignment = responsibility, not authorization.
 
+L6 не ослабляет Level 1 protection Service Request content.
+
 ---
 
 # L7. Workflow
@@ -238,7 +301,18 @@ Resolved    → Supervisor
 Closed      → Supervisor
 ```
 
-Requester Create сохраняется для local new doc; после Save server `Write = No`.
+Requester Create сохраняется для local new doc; после Save server Level 0 `Write = No`.
+
+Критический proof для Technician:
+
+```text
+Start Work / Resolve проходят
+но
+Description / Priority / Target Date
+не становятся Technician-writeable
+```
+
+То есть Workflow не требует отдавать Technician право переписывать business content.
 
 Kanban после сравнения удалить.
 
@@ -277,7 +351,7 @@ Round Robin
 Technician One / Technician Two
 ```
 
-Assignment не меняет Status.
+Assignment не меняет Status и не расширяет Level 1 permissions.
 
 Target Date — conditional automation input.
 
@@ -297,7 +371,7 @@ Report a Facility Issue
 
 ```text
 Requester via Desk
-→ доказательство Role Permission Create
+→ доказательство Role Permission Create + Level 1 intake fields
 
 Website User via Web Form
 → доказательство отдельной Web Form intake capability
@@ -305,13 +379,15 @@ Website User via Web Form
 
 `Login Required` = authentication, не role gate.
 
-`Apply Document Permissions` проверяется только как existing-document permission behavior; create authorization им не доказывается.
+`Apply Document Permissions` проверяется как existing-document permission behavior; create authorization им не доказывается.
 
 Final:
 
 ```text
 Allow Edit = No
 ```
+
+Это также не позволяет Web Form `ignore_permissions` update обходить Level 1 content protection.
 
 ---
 
@@ -323,7 +399,7 @@ Allow Edit = No
 Standard source
 Roles
 Workflow States/Actions/Workflow
-Custom DocPerm
+Custom DocPerm Level 0 + Level 1
 ```
 
 Не поставляются universal fixtures:
@@ -339,10 +415,11 @@ working data
 Clean-site acceptance отдельно доказывает:
 
 ```text
-Desk Role Permission create/no-write
-Supervisor no-delete
+Requester Desk create + no post-create Write
+Technician Workflow + no Level 1 content Write
+Supervisor content Write + no Delete
 Workflow
-Web Form intake
+Web Form separate intake
 ```
 
 После проверки:
@@ -364,28 +441,32 @@ E Print/PDF
 F special fields/views
 ```
 
-Labs не расширяют core domain без отдельного решения.
+Labs не расширяют core domain и не ослабляют финальную permission model без явного temporary mutation/rollback.
 
 ---
 
 # Финальный gate
 
 ```text
-L5 permissions
-→ не ослаблены позже
+L5
+→ Level 0 + Level 1 permissions не ослаблены позже
 
-L7 workflow
-→ не выдаёт UI guard за ACL
+L7
+→ Technician может вести state machine
+→ Technician не получает content write
+→ UI guard не выдаётся за ACL
 
-L9 assignment
-→ не выдаётся за authorization
+L9
+→ assignment не выдаётся за authorization
 
-L10 Web Form
-→ create отделён от Role Create
+L10
+→ Web Form create отделён от Role Create
 → final edit disabled
+→ ignore_permissions update path закрыт
 
 L11
-→ оба create-path проверены отдельно
+→ Level 0/1 Custom DocPerm восстановлены на clean site
+→ Desk и Web Form create-path проверены отдельно
 → portable core отделён от site policy
 ```
 
