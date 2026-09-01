@@ -4,8 +4,6 @@ L7 переводит `Service Request` с ручного `Status` на упра
 
 Новых предметных DocType нет.
 
-Цель: оставить уже знакомые состояния заявки, но передать переходы между ними штатному Workflow Frappe.
-
 Базовая версия: **Frappe Framework v16.32.0**.
 
 ## Результат
@@ -63,29 +61,25 @@ facility_ops установлен
 working tree clean
 ```
 
-Должны существовать роли:
+Должны существовать:
 
 ```text
 Facility Requester
 Facility Technician
 Facility Supervisor
-```
 
-и минимум пользователи:
-
-```text
 requester.one@example.com
 technician.one@example.com
 supervisor.one@example.com
 ```
 
-Для тестов Technician используем заявки `Room 101`, потому что после L5 у него действует соответствующий `User Permission`.
+После очистки L5 у `technician.one@example.com` нет постоянного User Permission по Location. Поэтому Workflow проверяем на обычных заявках, не подстраивая сценарий под `Room 101`.
 
 ---
 
 # 2. Ещё раз увидеть проблему обычного Select
 
-До создания Workflow открыть тестовую заявку под пользователем с `Write`.
+До Workflow открыть тестовую заявку под пользователем с Write.
 
 Временно изменить:
 
@@ -93,9 +87,9 @@ supervisor.one@example.com
 New → Closed
 ```
 
-Сохранить и затем вернуть нормальное состояние.
+Сохранить и вернуть нормальное состояние.
 
-До Workflow поле `Status` всего лишь ограничивает набор значений:
+До Workflow:
 
 ```text
 Select
@@ -107,7 +101,7 @@ Select
 
 ---
 
-# 3. Передать существующий Status под управление Workflow
+# 3. Использовать существующий Status как Workflow State Field
 
 В `Service Request` уже есть:
 
@@ -125,15 +119,13 @@ Resolved
 Closed
 ```
 
-Именно его используем как:
+Используем:
 
 ```text
 Workflow State Field = status
 ```
 
-Frappe v16.32.0 создаёт скрытый Custom Field только если указанного Workflow State Field в DocType нет.
-
-Поэтому не создаём:
+В `v16.32.0` Frappe создаёт скрытый Custom Field только если указанного state field в DocType нет. У нас поле уже есть, поэтому не создаём:
 
 ```text
 workflow_state
@@ -145,11 +137,7 @@ workflow_status
 
 # 4. Сделать Status Read Only
 
-Открыть Standard DocType:
-
-```text
-Service Request
-```
+Открыть Standard DocType `Service Request`.
 
 Для поля:
 
@@ -172,10 +160,6 @@ Default = New
 
 и прежние Options.
 
-Теперь нормальный пользователь видит состояние, а перевод выполняет Workflow.
-
-Это единственное изменение metadata приложения в L7.
-
 Проверить diff:
 
 ```bash
@@ -185,19 +169,13 @@ git diff -- \
   facility_ops/facility_operations/doctype/service_request/service_request.json
 ```
 
-Пока не commit.
+Это единственное Standard metadata-изменение L7.
 
 ---
 
 # 5. Создать Workflow State
 
-Через Awesomebar открыть:
-
-```text
-Workflow State
-```
-
-Создать пять записей:
+Через `Workflow State` создать:
 
 ```text
 New
@@ -209,13 +187,11 @@ Closed
 
 Названия должны точно совпадать со значениями `Service Request.status`.
 
-`Workflow State` — штатная конфигурация Frappe, а не новый предметный справочник приложения.
-
 ---
 
 # 6. Создать Workflow Action Master
 
-Создать четыре действия:
+Создать:
 
 ```text
 Mark Assigned
@@ -224,45 +200,36 @@ Resolve
 Close
 ```
 
-Первое специально называется `Mark Assigned`.
-
-Нужно различать:
+Различать:
 
 ```text
 Assign To
-→ создаёт ToDo и назначает работу человеку
+→ кто выполняет работу
 
 Mark Assigned
-→ переводит Service Request в состояние Assigned
+→ перевод состояния New → Assigned
 ```
 
 Workflow не заменяет Assignment.
 
 ---
 
-# 7. Создать Service Request Workflow
+# 7. Создать Workflow
 
-Создать новый `Workflow`:
+Создать:
 
 ```text
 Workflow Name:        Service Request Workflow
 Document Type:        Service Request
-Is Active:            No
 Workflow State Field: status
+Is Active:            No
 ```
 
-Пока оставить выключенными:
-
-```text
-Send Email Alert
-Enable Action Confirmation
-```
+Пока оставить выключенными дополнительные email/action-confirmation настройки.
 
 ---
 
 # 8. Настроить Document States
-
-Добавить:
 
 | State | Doc Status | Only Allow Edit For |
 |---|---:|---|
@@ -272,29 +239,19 @@ Enable Action Confirmation
 | Resolved | 0 | Facility Supervisor |
 | Closed | 0 | Facility Supervisor |
 
-У всех строк:
+У всех:
 
 ```text
 Doc Status = 0
 ```
 
-Не использовать `1 = Submitted` и `2 = Cancelled`.
+Не использовать Submitted/Cancelled здесь.
 
-`Only Allow Edit For` — дополнительное ограничение текущего состояния. Оно не заменяет Role Permission Manager.
-
-```text
-Role Permission
-+
-Workflow State Allow Edit
-=
-фактический режим работы документа
-```
+`Only Allow Edit For` дополняет Role Permission Manager, а не заменяет его.
 
 ---
 
 # 9. Настроить Transitions
-
-Добавить четыре перехода:
 
 | State | Action | Next State | Allowed |
 |---|---|---|---|
@@ -303,41 +260,24 @@ Workflow State Allow Edit
 | In Progress | Resolve | Resolved | Facility Technician |
 | Resolved | Close | Closed | Facility Supervisor |
 
-Conditions пока пустые.
+Conditions оставить пустыми.
 
-`Allow Self Approval` оставить со штатным значением — отдельную модель самоутверждения в базовом уроке не строим.
+`Allow Self Approval` оставить со штатным значением. Отдельную модель самоутверждения в базовом уроке не строим.
 
 ---
 
 # 10. Активировать Workflow
 
-Перед активацией проверить:
+Проверить:
 
 ```text
 Document Type = Service Request
 Workflow State Field = status
 ```
 
-States:
+States и Transitions должны соответствовать таблицам выше.
 
-```text
-New
-Assigned
-In Progress
-Resolved
-Closed
-```
-
-Transitions:
-
-```text
-New → Assigned
-Assigned → In Progress
-In Progress → Resolved
-Resolved → Closed
-```
-
-После проверки:
+Затем:
 
 ```text
 Is Active = Yes
@@ -352,19 +292,15 @@ cd ~/frappe/facility-ops-bench
 bench --site facility-ops.localhost clear-cache
 ```
 
-Обновить Desk.
-
 ---
 
 # 11. Проверить существующие заявки
 
 Открыть несколько Service Request из L4–L6.
 
-Их `status` уже содержит допустимые Workflow State, поэтому отдельное поле или миграция не нужны.
+Их `status` уже содержит допустимые значения Workflow State. Отдельное поле или миграция не нужны.
 
-Если найдена тестовая запись с другим значением, исправить именно плохие тестовые данные.
-
-Не расширять Workflow ради ошибочной записи.
+Если встречается тестовая запись с неправильным значением, исправить данные, а не расширять Workflow ради ошибки.
 
 ---
 
@@ -376,11 +312,11 @@ bench --site facility-ops.localhost clear-cache
 requester.one@example.com
 ```
 
-Создать заявку:
+Создать:
 
 ```text
 Subject:     Workflow test request
-Location:    Room 101
+Location:    Room 102
 Description: Проверка управляемого процесса
 Priority:    Medium
 ```
@@ -393,34 +329,32 @@ Priority:    Medium
 Status = New
 ```
 
-Requester не должен видеть Workflow Action:
+Requester не должен видеть:
 
 ```text
 Mark Assigned
 ```
 
-потому что переход разрешён только `Facility Supervisor`.
+потому что переход разрешён Supervisor.
 
 ---
 
 # 13. Назначить и перевести в Assigned
 
-Войти:
+Войти как:
 
 ```text
 supervisor.one@example.com
 ```
 
-Открыть заявку.
-
-Сначала выполнить уже знакомое:
+На заявке сначала выполнить:
 
 ```text
 Assign To
 → technician.one@example.com
 ```
 
-Проверить созданный `ToDo`.
+Проверить ToDo.
 
 Затем выполнить Workflow Action:
 
@@ -428,20 +362,10 @@ Assign To
 Mark Assigned
 ```
 
-Результат:
+Получить:
 
 ```text
 Status = Assigned
-```
-
-То есть:
-
-```text
-Assign To
-→ кто делает
-
-Workflow
-→ в каком состоянии процесс
 ```
 
 ---
@@ -454,9 +378,9 @@ Workflow
 technician.one@example.com
 ```
 
-Открыть назначенную заявку `Room 101`.
+Открыть назначенную заявку независимо от её Location.
 
-В состоянии `Assigned` выполнить:
+Выполнить:
 
 ```text
 Start Work
@@ -468,7 +392,7 @@ Start Work
 Status = In Progress
 ```
 
-Затем выполнить:
+Затем:
 
 ```text
 Resolve
@@ -480,23 +404,13 @@ Resolve
 Status = Resolved
 ```
 
-Technician не должен видеть действие:
-
-```text
-Close
-```
+Technician не должен видеть `Close`.
 
 ---
 
 # 15. Закрыть под Supervisor
 
-Вернуться под:
-
-```text
-supervisor.one@example.com
-```
-
-Для `Resolved` заявки выполнить:
+Вернуться под Supervisor и выполнить:
 
 ```text
 Close
@@ -508,41 +422,26 @@ Close
 Status = Closed
 ```
 
-В нашей линейной схеме у `Closed` следующего перехода нет.
+У `Closed` следующего перехода нет.
 
 ---
 
 # 16. Проверить запрещённые переходы
 
-Обязательно проверить минимум три случая.
-
-## Requester
-
-На `New` заявке нет:
+Обязательно получить реальные ограничения:
 
 ```text
-Mark Assigned
+Requester / New
+→ Mark Assigned недоступен
+
+Technician / Assigned
+→ Start Work доступен
+→ Resolve напрямую недоступен
+
+Supervisor / Resolved
+→ Close доступен
+→ перехода назад в New нет
 ```
-
-## Technician
-
-На `Assigned` заявке есть только следующий допустимый рабочий переход:
-
-```text
-Start Work
-```
-
-Нельзя сразу перескочить в `Resolved`.
-
-## Supervisor
-
-На `Resolved` заявке есть:
-
-```text
-Close
-```
-
-Нет перехода напрямую назад в `New` или `Assigned`.
 
 Итог:
 
@@ -558,35 +457,25 @@ Condition
 
 ---
 
-# 17. Проверить Status
+# 17. Проверить Read Only Status
 
-Открыть Service Request под обычным пользователем.
+Под обычным пользователем `Status` должен отображать текущее состояние, но не быть ручным переключателем.
 
-`Status` должен отображать текущее состояние и не использоваться как ручной переключатель процесса.
-
-Если поле редактируется напрямую, проверить в Standard DocType:
+Если поле редактируется напрямую, проверить Standard DocType:
 
 ```text
 status → Read Only = Yes
 ```
 
-Client Script для блокировки не нужен.
+Client Script не нужен.
 
 ---
 
-# 18. Посмотреть Timeline
+# 18. Timeline и Workflow Action records
 
-На заявке, прошедшей полный маршрут, проверить Timeline:
+На заявке, прошедшей полный маршрут, посмотреть Timeline.
 
-```text
-New
-→ Assigned
-→ In Progress
-→ Resolved
-→ Closed
-```
-
-Сравнить в одной истории:
+Сравнить:
 
 ```text
 Document change
@@ -597,38 +486,13 @@ Workflow
 
 При `apply_workflow` Frappe добавляет Workflow comment для нового состояния.
 
-Собственный `Workflow History` DocType не нужен.
+Через `Workflow Action` посмотреть служебные записи по тестовой заявке и их статус.
+
+Не создавать собственный `Workflow History` DocType.
 
 ---
 
-# 19. Посмотреть Workflow Action
-
-Под пользователем, у которого ожидается следующий переход, открыть:
-
-```text
-Workflow Action
-```
-
-Найти действие для тестовой заявки.
-
-Проверить:
-
-```text
-Reference Document Type = Service Request
-Reference Name          = SR-.....
-Status                  = Open / Completed
-Permitted Roles         = роль следующего перехода
-```
-
-Frappe создаёт и закрывает эти записи штатно.
-
-Собственная таблица ожидающих действий не нужна.
-
----
-
-# 20. Короткая практика Condition
-
-Это временный эксперимент.
+# 19. Временная Condition
 
 У перехода:
 
@@ -642,35 +506,33 @@ New → Mark Assigned → Assigned
 doc.priority == "High"
 ```
 
-Проверить две `New` заявки под Supervisor:
+Проверить:
 
 ```text
 Priority = High
-→ Mark Assigned доступен
+→ действие доступно
 
 Priority = Medium
-→ Mark Assigned недоступен
+→ действие недоступно
 ```
 
-После проверки удалить Condition и сохранить Workflow.
+После теста Condition удалить.
 
-Финальный маршрут снова должен принимать любой Priority.
-
-Здесь используется штатное выражение Workflow, а не собственный Python-модуль.
+Это штатное expression-поле Workflow, а не собственный Python-модуль.
 
 ---
 
-# 21. Разобраться с Kanban из L6
+# 20. Что происходит с Kanban из L6
 
-В L6 был создан Kanban:
+В L6 создана доска:
 
 ```text
-Service Requests by Status
+Service Request Status Board
 ```
 
-После появления Workflow **не используем drag-and-drop Kanban как основной способ выполнять переходы**.
+После появления Workflow не используем drag-and-drop как основной способ переходов.
 
-Причина в реализации v16.32.0:
+В `v16.32.0` цепочка Kanban идёт через запись нового значения поля и обычный `doc.save()`:
 
 ```text
 Kanban move
@@ -679,44 +541,46 @@ Kanban move
 → doc.save()
 ```
 
-Поэтому workflow validation состояния, роли и Condition выполняется, но это не тот же путь, что:
+Workflow validation при таком save выполняется: недопустимый переход или роль не должны обходиться Kanban.
+
+Но это не тот же action-path, что:
 
 ```text
 frappe.model.workflow.apply_workflow(...)
 ```
 
-`apply_workflow` дополнительно обрабатывает Workflow Action и штатные действия перехода.
+`apply_workflow` выбирает Transition по Action и дополнительно ведёт штатный workflow-action/comment lifecycle.
 
-Для нашего учебного приложения один процесс должен иметь один понятный способ управления:
+Для одного понятного процесса оставляем один основной способ управления:
 
 ```text
 Workflow Action
 ```
 
-Поэтому Kanban `Service Requests by Status`, созданный для изучения механизма в L6, **удалить после проверки L7**.
+После проверки удалить Kanban Board:
 
-Сам Kanban как возможность Frappe уже изучен; в итоговом приложении он не нужен ценой двусмысленного управления Workflow State.
+```text
+Service Request Status Board
+```
+
+Сам механизм Kanban уже изучен в L6.
 
 ---
 
-# 22. Разделить metadata и configuration
+# 21. Metadata и configuration
 
-После L7 появились два типа изменений.
+После L7 есть два слоя.
 
-## Metadata app
-
-Изменён Standard DocType:
+## App metadata
 
 ```text
 Service Request.status
 → Read Only
 ```
 
-Это видно в Git.
+Это source app и Git.
 
-## Configuration Documents site
-
-Созданы:
+## Site configuration
 
 ```text
 Workflow State
@@ -724,193 +588,43 @@ Workflow Action Master
 Workflow
 ```
 
-Они живут в database текущего site.
-
-В L7 не пытаемся вручную копировать их в source.
-
-Их переносимость будет разобрана в L11 через штатные механизмы Frappe.
+Пока они живут в database текущего site. Их переносимость будет собрана в L11 через fixtures.
 
 ---
 
-# 23. Commit metadata L7
+# 22. Commit metadata
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
 
 git status
 git diff
-```
 
-В осознанном metadata diff должен быть переход `status` в Read Only.
-
-Добавить:
-
-```bash
 git add \
   facility_ops/facility_operations/doctype/service_request/service_request.json
 
 git diff --cached
-```
-
-Commit:
-
-```bash
 git commit -m "Make service request status workflow controlled"
 git status
 ```
 
-Ожидается:
-
-```text
-working tree clean
-```
-
-Workflow configuration в этот commit сама по себе не попадает.
+Workflow records вручную в source не копировать.
 
 ---
 
-# 24. Самостоятельная практика
+# 23. Приёмка L7
 
-С нуля провести одну новую заявку до `Closed`.
+L7 принят, если:
 
-Порядок должен получиться без подсказки:
+- `Service Request.status` используется как единственный Workflow State Field;
+- `status` Read Only;
+- существуют 5 Workflow State и 4 Workflow Action Master;
+- активен `Service Request Workflow`;
+- Requester, Technician и Supervisor видят только свои допустимые Actions;
+- Assignment остаётся отдельным от Workflow;
+- Technician может обработать назначенную заявку независимо от Location;
+- временная Condition проверена и удалена;
+- Kanban `Service Request Status Board` удалён после сравнения;
+- metadata закоммичена, Workflow configuration остаётся на site до L11.
 
-```text
-Requester
-→ создаёт
-
-Supervisor
-→ Assign To Technician
-→ Mark Assigned
-
-Technician
-→ Start Work
-→ Resolve
-
-Supervisor
-→ Close
-```
-
-Условия:
-
-- Status вручную не редактируется;
-- Assignment существует как ToDo;
-- переходы выполняются правильными ролями;
-- Timeline показывает процесс;
-- Workflow Action можно найти;
-- Status-Kanban из L6 больше не используется.
-
----
-
-# 25. Приёмка L7
-
-L7 принят, если выполнено всё ниже.
-
-## Workflow
-
-```text
-Name:                 Service Request Workflow
-Document Type:        Service Request
-Workflow State Field: status
-Is Active:            Yes
-```
-
-Нового `workflow_state` поля нет.
-
-## States
-
-```text
-New
-Assigned
-In Progress
-Resolved
-Closed
-```
-
-У всех:
-
-```text
-Doc Status = 0
-```
-
-## Transitions
-
-```text
-New         --Mark Assigned / Supervisor--> Assigned
-Assigned    --Start Work / Technician-----> In Progress
-In Progress --Resolve / Technician--------> Resolved
-Resolved    --Close / Supervisor----------> Closed
-```
-
-## Negative tests
-
-- Requester не выполняет `Mark Assigned`;
-- Technician не выполняет `Close`;
-- состояния нельзя перескакивать;
-- Status не используется как ручной переключатель.
-
-## Понимание
-
-Ученик объясняет:
-
-```text
-Permission
-= можно ли работать с документом
-
-Assign To / ToDo
-= кому поручена работа
-
-Status
-= текущее состояние
-
-Workflow
-= какие переходы разрешены
-
-Workflow Action
-= конкретное доступное действие перехода
-```
-
-## Переносимость
-
-Ученик различает:
-
-```text
-service_request.json
-= metadata app
-
-Workflow / Workflow State / Workflow Action Master
-= configuration Documents site
-```
-
-## Git
-
-```bash
-cd ~/frappe/facility-ops-bench/apps/facility_ops
-git status
-```
-
-Рабочее дерево чистое.
-
----
-
-# Итог L7
-
-До урока:
-
-```text
-пользователь меняет Status
-```
-
-После урока:
-
-```text
-пользователь выбирает разрешённое Workflow Action
-        ↓
-Frappe проверяет State + Role + Condition
-        ↓
-Workflow меняет status
-        ↓
-процесс продолжается
-```
-
-Следующий урок — **L8. Контроль работы**: Report Builder, Number Card, Dashboard Chart и Workspace на накопленных `Service Request`.
+После L7 переходим к **L8 — контроль работы и Workspace**.
