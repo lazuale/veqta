@@ -30,38 +30,38 @@ Closed
 Service Request.status
 ```
 
-Второй `workflow_state` не создаём.
-
-Все состояния:
-
-```text
-docstatus = 0
-```
-
-`Service Request` остаётся обычным, не Submittable Document.
+Все состояния имеют `docstatus = 0`.
 
 ---
 
-# 1. Главная академическая граница
+# 1. Enforcement model
 
-В L7 нужно различать три разных слоя.
+Различать:
 
 ```text
 Role Permission
-= серверное право работать с DocType/Document
+= server access permission
 
 Workflow Allowed Role + Condition
-= серверное право выполнить конкретный state transition
+= server transition permission
 
 Only Allow Edit For
-= state-dependent поведение стандартного Desk UI
+= state-dependent Desk UI guard
 ```
 
-`Only Allow Edit For` **не считаем самостоятельной security boundary**.
+`Only Allow Edit For` не является самостоятельной ACL.
 
-В `v16.32.0` server-side `validate_workflow()` надёжно проверяет допустимость смены Workflow State, но не следует преподавать `Only Allow Edit For` как универсальный запрет любого возможного изменения полей через любой API/path.
+От L5 уже действует hard permission:
 
-Это важный инвариант всего курса.
+```text
+Requester
+→ Create = Yes
+→ Read own = Yes
+→ Write = No после insert
+→ Delete = No
+```
+
+Workflow не должен подменять эту server boundary.
 
 ---
 
@@ -84,23 +84,23 @@ facility_ops установлен
 working tree clean
 ```
 
-Должны существовать роли и основные пользователи L5.
+Проверить L5 output:
+
+```text
+Requester saved Service Request → Read own, Write No
+Technician → Read/Write, no Create/Delete
+Supervisor → Read/Write/Create, Delete No
+```
 
 Основной Technician не имеет постоянного Location User Permission.
 
-Kanban L6:
-
-```text
-Service Request Status Board
-```
-
-пока существует для сравнения.
+Kanban L6 `Service Request Status Board` пока существует.
 
 ---
 
 # 3. Ещё раз доказать проблему обычного Select
 
-До Workflow открыть тестовую заявку и вручную выполнить:
+До Workflow под пользователем с Write вручную выполнить на тестовой заявке:
 
 ```text
 New → Closed
@@ -108,21 +108,21 @@ New → Closed
 
 Сохранить и вернуть логичное состояние.
 
-Фиксируем:
-
 ```text
 Select
-= набор допустимых значений
+= набор значений
 
 Select
 ≠ допустимые переходы
 ```
 
+Requester для этого теста не использовать: после L5 у него уже нет Write сохранённого Document.
+
 ---
 
 # 4. Использовать существующий Status
 
-`Service Request.status` уже содержит:
+`Service Request.status`:
 
 ```text
 New
@@ -132,15 +132,13 @@ Resolved
 Closed
 ```
 
-Используем:
+Настроить:
 
 ```text
 Workflow State Field = status
 ```
 
-В `v16.32.0` Frappe создаёт скрытый Custom Field для workflow state только если указанного поля нет.
-
-У нас оно есть, поэтому не создаём:
+Не создавать:
 
 ```text
 workflow_state
@@ -152,45 +150,20 @@ workflow_status
 
 # 5. Сделать Status Read Only
 
-Для:
-
-```text
-Status
-fieldname: status
-```
-
-включить:
+Для `status`:
 
 ```text
 Read Only = Yes
-```
-
-Оставить:
-
-```text
 Default = New
 ```
 
-и прежние Options.
+Read Only — UI guard. Server допустимость state change обеспечивает Workflow validation.
 
-`Read Only` здесь нужен как UI guard: обычный пользователь не должен видеть `status` как свободный Select после включения Workflow.
-
-Server-side допустимость state change обеспечивает Workflow validation.
-
-Проверить diff:
-
-```bash
-cd ~/frappe/facility-ops-bench/apps/facility_ops
-
-git diff -- \
-  facility_ops/facility_operations/doctype/service_request/service_request.json
-```
+Проверить diff Standard metadata.
 
 ---
 
 # 6. Создать Workflow State
-
-Создать:
 
 ```text
 New
@@ -200,13 +173,11 @@ Resolved
 Closed
 ```
 
-Названия точно совпадают со значениями `Service Request.status`.
+Названия точно совпадают с Select options.
 
 ---
 
 # 7. Создать Workflow Action Master
-
-Создать:
 
 ```text
 Accept
@@ -215,8 +186,6 @@ Resolve
 Close
 ```
 
-Почему `Accept`, а не `Mark Assigned`:
-
 ```text
 Accept
 = Supervisor принимает заявку в процесс
@@ -224,8 +193,6 @@ Accept
 Assign To
 = конкретному User создаётся ToDo
 ```
-
-Workflow и Assignment остаются ортогональны.
 
 ---
 
@@ -238,48 +205,51 @@ Workflow State Field: status
 Is Active:            No
 ```
 
-Дополнительные email/tasks пока не включать.
-
 ---
 
 # 9. Document States
 
 | State | Doc Status | Only Allow Edit For |
 |---|---:|---|
-| New | 0 | Facility Requester |
+| New | 0 | **Facility Supervisor** |
 | Accepted | 0 | Facility Technician |
 | In Progress | 0 | Facility Technician |
 | Resolved | 0 | Facility Supervisor |
 | Closed | 0 | Facility Supervisor |
 
-У всех:
+Почему `New` теперь Supervisor:
 
 ```text
-Doc Status = 0
+Requester
+→ только подаёт новую заявку
+→ после insert server Write = No
+
+Supervisor
+→ принимает и при необходимости корректирует New перед запуском процесса
 ```
 
-Не использовать Submitted/Cancelled.
+## Почему это не ломает Requester Create
 
-## Как правильно читать Only Allow Edit For
-
-Например:
+В exact `v16.32.0` client Workflow:
 
 ```text
-Accepted → Facility Technician
+is_read_only()
+→ для doc.__islocal возвращает false
 ```
 
-означает, что стандартный Desk делает этот state рабочим для Technician.
+То есть новый локальный документ не блокируется state edit role.
 
-Но server-side security всё равно начинается с Role Permission.
+Server `validate_workflow()` при insert первой state не рассматривает это как переход между двумя states.
 
-Не делать вывод:
+Поэтому совместимы одновременно:
 
 ```text
-Only Allow Edit For
-= отдельная ACL, которая физически запрещает любое изменение через API
+Requester Create = Yes
+New.only_allow_edit_for = Facility Supervisor
+Requester post-create Write = No
 ```
 
-Это было бы академически неверно для `v16.32.0`.
+Это важный negative/positive compatibility test L7.
 
 ---
 
@@ -292,21 +262,17 @@ Only Allow Edit For
 | In Progress | Resolve | Resolved | Facility Technician |
 | Resolved | Close | Closed | Facility Supervisor |
 
-Conditions оставить пустыми в финальной базовой конфигурации.
-
-`Allow Self Approval` оставить со штатным значением.
+Conditions в финале пустые.
 
 ---
 
-# 11. Почему Workflow не проверяет assignee
+# 11. Workflow не проверяет assignee
 
-Не добавляем скрытую бизнес-гарантию:
+Не обещаем hard rule:
 
 ```text
 Start Work может только User из ToDo
 ```
-
-Базовая архитектура Frappe разделяет:
 
 ```text
 Facility Technician role
@@ -316,73 +282,62 @@ ToDo
 → ответственность конкретного User
 ```
 
-Assignment не является permission predicate.
-
-Если продукту понадобится hard rule:
-
-```text
-transition выполняет только конкретный assignee
-```
-
-это уже отдельная server-side validation/permission архитектура следующего уровня, а не честный no-code invariant.
+Assignee-only transition policy — Later server-side architecture.
 
 ---
 
 # 12. Активировать Workflow
 
-Проверить:
-
-```text
-Document Type = Service Request
-Workflow State Field = status
-States = New / Accepted / In Progress / Resolved / Closed
-```
-
-Включить:
+Проверить states/transitions и включить:
 
 ```text
 Is Active = Yes
 ```
 
-Сохранить и очистить cache:
+Затем:
 
 ```bash
-cd ~/frappe/facility-ops-bench
 bench --site facility-ops.localhost clear-cache
 ```
 
 ---
 
-# 13. Проверить существующие заявки
+# 13. Нормализовать старые учебные данные
 
-Открыть записи L4–L6.
-
-Все должны иметь допустимые state values.
-
-Если старый стенд до архитектурной правки содержит:
+Если старый стенд содержит legacy:
 
 ```text
 Assigned
 ```
 
-до активации финального Workflow вручную перевести такие учебные записи в:
+до финальной проверки перевести такие тестовые records в:
 
 ```text
 Accepted
 ```
 
-Не добавлять `Assigned` обратно в новый Workflow ради старых тестовых данных.
+Не возвращать старый state в Workflow.
 
 ---
 
-# 14. Создать новую заявку под Requester
+# 14. Критический тест Requester после включения Workflow
+
+Войти:
 
 ```text
-Subject:     Workflow test request
+requester.one@example.com
+```
+
+Создать новый Document:
+
+```text
+Subject:     Workflow requester create test
 Location:    Room 102
-Description: Проверка управляемого процесса
+Description: Проверка Create при New state owned Supervisor
 Priority:    Medium
 ```
+
+До первого Save форма должна позволять заполнить новый local Document.
 
 Сохранить.
 
@@ -390,21 +345,32 @@ Priority:    Medium
 
 ```text
 Status = New
+Owner = requester.one@example.com
 ```
 
-Requester не должен видеть действие:
+После Save попытаться изменить `Description`.
+
+Ожидается:
 
 ```text
-Accept
+Write запрещён Role Permission
 ```
 
-потому что transition Allowed = Facility Supervisor.
+Главный вывод:
+
+```text
+Requester Create
+совместим с
+post-create immutable-for-requester intake
+```
+
+Не приписывать этот hard запрет `Only Allow Edit For`: его обеспечивает L5 Role Permission.
 
 ---
 
 # 15. Назначить ответственность отдельно
 
-Под Supervisor сначала:
+Под Supervisor:
 
 ```text
 Assign To
@@ -413,14 +379,12 @@ Assign To
 
 Проверить ToDo.
 
-После Assign To всё ещё допустимо:
+После Assign To:
 
 ```text
 Assigned To = technician.one@example.com
 Status = New
 ```
-
-Это намеренно.
 
 ---
 
@@ -438,51 +402,20 @@ Accept
 Status = Accepted
 ```
 
-Важно:
-
-```text
-Accepted
-= состояние процесса
-
-не
-
-доказательство существования ToDo
-```
-
-Мы соблюдаем рекомендуемый порядок `Assign To → Accept`, но не выдаём его за hard coupling платформы.
+`Accepted` не является доказательством ToDo. Мы соблюдаем рекомендуемый порядок `Assign To → Accept`, но это не hard coupling Frappe.
 
 ---
 
 # 17. Technician выполняет процесс
 
-Под:
-
-```text
-technician.one@example.com
-```
-
-выполнить:
+Под `technician.one@example.com`:
 
 ```text
 Start Work
-```
+→ Status = In Progress
 
-Получить:
-
-```text
-Status = In Progress
-```
-
-Затем:
-
-```text
 Resolve
-```
-
-Получить:
-
-```text
-Status = Resolved
+→ Status = Resolved
 ```
 
 Technician не должен иметь Workflow Action `Close`.
@@ -495,32 +428,14 @@ Technician не должен иметь Workflow Action `Close`.
 
 ```text
 Close
+→ Status = Closed
 ```
 
-Получить:
+У Closed нет исходящего transition.
 
-```text
-Status = Closed
-```
+Рабочие роли также не имеют Service Request Delete.
 
-У `Closed` нет исходящего transition.
-
-## Точная семантика Closed
-
-```text
-Closed
-= terminal Workflow state
-```
-
-Это не означает:
-
-```text
-Document физически неизменяем любым пользователем через любой API
-```
-
-Track Changes остаётся аудитом допустимых исправлений.
-
-Hard immutability потребовала бы отдельной server-side validation policy, которая находится за границей базового курса.
+Но это не обещание абсолютной API immutability всех полей: для неё нужен отдельный server-validation слой.
 
 ---
 
@@ -531,6 +446,7 @@ Hard immutability потребовала бы отдельной server-side val
 ```text
 Requester / New
 → Accept недоступен
+→ post-create Write запрещён Role Permission
 
 Technician / Accepted
 → Start Work доступен
@@ -541,23 +457,11 @@ Supervisor / Resolved
 → перехода назад в New нет
 ```
 
-Server-side transition model:
-
-```text
-Current State
-+
-Allowed Role
-+
-Condition
-=
-допустимый transition
-```
-
 ---
 
 # 20. Временная Condition
 
-У перехода:
+У:
 
 ```text
 New → Accept → Accepted
@@ -569,37 +473,17 @@ New → Accept → Accepted
 doc.priority == "High"
 ```
 
-Проверить:
+Проверить High/Medium и затем **обязательно удалить Condition**.
 
-```text
-High   → Accept доступен
-Medium → Accept недоступен
-```
-
-После теста **обязательно удалить Condition**.
-
-Почему не оставляем её:
-
-```text
-Priority не должна случайно превращаться
-в permanent gate принятия любой заявки
-```
-
-Condition изучается как штатный server-side transition predicate, а не как повод усложнить модель.
+Condition — server transition predicate, но не permanent бизнес-правило курса.
 
 ---
 
 # 21. Kanban после Workflow
 
-Доска L6:
+L6 Kanban использует те же state values.
 
-```text
-Service Request Status Board
-```
-
-после появления Workflow больше не является основным интерфейсом переходов.
-
-В `v16.32.0` Kanban field update приходит к обычному save, а Workflow validation проверяет допустимость state change.
+В `v16.32.0` Kanban update приходит к обычному save, где Workflow validation проверяет state change.
 
 Но:
 
@@ -608,24 +492,22 @@ Kanban move
 ≠ Workflow Action lifecycle
 ```
 
-Поэтому после проверки удалить Kanban Board.
-
-Основной процесс управляется:
+После сравнения удалить:
 
 ```text
-Workflow Actions
+Service Request Status Board
 ```
 
 ---
 
-# 22. Timeline и Workflow Action
+# 22. Timeline и audit
 
-На заявке полного маршрута сравнить:
+Сравнить:
 
 ```text
 Assignment
 Comment
-Version/field change
+Version / field change
 Workflow comment/action
 ```
 
@@ -633,41 +515,28 @@ Workflow comment/action
 
 ---
 
-# 23. Что является hard, а что UI guard
-
-После L7 ученик должен уметь классифицировать:
+# 23. Классифицировать enforcement
 
 | Механизм | Роль |
 |---|---|
 | Role Permission | server access boundary |
-| Allowed Role transition | server transition boundary |
+| Allowed Role | server transition boundary |
 | Workflow Condition | server transition predicate |
 | Status Read Only | UI guard |
-| Only Allow Edit For | state-dependent Desk editability |
+| Only Allow Edit For | Desk state guard |
 | Track Changes | audit, не запрет |
-
-Это один из главных академических результатов L7.
 
 ---
 
 # 24. Metadata и configuration
 
-## App metadata
+App metadata:
 
 ```text
-Service Request.status
-→ Read Only
+Service Request.status → Read Only
 ```
 
-## Site configuration до L11
-
-```text
-Workflow State
-Workflow Action Master
-Workflow
-```
-
-Имена финальной конфигурации:
+Site configuration до L11:
 
 ```text
 States:
@@ -682,6 +551,8 @@ Accept
 Start Work
 Resolve
 Close
+
+New.allow_edit = Facility Supervisor
 ```
 
 ---
@@ -702,26 +573,71 @@ git commit -m "Make service request status workflow controlled"
 git status
 ```
 
-Workflow records вручную в source не копировать; их переносимость разбирается в L11.
+Workflow records попадут в portable configuration только в L11.
 
 ---
 
-# 26. Приёмка L7
+# 26. State contract L7
+
+## Preconditions
+
+```text
+L5 final permission matrix действует
+L6 assignment/collaboration изучены
+Kanban существует
+```
+
+## Temporary
+
+```text
+Workflow Condition priority == High
+```
+
+## Persistent
+
+```text
+status Read Only
+Service Request Workflow active
+New edit role = Supervisor
+Accepted/In Progress edit role = Technician
+Resolved/Closed edit role = Supervisor
+```
+
+## Rollback
+
+```text
+temporary Condition removed
+Kanban removed
+```
+
+## Output
+
+```text
+Requester Create still works
+Requester saved Document Write = No
+Workflow transitions role-gated
+Assignment remains separate
+```
+
+---
+
+# 27. Приёмка L7
 
 L7 принят, если:
 
 - `status` — единственный Workflow State Field;
-- `status` Read Only в Desk;
-- существуют состояния `New / Accepted / In Progress / Resolved / Closed`;
-- существуют действия `Accept / Start Work / Resolve / Close`;
-- активен `Service Request Workflow`;
+- states `New / Accepted / In Progress / Resolved / Closed`;
+- actions `Accept / Start Work / Resolve / Close`;
+- `New.only_allow_edit_for = Facility Supervisor`;
+- Requester после включения Workflow реально создаёт новую заявку;
+- после Save тот же Requester не может её переписать;
+- hard запрет post-create edit объясняется Role Permission, а не `Only Allow Edit For`;
 - Allowed Role реально ограничивает transitions;
-- временная Condition проверена и удалена;
-- ученик не называет `Only Allow Edit For` полноценной ACL;
-- `Accepted` не трактуется как наличие конкретного assignee;
-- Assignment остаётся отдельным ToDo-механизмом;
-- `Closed` понимается как terminal workflow state, а не обещание абсолютной immutability;
-- Kanban удалён после сравнения;
+- temporary Condition удалена;
+- `Accepted` не трактуется как наличие assignee;
+- Assignment остаётся ToDo-механизмом;
+- `Closed` — terminal state, но не ложное обещание absolute API immutability;
+- Kanban удалён;
 - metadata закоммичена.
 
 После L7 переходим к **L8 — контроль работы и Workspace**.
