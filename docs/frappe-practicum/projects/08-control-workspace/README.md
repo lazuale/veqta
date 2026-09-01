@@ -1,46 +1,37 @@
-# L8. Контроль работы
+# L8. Контроль работы и Workspace
 
-L8 собирает рабочий экран руководителя на уже существующих данных `Service Request`.
+L8 превращает накопленные `Service Request` в один рабочий экран контроля без новой аналитической модели данных.
 
 Новых предметных DocType нет.
 
-Цель урока: получить один сохранённый Report Builder, три Number Card, один Dashboard Chart и один Workspace без SQL, Python и отдельной BI-системы.
-
 Базовая версия: **Frappe Framework v16.32.0**.
 
-## Результат
+## Что создаём
 
 ```text
-Facility Operations Workspace
-
-[ Open Requests ] [ High Priority ] [ Closed Requests ]
-
-Service Requests by Status
-
-Shortcuts:
-- Service Request
-- Equipment
-- Facility Location
-- Service Requests Overview
+Report Builder:   Service Requests Overview
+Number Card:      Open Requests
+Number Card:      High Priority Requests
+Number Card:      Closed Requests
+Dashboard Chart:  Service Requests by Status
+Workspace:        Facility Operations Control
 ```
 
-Основной источник данных один:
+Название Workspace специально **не совпадает** с Module:
 
 ```text
-Service Request
+Module    = Facility Operations
+Workspace = Facility Operations Control
 ```
 
-Мы не создаём отдельные таблицы статистики и не дублируем данные заявки.
+Так новичок не путает технический Module приложения с отдельным рабочим экраном Desk.
 
 ---
 
 # 1. Проверить состояние после L7
 
-В терминале:
-
 ```bash
 cd ~/frappe/facility-ops-bench
-
 bench version
 bench --site facility-ops.localhost list-apps
 
@@ -53,183 +44,105 @@ git status
 ```text
 Frappe 16.32.0
 facility_ops установлен
-Git working tree clean
+working tree clean
 ```
 
-В Desk должны существовать:
+На site уже должны работать:
 
 ```text
-Facility Location
-Equipment
-Service Request
+Service Request Workflow
+Facility Requester
+Facility Technician
+Facility Supervisor
 ```
 
-Workflow `Service Request Workflow` должен быть активен.
-
-Для нормальной проверки нужны заявки минимум в трёх состояниях, например:
-
-```text
-New
-In Progress
-Closed
-```
-
-Если все учебные заявки оказались в одном Status, сначала распределить несколько записей штатными Workflow Actions.
+Kanban `Service Request Status Board` после L7 удалён.
 
 ---
 
-# 2. Зафиксировать границу урока
+# 2. Зафиксировать границу аналитики
 
-L8 не строит отдельную аналитику.
-
-Используем только штатные объекты Frappe:
-
-```text
-Report
-Number Card
-Dashboard Chart
-Workspace
-```
-
-Они являются конфигурацией интерфейса над существующими Documents.
+Рабочие данные уже находятся в:
 
 ```text
 Service Request
-= рабочие данные
-
-Report / Card / Chart / Workspace
-= представление и контроль этих данных
 ```
+
+L8 не создаёт:
+
+```text
+Analytics Request
+Request Summary Table
+Dashboard Data
+BI Mart
+```
+
+Штатные Report/Card/Chart/Workspace читают существующие Documents с учётом permissions.
 
 ---
 
 # 3. Создать Report Builder
 
-Войти под:
+Под Administrator открыть `Report` и создать:
 
 ```text
-Administrator
+Report Name:        Service Requests Overview
+Report Type:        Report Builder
+Reference DocType:  Service Request
+Module:             Facility Operations
+Is Standard:        Yes
 ```
 
-Developer Mode должен оставаться включённым.
+Сохранить.
 
-Открыть:
-
-```text
-Service Request → List
-```
-
-Переключить представление:
+Настроить отображаемые поля так, чтобы отчёт оставался рабочим и коротким, например:
 
 ```text
-List → Report
-```
-
-Оставить в отчёте полезные поля:
-
-```text
-Name
 Subject
 Location
 Equipment
 Priority
 Status
 Target Date
-Owner
 Modified
 ```
 
-Проверить фильтры, например:
-
-```text
-Status != Closed
-```
-
-Затем убрать временный фильтр, чтобы сохранённый отчёт показывал все заявки.
-
-Сохранить Report Builder с именем:
-
-```text
-Service Requests Overview
-```
-
-Проверить созданный `Report` через Awesomebar:
-
-```text
-Report
-```
-
-Ожидается:
-
-```text
-Report Name:   Service Requests Overview
-Report Type:   Report Builder
-Reference DocType: Service Request
-Module:        Facility Operations
-Is Standard:   Yes
-```
-
-При создании Standard Report под Administrator в Developer Mode Frappe экспортирует его в app.
+Не включать технические поля без необходимости.
 
 ---
 
-# 4. Проверить Group By
+# 4. Group By Status
 
-Открыть сохранённый:
+В Report Builder сгруппировать по:
 
 ```text
-Service Requests Overview
+Status
 ```
 
-В Report Builder включить группировку:
+и использовать Count.
+
+Цель — увидеть распределение текущих Service Request по состояниям без SQL/Python.
+
+Пример смысла:
 
 ```text
-Group By: Status
-Aggregate: Count
-```
-
-Проверить, что результат показывает количество заявок по состояниям.
-
-Например:
-
-```text
-New          3
+New          4
 Assigned     2
-In Progress  2
+In Progress  3
 Resolved     1
-Closed       4
+Closed       5
 ```
 
-Конкретные числа зависят от учебных данных.
-
-После проверки сохранить отчёт в таком виде.
-
-Что нужно понять:
-
-```text
-Group By
-= группировка Documents
-
-Count
-= агрегат над группой
-```
-
-SQL для этого не нужен.
+Точные числа зависят от данных site.
 
 ---
 
-# 5. Создать Number Card: Open Requests
+# 5. Создать Number Card Open Requests
 
-Через Awesomebar открыть:
-
-```text
-Number Card
-```
-
-Создать:
+Создать Standard Number Card:
 
 ```text
-Label:         Open Requests
+Name:          Open Requests
 Type:          Document Type
 Document Type: Service Request
 Function:      Count
@@ -238,30 +151,20 @@ Is Standard:   Yes
 Module:        Facility Operations
 ```
 
-Filters:
+Filter:
 
 ```text
 Status != Closed
 ```
 
-Percentage Stats для базового урока отключить:
-
-```text
-Show Percentage Stats = No
-```
-
-Сохранить.
-
-Проверить, что число совпадает с количеством незакрытых заявок.
+Percentage stats не нужны.
 
 ---
 
-# 6. Создать Number Card: High Priority
-
-Создать вторую карточку:
+# 6. Создать High Priority Requests
 
 ```text
-Label:         High Priority Requests
+Name:          High Priority Requests
 Type:          Document Type
 Document Type: Service Request
 Function:      Count
@@ -277,18 +180,12 @@ Priority = High
 Status != Closed
 ```
 
-Сохранить.
-
-Карточка должна считать только незакрытые заявки высокого приоритета.
-
 ---
 
-# 7. Создать Number Card: Closed Requests
-
-Создать третью карточку:
+# 7. Создать Closed Requests
 
 ```text
-Label:         Closed Requests
+Name:          Closed Requests
 Type:          Document Type
 Document Type: Service Request
 Function:      Count
@@ -303,136 +200,66 @@ Filter:
 Status = Closed
 ```
 
-Сохранить.
-
-На этом Number Card достаточно.
-
 Не создавать отдельную карточку для каждого Status.
 
 ---
 
-# 8. Проверить права Number Card
+# 8. Проверить permissions Number Card
 
-Войти под:
+Под Supervisor проверить карточки.
 
-```text
-supervisor.one@example.com
-```
+Под `requester.one@example.com` открыть ту же Number Card напрямую и убедиться, что результат учитывает доступные ему `Service Request`.
 
-Проверить, что Supervisor может читать данные карточек.
-
-Затем войти под:
-
-```text
-requester.one@example.com
-```
-
-Если открыть ту же Number Card напрямую, результат должен учитывать фактические права пользователя на `Service Request`.
-
-Это важно:
-
-```text
-Number Card
-не выдаёт доступ к данным сама по себе
-```
-
-Она использует разрешённые пользователю Documents.
+Number Card не выдаёт доступ к данным самостоятельно: в `v16.32.0` Document Type Number Card получает данные штатным list-query с permissions.
 
 ---
 
 # 9. Создать Dashboard Chart
 
-Вернуться под:
-
-```text
-Administrator
-```
-
-Через Awesomebar открыть:
-
-```text
-Dashboard Chart
-```
-
 Создать:
 
 ```text
-Chart Name:     Service Requests by Status
-Chart Type:     Group By
-Document Type:  Service Request
-Group By Based On: Status
-Group By Type:  Count
-Type:           Bar
-Is Public:      Yes
-Is Standard:    Yes
-Module:         Facility Operations
+Chart Name:         Service Requests by Status
+Chart Type:         Group By
+Document Type:      Service Request
+Group By Based On:  Status
+Group By Type:      Count
+Type:               Bar
+Is Public:          Yes
+Is Standard:        Yes
+Module:             Facility Operations
 ```
 
 Filters оставить пустыми.
 
-Сохранить.
-
-Ожидаемый смысл графика:
-
-```text
-New          ███
-Assigned     ██
-In Progress  ██
-Resolved     █
-Closed       ████
-```
-
-Не важен внешний вид.
-
-Важно, что график строится напрямую по `Service Request.status`.
-
----
-
-# 10. Ограничить Chart ролью Supervisor
-
-В `Dashboard Chart` в таблице Roles добавить:
+В Roles добавить:
 
 ```text
 Facility Supervisor
 ```
 
-Сохранить.
+Chart отвечает на вопрос распределения заявок по Status и не является Kanban.
 
-Проверить:
+---
 
-```text
-supervisor.one@example.com
-→ график доступен
+# 10. Проверить Chart permissions
 
-technician.one@example.com
-→ график не должен использоваться как его рабочий dashboard
-```
+Под Supervisor график должен быть доступен.
 
-Здесь роль ограничивает доступ к самому Chart.
+Под Technician он не должен использоваться как его рабочий dashboard, если доступ к Chart ограничен Role `Facility Supervisor`.
 
-Она не заменяет permissions исходного DocType.
+Role на Chart ограничивает сам объект Chart и не заменяет permissions `Service Request`.
 
 ---
 
 # 11. Создать Workspace
 
-Войти под Administrator.
-
-Создать новый Workspace через штатный интерфейс Workspace:
+Под Administrator создать новый Workspace:
 
 ```text
-Title:  Facility Operations
+Title:  Facility Operations Control
 Public: Yes
-```
-
-Для публичного Workspace требуется возможность управлять общими Workspace; Administrator подходит для настройки учебного стенда.
-
-После создания открыть настройки Workspace и проверить:
-
-```text
-Title:  Facility Operations
 Module: Facility Operations
-Public: Yes
 Type:   Workspace
 ```
 
@@ -442,15 +269,21 @@ Type:   Workspace
 Facility Supervisor
 ```
 
-Рабочий Workspace предназначен руководителю, а не всем ролям приложения.
+Различать:
+
+```text
+Facility Operations
+= Module app
+
+Facility Operations Control
+= рабочий Workspace руководителя
+```
 
 ---
 
-# 12. Добавить Number Cards в Workspace
+# 12. Добавить Number Cards
 
-Перевести Workspace в режим редактирования.
-
-Добавить три Number Card:
+В верхнюю часть Workspace добавить:
 
 ```text
 Open Requests
@@ -458,35 +291,25 @@ High Priority Requests
 Closed Requests
 ```
 
-Разместить их рядом в верхней части Workspace.
-
-Не добавлять больше карточек только ради заполнения экрана.
+Не заполнять экран карточками ради количества.
 
 ---
 
 # 13. Добавить Dashboard Chart
 
-Ниже Number Cards добавить:
+Ниже добавить:
 
 ```text
 Service Requests by Status
 ```
 
-Проверить, что график отображает реальные данные.
-
-Изменить Status одной тестовой заявки штатным Workflow Action.
-
-Обновить Workspace.
-
-Количество и график должны отражать новое состояние.
-
-Никакого ручного обновления отдельной таблицы статистики быть не должно.
+Проверить, что он отображает данные `Service Request` текущего site.
 
 ---
 
 # 14. Добавить Shortcuts
 
-Добавить в Workspace Shortcuts:
+Добавить Shortcuts:
 
 ```text
 Service Request
@@ -495,328 +318,119 @@ Facility Location
 Service Requests Overview
 ```
 
-Для первых трёх использовать тип:
-
-```text
-DocType
-```
-
-Для последнего:
-
-```text
-Report
-```
-
-После сохранения проверить каждый Shortcut кликом.
+Workspace должен быть входной точкой контроля, а не копией всего Desk.
 
 ---
 
-# 15. Добавить один Quick List
+# 15. Добавить Quick List
 
-Добавить в Workspace одну Quick List:
+Добавить один Quick List:
 
 ```text
-Service Request
+Document Type: Service Request
 ```
 
-Цель — увидеть механизм Quick List.
+Проверить несколько последних/доступных заявок.
 
-Не пытаться превращать Workspace в полный альтернативный List View.
-
-Если Quick List оказывается визуально лишней, после практики её можно удалить.
+Один Quick List достаточен для изучения механизма.
 
 ---
 
 # 16. Проверить Workspace под Supervisor
 
-Войти:
+Войти как:
 
 ```text
 supervisor.one@example.com
 ```
 
-Открыть Workspace:
+Открыть:
 
 ```text
-Facility Operations
+Facility Operations Control
 ```
 
 Проверить:
 
-- видны три Number Card;
-- виден Dashboard Chart;
-- работают Shortcuts;
-- открывается Report Builder;
-- числа соответствуют доступным заявкам;
-- можно перейти из Workspace к рабочим Documents.
+```text
+3 Number Cards
+Dashboard Chart
+Shortcuts
+Quick List
+```
 
-Workspace должен быть рабочей точкой входа, а не декоративной страницей.
+и переход в `Service Requests Overview`.
 
 ---
 
-# 17. Проверить другую роль
+# 17. Проверить границу Workspace
 
-Войти:
+Workspace не хранит копию Service Request.
 
-```text
-technician.one@example.com
-```
+Изменить или создать рабочую заявку штатным способом, затем обновить Card/Chart/Report.
 
-Публичный Workspace с Roles только:
+Результат должен строиться по актуальным Documents.
 
 ```text
-Facility Supervisor
+Service Request
+= данные
+
+Report / Card / Chart / Workspace
+= app-owned способы чтения и навигации
 ```
-
-не должен становиться основным Workspace Technician.
-
-Не добавлять Technician в Roles только ради того, чтобы тест прошёл.
-
-Смысл настройки — показать, что Workspace тоже имеет аудиторию.
 
 ---
 
-# 18. Проверить source-файлы
+# 18. Проверить source и Git
 
-Вернуться в терминал:
+Report, Number Cards, Dashboard Chart и Workspace создаются как Standard objects с Module `Facility Operations`.
+
+В Developer Mode они должны появиться в source app.
+
+Проверить:
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
 
 git status --short
-```
 
-После создания Standard объектов Git должен увидеть новые app-owned файлы для:
-
-```text
-Report
-Number Card
-Dashboard Chart
-Workspace
-```
-
-Посмотреть их:
-
-```bash
 find facility_ops/facility_operations \
   -type f \
   | sort \
   | grep -E 'report|number_card|dashboard_chart|workspace'
 ```
 
-Не редактировать эти JSON вручную.
+Не редактировать exported JSON вручную.
 
 ---
 
-# 19. Отличить app-owned configuration от рабочих данных
+# 19. Commit L8
 
-После L8 должно быть видно следующее:
+Добавить только app-owned Standard configuration и проверить staged diff.
 
-```text
-Service Request SR-00001
-→ database site
-→ не Git
-
-Service Requests Overview
-→ Standard Report
-→ app source
-→ Git
-
-Open Requests
-→ Standard Number Card
-→ app source
-→ Git
-
-Service Requests by Status
-→ Standard Dashboard Chart
-→ app source
-→ Git
-
-Facility Operations Workspace
-→ public app-owned Workspace
-→ app source
-→ Git
-```
-
-Это один из главных результатов L8.
-
----
-
-# 20. Проверить отсутствие лишней аналитической модели
-
-В приложении по-прежнему только три предметных DocType:
-
-```text
-Facility Location
-Equipment
-Service Request
-```
-
-Не должно появиться:
-
-```text
-Service Request Statistics
-Dashboard Data
-Request Summary
-Status Counter
-Analytics Record
-```
-
-Report/Card/Chart читают исходные Documents напрямую.
-
----
-
-# 21. Commit L8
-
-Проверить diff:
+Пример commit:
 
 ```bash
-git status
-git diff
+git commit -m "Add service request control workspace"
 ```
 
-Добавить только осознанно созданную Standard-конфигурацию:
-
-```bash
-git add .
-git diff --cached
-```
-
-Проверить, что в staged diff нет рабочих Service Request или случайных файлов.
-
-Commit:
-
-```bash
-git commit -m "Add facility operations workspace and dashboard"
-git status
-```
-
-Ожидается:
-
-```text
-working tree clean
-```
+Рабочие `Service Request` в Git не добавляются.
 
 ---
 
-# 22. Самостоятельная практика
+# 20. Приёмка L8
 
-Без готовых кликов выполнить три задачи.
+L8 принят, если:
 
-## A
+- существует `Service Requests Overview` как Report Builder;
+- существуют ровно три учебные Number Cards;
+- существует `Service Requests by Status` как Group By Count Chart;
+- Chart ограничен Facility Supervisor;
+- существует Workspace `Facility Operations Control`;
+- Module и Workspace больше не имеют одинаковое имя;
+- Workspace содержит Cards, Chart, Shortcuts и один Quick List;
+- показатели отражают актуальные Service Request и permissions;
+- Standard configuration находится в app source/Git;
+- никакой SQL/Python/отдельной аналитической таблицы не создано.
 
-Создать временную Number Card:
-
-```text
-New Requests
-```
-
-с фильтром:
-
-```text
-Status = New
-```
-
-Проверить результат и удалить карточку после практики.
-
-## B
-
-В `Service Requests Overview` сгруппировать заявки по Priority и сравнить результат с группировкой по Status.
-
-После проверки вернуть Group By на Status.
-
-## C
-
-Добавить в Workspace Shortcut на сохранённый Report и убедиться, что он открывается под Supervisor.
-
----
-
-# 23. Приёмка L8
-
-L8 принят, если ученик может показать следующее.
-
-## Report
-
-```text
-Service Requests Overview
-Report Type = Report Builder
-Reference DocType = Service Request
-Group By = Status
-Aggregate = Count
-```
-
-## Number Cards
-
-```text
-Open Requests
-High Priority Requests
-Closed Requests
-```
-
-и объяснить их Filters.
-
-## Dashboard Chart
-
-```text
-Service Requests by Status
-Chart Type = Group By
-Group By Based On = Status
-Group By Type = Count
-```
-
-## Workspace
-
-```text
-Facility Operations
-```
-
-с:
-
-- тремя Number Card;
-- одним Chart;
-- Shortcuts;
-- ролью `Facility Supervisor`.
-
-## Архитектура
-
-Ученик объясняет:
-
-```text
-Document
-= данные
-
-Report
-= табличное представление/агрегация
-
-Number Card
-= одно вычисляемое число
-
-Dashboard Chart
-= визуальная агрегация
-
-Workspace
-= рабочая композиция этих элементов
-```
-
-## Git
-
-Standard Report, Number Card, Dashboard Chart и публичный Workspace присутствуют в source app.
-
-Рабочие Service Request в Git не попадают.
-
----
-
-# Итог L8
-
-После урока `facility_ops` уже выглядит как небольшое рабочее приложение:
-
-```text
-данные
-→ процесс
-→ права
-→ совместная работа
-→ Workflow
-→ контроль и Workspace
-```
-
-Следующий урок — **L9. Автоматизация**: Notification, Assignment Rule и scheduler поверх уже работающего ручного процесса.
+После L8 переходим к **L9 — автоматизация**.
