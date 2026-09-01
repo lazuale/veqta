@@ -1,98 +1,127 @@
 # Практикумы Frappe Framework 16
 
-Этот курс нужен для одного: изучить Frappe нативно, собирая на нём реальные учебные приложения.
+Этот курс изучает Frappe через **одно цельное учебное приложение**, которое развивается от пустого app до переносимой рабочей системы.
 
-Мы используем штатные механизмы Frappe так, как они устроены в самой платформе: создаём app, работаем в Developer Mode, строим DocType, настраиваем формы и права, собираем Workflow, отчёты, Workspace, автоматизацию и Web Form, а затем проверяем, что приложение можно перенести на чистый site.
+Учебный продукт — небольшая **система службы эксплуатации**. Она ведёт места и оборудование, принимает обращения, назначает исполнителей, проводит перемещения и проверки, создаёт регламентные работы, строит отчёты и принимает обращения через Web Form.
 
-Собственную бизнес-логику на Python или JavaScript в базовой программе не пишем. Если штатный механизм Frappe сам использует простое выражение, например `PythonExpression` в Assignment Rule, мы его не скрываем и разбираем ровно настолько, насколько нужно для работы механизма.
+Мы используем штатные механизмы Frappe так, как они устроены в платформе: Developer Mode, Standard DocType, роли и permissions, Assign To, Workflow, Reports, Workspace, Automation, Web Form, fixtures и перенос на чистый site.
 
-Для курса используется отдельный учебный стенд:
+Собственную бизнес-логику на Python или JavaScript в базовой программе не пишем. Если штатный механизм Frappe сам использует простое выражение, например `PythonExpression` в Assignment Rule, разбираем только необходимый минимум.
+
+## Учебное приложение
+
+Рабочее имя приложения:
 
 ```text
-Bench: frappe-practicum-bench
-App:   frappe_practicum
-Site:  frappe-practicum.localhost
+Bench:  facility-ops-bench
+App:    facility_ops
+Site:   facility-ops.localhost
+Module: Facility Operations
 ```
+
+Это один app на весь курс. P1–P8 не создают новые приложения: каждый этап добавляет новый законченный слой в `facility_ops`.
+
+## Предметная модель
+
+Основные DocType курса:
+
+```text
+Facility Location (Tree)
+        │
+        ├──────────────┐
+        ▼              ▼
+ Equipment Type    Service Request
+        │              │
+        ▼              ├── Assign To / ToDo
+    Equipment           └── Workflow
+        │
+        ├────────► Equipment Movement
+        │                 └── Equipment Movement Item (Child)
+        │
+        ├────────► Inspection
+        │
+        └────────► Maintenance Work
+```
+
+Модель намеренно небольшая. Мы не строим ERP или полноценную CMMS. Новая сущность появляется только тогда, когда без неё нельзя естественно показать нужный механизм Frappe.
 
 ## Версия курса
 
 Практикумы проверяются на **Frappe Framework v16.32.0**.
 
-Для каждого урока источником истины служат:
+Для каждого спорного места приоритет такой:
 
 1. фактический стенд на v16.32.0;
 2. исходники тега `v16.32.0` в `frappe/frappe`;
-3. официальная документация Frappe.
-
-Ветка `version-16` используется только для отслеживания будущих изменений линии v16. Если новый релиз меняет интерфейс или поведение функции, курс сначала перепроверяется, а уже потом обновляется.
+3. официальная документация Frappe;
+4. ветка `version-16` — только для отслеживания будущих изменений.
 
 ## Как устроено обучение
 
-Каждый проект начинается с понятной рабочей задачи. Новый механизм Frappe появляется только тогда, когда он нужен для решения этой задачи.
+Каждый этап должен дать два результата одновременно:
 
-Примеры:
+1. приложение стало функциональнее;
+2. ученик понял новый строительный блок Frappe и увидел, где он хранится.
 
-- нужна самостоятельная сущность — создаём DocType;
-- нужна иерархия мест — используем Tree DocType;
-- нужны строки внутри документа — Child Table;
-- нужно изменить существующий DocType на конкретном site — Customize Form;
-- нужно перевезти эту кастомизацию вместе с app — Export Customizations;
-- нужны постоянные записи конфигурации — fixtures;
-- нужно разделить доступ — Roles и Permissions;
-- нужно назначить работу — Assign To и ToDo;
-- нужен формальный маршрут — Workflow;
-- нужны регулярные документы — Auto Repeat;
-- нужно распределять входящие документы — Assignment Rule;
-- нужны сводки — Report Builder, Number Card и Dashboard Chart;
-- нужен внешний ввод — Web Form.
+Рабочий цикл каждого этапа:
 
-Курс не пытается использовать каждую настройку Frappe в основном сценарии. Редкие, но полезные возможности выносятся в короткие дополнительные упражнения.
+```text
+задача
+  ↓
+модель до кликов
+  ↓
+сборка штатными средствами Frappe
+  ↓
+проверка нормального и отрицательного сценария
+  ↓
+Git / metadata / database
+  ↓
+следующий слой приложения
+```
+
+Редкие возможности, которым нет естественного места в основной модели, остаются короткими лабораториями. Модель приложения не искажается ради формального покрытия матрицы.
 
 ## Программа
 
-| Код | Проект | Что изучаем |
-|---|---|---|
-| [P0](projects/00-lab/README.md) | Учебное приложение | Bench, site, app, Developer Mode, Module, Desk v16, Git |
-| P1 | Реестр оборудования | DocType, поля, связи, Naming, Tree, Child Table, List, import/export |
-| P2 | Кастомизация и переносимость | Customize Form, Custom Field, Property Setter, DocType Layout, fixtures, Export Customizations, второй site |
-| P3 | Внутренние заявки | User, Role, Permissions, User Permission, Share, Assign To, ToDo, Kanban |
-| P4 | Согласование закупки | DocStatus, Submit/Cancel/Amend, Allow on Submit, Workflow, Audit Trail |
-| P5 | Журнал проверок | Calendar, Report Builder, Number Card, Dashboard Chart, Workspace, печать, PDF |
-| P6 | Регламентные работы | Auto Repeat, Assignment Rule, Notification, scheduler |
-| P7 | Web Form обращений | Anonymous/Login Required, document permissions, list/edit, Standard Web Form |
-| P8 | Операционный центр | самостоятельная сборка и установка готового app на чистый site |
+| Код | Стадия приложения | Что появляется | Главные механизмы Frappe |
+|---|---|---|---|
+| [P0](projects/00-lab/README.md) | Основа | `facility_ops`, site и первый пробный DocType | Bench, app, site, Module, Developer Mode, Desk, Git |
+| P1 | Реестр эксплуатации | места, типы оборудования, оборудование, перемещения | DocType, Fields, Link, Tree, Child Table, Naming, Data Import |
+| P2 | Формы и переносимые изменения | site-specific изменение Equipment и альтернативный layout | Customize Form, Custom Field, Property Setter, DocType Layout, Export Customizations |
+| P3 | Обращения и совместная работа | Service Request и реальные пользователи | Users, Roles, Permissions, User Permission, Share, Assign To, ToDo, Kanban |
+| P4 | Управляемый жизненный цикл | подтверждённые перемещения и Workflow обращений | DocStatus, Submit/Cancel/Amend, Workflow, Audit Trail, fixtures, первый clean-site test |
+| P5 | Контроль и рабочий стол | Inspection, аналитика и печать | Calendar, Report Builder, Number Card, Dashboard Chart, Workspace, Print, PDF |
+| P6 | Автоматизация | Maintenance Work и автоматическое распределение обращений | Auto Repeat, Assignment Rule, Notification, scheduler |
+| P7 | Внешний вход | создание Service Request через сайт | Web Form, Guest, Website User, permissions, attachments, Standard Web Form |
+| P8 | Выпуск приложения | финальная конфигурация на новом чистом site | install-app, migrate, fixtures/customizations, приёмочные сценарии |
 
-Подробная последовательность находится в [ROADMAP.md](ROADMAP.md). Матрица покрытия возможностей — в [MATRIX.md](MATRIX.md).
+Подробная последовательность находится в [ROADMAP.md](ROADMAP.md). Архитектура учебного приложения — в [ARCHITECTURE.md](ARCHITECTURE.md). Матрица покрытия Frappe — в [MATRIX.md](MATRIX.md).
 
 ## Что должно получиться в конце
 
 После P8 ученик должен уметь без пошаговой инструкции:
 
-- объяснить разницу между Bench, site, app, Module, DocType и Document;
-- создать и установить своё Frappe app;
-- понимать, что из созданного в Desk автоматически хранится в app, а что требует Export Customizations или fixtures;
-- построить связанную модель данных;
-- выбрать подходящие типы полей и Naming;
-- настроить формы, списки, поиск и рабочие представления;
-- разделить роли и права;
-- отличать доступ к документу от назначения работы;
-- работать с Draft, Submit, Cancel и Amend;
-- собрать простой Workflow;
-- построить no-code отчёт, показатели и Workspace;
-- настроить печать и PDF;
-- применить штатную автоматизацию;
-- опубликовать Web Form;
-- установить своё приложение на второй чистый site и проверить, что нужная конфигурация приехала вместе с ним;
-- понимать, когда штатной конфигурации уже недостаточно и пора писать собственную логику.
+- объяснить Bench, app, site, Module, DocType, DocField, Document и `name`;
+- спроектировать связанную модель данных до создания форм;
+- выбрать между обычным, Tree, Child, Single и Custom DocType;
+- понимать Standard объект, site customization и fixture как разные способы поставки конфигурации;
+- настроить Naming, формы, списки, импорт и поиск;
+- разделить пользователей по ролям и данным;
+- отличать permissions от Assignment;
+- отличать обычный статус, Workflow State и системный DocStatus;
+- использовать Submit/Cancel/Amend там, где документ действительно фиксирует факт;
+- собрать Workflow для управляемого процесса;
+- построить Workspace, отчёты, показатели, календарь и печатную форму;
+- применять штатную автоматизацию без собственного backend-кода;
+- открыть безопасный внешний ввод через Web Form;
+- установить приложение на чистый site и доказать, что принятая конфигурация переносится без повторного ручного накликивания.
 
 ## Документы
 
-- [SCOPE.md](SCOPE.md) — версия, правила курса и границы базовой программы;
-- [ARCHITECTURE.md](ARCHITECTURE.md) — ключевые понятия Frappe и логика последовательности;
-- [MATRIX.md](MATRIX.md) — где впервые изучается каждая возможность;
-- [ROADMAP.md](ROADMAP.md) — P0–P8, действия и проверки;
-- [REFERENCES.md](REFERENCES.md) — официальная документация и исходники, по которым сверяется курс.
+- [SCOPE.md](SCOPE.md) — границы базовой программы;
+- [ARCHITECTURE.md](ARCHITECTURE.md) — архитектура `facility_ops` и логика обучения;
+- [MATRIX.md](MATRIX.md) — где впервые изучается каждый механизм;
+- [ROADMAP.md](ROADMAP.md) — последовательность P0–P8 и критерии перехода;
+- [REFERENCES.md](REFERENCES.md) — официальная документация и исходники для проверки курса.
 
-Первый практикум: **[P0 — Учебное приложение](projects/00-lab/README.md)**.
-
-Следующий проект добавляется в `projects/` только после фактического прохождения и принятия предыдущего на стенде v16.32.0.
+Первый этап: **[P0 — Основа приложения](projects/00-lab/README.md)**.
