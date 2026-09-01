@@ -153,9 +153,9 @@ Facility Supervisor
 Отдельно от ядра: **[индекс лабораторий](labs/README.md)**.
 
 - **[Lab A — Child Table](labs/a-child-table/README.md)**;
-- **Lab B — Draft / Submit / Cancel / Amend / DocStatus**;
-- **Lab C — Auto Repeat**;
-- **Lab D — Customize Form / Export Customizations**;
+- **[Lab B — Draft / Submit / Cancel / Amend / DocStatus](labs/b-docstatus/README.md)**;
+- **[Lab C — Auto Repeat](labs/c-auto-repeat/README.md)**;
+- **[Lab D — Customize Form / Custom Field / Property Setter / Export Customizations](labs/d-customize-form/README.md)**;
 - **Lab E — Print / PDF**;
 - **Lab F — специальные Field Types и представления**.
 
