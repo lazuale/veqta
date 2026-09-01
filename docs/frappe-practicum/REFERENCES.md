@@ -63,6 +63,8 @@ Node >=24
 - metadata permission helpers: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/meta.py
 - Document permission enforcement: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py
 - BaseDocument high-permlevel reset: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/base_document.py
+- client permission model: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/model/perm.js
+- Form action permission checks: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/form/form.js
 - Permission Manager: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/page/permission_manager/permission_manager.js
 
 ## If Owner / Create
@@ -84,6 +86,50 @@ If Owner = Yes
 ```
 
 Новый Document создать можно, owner read остаётся, post-create document Write не выдаётся.
+
+## Local Desk form + Permission Level
+
+Client `frappe.perm.get_perm(doctype, doc)` для `doc.__islocal` использует doctype role permissions без existing-document owner filtering.
+
+`get_field_display_status()` смотрит permission row именно поля:
+
+```text
+df.permlevel
+→ perm[df.permlevel]
+→ p.write / p.read
+```
+
+Следовательно новый Requester Document может иметь одновременно:
+
+```text
+Level 0 Write = No
+Level 0 Create = Yes
+Level 1 Write = Yes
+```
+
+и при этом:
+
+```text
+Level 1 intake fields → editable
+status Level 0        → не является свободно writable field
+```
+
+Server `Document.insert()` затем выполняет:
+
+```text
+check_permission("create")
+```
+
+а не требует document-level `write` для первоначального insert.
+
+Это exact-source основание модели:
+
+```text
+Requester
+→ Create new request
+→ fill Level 1 business content
+→ после insert не save existing request
+```
 
 ## Permission Level — server enforcement
 
@@ -189,7 +235,7 @@ Only Allow Edit For
 if (doc.__islocal) return false
 ```
 
-поэтому New state с edit role Supervisor не мешает Requester заполнить новый local Document.
+поэтому New state с edit role Supervisor не мешает Requester работать с новым local Document.
 
 После insert Role Permission `Write = No` становится Requester boundary.
 
