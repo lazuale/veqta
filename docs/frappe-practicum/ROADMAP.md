@@ -21,7 +21,7 @@ Facility Location (Tree)
         └─────────────────┴────────────► Service Request
 ```
 
-Архитектурные гарантии формально описаны в **[INVARIANTS.md](INVARIANTS.md)**.
+Формальные гарантии: **[INVARIANTS.md](INVARIANTS.md)**.
 
 ---
 
@@ -41,7 +41,13 @@ Facility Location (Tree)
 → portability
 ```
 
-Каждый следующий урок должен использовать выход предыдущего без ручного исправления противоречий.
+Критерий:
+
+```text
+OUTPUT(Ln)
+должен удовлетворять
+PRECONDITIONS(Ln+1)
+```
 
 ---
 
@@ -60,15 +66,6 @@ Priority
 ```text
 Equipment = optional
 Target Date = optional
-```
-
-Equipment Category:
-
-```text
-HVAC
-Electrical
-IT
-Other
 ```
 
 Status:
@@ -90,13 +87,30 @@ Service Request.location = место события
 Equipment.location       = текущее размещение Equipment
 ```
 
-Жёсткого вечного равенства между ними нет.
+Вечного hard equality между ними нет.
 
 ## Security
 
 ```text
+Requester
+→ Create
+→ Read own
+→ no post-create Write
+→ no Delete
+
+Technician
+→ Read/Write
+→ no Create/Delete
+
+Supervisor
+→ Read/Write/Create
+→ no Delete
+→ Report/Export
+```
+
+```text
 Role Permission
-= базовый server access
+= server access boundary
 
 Assignment
 = ответственность, не ACL
@@ -105,12 +119,10 @@ Workflow Allowed Role / Condition
 = server transition gate
 
 Only Allow Edit For
-= Desk state guard, не самостоятельная ACL
+= Desk state guard
 ```
 
 ## Web
-
-Финальная форма:
 
 ```text
 Login Required = Yes
@@ -128,19 +140,9 @@ L11 доказывает clean-site portability.
 
 # L0. Основа приложения
 
-Создать настоящий Bench/site/app в Developer Mode.
+Создать Bench/site/app в Developer Mode.
 
-Изучаем:
-
-- Bench;
-- `bench new-app`;
-- `bench new-site`;
-- `install-app`;
-- Module;
-- Desk / Awesomebar;
-- Developer Mode;
-- app source;
-- Git.
+Изучаем Bench, app, site, Module, Desk, Developer Mode, source и Git.
 
 Приёмка:
 
@@ -156,13 +158,7 @@ Frappe v16.32.0
 
 # L1. Facility Location
 
-Создать Tree DocType:
-
-```text
-Facility Location
-```
-
-Пример:
+Создать Tree DocType `Facility Location`.
 
 ```text
 Main Site
@@ -174,17 +170,11 @@ Main Site
 └── Warehouse
 ```
 
-Изучаем Standard DocType, Tree, Naming, generated metadata и Git.
-
 ---
 
 # L2. Equipment
 
-Создать:
-
-```text
-Equipment
-```
+Создать `Equipment`.
 
 Поля:
 
@@ -200,7 +190,7 @@ Photo
 Notes
 ```
 
-Category строго:
+Category:
 
 ```text
 HVAC
@@ -233,15 +223,13 @@ Export
 Bulk Edit
 ```
 
-Импортировать 10 дополнительных Equipment и доказать разницу source vs working Documents.
+Импортировать 10 дополнительных Equipment.
 
 ---
 
 # L4. Service Request
 
 Создать третий core DocType.
-
-Поля:
 
 | Поле | Mandatory |
 |---|---:|
@@ -264,21 +252,12 @@ Resolved
 Closed
 ```
 
-Ключевая семантика:
-
 ```text
 Accepted
 ≠ Assigned To
 ```
 
-и:
-
-```text
-Service Request.location
-≠ обязано навсегда совпадать с Equipment.location
-```
-
-До L7 Status остаётся обычным Select.
+До L7 Status — обычный Select.
 
 ---
 
@@ -301,15 +280,24 @@ technician.one@example.com
 supervisor.one@example.com
 ```
 
-Изучаем:
+Финальная `Service Request` policy:
 
 ```text
-Role Permission Manager
-If Owner
-Permission Level
-User Permission
-Share
+Requester
+→ Create + Read own
+→ Write/Delete No
+
+Technician
+→ Read/Write
+→ Create/Delete No
+
+Supervisor
+→ Read/Write/Create
+→ Delete No
+→ Report/Export
 ```
+
+Delete permission изучается временно под Supervisor на отдельной тестовой заявке и затем обязательно возвращается в `No`.
 
 `User Permission + Share` проверяются на временном:
 
@@ -323,6 +311,7 @@ technician.restricted@example.com
 Share удалить
 User Permission удалить
 Restricted Technician отключить
+Supervisor Delete = No
 ```
 
 Основные Technician остаются без Location restriction.
@@ -342,15 +331,13 @@ Tags
 Kanban
 ```
 
-Главная модель:
-
 ```text
 Permission = доступ
 Assignment = ответственность
 Status = процесс
 ```
 
-Assignment не считается authorization.
+Assignment не является authorization.
 
 После Assign To нормально:
 
@@ -360,12 +347,6 @@ Status = New
 ```
 
 Kanban:
-
-```text
-Service Request Status Board
-```
-
-колонки:
 
 ```text
 New
@@ -379,15 +360,7 @@ Closed
 
 # L7. Workflow
 
-Использовать существующий:
-
-```text
-Service Request.status
-```
-
-как единственный Workflow State Field.
-
-Процесс:
+`Service Request.status` становится единственным Workflow State Field.
 
 ```text
 New
@@ -405,15 +378,20 @@ Resolved
 Closed
 ```
 
-Изучаем:
+Desk edit roles:
 
 ```text
-Workflow State
-Workflow Action Master
-Transition
-Allowed Role
-Only Allow Edit For
-Condition
+New         → Facility Supervisor
+Accepted    → Facility Technician
+In Progress → Facility Technician
+Resolved    → Facility Supervisor
+Closed      → Facility Supervisor
+```
+
+Requester всё ещё может создать новый локальный Document. После insert его настоящий server boundary:
+
+```text
+Write = No
 ```
 
 Академическая граница:
@@ -425,8 +403,6 @@ Allowed Role / Condition
 Only Allow Edit For
 = Desk guard
 ```
-
-Closed — terminal state, но абсолютную API immutability базовый курс не обещает.
 
 Kanban после сравнения удалить.
 
@@ -443,15 +419,13 @@ Chart:           Service Requests by Status
 Workspace:       Facility Operations Control
 ```
 
-Module остаётся `Facility Operations`.
-
-Никаких SQL/Python reports в Core.
+Аналитические представления читают доступные пользователю Documents, но сами не являются новой permission boundary.
 
 ---
 
 # L9. Automation
 
-Создать второго Technician:
+Создать:
 
 ```text
 technician.two@example.com
@@ -479,29 +453,15 @@ Assigned To = Technician
 Status = New
 ```
 
-Supervisor отдельно выполняет:
+Supervisor отдельно выполняет `Accept`.
 
-```text
-Accept
-```
+Target Date — conditional input.
 
-Target Date — conditional input:
-
-```text
-задан
-→ Due Date / overdue automation возможны
-
-пуст
-→ этих гарантий нет
-```
-
-Assignment Rule содержит конкретных Users и остаётся site-specific.
+Assignment Rule остаётся site-specific.
 
 ---
 
 # L10. Web Form
-
-Standard:
 
 ```text
 Report a Facility Issue
@@ -509,12 +469,12 @@ Route: facility-request
 DocType: Service Request
 ```
 
-Guest mode — временный experiment с закрытыми внутренними Link catalogs.
+Guest mode — временный experiment.
 
-Финальный trust model:
+Финал:
 
 ```text
-Website User = доверенный внутренний заявитель
+Website User = trusted internal reporter
 Login Required = Yes
 Anonymous = No
 Show List = Yes
@@ -522,9 +482,14 @@ Allow Edit = No
 Apply Document Permissions = No
 ```
 
-`Allow Edit` временно изучается и затем обязательно выключается.
+`Allow Edit` изучается и обязательно выключается.
 
-Причина: Web Form не должен оставаться parallel editor рабочего Workflow Document.
+Desk Requester и Website User сходятся в одном принципе:
+
+```text
+intake
+≠ право бессрочно переписывать рабочую заявку
+```
 
 ---
 
@@ -569,7 +534,15 @@ Assignment Rule tied to concrete Users
 working data
 ```
 
-На clean site ручной ToDo **не обязан закрываться Workflow Close**, потому что L9 Assignment Rule отсутствует.
+Clean-site permission acceptance обязательно проверяет:
+
+```text
+Requester = Create + Read own, Write/Delete No
+Technician = Read/Write, Create/Delete No
+Supervisor = Read/Write/Create, Delete No, Report/Export
+```
+
+На clean site manual ToDo не обязан закрываться Workflow Close, потому что L9 Assignment Rule отсутствует.
 
 После проверки:
 
@@ -581,8 +554,6 @@ bench use facility-ops.localhost
 
 # Labs A–F
 
-Лаборатории изучают специальные механизмы, не расширяя core domain автоматически.
-
 ```text
 A → Child Table
 B → DocStatus/Submittable
@@ -592,50 +563,41 @@ E → Print/PDF
 F → special fields/views
 ```
 
-Каждая Lab должна иметь:
-
-```text
-Temporary Mutation
-Persistent Mutation
-Rollback
-Final State
-```
-
-Lab E может оставить Standard Print Format как presentation configuration — это не новый domain entity.
+Каждая Lab должна иметь Temporary Mutation / Persistent Mutation / Rollback / Final State.
 
 ---
 
 # Финальная проверка последовательности
-
-```text
-OUTPUT(Ln)
-→ должен удовлетворять PRECONDITIONS(Ln+1)
-```
 
 Критические gates:
 
 ```text
 L4
 → Accepted вместо Assigned
-→ Mandatory не ослабляются дальше
+→ Mandatory сохраняются
 
 L5
-→ temporary permission experiment очищен
+→ Requester append-only после insert
+→ Service Request Delete выключен у рабочих ролей
+→ temporary permission experiments очищены
 
 L6
 → Assignment не превращён в ACL
 
 L7
+→ New обслуживает Supervisor
+→ Requester Create сохраняется, post-create Write запрещён Role Permission
 → Workflow enforcement классифицирован точно
 
 L9
-→ Assignment Rule не создаёт скрытые permission exceptions
+→ Assignment Rule не создаёт hidden access exceptions
 → Target Date conditional
 
 L10
 → final Allow Edit = No
 
 L11
+→ exact permission matrix восстановлена на clean site
 → portable core отделён от site policy
 → active site возвращён main
 ```
