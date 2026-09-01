@@ -1,264 +1,103 @@
-# Практикум Frappe Framework 16
+# Инженерный практикум Frappe Framework 16
 
-Курс изучает Frappe через одно небольшое приложение `facility_ops`.
+Этот практикум учит собирать реальные Frappe-приложения, а не проходить меню по списку.
 
-```text
-место
-→ оборудование
-→ заявка
-→ ответственность
-→ процесс
-→ контроль
-```
-
-Core domain:
-
-```text
-Facility Location (Tree)
-        │
-        ├────────► Equipment
-        │              │
-        └──────────────┴────────► Service Request
-```
-
-## Учебный стенд
-
-```text
-Bench:  facility-ops-bench
-App:    facility_ops
-Site:   facility-ops.localhost
-Module: Facility Operations
-Frappe: v16.32.0
-```
-
-## Принцип курса
+Ученик трижды проходит полный цикл:
 
 ```text
 задача
-→ модель
-→ штатный механизм Frappe
-→ проверка
-→ настоящий enforcement layer
-→ Git/site boundary
+→ модель данных
+→ жизненный цикл документов
+→ права
+→ рабочий интерфейс
+→ совместная работа и автоматизация
+→ отчётность
+→ перенос на чистый site
 ```
 
-Собственную business logic на Python/JavaScript в базовом маршруте не пишем.
+В результате остаются три самостоятельных app, каждый со своей предметной областью, Git-историей и проверкой установки.
 
-Формальная модель: **[INVARIANTS.md](INVARIANTS.md)**.
+## Техническая база
 
----
+| Компонент | Принято |
+|---|---|
+| Frappe Framework | `v16.32.0` |
+| Python | `>=3.14,<3.15` |
+| Node.js | `>=24` |
+| Bench | один общий bench |
+| Business apps | три независимых app |
+| ERPNext и другие приложения | не используются |
+| Собственная логика на Python/JavaScript | не используется в основном маршруте |
 
-# Service Request
+App здесь — не синоним программирования. Это штатный контейнер метаданных Frappe: Module, DocType, Workspace, Report, Web Form и других объектов, которые должны переноситься между site и храниться в Git.
 
-Mandatory:
+## Три проекта
+
+| № | Продукт | Главный инженерный вопрос | Итоговый app |
+|---:|---|---|---|
+| 1 | [Реестр оборудования](projects/01-equipment-register/README.md) | Как представить предметную область средствами Frappe? | `equipment_register` |
+| 2 | [Заявки на закупку](projects/02-purchase-requests/README.md) | Как построить управляемый жизненный цикл документа? | `purchase_requests` |
+| 3 | [Внешняя приёмная и внутренние обращения](projects/03-service-intake/README.md) | Как безопасно разделить внешний и внутренний контуры? | `service_intake` |
+
+Проекты независимы по данным и исходникам. Знания накапливаются, но второй app не зависит от первого, а третий — от второго. Ошибка в одном проекте не должна превращаться в скрытую зависимость другого.
+
+## Общий стенд
 
 ```text
-Subject
-Location
-Description
-Priority
+frappe-practicum-bench/
+├── apps/
+│   ├── frappe/
+│   ├── equipment_register/
+│   ├── purchase_requests/
+│   └── service_intake/
+└── sites/
+    ├── equipment.localhost/
+    ├── purchase.localhost/
+    └── intake.localhost/
 ```
 
-Optional:
+Для приёмки каждого app создаётся отдельный чистый site. Он нужен не для ежедневной работы, а для доказательства, что продукт существует в исходниках, а не только в базе разработчика.
 
-```text
-Equipment
-Target Date
-Attachment
-```
+Подготовка WSL2 и общего Frappe Bench описана в [SETUP_WSL2.md](SETUP_WSL2.md). Команды создания app и site повторяются внутри каждого проекта, потому что это часть результата, а не предварительная магия.
 
-Status:
+## Как устроен каждый проект
 
-```text
-New
-Accepted
-In Progress
-Resolved
-Closed
-```
+У проекта всегда одна и та же инженерная последовательность:
 
-```text
-Accepted ≠ Assigned To
-```
+1. Зафиксировать сценарии и границы продукта.
+2. Нарисовать документы и связи до создания полей.
+3. Создать app, site и Module.
+4. Собрать Standard DocType в Developer Mode.
+5. Проверить данные вручную, затем импортом.
+6. Настроить роли и доказать права отдельными пользователями.
+7. Собрать только те views и механизмы, которые нужны сценарию.
+8. Разделить переносимые метаданные, локальную конфигурацию и рабочие данные.
+9. Зафиксировать app в Git.
+10. Установить app на чистый site и повторить приёмочный сценарий.
 
-`Service Request.location` = historical event location.
+Функция Frappe появляется в проекте только тогда, когда решает конкретную задачу. Матрица покрытия используется после проектирования как аудит, а не как генератор искусственных упражнений.
 
-`Equipment.location` = current location.
+## Что считается освоением
 
----
+Недостаточно сохранить настройки и увидеть красивую форму. Для каждого существенного механизма ученик должен показать четыре вещи:
 
-# Роли и hardened permissions
+| Проверка | Что доказывает |
+|---|---|
+| рабочий сценарий | продукт решает заявленную задачу |
+| отрицательный сценарий | запрещённое действие действительно запрещено |
+| исходники app | метаданные попали под version control |
+| чистый site | результат воспроизводим |
 
-```text
-Facility Requester
-Facility Technician
-Facility Supervisor
-```
+Общие критерии находятся в [ACCEPTANCE.md](ACCEPTANCE.md).
 
-## Level 0 — document authority
+## Документы комплекта
 
-```text
-Requester
-→ Create + Read own
-→ Write/Delete No
+- [SCOPE.md](SCOPE.md) — границы и допустимые средства;
+- [SETUP_WSL2.md](SETUP_WSL2.md) — общий учебный Bench без business app;
+- [ARCHITECTURE.md](ARCHITECTURE.md) — архитектура курса и трёх приложений;
+- [ROADMAP.md](ROADMAP.md) — порядок прохождения;
+- [MATRIX.md](MATRIX.md) — покрытие возможностей Frappe;
+- [ACCEPTANCE.md](ACCEPTANCE.md) — инженерные проверки;
+- [REFERENCES.md](REFERENCES.md) — официальная документация и exact source.
 
-Technician
-→ Read/Write
-→ Create/Delete No
-
-Supervisor
-→ Read/Write/Create
-→ Delete No
-→ Report/Export
-```
-
-## Level 1 — business content
-
-```text
-Subject
-Location
-Equipment
-Description
-Priority
-Target Date
-Attachment
-```
-
-```text
-Requester   → Read/Write
-Technician  → Read only
-Supervisor  → Read/Write
-```
-
-## Level 2 — process state
-
-```text
-Status
-```
-
-```text
-Requester   → Read only
-Technician  → Read/Write
-Supervisor  → Read/Write
-```
-
-После L7 Workflow добавляет transition gate поверх Level 2.
-
-Итог:
-
-```text
-Level 0 Permission = document authority
-Level 1 Permission = content authority
-Level 2 Permission = state-field authority
-Workflow           = transition authority
-Assignment         = responsibility
-```
-
-Requester может заполнить новый Level 1 Document, но не менять Status и не save заявку после insert.
-
-Technician может вести process state, но не переписывать business content.
-
----
-
-# Два intake-channel
-
-## Desk
-
-```text
-Facility Requester
-→ Level 0 Create
-→ Level 1 Write для intake fields
-→ Level 2 Status read-only / default New
-→ after insert Level 0 Write No
-```
-
-## Web Form
-
-```text
-trusted authenticated Website User
-→ Report a Facility Issue
-→ Web Form insert
-```
-
-Exact `v16.32.0` Web Form new target Document создаётся через:
-
-```text
-insert(ignore_permissions=True)
-```
-
-Поэтому:
-
-```text
-Desk Create ≠ Web Form Create
-```
-
-Web Form submit не является доказательством Level 0/1/2 permissions.
-
-Final Web Form:
-
-```text
-Published = Yes
-Login Required = Yes
-Show List = Yes
-Allow Editing After Submit = No
-```
-
-`Status` в Web Form отсутствует.
-
-Final `Allow Edit = No` не оставляет bypass update path поверх Level 1/2 protection.
-
----
-
-# Основной маршрут
-
-| Урок | Результат | Главные механизмы |
-|---|---|---|
-| [L0](projects/00-lab/README.md) | настоящий `facility_ops` | Bench, app, site, Module, Developer Mode, Desk, Git |
-| [L1](projects/01-locations/README.md) | структура мест | Standard DocType, Tree, Naming |
-| [L2](projects/02-equipment/README.md) | Equipment | Fields, Link, Form/List, Track Changes |
-| [L3](projects/03-data/README.md) | рабочие данные | Filters, Import, Export, Bulk Edit |
-| [L4](projects/04-service-request/README.md) | Service Request | data invariants, Status, Attachments |
-| [L5](projects/05-users-permissions/README.md) | hardened access | Level 0/1/2, If Owner, User Permission, Share |
-| [L6](projects/06-collaboration/README.md) | ответственность | Assign To, ToDo, Comments, Tags, Kanban |
-| [L7](projects/07-workflow/README.md) | процесс | Workflow поверх Level 2 Status |
-| [L8](projects/08-control-workspace/README.md) | контроль | Report, Cards, Chart, Workspace |
-| [L9](projects/09-automation/README.md) | automation | Notification, Assignment Rule, scheduler |
-| [L10](projects/10-web-form/README.md) | authenticated intake | separate Web Form capability; final update disabled |
-| [L11](projects/11-portability/README.md) | portability | fixtures, Custom DocPerm Level 0/1/2, clean-site acceptance |
-
----
-
-# Лаборатории
-
-- [Lab A — Child Table](labs/a-child-table/README.md)
-- [Lab B — DocStatus](labs/b-docstatus/README.md)
-- [Lab C — Auto Repeat](labs/c-auto-repeat/README.md)
-- [Lab D — Customize Form](labs/d-customize-form/README.md)
-- [Lab E — Print / PDF](labs/e-print-pdf/README.md)
-- [Lab F — специальные возможности](labs/f-special-features/README.md)
-
-Lab не должна незаметно ослаблять Level 0/1/2 permission baseline.
-
----
-
-# Версия и источники
-
-Приоритет:
-
-1. фактический стенд `v16.32.0`;
-2. exact source tag `v16.32.0`;
-3. официальная документация;
-4. moving `version-16` только для future changes.
-
----
-
-# Документы
-
-- [ARCHITECTURE.md](ARCHITECTURE.md) — архитектура;
-- [INVARIANTS.md](INVARIANTS.md) — formal guarantees;
-- [ROADMAP.md](ROADMAP.md) — последовательность;
-- [MATRIX.md](MATRIX.md) — coverage;
-- [SCOPE.md](SCOPE.md) — Core/Labs/Later;
-- [REFERENCES.md](REFERENCES.md) — exact-source map.
-
-Начало: **[L0 — Основа приложения](projects/00-lab/README.md)**.
+Начало работы: [проект 1 — «Реестр оборудования»](projects/01-equipment-register/README.md).

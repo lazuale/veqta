@@ -1,443 +1,239 @@
-# Архитектура учебного приложения `facility_ops`
+# Архитектура практикума
 
-Базовая версия: **Frappe Framework v16.32.0**.
+## 1. Почему три приложения, а не один учебный комбайн
 
-Формальные гарантии: [INVARIANTS.md](INVARIANTS.md).
+Один app, в который последовательно добавляют Tree, Workflow, Web Form, Auto Repeat и все специальные поля, быстро перестаёт быть продуктом. Его модель начинает обслуживать учебную матрицу.
 
-Главный принцип:
+Здесь применён другой принцип:
 
 ```text
-каждая гарантия должна иметь реальный enforcement layer
+реальная задача
+→ минимальная модель продукта
+→ подходящие механизмы Frappe
+→ аудит покрытия платформы
 ```
 
----
+Каждый проект заканчивается до начала следующего. Лишняя функция не добавляется только потому, что она существует во Frappe.
 
-# 1. Core domain
+## 2. Физическая архитектура стенда
+
+Bench общий: зависимости Frappe устанавливаются один раз.
+
+App и site разделены по продуктам:
 
 ```text
-Facility Location (Tree)
+Frappe Bench
+├── equipment_register ──► equipment.localhost
+├── purchase_requests  ──► purchase.localhost
+└── service_intake     ──► intake.localhost
+```
+
+Для финальной проверки создаются временные чистые site:
+
+```text
+equipment-clean.localhost
+purchase-clean.localhost
+intake-clean.localhost
+```
+
+Ни один учебный app не объявляет другой обязательной зависимостью. Это сохраняет ясность `framework → app → site` и делает clean-site proof честным.
+
+## 3. Единица обучения
+
+Единица обучения — не экран настройки и не feature. Это законченный инженерный шаг:
+
+```text
+проблема
+→ решение в модели
+→ настройка Frappe
+→ рабочий пример
+→ отрицательная проверка
+→ проверка source/site boundary
+```
+
+Например, Link изучается не как тип поля сам по себе. Сначала появляется Equipment, которому нужна существующая Category; затем создаётся Link; затем проверяется невозможность сохранить несуществующую Category; затем смотрится, какие данные действительно записаны в Document.
+
+## 4. Проект 1 — `equipment_register`
+
+### Назначение
+
+Небольшой внутренний реестр, отвечающий на вопросы:
+
+- какое оборудование существует;
+- к какой категории относится;
+- где находится сейчас;
+- в каком состоянии;
+- какие идентификаторы с ним связаны.
+
+### Модель
+
+```text
+Equipment Location (Tree) ◄──── Equipment ────► Equipment Category
+                                      │
+                                      └──── Equipment Identifier (Child)
+```
+
+### Архитектурные решения
+
+- `Equipment Location` — Tree, потому что место естественно имеет иерархию.
+- `Equipment Category` — отдельный справочник, потому что значение переиспользуется и должно иметь собственную целостность.
+- `Equipment Identifier` — Child Table, потому что строки не имеют самостоятельной жизни вне Equipment.
+- `asset_code` управляет naming Equipment и помечен Unique.
+- `status` — обычный Select. Workflow здесь не нужен: смена состояния не является согласованием.
+- Kanban допустим по `status`, потому что это обычное изменяемое поле, а не workflow state.
+
+### Финальная гарантия
+
+Пользователь может найти объект по коду, имени и идентификатору, отфильтровать реестр по месту/категории/состоянию и получить управляемый список без Excel.
+
+## 5. Проект 2 — `purchase_requests`
+
+### Назначение
+
+Внутренняя заявка на закупку проходит согласование подразделением и проверку закупщиком.
+
+### Модель
+
+```text
+Purchase Department ◄──── Purchase Request
+                               │
+                               └──── Purchase Request Item (Child)
+```
+
+### Жизненный цикл
+
+```text
+Draft
+  └─ Submit Request ─► Pending Department Approval
+                         ├─ Approve ─► Procurement Review
+                         └─ Reject  ─► Rejected
+
+Rejected ── Resubmit ─► Pending Department Approval
+
+Procurement Review
+  ├─ Approve Purchase ─► Approved (docstatus 1)
+  └─ Return           ─► Rejected
+
+Approved ── Cancel ─► Cancelled (docstatus 2)
+```
+
+### Роли
+
+| Роль | Ответственность |
+|---|---|
+| Purchase Requester | создаёт и повторно подаёт свою заявку |
+| Department Approver | принимает решение от подразделения |
+| Procurement Officer | проводит финальную проверку и submit/cancel |
+| Purchase Auditor | только читает и строит отчёты |
+
+### Архитектурные решения
+
+- `Purchase Request` — submittable, потому что Approved должен стать зафиксированным деловым документом.
+- Workflow управляет только разрешёнными переходами и `docstatus`.
+- Role Permission определяет базовый доступ к DocType независимо от Workflow.
+- Assign To/ToDo фиксирует конкретного ответственного, но не используется как ACL.
+- Kanban не применяется для перетаскивания workflow state: переход выполняется Workflow Action.
+- Workflow переносится не как рабочие данные, а как конфигурация app с отдельной clean-site проверкой.
+
+### Финальная гарантия
+
+Нельзя утвердить заявку в обход последовательности ролей, обычный заявитель не может утвердить её сам, а Approved документ действительно имеет `docstatus = 1`.
+
+## 6. Проект 3 — `service_intake`
+
+### Назначение
+
+Приложение принимает внешние сообщения и после проверки превращает подходящие обращения во внутренние рабочие кейсы.
+
+### Модель доверия
+
+```text
+Internet / Website User
         │
-        ├────────────► Equipment
-        │                 │
-        └─────────────────┴────────────► Service Request
+        ▼
+Web Form
+        │
+        ▼
+Service Intake        недоверенный ввод
+        │ ручная проверка
+        ▼
+Service Case          внутренний документ
+        │
+        └────► Service Category
 ```
 
-Только три постоянных business DocType.
+### Почему два DocType
 
----
+Внешняя форма создаёт target document через специальный Web Form path. В `v16.32.0` новый документ вставляется с `ignore_permissions=True`. Если направить форму сразу в `Service Case`, публичный канал окажется связан с внутренней моделью, полями и жизненным циклом.
 
-# 2. Service Request
+Разделение даёт ясную границу:
 
-Mandatory:
+- `Service Intake` принимает минимальный набор непроверенных данных;
+- служебные поля не публикуются;
+- сотрудник решает, создавать ли `Service Case`;
+- внутренние права и Workflow применяются только после триажа.
+
+### Финальная гарантия
+
+Гость может отправить сообщение, но не может читать список обращений, редактировать отправленное, выбирать внутреннее состояние или создавать внутренний кейс. Сотрудник работает только с проверенными данными и видит источник обращения.
+
+## 7. Модель поставки app
+
+В каждом проекте явно разделяются четыре слоя:
 
 ```text
-Subject
-Location
-Description
-Priority
+1. Standard metadata
+   DocType, Workspace, standard Report, Web Form, Notification
+
+2. Переносимая конфигурация
+   Role, Workflow и связанные записи
+
+3. Локальная конфигурация site
+   Users, Assignment Rule с конкретными Users, User Permission, SMTP, API keys
+
+4. Рабочие данные
+   Equipment, Purchase Request, Service Intake, Service Case
 ```
 
-Optional:
+Git должен содержать первый слой и явно выбранную часть второго. Третий и четвёртый слои не выдаются за содержимое продукта.
 
-```text
-Equipment
-Target Date
-Attachment
-```
+## 8. Повторяемый цикл проекта
 
-Status:
+### A. Спроектировать
 
-```text
-New
-Accepted
-In Progress
-Resolved
-Closed
-```
+Записать сценарии, документы, связи, владельцев данных, состояния и запреты.
 
-`Service Request.location` = historical event location.
+### B. Собрать ядро
 
-`Equipment.location` = current equipment location.
+Создать app, site, Module и Standard DocType. Сразу проверять `mandatory`, `unique`, naming и Link-целостность.
 
-Жёсткого вечного equality нет.
+### C. Ограничить доступ
 
----
+Создать роли и отдельных тестовых пользователей. Проверять каждую роль входом под ней, а не только взглядом на Permission Manager.
 
-# 3. Независимые оси
+### D. Настроить работу
 
-```text
-DATA
-DOCUMENT AUTHORITY
-CONTENT AUTHORITY
-STATE-FIELD AUTHORITY
-ASSIGNMENT
-WORKFLOW TRANSITIONS
-```
+Добавить подходящие views, assignment, notifications, print и reporting. Не смешивать ответственность, авторизацию и состояние.
 
-Ни одна ось не выводится автоматически из другой.
+### E. Зафиксировать
 
----
+Проверить созданные source-файлы, выполнить `migrate`, посмотреть `git diff` и сделать осмысленный commit.
 
-# 4. Level 0 — document authority
+### F. Доказать переносимость
 
-Final `Service Request`:
+Создать чистый site, установить app, повторить функциональные и permission checks без копирования базы исходного site.
 
-```text
-Requester
-→ Create Yes
-→ Read own Yes
-→ Write/Delete No
+## 9. Что сознательно не моделируется
 
-Technician
-→ Read/Write Yes
-→ Create/Delete No
+В учебные приложения не добавляются универсальные `Status`, `Priority`, `Person`, `Team`, `Attachment` и другие справочники «на будущее». Select или стандартный User/Role/File используются, пока отдельная сущность не получила собственный жизненный цикл и правила.
 
-Supervisor
-→ Read/Write/Create Yes
-→ Delete No
-→ Report/Export Yes
-```
+Dynamic Link не используется там, где известен конкретный target DocType. Универсальность без доказанной потребности ухудшает модель и усложняет права.
 
-Requester Desk intake = append-only after insert.
+## 10. Главный критерий архитектуры
 
----
+Для каждого элемента должен существовать прямой ответ на два вопроса:
 
-# 5. Level 1 — business content authority
+1. Какую реальную задачу продукта он решает?
+2. Какая проверка докажет, что решение работает?
 
-Поля:
-
-```text
-subject
-location
-equipment
-description
-priority
-target_date
-attachment
-```
-
-имеют:
-
-```text
-Permission Level = 1
-```
-
-Role matrix:
-
-```text
-Requester   → Read/Write
-Technician  → Read only
-Supervisor  → Read/Write
-```
-
-Requester Level 1 Write нужен для заполнения нового Document.
-
-После insert Level 0 Write No блокирует повторный save.
-
-Technician Level 0 Write не означает право переписывать content.
-
-Exact `validate_higher_perm_levels()` защищает high-permlevel fields на ordinary permission-aware insert/save.
-
----
-
-# 6. Level 2 — process-state field authority
-
-```text
-Service Request.status
-→ Permission Level = 2
-```
-
-Role matrix:
-
-```text
-Requester   → Read only
-Technician  → Read/Write
-Supervisor  → Read/Write
-```
-
-Зачем отдельный уровень:
-
-```text
-business content
-≠ process state
-```
-
-Requester не должен выбирать process state даже при создании заявки.
-
-Default:
-
-```text
-status = New
-```
-
-На ordinary permission-aware insert отсутствие Requester Level 2 Write не даёт ему штатной authority установить другое process-state value.
-
-До L7 Technician/Supervisor могут менять Status как обычный Select, что позволяет доказать отсутствие state machine.
-
-После L7 Level 2 Write остаётся необходимой field authority, а Workflow добавляет transition authority.
-
----
-
-# 7. Почему четыре слоя не избыточны
-
-```text
-Level 0
-→ можно ли вообще сохранить Document
-
-Level 1
-→ можно ли менять исходные/рабочие реквизиты
-
-Level 2
-→ можно ли менять поле состояния
-
-Workflow
-→ разрешён ли именно этот переход состояния
-```
-
-Пример Technician после L7:
-
-```text
-Level 0 Write = Yes
-Level 1 Write = No
-Level 2 Write = Yes
-Allowed Workflow transition = Yes/No по state/action/role
-```
-
-Поэтому Technician может вести процесс, но не переписывает заявку.
-
----
-
-# 8. Assignment
-
-```text
-Service Request
-→ Assign To / Assignment Rule
-→ ToDo
-→ User
-```
-
-```text
-Assignment ≠ authorization
-Assignment ≠ Level 1/2 permission
-```
-
-ToDo показывает ответственность.
-
----
-
-# 9. Accepted
-
-```text
-Accepted
-= Supervisor принял заявку в рабочий процесс
-```
-
-Не означает наличие конкретного ToDo.
-
----
-
-# 10. Workflow
-
-```text
-New
- │ Accept / Supervisor
- ▼
-Accepted
- │ Start Work / Technician
- ▼
-In Progress
- │ Resolve / Technician
- ▼
-Resolved
- │ Close / Supervisor
- ▼
-Closed
-```
-
-Все states `docstatus = 0`.
-
-Desk edit roles:
-
-```text
-New         → Supervisor
-Accepted    → Technician
-In Progress → Technician
-Resolved    → Supervisor
-Closed      → Supervisor
-```
-
-`status` после L7 также:
-
-```text
-Read Only = Yes
-```
-
-как UI guard.
-
----
-
-# 11. Enforcement stack
-
-```text
-Level 0 Role Permission
-→ document create/read/write/delete
-
-Permission Level 1
-→ business content read/write
-
-Permission Level 2
-→ status field read/write
-
-Workflow Allowed Role / Condition
-→ server transition validation
-
-Only Allow Edit For
-→ Desk state guard
-
-Status Read Only
-→ UI guard
-```
-
----
-
-# 12. Closed
-
-Closed — terminal Workflow state.
-
-Рабочие роли не имеют Delete.
-
-Absolute immutability через любой API — Later.
-
----
-
-# 13. Automation
-
-Assignment Rule создаёт ToDo, не меняет status и не расширяет Level 1/2 authority.
-
-Target Date = Level 1 conditional automation input.
-
-Rule-owned ToDo close = main-site policy, не Workflow invariant.
-
----
-
-# 14. Desk create vs Web Form create
-
-## Desk Requester
-
-```text
-Level 0 Create
-+ Level 1 Write
-+ Level 2 Read only / default New
-→ корректный новый Service Request
-```
-
-После insert:
-
-```text
-Level 0 Write No
-```
-
-## Web Form
-
-Exact `v16.32.0`:
-
-```text
-new target doc
-→ insert(ignore_permissions=True)
-```
-
-Поэтому Web Form insert — отдельная trusted intake capability и не является proof Level 0/1/2 permissions.
-
-`Status` не включён в Web Form fields, поэтому используется default `New`.
-
----
-
-# 15. Web Form final
-
-```text
-Published = Yes
-Login Required = Yes
-Anonymous = No
-Show List = Yes
-Allow Edit = No
-Apply Document Permissions = No
-```
-
-`Login Required` = authentication, not role authorization.
-
-`Allow Edit = No` закрывает bypass update path, который иначе мог бы использовать `ignore_permissions=True` и обходить Level 1/2 protection.
-
----
-
-# 16. Packaging
-
-```text
-Standard source
-→ DocTypes + field permlevels + Standard UI/config
-
-fixtures
-→ Roles + Workflow
-
-exported customizations
-→ Custom DocPerm Level 0 + Level 1 + Level 2
-
-site-specific
-→ Users / Share / User Permission / Assignment Rule
-```
-
----
-
-# 17. Clean-site proof
-
-Отдельно доказываются:
-
-```text
-Requester Desk
-→ Create + Level1 input + status New + no post-save Write
-
-Technician
-→ content read-only + Level2 state authority + Workflow transitions
-
-Supervisor
-→ content/state authority + no Delete
-
-Website User
-→ separate Web Form intake capability
-```
-
----
-
-# 18. Labs
-
-Лаборатории не должны ослаблять:
-
-```text
-Level 0 document matrix
-Level 1 content matrix
-Level 2 status matrix
-Workflow
-```
-
-Временный business-content field/table получает явный Permission Level и удаляется при rollback.
-
----
-
-# 19. Итог
-
-```text
-Facility Location
-      │
-      ├── Equipment
-      │
-      └── Service Request
-              │
-              ├── Level 0 document authority
-              ├── Level 1 content authority
-              ├── Level 2 status authority
-              ├── ToDo / Assignment
-              ├── Workflow transition authority
-              ├── Notifications
-              └── Web Form intake
-```
-
-Стальная архитектура = **минимальная модель + least privilege + точное разделение native enforcement layers**.
+Если ответа нет, элемент исключается из основного маршрута и не возвращается только ради процента покрытия.

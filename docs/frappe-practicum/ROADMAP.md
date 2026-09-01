@@ -1,450 +1,200 @@
-# Дорожная карта практикума Frappe Framework 16
+# Дорожная карта
 
-Базовая версия: **Frappe Framework v16.32.0**.
+Практикум идёт последовательно. Переход к следующему проекту разрешён только после clean-site gate текущего.
 
-```text
-Bench:  facility-ops-bench
-App:    facility_ops
-Site:   facility-ops.localhost
-Module: Facility Operations
-```
+## Этап 0. Подготовить платформу
 
-Core:
+Результат:
 
-```text
-Facility Location
-Equipment
-Service Request
-```
+- установлен Frappe `v16.32.0`;
+- версии Python и Node соответствуют exact tag;
+- bench запускается;
+- можно создать site и войти в Desk;
+- понятна разница между Bench, site и app.
 
-Формальные гарантии: [INVARIANTS.md](INVARIANTS.md).
+Маршрут установки: [SETUP_WSL2.md](SETUP_WSL2.md).
 
----
-
-# Последовательность
-
-```text
-L0 платформа
-→ L1 Location
-→ L2 Equipment
-→ L3 данные
-→ L4 Service Request
-→ L5 permissions
-→ L6 collaboration
-→ L7 Workflow
-→ L8 control
-→ L9 automation
-→ L10 Web Form intake
-→ L11 portability
-```
-
-```text
-OUTPUT(Ln) ⊇ PRECONDITIONS(Ln+1)
-```
-
----
-
-# Финальная security model
-
-## Level 0 — Document
-
-```text
-Requester   → Create + Read own; Write/Delete No
-Technician  → Read/Write; Create/Delete No
-Supervisor  → Read/Write/Create; Delete No; Report/Export
-```
-
-## Level 1 — Business content
-
-Fields:
-
-```text
-subject
-location
-equipment
-description
-priority
-target_date
-attachment
-```
-
-Permissions:
-
-```text
-Requester   → Read/Write
-Technician  → Read only
-Supervisor  → Read/Write
-```
-
-## Level 2 — Process state
-
-Field:
-
-```text
-status
-```
-
-Permissions:
-
-```text
-Requester   → Read only
-Technician  → Read/Write
-Supervisor  → Read/Write
-```
-
-## После L7
-
-```text
-Workflow Allowed Role / Condition
-→ дополнительный server transition gate
-```
-
-Итог:
-
-```text
-Level 0 = document authority
-Level 1 = business-content authority
-Level 2 = process-state field authority
-Workflow = concrete transition authority
-Assignment = responsibility only
-```
-
----
-
-# Общие data invariants
-
-Mandatory:
-
-```text
-Subject
-Location
-Description
-Priority
-```
-
-Status values:
-
-```text
-New
-Accepted
-In Progress
-Resolved
-Closed
-```
-
-```text
-Accepted ≠ Assigned To
-```
-
-Location:
-
-```text
-Service Request.location = historical event location
-Equipment.location       = current location
-```
-
----
-
-# L0. Основа
-
-Bench, app, site, Module, Developer Mode, Desk, Git.
-
----
-
-# L1. Facility Location
-
-Tree структуры мест.
-
----
-
-# L2. Equipment
-
-Category:
-
-```text
-HVAC
-Electrical
-IT
-Other
-```
-
-Status:
-
-```text
-Active
-Out of Service
-Retired
-```
-
----
-
-# L3. Data operations
-
-Filters, Sorting, Saved Filters, Data Import, negative import, Export, Bulk Edit.
-
-Импортировать 10 дополнительных Equipment.
-
----
-
-# L4. Service Request
-
-Создать третий core DocType.
-
-До L5 fields ещё на baseline metadata permission level; permission architecture вводится следующим уроком.
-
-До L7 Status — обычный Select.
-
----
-
-# L5. Permissions
-
-Создать роли и основных Users.
-
-Перестроить `Service Request`:
-
-```text
-business fields → Permission Level 1
-status          → Permission Level 2
-```
-
-Создать exact Level 0/1/2 Role Permission rows.
-
-Ключевые proofs:
-
-```text
-Requester
-→ заполняет новый Level1 content
-→ Status видит как New, но не выбирает произвольный Level2 state
-→ после insert не save existing Document
-
-Technician
-→ Level0 document Write
-→ Level1 content read-only
-→ Level2 status Write
-
-Supervisor
-→ Level1 + Level2 Write
-→ no Delete
-```
-
-Temporary:
-
-```text
-Supervisor Delete Yes → test → No
-Restricted Technician
-User Permission
-Share
-```
-
-Все откатываются до L6.
-
----
-
-# L6. Collaboration
-
-```text
-Assign To
-ToDo
-Comments
-Timeline
-Tags
-Kanban
-```
-
-До Workflow:
-
-```text
-Technician/Supervisor
-→ могут менять Level2 Status как обычный Select
-
-Requester
-→ Level2 Write не имеет
-```
-
-Так доказательство `Select ≠ state machine` не требует давать Requester state authority.
-
-Assignment не меняет Level 1/2 permissions.
-
----
-
-# L7. Workflow
-
-```text
-New --Accept/Supervisor--> Accepted
-Accepted --Start Work/Technician--> In Progress
-In Progress --Resolve/Technician--> Resolved
-Resolved --Close/Supervisor--> Closed
-```
-
-`status` остаётся Level 2 и становится Read Only в Desk.
-
-Теперь для смены state нужны одновременно:
-
-```text
-Level 0 Write
-Level 2 Write
-valid Workflow transition
-```
-
-Technician при этом Level 1 Write не получает.
-
-Desk edit roles:
-
-```text
-New         → Supervisor
-Accepted    → Technician
-In Progress → Technician
-Resolved    → Supervisor
-Closed      → Supervisor
-```
-
-Kanban после сравнения удалить.
-
----
-
-# L8. Control
-
-```text
-Service Requests Overview
-Open Requests
-High Priority Requests
-Closed Requests
-Service Requests by Status
-Facility Operations Control
-```
-
-Analytics не создаёт permission exceptions.
-
----
-
-# L9. Automation
-
-Создать `technician.two@example.com`.
-
-Notifications:
-
-```text
-New Service Request
-Service Request One Day Overdue
-```
-
-Assignment Rule:
-
-```text
-Round Robin
-Technician One / Technician Two
-```
-
-Automation не расширяет Level 1/2 authority.
-
-Target Date = Level 1 conditional input.
-
-Assignment Rule site-specific.
-
----
-
-# L10. Web Form
-
-`Report a Facility Issue`.
-
-Final:
-
-```text
-Published = Yes
-Login Required = Yes
-Anonymous = No
-Show List = Yes
-Allow Edit = No
-Apply Document Permissions = No
-```
-
-Desk create и Web Form insert — разные paths.
-
-Web Form new insert использует `ignore_permissions=True`, поэтому не является proof Level 0/1/2 permissions.
-
-`Status` в Web Form отсутствует; новый Document получает default `New`.
-
-Final `Allow Edit = No` закрывает bypass update path поверх Level 1/2 protection.
-
----
-
-# L11. Portability
-
-Поставляются:
-
-```text
-Standard source
-→ field permlevels 1/2
-
-fixtures
-→ Roles + Workflow
-
-exported Custom DocPerm
-→ Level 0 + Level 1 + Level 2
-```
-
-Clean-site proofs:
-
-```text
-Requester Desk
-→ Level0 Create + Level1 input + Level2 New/read-only + no post-save Write
-
-Technician
-→ Level1 read-only + Level2 Write + Workflow works
-
-Supervisor
-→ Level1/2 Write + no Delete
-
-Website User
-→ separate Web Form intake
-```
-
-После проверки:
+Контроль:
 
 ```bash
-bench use facility-ops.localhost
+bench version
+python --version
+node --version
 ```
 
----
+## Этап 1. Реестр оборудования
 
-# Labs A–F
+Подробный сценарий: [projects/01-equipment-register/README.md](projects/01-equipment-register/README.md).
 
-Labs не должны ослаблять:
+### P1.1. Контейнер продукта
 
-```text
-Level 0 matrix
-Level 1 matrix
-Level 2 matrix
-Workflow
-```
+- создать `equipment_register`;
+- создать `equipment.localhost`;
+- установить app;
+- включить Developer Mode;
+- проверить Module и исходную Git-структуру.
 
-Временный business-content field/table получает явный Permission Level и rollback.
+### P1.2. Модель до интерфейса
 
----
+- зафиксировать границы реестра;
+- создать `Equipment Location`, `Equipment Category`, `Equipment Identifier`, `Equipment`;
+- настроить naming, Mandatory, Unique, Link и Child Table;
+- проверить Tree и системные поля Document.
 
-# Финальный gate
+### P1.3. Рабочие данные
 
-```text
-L5
-→ exact Level0/1/2 model
+- создать минимальный набор вручную;
+- импортировать второй набор;
+- проверить ошибки обязательности, уникальности и Link;
+- сравнить Data Export с source app.
 
-L6
-→ assignment не меняет authority
-→ Requester не получает Status Write
+### P1.4. Доступ
 
-L7
-→ Level2 field authority + Workflow transition authority разделены
-→ Technician state transitions работают без Level1 content Write
+- создать роли Operator, Manager, Viewer;
+- проверить Read/Write/Create/Delete;
+- провести опыт с If Owner и User Permission;
+- вернуть финальную permission matrix.
 
-L9
-→ automation не повышает permissions
+### P1.5. Рабочее место
 
-L10
-→ Web Form bypass create отделён от Desk permissions
-→ final update Off
+- настроить Form/List;
+- создать Kanban по обычному `status`;
+- собрать Report Builder report, Number Card и Workspace;
+- проверить видимость по ролям.
 
-L11
-→ Level0/1/2 metadata + Custom DocPerm восстановлены на clean site
-```
+### P1.6. Поставка
 
-После design consistency выполняется execution-аудит на фактическом `v16.32.0` стенде.
+- найти standard metadata в app;
+- выполнить `migrate`;
+- очистить случайные site-only настройки;
+- сделать Git commit;
+- установить app на `equipment-clean.localhost`;
+- пройти приёмку без копирования Equipment records.
+
+Gate P1: реестр работает как самостоятельный продукт и переносится на чистый site.
+
+## Этап 2. Заявки на закупку
+
+Подробный сценарий: [projects/02-purchase-requests/README.md](projects/02-purchase-requests/README.md).
+
+### P2.1. Новый независимый app
+
+- создать `purchase_requests` и `purchase.localhost`;
+- не копировать DocType и роли из P1;
+- зафиксировать business scenario и state machine.
+
+### P2.2. Транзакционный документ
+
+- создать `Purchase Department`;
+- создать Child DocType `Purchase Request Item`;
+- создать submittable `Purchase Request`;
+- настроить naming series/format;
+- проверить Draft, Submit, Cancel и Amend без Workflow.
+
+### P2.3. Права
+
+- создать четыре роли;
+- разделить Create/Read/Write и Submit/Cancel/Amend;
+- применить If Owner и Permission Level только к обоснованным полям;
+- проверить каждую роль отдельным пользователем.
+
+### P2.4. Workflow
+
+- создать states и transitions;
+- связать Approved с `docstatus = 1`, Cancelled — с `docstatus = 2`;
+- запретить прямое утверждение Requester;
+- проверить возврат на доработку и повторную подачу;
+- не использовать Kanban drag для workflow state.
+
+### P2.5. Совместная работа
+
+- назначить конкретного согласующего через Assign To;
+- проверить созданный ToDo;
+- добавить Comments и Notification;
+- провести локальный опыт с Assignment Rule;
+- доказать, что назначение не расширило права.
+
+### P2.6. Результат и контроль
+
+- собрать Calendar по `required_by`;
+- создать reports, chart и Workspace;
+- сделать Print Format для Approved;
+- получить PDF под ролью с Print permission.
+
+### P2.7. Поставка
+
+- классифицировать standard metadata, fixtures и site-specific records;
+- экспортировать только переносимую конфигурацию;
+- установить app на `purchase-clean.localhost`;
+- повторить полный Workflow всеми ролями.
+
+Gate P2: state machine и docstatus воспроизводятся на чистом site, а обходной переход запрещён.
+
+## Этап 3. Внешняя приёмная
+
+Подробный сценарий: [projects/03-service-intake/README.md](projects/03-service-intake/README.md).
+
+### P3.1. Спроектировать trust boundary
+
+- создать `service_intake` и `intake.localhost`;
+- разделить недоверенный `Service Intake` и внутренний `Service Case`;
+- определить минимальный публичный payload;
+- запретить внешнему каналу служебные поля и закрытые Link-каталоги.
+
+### P3.2. Внутреннее ядро
+
+- создать `Service Category`, `Service Intake`, `Service Case`;
+- настроить роли Triage, Agent, Manager;
+- настроить простой внутренний Workflow case;
+- проверить связь Case с исходным Intake.
+
+### P3.3. Web Form
+
+- создать Standard Web Form для `Service Intake`;
+- проверить Guest create;
+- проверить режим Website User;
+- доказать финальные запреты list/edit/delete;
+- убедиться, что Web Form не создаёт `Service Case`.
+
+### P3.4. Триаж и работа
+
+- принять одно обращение, отклонить другое;
+- вручную создать Case из проверенного Intake;
+- назначить Agent;
+- настроить Notification и контроль очереди;
+- собрать reports/cards/chart/Workspace.
+
+### P3.5. Стандартный REST API
+
+- создать отдельного API user;
+- выдать минимальную роль;
+- сгенерировать token локально;
+- выполнить разрешённый read/create по стандартному API;
+- доказать запрещённый доступ;
+- не сохранять secret в shell history, документах или Git.
+
+### P3.6. Поставка
+
+- проверить, что Standard Web Form находится в app;
+- не экспортировать Users, keys, SMTP и рабочие обращения;
+- установить app на `intake-clean.localhost`;
+- повторить Guest submission и внутренний triage.
+
+Gate P3: внешний канал работает, но не пересекает внутреннюю границу полномочий.
+
+## Финальный аудит
+
+После P3 ученик без подсказки объясняет:
+
+1. где заканчивается framework и начинается app;
+2. почему DocType — это модель документа, а не просто таблица;
+3. когда нужен Link, Child Table, Tree и submittable document;
+4. чем Role Permission отличается от Permission Level, User Permission и Share;
+5. почему Assignment не является авторизацией;
+6. почему Workflow не заменяет базовые права;
+7. почему Web Form нельзя считать обычной Desk-формой;
+8. какие объекты app переносятся source-файлами, fixtures и customizations;
+9. почему Data Export не является поставкой app;
+10. как доказать переносимость на чистом site.
+
+Финальная работа принимается только при наличии трёх независимых Git-репозиториев app и трёх clean-site протоколов.

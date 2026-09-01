@@ -1,426 +1,147 @@
-# Границы базового практикума
+# Границы практикума
 
-Базовая версия: **Frappe Framework v16.32.0**.
+## Цель
 
-Практикум изучает Frappe через `facility_ops`.
+Научить новичка проектировать, собирать и переносить небольшие приложения на Frappe Framework штатными средствами платформы.
 
-Core domain:
+Практикум не готовит администратора, который запомнил расположение кнопок. Он формирует базовую инженерную привычку:
 
 ```text
-Facility Location
+сначала смысл документа и гарантия
+→ затем механизм Frappe
+→ затем проверка, где эта гарантия реально обеспечивается
+```
+
+## Версия и источник истины
+
+Основная версия — `Frappe Framework v16.32.0`.
+
+При конфликте сведений действует следующий порядок:
+
+1. поведение на стенде `v16.32.0`;
+2. исходный код tag `v16.32.0`;
+3. официальная документация Frappe;
+4. ветка `version-16` только как информация о последующих изменениях.
+
+Moving branch не используется для доказательства поведения зафиксированного практикума.
+
+## Допустимые средства
+
+Основной маршрут использует:
+
+- Bench, site, app и Module;
+- Developer Mode;
+- Standard DocType и стандартные типы полей;
+- naming, Link, Child Table, Tree и submittable documents;
+- Role Permission Manager, Permission Level, If Owner, User Permission и Share;
+- Workflow, Workflow State и Workflow Action;
+- Assign To, ToDo, Comments, Timeline и Tags;
+- List, Form, Report Builder, Calendar, Kanban и Workspace;
+- Number Card и Dashboard Chart;
+- Data Import и Data Export;
+- Notification и Assignment Rule;
+- Print Format и PDF;
+- Web Form, Website User и Guest;
+- стандартный REST API DocType;
+- standard metadata, fixtures, exported customizations, `migrate` и `install-app`;
+- Git для каждого учебного app.
+
+Штатные Python expressions в Conditions и конфигурация `hooks.py` для fixtures считаются конфигурацией платформы, а не собственной business logic.
+
+## Что не используется в основном маршруте
+
+- ERPNext, CRM, HRMS, Helpdesk и другие Frappe apps;
+- custom Python controller;
+- Client Script и собственный JavaScript;
+- Server Script;
+- `has_permission`, `permission_query_conditions` и другие permission hooks;
+- custom REST endpoint;
+- Query Report и Script Report;
+- Jinja-логика сложнее простого Print Format;
+- сторонняя интеграция, требующая отдельного сервиса;
+- production deployment, reverse proxy, TLS, backups и observability.
+
+Эти темы не объявляются плохими или запрещёнными. Они начинаются после того, как штатная конфигурация перестаёт выражать нужную гарантию. Практикум обязан показать эту границу, но не маскировать код под «ещё одну настройку».
+
+## Предметные границы проектов
+
+### Проект 1: реестр оборудования
+
+Постоянная модель:
+
+```text
+Equipment Location (Tree)
+Equipment Category
 Equipment
-Service Request
+Equipment Identifier (Child)
 ```
 
-Формальные гарантии: [INVARIANTS.md](INVARIANTS.md).
+В проекте нет заявок, согласований, ремонтов и движения оборудования. Это реестр текущего состояния, а не учёт всех событий жизни объекта.
 
----
+### Проект 2: заявки на закупку
 
-# 1. Базовое правило
-
-Собственную Python/JavaScript business logic в основном маршруте не пишем.
-
-Допустимы штатные expressions, Workflow/Assignment Rule Conditions, fixtures/hooks configuration, generated files и exported customizations.
-
-Server Script, custom controller, custom permission hooks и Client Script — Later.
-
----
-
-# 2. Source of truth
-
-1. фактический стенд `v16.32.0`;
-2. exact tag `v16.32.0`;
-3. официальная документация;
-4. moving `version-16` только для future changes.
-
----
-
-# 3. Core data
-
-Service Request Mandatory:
+Постоянная модель:
 
 ```text
-Subject
-Location
-Description
-Priority
+Purchase Department
+Purchase Request
+Purchase Request Item (Child)
 ```
 
-Optional:
+Заявка проходит Workflow и становится submittable document. Проект не заменяет закупочный модуль ERP: нет поставщиков, заказов, складского учёта, бухгалтерских проводок и оплаты.
+
+### Проект 3: внешняя приёмная
+
+Постоянная модель:
 
 ```text
-Equipment
-Target Date
-Attachment
+Service Intake     ← внешний недоверенный ввод
+Service Case       ← внутренний рабочий документ
+Service Category
 ```
 
-Status:
-
-```text
-New
-Accepted
-In Progress
-Resolved
-Closed
-```
-
-`Service Request.location` = historical event location.
-
-`Equipment.location` = current location.
-
----
-
-# 4. Не входит в core domain
-
-```text
-Equipment Type
-Equipment Movement
-Inspection
-Maintenance Work
-Department
-Team
-Technician business entity
-Requester business entity
-Status/Priority references
-Assigned Technician field
-```
-
----
-
-# 5. Permission scope
-
-Core изучает:
-
-```text
-User / System User / Website User / Guest
-Role
-Role Permission Manager
-Read/Write/Create/Delete
-Report/Export/Import
-If Owner
-Permission Level 1
-Permission Level 2
-User Permission
-Share
-```
-
-## Level 0 — document authority
-
-```text
-Requester   → Create + Read own; Write/Delete No
-Technician  → Read/Write; Create/Delete No
-Supervisor  → Read/Write/Create; Delete No; Report/Export
-```
-
-## Level 1 — business content
-
-Fields:
-
-```text
-subject
-location
-equipment
-description
-priority
-target_date
-attachment
-```
-
-```text
-Requester   → Read/Write
-Technician  → Read only
-Supervisor  → Read/Write
-```
-
-## Level 2 — process state
-
-```text
-status → Permission Level 2
-```
-
-```text
-Requester   → Read only
-Technician  → Read/Write
-Supervisor  → Read/Write
-```
-
-Это позволяет дать Technician process-state authority без content authority и не выдавать Requester state write на create path.
-
-Exact `v16.32.0` high Permission Level validation участвует в ordinary insert/save; explicit `ignore_permissions=True` является bypass.
-
-Delete, User Permission и Share частично изучаются temporary и откатываются.
-
----
-
-# 6. Collaboration scope
-
-```text
-Assign To
-ToDo
-Due Date
-Comments
-Timeline
-Tags
-Kanban
-```
-
-```text
-Assignment = responsibility
-не document/content/state authority
-```
-
-Assignee-only authorization — Later.
-
----
-
-# 7. Workflow scope
-
-Core:
-
-```text
-Workflow
-Workflow State
-Workflow Action Master
-Transition
-Allowed Role
-Only Allow Edit For
-Condition
-existing status field
-```
-
-Process:
-
-```text
-New → Accepted → In Progress → Resolved → Closed
-```
-
-После L7:
-
-```text
-status = Permission Level 2 + Read Only UI
-```
-
-Enforcement stack:
-
-```text
-Level 0 Role Permission
-→ document save/access
-
-Level 1 Permission
-→ business fields
-
-Level 2 Permission
-→ status field authority
-
-Allowed Role / Condition
-→ server transition gate
-
-Only Allow Edit For
-→ Desk guard
-```
-
-Closed terminal, но absolute API immutability — Later.
-
----
-
-# 8. Analytics scope
-
-Core:
-
-```text
-Report Builder
-Filters
-Group By
-Count
-Number Card
-Dashboard Chart
-Workspace
-Shortcut
-Quick List
-role access
-```
-
-Query/Script Reports и BI layer — Later.
-
----
-
-# 9. Automation scope
-
-Core:
-
-```text
-Notification
-System Notification
-Days After
-Assignment Rule
-Round Robin
-Due Date Based On
-Close Condition
-scheduler
-```
-
-Load Balancing — Optional.
-
-Target Date = Level 1 Optional/conditional input.
-
-Automation не меняет Level 1/2 authority.
-
-Assignment Rule с concrete Users site-specific.
-
----
-
-# 10. Web scope
-
-Core:
-
-```text
-Standard Web Form
-Published
-Route
-Guest experiment
-Login Required
-Website User
-Allow Edit
-Show List
-Apply Document Permissions
-Allow Read On All Link Options
-attachments
-```
-
-Final:
-
-```text
-Published = Yes
-Login Required = Yes
-Anonymous = No
-Show List = Yes
-Allow Edit = No
-Apply Document Permissions = No
-```
-
-Desk:
-
-```text
-Role Permission Level 0/1/2
-```
-
-Web Form new insert:
-
-```text
-insert(ignore_permissions=True)
-```
-
-Поэтому Web Form Create не является Role Permission proof.
-
-`Status` не входит в Web Form allow-list.
-
-Final `Allow Edit = No` закрывает bypass update path, который иначе мог бы обходить Level 1/2 protections.
-
-Website User = trusted internal reporter.
-
-Role-restricted/public-untrusted admission — Later.
-
----
-
-# 11. Packaging scope
-
-Core:
-
-```text
-Standard source
-universal app configuration
-site-specific configuration
-working data
-fixtures
-fixture_auto_order
-export-fixtures
-Export Customizations
-Custom DocPerm
-install-app
-migrate
-clean site
-```
-
-Universal:
-
-```text
-3 core DocType
-field permlevels 1/2
-Reports/Cards/Chart/Workspace
-Notifications
-Web Form
-Roles
-Workflow
-Custom DocPerm Level 0/1/2
-```
-
-Site-specific:
-
-```text
-Users
-User Permission
-Share
-Assignment Rule tied to local Users
-```
-
-L11 отдельно проверяет Level 0/1/2 и Web Form capability.
-
----
-
-# 12. Labs
-
-```text
-A Child Table
-B DocStatus
-C Auto Repeat
-D Customize Form
-E Print/PDF
-F special fields/views
-```
-
-Lab, меняющая `Service Request`, должна вернуть:
-
-```text
-Level 0 matrix
-Level 1 matrix
-Level 2 matrix
-Workflow
-```
-
-Временный business-content field/table получает explicit Permission Level.
-
----
-
-# 13. Later
-
-```text
-Server Script
-custom Python controller
-custom has_permission / permission query
-assignee-only authorization
-hard state immutability
-role-restricted Web Form/portal admission
-public-untrusted catalog architecture
-Client Script / custom JS
-REST/Webhooks separate block
-Query/Script Reports
-arbitrary multi-app integration audit
-production hardening
-```
-
----
-
-# 14. Exit criterion
-
-Ученик должен различать:
-
-```text
-Level 0 document authority
-Level 1 business-content authority
-Level 2 process-state authority
-Workflow transition authority
-Assignment responsibility
-Web Form intake capability
-```
-
-Если это всё называется просто «права», практикум академически не принят.
+Web Form не создаёт внутренний `Service Case` напрямую. Передача из intake в case выполняется сотрудником после проверки. Автоматическое преобразование потребовало бы отдельной business logic и сознательно остаётся за границей базового маршрута.
+
+## Что переносится между site
+
+Переносимые слои:
+
+| Слой | Примеры | Способ |
+|---|---|---|
+| стандартные метаданные | DocType, Report, Workspace, Web Form, Notification | исходники app |
+| конфигурационные записи | Role, Workflow и связанные записи | fixtures или другой явно проверенный штатный экспорт |
+| exported customizations | Custom Field, Property Setter, Custom DocPerm | Export Customizations, только когда они действительно применялись |
+
+Не переносятся как часть универсального app:
+
+- Users и пароли;
+- API keys и secrets;
+- SMTP и site config;
+- Assignment Rule, если он ссылается на конкретных локальных Users;
+- User Permission и Share, созданные для конкретных пользователей;
+- рабочие Equipment, Purchase Request, Service Intake и Service Case;
+- тестовые записи и файлы-вложения.
+
+## Обязательные границы безопасности
+
+1. Assignment показывает ответственность, но сам по себе не выдаёт право читать или менять документ.
+2. Workflow ограничивает переходы, но не заменяет Role Permission.
+3. Read Only и `Only Allow Edit For` — элементы формы и процесса, а не универсальная ACL.
+4. Permission Level ограничивает поля, а не строки документов.
+5. User Permission сужает доступ по Link-значениям, но не заменяет базовые права DocType.
+6. Web Form — отдельный канал доступа. Создание нового target document в `v16.32.0` выполняется с `ignore_permissions=True`.
+7. Публичная Web Form не должна принимать внутреннее состояние, исполнителя, закрытые Link-каталоги или другие служебные поля.
+8. API user получает отдельную роль и минимальные права; ключи не попадают в Git.
+
+## Критерий завершения программы
+
+Программа завершена, когда все три app:
+
+- работают на исходном site;
+- имеют понятную модель и ограниченный scope;
+- проходят положительные и отрицательные проверки прав;
+- не содержат собственной Python/JavaScript business logic;
+- имеют чистую Git-историю;
+- устанавливаются на новый site;
+- воспроизводят заявленный сценарий после `install-app` и `migrate`;
+- явно отделяют переносимые метаданные от локальных пользователей и рабочих данных.
