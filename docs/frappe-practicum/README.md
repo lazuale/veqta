@@ -139,7 +139,7 @@ Facility Supervisor
 | [L1](projects/01-locations/README.md) | структура мест | Standard DocType, Tree, Documents, Naming |
 | [L2](projects/02-equipment/README.md) | реестр оборудования | Field Types, Link, Form, List, Title/Search, Track Changes |
 | [L3](projects/03-data/README.md) | рабочие данные | Filters, Sorting, Saved Filters, Data Import, Export, Bulk Edit |
-| L4 | Service Request | рабочий DocType, Links, Status, Priority, Attachments |
+| [L4](projects/04-service-request/README.md) | Service Request | рабочий DocType, Links, Status, Priority, Attachments |
 | L5 | пользователи и доступ | User, Role, Permissions, User Permission, Share |
 | L6 | совместная работа | Assign To, ToDo, Comments, Timeline, Tags, Kanban |
 | L7 | управляемый процесс | Workflow, Workflow State, Transition, Workflow Action |
