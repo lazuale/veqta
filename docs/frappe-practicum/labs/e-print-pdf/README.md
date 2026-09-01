@@ -1,16 +1,22 @@
 # Lab E. Print / Print Format / Letter Head / PDF
 
-Lab E — отдельная лаборатория по штатной печати Frappe.
+Lab E изучает штатную печать Frappe на существующем `Service Request`.
 
-Работаем на уже существующем:
+Новых domain DocType не создаём.
+
+Создаём:
 
 ```text
-Service Request
+Service Request Summary
+→ Standard Print Format приложения
 ```
 
-Новых предметных DocType не создаём.
+и временно:
 
-В лаборатории создадим один полезный Standard Print Format приложения и один временный Letter Head текущего site.
+```text
+Facility Operations Training
+→ Letter Head текущего site
+```
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
@@ -18,22 +24,19 @@ Service Request
 
 # 1. Что изучаем
 
-В лаборатории нужны только штатные механизмы:
-
 ```text
 Print View
 Print Format
 Print Format Builder
 Letter Head
 Print Settings
-Print
+browser Print
 PDF
 Chrome PDF generator
-Standard configuration
-Git
+Standard source vs site configuration
 ```
 
-Главная схема:
+Архитектура:
 
 ```text
 Service Request
@@ -46,31 +49,15 @@ Print View
 
 Letter Head
       ↓
-выбирается отдельно в Print View
-```
-
-Важно сразу разделить:
-
-```text
-Print Format
-= как выглядит содержимое документа
-
-Letter Head
-= фирменная шапка / подвал конкретного site
-
-PDF
-= итоговый файл, а не metadata приложения
+выбирается отдельно
 ```
 
 ---
 
-# 2. Проверить стенд
-
-В терминале:
+# 2. Preconditions
 
 ```bash
 cd ~/frappe/facility-ops-bench
-
 bench version
 bench --site facility-ops.localhost list-apps
 
@@ -83,116 +70,67 @@ git status
 ```text
 Frappe 16.32.0
 facility_ops установлен
-working tree clean
 Developer Mode включён
+working tree clean
 ```
 
-Для Standard Print Format Developer Mode обязателен.
+Активным должен быть основной site, возвращённый L11:
+
+```text
+facility-ops.localhost
+```
 
 ---
 
-# 3. Выбрать тестовую Service Request
+# 3. Выбрать валидную Service Request
 
-Нужна обычная существующая заявка, у которой заполнено большинство полей.
-
-Например:
+Нужен существующий Document, например:
 
 ```text
 Subject:     Air conditioner inspection
 Location:    Room 101
-Equipment:   <любое Equipment>
+Equipment:   <логично подходящий Equipment или пусто>
 Description: Check noise and temperature
 Priority:    High
 Status:      In Progress
-Target Date: <заполнено>
+Target Date: заполнено или пусто
 ```
 
-Точный номер заявки не важен.
-
-Она нужна только как живой Document для preview.
+Важно: даже лабораторная печать не ослабляет H-01 — `Description` остаётся обязательным полем Service Request.
 
 ---
 
-# 4. Сначала посмотреть штатную печать без нашего формата
+# 4. Посмотреть штатный Print View
 
-Открыть выбранную `Service Request`.
+Открыть Service Request → `Print`.
 
-Через меню формы открыть:
-
-```text
-Print
-```
-
-Откроется штатный Print View.
-
-Слева должны быть настройки, включая:
+Посмотреть существующий вывод и элементы:
 
 ```text
 Print Format
 Language
 Letter Head
-```
-
-Сверху доступны действия:
-
-```text
 Print
-Full Page
 PDF
 Refresh
 ```
 
-Пока ничего не настраивать.
+Print View не создаёт копию бизнес-документа.
 
-Посмотреть текущий стандартный вывод.
-
-Цель шага — увидеть, что Frappe умеет печатать Document ещё до создания собственного Print Format.
-
----
-
-# 5. Зафиксировать границу Print View
-
-Print View не является отдельным документом процесса.
-
-Он читает:
+Он строится из:
 
 ```text
-Service Request Document
-+
-Print Format
-+
-Letter Head
-+
-Print Settings
-```
-
-и строит представление для печати.
-
-Не создаём:
-
-```text
-Printable Service Request
-PDF Request
-Service Request Print
+Service Request
++ Print Format
++ Letter Head
++ Print Settings
 ```
 
 ---
 
-# 6. Создать Standard Print Format
+# 5. Создать Standard Print Format
 
-Войти как:
-
-```text
-Administrator
-```
-
-Через Awesomebar открыть:
-
-```text
-Print Format
-```
-
-Создать новый:
+Через `Print Format → New`:
 
 ```text
 Name:             Service Request Summary
@@ -205,72 +143,15 @@ Disabled:         No
 PDF Generator:    chrome
 ```
 
-Оставить:
+Используем штатный Builder, не HTML/Jinja.
 
-```text
-Print Format Builder Beta = No
-```
-
-если поле доступно.
-
-Сохранить.
-
-Почему `Custom Format = No`:
-
-в базовой лаборатории используем штатный Print Format Builder и не пишем собственный HTML/Jinja.
+`Standard = Yes + Module` делает формат app-owned source configuration.
 
 ---
 
-# 7. Почему Standard = Yes
+# 6. Собрать макет через Print Format Builder
 
-`Service Request Summary` — не локальная настройка одного пользователя.
-
-Это часть приложения:
-
-```text
-facility_ops
-```
-
-При:
-
-```text
-Standard = Yes
-Module   = Facility Operations
-```
-
-Frappe в Developer Mode экспортирует Print Format в source app.
-
-То есть здесь сознательно строим переносимую конфигурацию.
-
-Letter Head позже сделаем иначе.
-
----
-
-# 8. Открыть Print Format Builder
-
-После сохранения Print Format нажать:
-
-```text
-Edit Format
-```
-
-Frappe откроет штатный:
-
-```text
-Print Format Builder
-```
-
-Не включать `Custom Format`.
-
-Не открывать HTML/Jinja редактор для основной практики.
-
----
-
-# 9. Собрать компактный макет
-
-В Print Format Builder оставить только данные, полезные для печатной заявки.
-
-Итоговый состав:
+Оставить полезные поля:
 
 ```text
 Subject
@@ -283,7 +164,7 @@ Description
 Attachment
 ```
 
-Логика расположения:
+Рекомендуемая компоновка:
 
 ```text
 Subject
@@ -296,54 +177,44 @@ Description
 Attachment
 ```
 
-Не пытаться повторить Desk Form один в один.
-
-Печатная форма — отдельное представление тех же данных.
-
----
-
-# 10. Не тащить технические поля
-
-В итоговом макете не нужны:
+Не тащить без необходимости:
 
 ```text
 owner
 creation
 modified
 modified_by
-_doc_tags
 _assign
 _comments
 ```
 
-Если нужен номер документа, его можно оставить как стандартный заголовок/идентификатор Print View.
-
-Не создаём специальное поле `Request Number` только ради печати.
+Не создавать отдельное поле `Request Number`: системный `name` уже существует.
 
 ---
 
-# 11. Проверить пустой Equipment
+# 7. Проверить optional Equipment и Target Date
 
-В нашей модели:
+Сделать Preview минимум двух валидных Service Request:
 
 ```text
-Location = mandatory
-Equipment = optional
+с Equipment
+без Equipment
 ```
 
-Открыть ещё одну Service Request без Equipment и посмотреть Preview.
+и при возможности:
 
-Печатный формат не должен становиться непригодным только потому, что Equipment пустой.
+```text
+с Target Date
+без Target Date
+```
 
-Это важная проверка самого макета, а не бизнес-логики.
+Print Format не должен ломаться из-за optional полей.
 
 ---
 
-# 12. Настроить базовые параметры Print Format
+# 8. Базовые print settings формата
 
-Вернуться в `Print Format → Service Request Summary`.
-
-Оставить разумные базовые настройки:
+Оставить разумные настройки, например:
 
 ```text
 Margin Top:    15
@@ -354,127 +225,55 @@ Page Number:   Bottom Center
 PDF Generator: chrome
 ```
 
-Не добавлять Custom CSS в базовой лаборатории.
-
-Задача — сначала получить нормальный результат штатными средствами.
+Не добавлять Custom CSS без доказанной необходимости.
 
 ---
 
-# 13. Почему используем chrome
+# 9. Chrome PDF generator
 
-В `v16.32.0` Print Format поддерживает выбор:
+`v16.32.0` поддерживает штатный Chromium PDF generator.
 
-```text
-wkhtmltopdf
-chrome
+Если Chromium ещё не подготовлен на bench, использовать штатную команду:
+
+```bash
+cd ~/frappe/facility-ops-bench
+bench setup-chrome
 ```
 
-Сам Frappe регистрирует штатный Chromium PDF generator.
-
-Для учебного стенда используем:
-
-```text
-chrome
-```
-
-Не устанавливаем отдельный PDF-движок только ради лаборатории, если штатный Chromium уже работает на стенде.
+Не подменять лабораторию самодельным PDF pipeline.
 
 ---
 
-# 14. Проверить Git после сохранения Standard Print Format
-
-В терминале:
+# 10. Проверить source Print Format
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
 
 git status --short
-```
 
-Должен появиться source Standard Print Format.
-
-Ожидаемый путь имеет вид:
-
-```text
-facility_ops/facility_operations/print_format/
-  service_request_summary/
-    service_request_summary.json
-```
-
-Посмотреть:
-
-```bash
 find facility_ops/facility_operations/print_format \
-  -maxdepth 3 \
-  -type f \
-  -print \
-  | sort
+  -maxdepth 3 -type f -print | sort
 ```
 
-Затем:
+Ожидается source `service_request_summary`.
 
-```bash
-sed -n '1,320p' \
-  facility_ops/facility_operations/print_format/service_request_summary/service_request_summary.json
-```
+Посмотреть JSON только для чтения.
 
-Не редактировать JSON вручную.
+Не редактировать exported source вручную вместо UI.
 
 ---
 
-# 15. Что должно быть видно в JSON
+# 11. Не нажимать Set as Default
 
-Найти признаки:
+`Set as Default` может создать изменение `default_print_format` через Property Setter.
 
-```text
-Service Request
-Facility Operations
-Standard = Yes
-print_format_builder / format_data
-pdf_generator = chrome
-```
+Лаборатории не нужна скрытая глобальная настройка.
 
-Точные служебные поля могут отличаться по наполнению Builder.
-
-Главное:
-
-```text
-Print Format существует как Standard source object приложения
-```
+Формат выбираем явно в Print View.
 
 ---
 
-# 16. Не делать формат Default
-
-На форме Print Format может быть кнопка:
-
-```text
-Set as Default
-```
-
-В этой лаборатории **не нажимать** её.
-
-Для Standard DocType Frappe реализует это через изменение:
-
-```text
-default_print_format
-```
-
-поверх DocType с помощью `Property Setter`.
-
-Нам не нужна скрытая глобальная настройка только ради лаборатории.
-
-Формат будем выбирать явно в Print View.
-
----
-
-# 17. Создать временный Letter Head
-
-Через Awesomebar открыть:
-
-```text
-Letter Head
-```
+# 12. Создать временный Letter Head
 
 Создать:
 
@@ -486,373 +285,195 @@ Default Letter Head: No
 Disabled: No
 ```
 
-В Header HTML через штатный визуальный редактор набрать простой текст:
+Header:
 
 ```text
 FACILITY OPERATIONS
 Training Site
 ```
 
-В Footer HTML:
+Footer:
 
 ```text
 Training document — facility-ops.localhost
 ```
 
-Не писать JavaScript в Header Script / Footer Script.
+Не использовать Header/Footer Script.
 
 ---
 
-# 18. Почему Letter Head не делаем Default
+# 13. Почему Letter Head site-specific
 
-На site уже может существовать свой Default Letter Head.
-
-Лаборатория не должна менять глобальную печать всех документов.
+Этот Letter Head содержит локальное оформление учебного deployment.
 
 Поэтому:
 
 ```text
+Service Request Summary
+→ app-owned source
+
 Facility Operations Training
-Default Letter Head = No
+→ site-specific Setup Document
 ```
 
-и выбираем его вручную только в нужном Print View.
+Letter Head не включаем fixtures и не делаем Default.
 
 ---
 
-# 19. Почему Letter Head не кладём в app source
+# 14. Preview с Letter Head и без него
 
-`Letter Head` — Setup Document текущего site.
-
-В нашем сценарии он содержит локальное оформление учебного развёртывания:
-
-```text
-Training Site
-facility-ops.localhost
-```
-
-Это не универсальная часть `facility_ops`.
-
-Поэтому:
-
-```text
-Print Format
-→ app configuration
-→ source / Git
-
-Letter Head
-→ site-specific configuration
-→ DB текущего site
-```
-
-В fixtures его не добавляем.
-
----
-
-# 20. Проверить Git после создания Letter Head
-
-В терминале:
-
-```bash
-cd ~/frappe/facility-ops-bench/apps/facility_ops
-
-git status --short
-```
-
-Создание `Letter Head` само по себе не должно породить новый source-файл нашего app.
-
-Изменение Git относится к Standard Print Format, а не к локальному Letter Head.
-
----
-
-# 21. Проверить Print View с нашим форматом
-
-Открыть тестовую `Service Request`.
-
-Перейти:
-
-```text
-Print
-```
-
-В левом меню выбрать:
+В Print View выбрать:
 
 ```text
 Print Format = Service Request Summary
 Letter Head  = Facility Operations Training
 ```
 
-Нажать:
+Refresh и проверить результат.
 
-```text
-Refresh
-```
+Затем убрать Letter Head и обновить снова.
 
-Проверить Preview.
-
-Должны одновременно работать:
-
-```text
-наш макет полей
-+
-локальный Letter Head
-```
-
----
-
-# 22. Проверить Print без Letter Head
-
-В Print View очистить:
-
-```text
-Letter Head
-```
-
-Обновить Preview.
-
-Основная форма должна остаться той же:
-
-```text
-Service Request Summary
-```
-
-а шапка/подвал исчезнуть.
-
-Главный вывод:
+Формат содержимого должен остаться тем же.
 
 ```text
 Print Format
-и
-Letter Head
-независимы друг от друга
+≠ Letter Head
 ```
 
 ---
 
-# 23. Проверить обычный Print
+# 15. Browser Print и PDF
 
-Вернуть Letter Head.
-
-Нажать:
+Проверить:
 
 ```text
 Print
 ```
 
-Должен открыться обычный browser print flow.
+как browser/system print path.
 
-Не сохранять этот результат в репозиторий.
-
-`Print` — вывод представления на браузерный/системный механизм печати.
-
----
-
-# 24. Сформировать PDF
-
-Вернуться в Print View.
-
-Нажать:
+Затем:
 
 ```text
 PDF
 ```
 
-Frappe должен сформировать PDF через выбранный штатный generator.
-
-Открыть полученный PDF.
-
-Проверить минимум:
+Проверить PDF минимум по:
 
 ```text
-Subject читается
-Location читается
-Priority и Status на месте
-Description не обрезан
-Letter Head есть
-номер страницы расположен ожидаемо
+Subject
+Location
+Priority
+Status
+Description
+Letter Head
+Page Number
 ```
+
+Footer проверить **именно в PDF**, а не только в preview.
 
 ---
 
-# 25. Отдельно проверить Footer
+# 16. Workflow state в печати
 
-У `Letter Head.footer` в `v16.32.0` прямо указано, что footer корректно отображается именно в PDF.
-
-Поэтому этот тест делаем не только по экранному Preview.
-
-В сформированном PDF найти:
-
-```text
-Training document — facility-ops.localhost
-```
-
-Если footer отсутствует, открыть:
-
-```text
-Print Settings
-```
-
-и проверить связанные настройки header/footer.
-
-Не исправлять проблему собственным HTML-шаблоном до проверки штатных Print Settings.
-
----
-
-# 26. Проверить разные состояния Workflow
-
-Сформировать Preview минимум для двух заявок:
+Сравнить Preview двух Documents, например:
 
 ```text
 Status = New
 Status = Closed
 ```
 
-Print Format должен показывать текущее значение поля `status`.
+Print Format показывает текущее `Service Request.status`.
 
-Он не хранит копию Workflow state отдельно.
+Он не хранит отдельную копию process state.
 
-Если статус заявки изменился:
-
-```text
-Document
-→ изменился
-→ следующий Preview/PDF показывает новое значение
-```
+`Closed` здесь означает terminal Workflow state курса, а не отдельный DocStatus.
 
 ---
 
-# 27. Проверить Attachment как обычное поле
+# 17. Attachment
 
-Если в выбранной заявке есть Attachment, посмотреть его вывод в Print Format.
+Если `Service Request.attachment` заполнен, проверить его представление.
 
 Не путать:
 
 ```text
-Attachment field
+Attach field в Document
 ```
 
 с:
 
 ```text
-вложением PDF в письмо
+отправкой PDF как email attachment
 ```
 
-В этой лаборатории мы только печатаем значение Document.
-
-Отправку PDF по email отдельно не автоматизируем.
+Email automation в Lab E не добавляется.
 
 ---
 
-# 28. Проверить права без изменения модели
+# 18. Print permission
 
-Lab E не является вторым уроком по Role Permission Manager.
-
-Но важно помнить:
+Lab E не перестраивает permission architecture, но ученик должен понимать:
 
 ```text
 Print
 ```
 
-— отдельное право Frappe.
+— отдельный permission type Frappe.
 
-Если под обычным пользователем Print недоступен, не добавлять обходные поля и не использовать Share как замену разрешения.
+Если обычный пользователь не может печатать, проверять Role Permission Manager, а не создавать обходной механизм.
 
-Правильное место проверки:
-
-```text
-Role Permission Manager
-→ Service Request
-→ Print
-```
-
-Для самой сборки Standard Print Format используем Administrator, потому что это setup/developer действие.
-
-Для доказательства пользовательского доступа при необходимости проверять под реальным System User с соответствующим Print permission.
+Administrator используется для создания Standard Print Format, но не как доказательство пользовательского доступа.
 
 ---
 
-# 29. Не переходить на Custom HTML без причины
+# 19. Не переходить на Custom HTML/Jinja без необходимости
 
-На Print Format существует:
+Custom Format/Jinja — штатная возможность Frappe, но в базовой лаборатории не нужна.
 
-```text
-Custom Format = Yes
-Print Format Type = Jinja / JS
-HTML
-Custom CSS
-```
-
-Это штатные возможности Frappe.
-
-Но в базовой части Lab E их не используем.
-
-Причина простая:
+Правило:
 
 ```text
-Print Format Builder уже решает задачу
-```
+Builder решает задачу
+→ используем Builder
 
-Собственный HTML/Jinja нужен только когда Builder объективно не может дать требуемый документ.
+Builder объективно недостаточен
+→ custom template становится отдельным advanced decision
+```
 
 ---
 
-# 30. Что хранится где
-
-После лаборатории различать:
-
-```text
-Service Request
-→ working Document
-
-Service Request Summary
-→ Standard Print Format
-→ app source / Git
-
-Facility Operations Training
-→ Letter Head
-→ site-specific Setup Document
-
-Print Settings
-→ site configuration
-
-PDF
-→ итоговый файл вывода
-```
-
-Это пять разных вещей.
-
----
-
-# 31. Проверить переносимость Print Format
-
-Если clean site из L11 существует:
-
-```text
-facility-ops-clean.localhost
-```
-
-сначала commit Standard Print Format в app.
-
-На исходном app:
+# 20. Commit Standard Print Format
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
 
-git status --short
+git status
 git diff
 
 git add facility_ops/facility_operations/print_format/service_request_summary
 
 git diff --cached
-
 git commit -m "Add Service Request print format"
+git status
 ```
 
-Затем на том же bench выполнить для clean site:
+В Git не добавляются:
+
+```text
+PDF output
+Letter Head site record
+working Service Request
+```
+
+---
+
+# 21. Проверить переносимость на clean site
+
+Если `facility-ops-clean.localhost` существует:
 
 ```bash
 cd ~/frappe/facility-ops-bench
-
 bench --site facility-ops-clean.localhost migrate
 bench --site facility-ops-clean.localhost clear-cache
 ```
@@ -860,237 +481,126 @@ bench --site facility-ops-clean.localhost clear-cache
 На clean site должен появиться:
 
 ```text
-Print Format: Service Request Summary
+Service Request Summary
 ```
 
 без ручного пересоздания.
 
----
-
-# 32. Что не должно перенестись на clean site
-
-После migrate не ожидаем автоматического появления:
+Letter Head:
 
 ```text
-Facility Operations Training Letter Head
+Facility Operations Training
 ```
 
-Потому что его не включали:
-
-```text
-в Standard source
-в fixtures
-```
-
-Это правильный результат.
-
-На другом развёртывании организация может использовать свой Letter Head.
+не должен появиться автоматически.
 
 ---
 
-# 33. Проверить Print Format на clean site
+# 22. Создать корректный clean-site print document
 
-На clean site создать одну минимальную заявку:
+На clean site создать **валидную** заявку:
 
 ```text
 Subject:     Clean site print test
-Location:    Main Site или существующий leaf
+Location:    существующая clean Location
+Equipment:   существующий clean Equipment или пусто
+Description: Проверка Standard Print Format на clean site
 Priority:    Medium
-Status:      New
 ```
 
-Открыть:
+`Status` получит:
 
 ```text
-Print
+New
 ```
 
-Выбрать:
+из default DocType/Workflow модели.
 
-```text
-Service Request Summary
-```
+Не пропускать `Description` ради сокращённого примера.
 
-Проверить Preview.
+Открыть Print и выбрать `Service Request Summary`.
 
-Даже без учебного Letter Head формат должен работать.
-
-Это доказывает, что он не зависит от site-specific branding.
+Формат должен работать без учебного Letter Head.
 
 ---
 
-# 34. Очистить временный Letter Head
+# 23. Удалить временный Letter Head
 
-На исходном site открыть:
-
-```text
-Letter Head → Facility Operations Training
-```
-
-Удалить его штатно.
-
-Поскольку:
+На основном site открыть:
 
 ```text
-Default Letter Head = No
+Facility Operations Training
 ```
 
-мы не должны оставлять глобальную настройку.
+и удалить штатно.
 
-Проверить, что Print View продолжает работать с:
+Standard Print Format оставить.
 
-```text
-Service Request Summary
-```
-
-без этого Letter Head.
+После удаления Letter Head печать через `Service Request Summary` должна продолжить работать.
 
 ---
 
-# 35. Print Format оставляем в приложении
+# 24. Final state
 
-В отличие от Letter Head, `Service Request Summary` после лаборатории не удаляем.
-
-Причина:
+После Lab E:
 
 ```text
-это полезное переносимое представление
-и оно не расширяет предметную модель
-```
-
-Постоянное ядро всё ещё состоит из:
-
-```text
+Core domain:
 Facility Location
 Equipment
 Service Request
 ```
 
-Print Format — configuration, а не четвёртый business DocType.
+Постоянно добавлено только:
+
+```text
+Service Request Summary
+→ presentation configuration
+```
+
+Не осталось:
+
+```text
+Facility Operations Training Letter Head
+PDF files в Git
+новых domain entities
+```
+
+Это важное различие:
+
+```text
+domain rollback
+≠ обязательный byte-identical source rollback
+```
+
+Lab E сознательно оставляет полезный Standard Print Format.
 
 ---
 
-# 36. Проверить финальный Git
+# 25. Приёмка
 
-```bash
-cd ~/frappe/facility-ops-bench/apps/facility_ops
+Лаборатория принята, если:
 
-git status
-```
+- открыт штатный Print View;
+- создан `Service Request Summary` как Standard app-owned Print Format;
+- используется Print Format Builder;
+- Custom HTML/Jinja не нужен;
+- проверены optional Equipment/Target Date;
+- `PDF Generator = chrome`;
+- при необходимости использован штатный `bench setup-chrome`;
+- создан временный non-default Letter Head;
+- Preview проверен с Letter Head и без него;
+- browser Print проверен;
+- PDF сформирован;
+- Footer проверен в PDF;
+- `Set as Default` не использован;
+- Standard Print Format попал в source/Git;
+- Letter Head остался site-specific;
+- clean-site тестовая заявка содержит обязательный Description;
+- Print Format приехал на clean site через app sync/migrate;
+- Letter Head не приехал;
+- временный Letter Head удалён;
+- `Service Request Summary` оставлен как presentation configuration;
+- Git clean.
 
-Ожидается:
-
-```text
-working tree clean
-```
-
-В Git остаётся:
-
-```text
-Service Request Summary Print Format
-```
-
-Не остаются:
-
-```text
-PDF-файлы
-Letter Head текущего site
-рабочие Service Request
-```
-
----
-
-# 37. Самостоятельная задача
-
-Без подсказки изменить `Service Request Summary` через Print Format Builder так, чтобы:
-
-```text
-Subject был первым;
-Location и Equipment находились рядом;
-Priority и Status находились рядом;
-Description находился отдельным широким блоком;
-Target Date оставался видимым;
-форма нормально выглядела и с пустым Equipment.
-```
-
-После изменения:
-
-```text
-Preview
-PDF
-Git diff
-```
-
-должны показать ожидаемый результат.
-
-Не использовать Custom HTML/Jinja.
-
----
-
-# 38. Что должен уметь объяснить студент
-
-После Lab E без подсказки объяснить:
-
-```text
-что такое Print View;
-что такое Print Format;
-что делает Print Format Builder;
-чем Print Format отличается от Letter Head;
-почему Letter Head может быть site-specific;
-почему Standard Print Format попадает в Git;
-что делает Standard = Yes;
-зачем Print Format нужен Module;
-чем browser Print отличается от PDF;
-какой PDF generator используется в лаборатории;
-почему PDF-файл не является source приложения;
-почему Set as Default может создать Property Setter;
-почему в базовой форме не нужен собственный HTML/Jinja;
-почему Print Format не является новым business DocType.
-```
-
----
-
-# 39. Финальная приёмка Lab E
-
-Лаборатория пройдена, если выполнено всё:
-
-```text
-[ ] открыт штатный Print View Service Request
-[ ] создан Service Request Summary
-[ ] Print Format создан как Standard в Facility Operations
-[ ] Custom Format не использован
-[ ] макет собран через Print Format Builder
-[ ] проверена заявка с Equipment
-[ ] проверена заявка без Equipment
-[ ] PDF Generator = chrome
-[ ] создан временный Facility Operations Training Letter Head
-[ ] Letter Head не сделан Default
-[ ] Preview проверен с Letter Head
-[ ] Preview проверен без Letter Head
-[ ] browser Print проверен
-[ ] PDF сформирован
-[ ] footer проверен именно в PDF
-[ ] Set as Default не использован
-[ ] Standard Print Format найден в app source
-[ ] Letter Head не появился в app source
-[ ] Print Format перенесён на clean site через migrate
-[ ] Letter Head не перенёсся автоматически
-[ ] временный Letter Head удалён
-[ ] Service Request Summary оставлен как полезная app configuration
-[ ] рабочие Documents и PDF не попали в Git
-[ ] git status clean
-```
-
-После Lab E постоянная предметная модель остаётся:
-
-```text
-Facility Location
-Equipment
-Service Request
-```
-
-Следующая лаборатория:
-
-```text
-Lab F — специальные Field Types и представления
-```
+После Lab E переходим к **Lab F — специальные Field Types и представления**.
