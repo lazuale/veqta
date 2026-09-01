@@ -1,8 +1,6 @@
 # Lab A. Child Table
 
-Lab A — отдельная лаборатория по вложенным строкам документа.
-
-Она **не расширяет постоянное ядро приложения**.
+Lab A изучает вложенные строки документа и после rollback возвращает приложение к трём core DocType.
 
 Временный эксперимент:
 
@@ -15,73 +13,50 @@ Service Request
           └── Cost
 ```
 
-После лаборатории `Work Log` и поле `Work Logs` удаляются штатно, чтобы итоговая модель курса снова состояла только из:
-
-```text
-Facility Location
-Equipment
-Service Request
-```
-
 Базовая версия: **Frappe Framework v16.32.0**.
+
+Собственный Python/JavaScript не пишем.
 
 ---
 
 # 1. Что изучаем
 
-В лаборатории нужны только штатные механизмы:
-
 ```text
 Child DocType
 Table field
 Editable Grid
-строки внутри parent Document
+parent
+parenttype
+parentfield
 idx
-parent / parentfield / parenttype
-metadata / working data / Git
+parent permission context
+Permission Level на Table field
+metadata vs working data
+rollback
 ```
 
-Собственный Python или JavaScript не пишем.
+Критическое правило лаборатории:
+
+```text
+новый Table field
+не должен случайно пробить
+финальную Level 1 protection Service Request
+```
 
 ---
 
-# 2. Что такое Child Table
+# 2. Preconditions
 
-Обычный DocType представляет самостоятельный Document:
-
-```text
-Equipment
-Service Request
-```
-
-Child DocType предназначен для строк, которые существуют **в составе другого Document**.
-
-В нашем примере:
+После L11 active site снова:
 
 ```text
-Service Request SR-00042
-
-Work Logs
-┌──────────────────────┬───────┬────────┐
-│ Description          │ Hours │ Cost   │
-├──────────────────────┼───────┼────────┤
-│ Inspect equipment    │ 0.5   │ 0      │
-│ Replace bearing      │ 2.0   │ 120.00 │
-│ Test after repair    │ 0.5   │ 0      │
-└──────────────────────┴───────┴────────┘
+facility-ops.localhost
 ```
 
-Строка `Replace bearing` не является отдельной заявкой и не должна жить как самостоятельный рабочий объект.
-
----
-
-# 3. Проверить стенд
-
-В терминале:
+Проверить:
 
 ```bash
 cd ~/frappe/facility-ops-bench
-
 bench version
 bench --site facility-ops.localhost list-apps
 
@@ -89,7 +64,7 @@ cd apps/facility_ops
 git status
 ```
 
-Нужно подтвердить:
+Ожидается:
 
 ```text
 Frappe 16.32.0
@@ -97,7 +72,7 @@ facility_ops установлен
 working tree clean
 ```
 
-В приложении должны существовать только основные предметные DocType:
+Core domain:
 
 ```text
 Facility Location
@@ -105,33 +80,61 @@ Equipment
 Service Request
 ```
 
+Service Request baseline:
+
+```text
+Level 0
+Requester   → Create + Read own; Write/Delete No
+Technician  → Read/Write; Create/Delete No
+Supervisor  → Read/Write/Create; Delete No
+
+Level 1 content
+Requester   → Read/Write
+Technician  → Read only
+Supervisor  → Read/Write
+```
+
+---
+
+# 3. Child Table vs самостоятельный Document
+
+Обычный DocType:
+
+```text
+Equipment
+Service Request
+```
+
+представляет самостоятельные Documents.
+
+Child DocType представляет строки внутри parent Document.
+
+Пример:
+
+```text
+Service Request SR-00042
+
+Work Logs
+1. Inspect equipment    0.50 h
+2. Replace bearing     2.00 h
+3. Test after repair   0.50 h
+```
+
+`Replace bearing` не должен жить как отдельный business Document.
+
 ---
 
 # 4. Создать временный Child DocType
 
-Войти под:
+Под Administrator:
 
 ```text
-Administrator
-```
-
-Developer Mode должен быть включён.
-
-Через Awesomebar открыть:
-
-```text
-DocType
-```
-
-Создать новый Standard DocType:
-
-```text
-Name:       Work Log
-Module:     Facility Operations
+Name:           Work Log
+Module:         Facility Operations
 Is Child Table: Yes
 ```
 
-Если интерфейс показывает `Editable Grid`, оставить его включённым.
+Если `Editable Grid` доступен — оставить включённым.
 
 Не включать:
 
@@ -142,13 +145,11 @@ Is Submittable
 Allow Import
 ```
 
-Для Child DocType отдельная permission matrix не нужна.
+Для Child DocType отдельную обычную permission matrix не создаём.
 
 ---
 
-# 5. Добавить поля Work Log
-
-Создать три поля:
+# 5. Поля Work Log
 
 | Label | Fieldname | Type | Mandatory | In List View |
 |---|---|---|---:|---:|
@@ -156,161 +157,116 @@ Allow Import
 | Hours | `hours` | Float | Yes | Yes |
 | Cost | `cost` | Currency | No | Yes |
 
-Для `Hours` можно задать:
-
-```text
-Precision = 2
-```
-
-Для `Cost` отдельную валютную модель не создаём.
-
-Это просто поле Currency внутри строки лаборатории.
-
-Сохранить DocType.
+Для Hours можно задать Precision 2.
 
 ---
 
-# 6. Посмотреть, что Frappe сделал с Child DocType
+# 6. Системная модель Child DocType
 
-После сохранения открыть `Work Log` ещё раз.
+Для `istable = 1` Frappe не проектирует Child DocType как самостоятельный реестр с отдельной пользовательской permission matrix.
 
-Проверить:
-
-```text
-Is Child Table = Yes
-```
-
-У него нет самостоятельной пользовательской модели permissions как у обычного бизнес-DocType.
-
-В исходниках Frappe v16.32.0 при `istable = 1`:
+Child rows связаны с parent через:
 
 ```text
-Allow Import → выключается
-Permissions  → очищаются
+parent
+parenttype
+parentfield
+idx
 ```
 
-То есть Child DocType не проектируется как самостоятельный реестр.
+Эти поля не добавляем вручную.
 
 ---
 
-# 7. Добавить Table в Service Request
+# 7. Добавить Table field в Service Request
 
-Открыть Standard DocType:
+Открыть Standard DocType `Service Request`.
 
-```text
-Service Request
-```
-
-В нижней части формы добавить Section Break:
+Добавить Section Break:
 
 ```text
 Work
 ```
 
-После него добавить поле:
+Добавить:
 
 ```text
-Label:     Work Logs
-Fieldname: work_logs
-Field Type: Table
-Options:   Work Log
+Label:            Work Logs
+Fieldname:        work_logs
+Field Type:       Table
+Options:          Work Log
+Permission Level: 1
 ```
 
-Сохранить `Service Request`.
+**Permission Level 1 обязателен.**
 
-Связь теперь выглядит так:
+Почему:
 
 ```text
-Service Request.work_logs
-          │
-          └── Table → Work Log
+Service Request business content
+→ уже защищён Level 1
+
+Work Logs
+→ тоже business content parent Document
+→ не должен оказаться на Level 0
 ```
+
+Если оставить `work_logs` на Level 0, Technician с document-level Write сможет получить дополнительную writable область, которой не было в базовой архитектуре.
 
 ---
 
-# 8. Не путать Table и Link
+# 8. Permission semantics Child Table
 
-Сравнить два механизма.
+Child row не получает самостоятельную permission architecture.
 
-## Link
-
-```text
-Service Request.location
-→ ссылка на самостоятельный Facility Location
-```
-
-`Facility Location` существует отдельно и может использоваться многими Documents.
-
-## Table
+В parent context важен в том числе Permission Level Table field:
 
 ```text
-Service Request.work_logs
-→ набор вложенных Work Log rows
+Service Request.work_logs → permlevel 1
 ```
 
-Эти строки принадлежат конкретному `Service Request`.
-
-Главное:
+Поэтому в нашей лаборатории:
 
 ```text
-Link
-= ссылка на другой самостоятельный Document
+Supervisor
+→ Level 1 Write
+→ редактирует Work Logs
 
-Table
-= дочерние строки текущего Document
+Technician
+→ Level 1 Read only
+→ видит Work Logs
+→ не должен редактировать их штатным permission-aware path
 ```
+
+Это сохраняет hardened baseline L5/L11.
 
 ---
 
-# 9. Создать тестовую заявку
+# 9. Создать лабораторную Service Request
 
-Под Administrator создать отдельную заявку только для лаборатории:
+Под Supervisor создать отдельную заявку:
 
 ```text
 Subject:     Child table lab
 Location:    Room 101
 Description: Temporary document for Lab A
 Priority:    Medium
-Target Date: <любая будущая дата>
+Target Date: любая будущая дата
 ```
-
-Сохранить.
 
 Не использовать рабочую заявку, которую жалко испортить.
 
 ---
 
-# 10. Добавить первую строку
+# 10. Добавить строки под Supervisor
 
-В секции:
-
-```text
-Work Logs
-```
-
-добавить строку:
+В `Work Logs` добавить:
 
 ```text
 Description: Inspect equipment
 Hours:       0.50
 Cost:        0
 ```
-
-Сохранить `Service Request`.
-
-Обратить внимание:
-
-```text
-Save выполняется у Service Request
-```
-
-Мы не открываем отдельную форму `Work Log` и не нажимаем там отдельный Save как для самостоятельного рабочего документа.
-
----
-
-# 11. Добавить несколько строк
-
-Добавить ещё две строки:
 
 ```text
 Description: Replace bearing
@@ -324,52 +280,76 @@ Hours:       0.50
 Cost:        0
 ```
 
-Сохранить.
+Сохранить parent `Service Request`.
 
-Итог:
+Главный факт:
 
 ```text
-3 Work Log rows
-1 Service Request
+3 child rows
+1 parent Service Request
 ```
 
-Не три самостоятельных Service Request и не три самостоятельных бизнес-объекта.
+Save выполняется у parent Document.
 
 ---
 
-# 12. Проверить Editable Grid
+# 11. Editable Grid
 
-В таблице изменить прямо в строке:
+Под Supervisor изменить inline:
 
 ```text
 Replace bearing
 Hours: 2.00 → 2.50
 ```
 
-Сохранить parent Document.
-
-Затем открыть строку через row form/grid-row editor и изменить:
+Затем через row editor:
 
 ```text
 Cost: 120 → 135
 ```
 
-Сохранить.
+Сохранить parent.
 
-Нужно увидеть два способа работы:
-
-```text
-inline grid
-row form
-```
-
-Оба изменяют одну и ту же child row.
+Оба способа изменяют ту же child row.
 
 ---
 
-# 13. Проверить порядок строк
+# 12. Проверить Technician read-only boundary
 
-Переставить строки, если фактический Grid v16.32.0 позволяет это штатным drag/reorder.
+Войти:
+
+```text
+technician.one@example.com
+```
+
+Открыть лабораторную Service Request.
+
+Technician должен видеть Work Logs, но не иметь штатного write на Table field Level 1.
+
+Проверить, что нельзя обычным UI изменить:
+
+```text
+Hours
+Cost
+Description row
+```
+
+или добавить/удалить строку.
+
+Фиксируем:
+
+```text
+parent document Write
+≠ write child table любого Permission Level
+```
+
+Не использовать `ignore_permissions`, raw SQL или собственный script для обхода этого теста.
+
+---
+
+# 13. Порядок строк и idx
+
+Под Supervisor переставить строки, если Grid позволяет штатный reorder.
 
 Например:
 
@@ -381,44 +361,36 @@ row form
 
 Сохранить и обновить страницу.
 
-Порядок должен сохраниться.
-
-Frappe хранит позицию child row через системное поле:
+Позиция child row хранится через:
 
 ```text
 idx
 ```
 
-Если на конкретной форме drag/reorder недоступен, не искать обходной скрипт — достаточно увидеть `idx` как часть штатной модели Child Table.
+Если drag/reorder в конкретном UI недоступен — не писать обходной код.
 
 ---
 
-# 14. Удалить одну строку
+# 14. Удалить строку
 
-Удалить:
+Под Supervisor удалить:
 
 ```text
 Test after repair
 ```
 
-из Grid.
-
-Сохранить `Service Request`.
-
-После обновления страницы строка не должна возвращаться.
-
-Важно:
+Сохранить parent.
 
 ```text
-удаление child row
-≠ удаление parent Service Request
+удалить child row
+≠ удалить Service Request
 ```
 
 ---
 
-# 15. Проверить Mandatory внутри строки
+# 15. Mandatory child fields
 
-Добавить новую пустую строку и попробовать сохранить при пустом:
+Добавить пустую строку и получить validation error при отсутствии:
 
 ```text
 Description
@@ -430,130 +402,72 @@ Description
 Hours
 ```
 
-Сохранение корректной строки должно потребовать обязательные значения.
+После теста заполнить строку либо удалить её.
 
-После проверки заполнить строку нормально либо удалить её.
-
-Не отключать Mandatory ради прохождения теста.
+Mandatory не отключать.
 
 ---
 
-# 16. Понять техническую связь строк
+# 16. Техническая связь строк
 
-Для Child Table Frappe хранит системную привязку:
-
-```text
-parent
-parenttype
-parentfield
-idx
-```
-
-В нашем примере смысл такой:
+Смысл системных полей:
 
 ```text
-parent
-= SR-00042
-
-parenttype
-= Service Request
-
-parentfield
-= work_logs
-
-idx
-= положение строки в таблице
+parent      = SR-00042
+parenttype  = Service Request
+parentfield = work_logs
+idx         = номер строки
 ```
 
-Эти поля не нужно добавлять вручную в `Work Log`.
-
-MariaDB schema Frappe v16.32.0 добавляет `parent`, `parentfield` и `parenttype` автоматически для `istable` DocType; `idx` входит в системные поля документа.
+Frappe управляет ими автоматически.
 
 ---
 
-# 17. Посмотреть metadata в Git
+# 17. Table vs Link
 
-В терминале:
+```text
+Link
+→ ссылка на другой самостоятельный Document
+
+Table
+→ дочерние строки текущего Document
+```
+
+`Facility Location` может использоваться множеством Documents.
+
+`Work Log` row принадлежит своему parent Service Request.
+
+---
+
+# 18. Metadata в Git
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
 
 git status --short
+find facility_ops/facility_operations -type f | sort | grep -E 'work_log|service_request'
 ```
 
-Ожидаются изменения примерно двух типов:
-
-```text
-новый Standard DocType Work Log
-изменённый Standard DocType Service Request
-```
-
-Найти файлы:
-
-```bash
-find facility_ops/facility_operations \
-  -type f \
-  | sort \
-  | grep -E 'work_log|service_request'
-```
-
-Посмотреть diff:
-
-```bash
-git diff -- \
-  facility_ops/facility_operations/doctype/service_request/service_request.json
-```
-
-В `Service Request` найти поле примерно такого смысла:
+В diff `Service Request` проверить:
 
 ```text
 fieldtype = Table
 fieldname = work_logs
 options   = Work Log
+permlevel = 1
 ```
 
-В JSON `Work Log` найти:
+В `Work Log`:
 
 ```text
 istable = 1
 ```
 
----
-
-# 18. Что не попало в Git
-
-Строки:
-
-```text
-Inspect equipment
-Replace bearing
-```
-
-не должны появиться в source app.
-
-Они являются рабочими данными конкретного site.
-
-Получаем:
-
-```text
-Work Log DocType definition
-→ metadata
-→ Git
-
-Service Request.work_logs field
-→ metadata
-→ Git
-
-конкретные Work Log rows
-→ database site
-→ не Git
-```
+Конкретные строки Work Log в Git не попадают.
 
 ---
 
-# 19. Зафиксировать лабораторное состояние
-
-Перед очисткой полезно сделать отдельный commit, чтобы эксперимент остался в истории Git.
+# 19. Optional experiment commit
 
 ```bash
 git add .
@@ -562,118 +476,85 @@ git commit -m "Add temporary work log child table lab"
 git status
 ```
 
-Ожидается:
-
-```text
-working tree clean
-```
-
-Этот commit фиксирует изученный механизм, но не означает, что `Work Log` обязан остаться в конечной модели приложения.
+Commit сохраняет историю эксперимента, но не превращает Work Log в core entity.
 
 ---
 
-# 20. Почему Work Log не оставляем в ядре
-
-В базовой модели курса Service Request уже решает поставленную учебную задачу без детализации работ по строкам.
-
-`Work Log` был создан только чтобы понять Child Table.
-
-Правило проектирования:
+# 20. Почему Work Log не остаётся
 
 ```text
-механизм Frappe изучили
+механизм изучен
 ≠
-обязаны навсегда добавить сущность в продукт
+сущность доказала необходимость в постоянной модели
 ```
 
-Поэтому лабораторию завершаем очисткой.
+В базовом `facility_ops` Work Log не нужен для core scenario.
 
 ---
 
-# 21. Очистить тестовые child rows
+# 21. Rollback working data
 
-Открыть тестовую заявку:
+Под Supervisor удалить все Work Logs из лабораторной заявки и сохранить.
 
-```text
-Child table lab
-```
-
-Удалить из неё все строки `Work Logs`.
-
-Сохранить.
-
-После этого удалить саму временную заявку, если она больше не нужна.
-
-Не трогать другие учебные Service Request.
+Удалить лабораторную Service Request, если она больше не нужна.
 
 ---
 
-# 22. Удалить Table field штатно
+# 22. Rollback metadata parent
 
-Открыть Standard DocType:
-
-```text
-Service Request
-```
-
-Удалить поле:
+Под Administrator удалить из `Service Request`:
 
 ```text
-Work Logs
-fieldname: work_logs
+Work Logs / work_logs
 ```
 
-Если Section Break `Work` после этого больше ничего не содержит, удалить и его.
+и пустой Section Break `Work`, если он больше не нужен.
 
-Сохранить DocType.
-
-Не удалять JSON вручную из файловой системы.
+Не удалять JSON вручную.
 
 ---
 
-# 23. Удалить временный Child DocType
+# 23. Rollback Child DocType
 
-Через список DocType открыть:
+Штатно удалить:
 
 ```text
 Work Log
 ```
 
-Удалить его штатным действием Delete.
-
-Если Frappe сообщает о существующей ссылке на Child DocType, значит поле `Service Request.work_logs` удалено не полностью — сначала исправить metadata parent DocType.
-
-Не использовать `rm -rf` как способ удаления DocType.
+Если Frappe сообщает о ссылке — сначала проверить, что parent Table field действительно удалён.
 
 ---
 
-# 24. Проверить возврат модели
+# 24. Проверить возврат permission model
 
-После очистки в приложении снова должно быть только три предметных DocType:
-
-```text
-Facility Location
-Equipment
-Service Request
-```
-
-В `Service Request` больше нет:
+После cleanup `Service Request` снова должен содержать только исходные business fields Level 1:
 
 ```text
-work_logs
+subject
+location
+equipment
+description
+priority
+target_date
+attachment
 ```
 
-В списке DocType больше нет:
+`work_logs` отсутствует.
+
+Проверить Role Permission Manager:
 
 ```text
-Work Log
+Requester Level 0 Write = No
+Technician Level 1 Write = No
+Supervisor Delete = No
 ```
+
+Лаборатория не должна менять Custom DocPerm.
 
 ---
 
-# 25. Проверить Git после очистки
-
-В терминале:
+# 25. Git после rollback
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
@@ -682,35 +563,22 @@ git status --short
 git diff
 ```
 
-Git должен показать обратные изменения относительно лабораторного commit:
-
-```text
-удаление Work Log source
-возврат Service Request metadata
-```
-
-Проверить diff и выполнить:
+Если делался experiment commit:
 
 ```bash
-git add .
+git add -A
 git diff --cached
 git commit -m "Remove temporary work log child table lab"
 git status
 ```
 
-Ожидается:
-
-```text
-working tree clean
-```
-
-Итоговое состояние app снова соответствует основной архитектуре, а Git history сохраняет лабораторный эксперимент.
+Финально working tree clean.
 
 ---
 
 # 26. Самостоятельная практика
 
-Без готового пошагового описания временно создать второй Child DocType:
+Временно создать:
 
 ```text
 Checklist Item
@@ -719,79 +587,73 @@ Checklist Item
 Поля:
 
 ```text
-Item        Data
-Completed   Check
+Item      Data
+Completed Check
 ```
 
-Добавить его как Table в тестовый Service Request, создать 3 строки и проверить Grid.
-
-После проверки полностью удалить эксперимент штатно.
-
-Никаких новых постоянных сущностей после упражнения остаться не должно.
+Добавить его как Table в Service Request **на Permission Level 1**, создать 3 строки под Supervisor, проверить read-only под Technician и полностью удалить эксперимент.
 
 ---
 
-# 27. Приёмка Lab A
+# 27. State contract
 
-Лаборатория принята, если ученик может объяснить и показать:
+## Temporary mutation
 
 ```text
-Child DocType
-Table field
-Editable Grid
-parent
-parenttype
-parentfield
-idx
+Work Log Child DocType
+Service Request.work_logs Table permlevel 1
+lab Service Request + rows
 ```
 
-и ответить на вопросы.
-
-## Чем Table отличается от Link?
+## Persistent mutation
 
 ```text
-Link → другой самостоятельный Document
-Table → дочерние строки текущего Document
+none
 ```
 
-## Имеет ли Child DocType собственную обычную permission matrix?
+## Rollback
 
 ```text
-Нет.
-Доступ к строкам определяется контекстом parent Document.
+rows removed
+lab request removed if unnecessary
+work_logs removed
+Work Log removed
 ```
 
-## Нужно ли вручную создавать parent / parenttype / parentfield?
+## Final state
 
 ```text
-Нет.
-Это системная структура Frappe для Child Table.
-```
-
-## Попадают ли конкретные строки Work Log в Git?
-
-```text
-Нет.
-В Git попадает metadata, а строки остаются working data site.
-```
-
-## Остался ли Work Log в итоговой архитектуре?
-
-```text
-Нет.
-Лаборатория должна закончиться возвратом к трём core DocType.
+3 core DocType
+original Service Request Level 0/1 model
+Git clean
 ```
 
 ---
 
-# Результат
+# 28. Приёмка Lab A
 
-Ученик на практике увидел:
+Лаборатория принята, если ученик показывает:
+
+- Child DocType и Table field;
+- `parent / parenttype / parentfield / idx`;
+- Editable Grid и row editor;
+- Mandatory внутри child row;
+- `work_logs` находится на Permission Level 1;
+- Supervisor редактирует строки;
+- Technician видит, но не редактирует Table через штатный permission-aware path;
+- конкретные rows остаются site data;
+- после rollback нет Work Log/work_logs;
+- финальная Service Request permission model не ослаблена;
+- Git clean.
+
+Главный вывод:
 
 ```text
-самостоятельный Document
-        ≠
-вложенная строка Child Table
-```
+Child Table
+= вложенные данные parent Document
 
-и умеет использовать Child DocType только там, где данные действительно принадлежат одному parent Document, а не создавать отдельные сущности ради демонстрации механизма Frappe.
+и
+
+permission parent field
+остаётся частью архитектуры доступа
+```
