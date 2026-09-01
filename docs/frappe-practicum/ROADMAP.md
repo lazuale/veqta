@@ -16,7 +16,7 @@
 4. Создать app через `bench new-app`.
 5. Установить app на site и проверить `list-apps`.
 6. Включить Developer Mode.
-7. Найти default Module, который создал `bench new-app`, и посмотреть `modules.txt`.
+7. Найти модуль, который `bench new-app` создал вместе с приложением, и посмотреть `modules.txt`.
 8. Просмотреть структуру app: module, `hooks.py`, `public`, `templates`, `patches.txt` и другие созданные каталоги без ручного изменения лишних файлов.
 9. Пройти актуальную навигацию Desk v16: Apps Page, Workspace Sidebar, public/my workspaces, Awesomebar/command palette, List и Form.
 10. Проверить scheduler и workers.
@@ -112,7 +112,7 @@
 ### Часть B. DocType Layout
 
 1. Создать альтернативный DocType Layout для подходящего DocType.
-2. Изменить порядок/видимость/подписи нескольких полей.
+2. Изменить порядок, видимость или подписи нескольких полей.
 3. Проверить условное применение Layout, если для модели есть простой понятный сценарий.
 4. Убедиться, что базовый DocType при этом не переписывается.
 5. Проверить, как стандартный Layout хранится в app.
@@ -149,10 +149,10 @@
 Ученик без подсказки различает:
 
 ```text
-standard object of app
-custom DocType on site
-Customize Form customization
-fixture record
+стандартный объект своего app
+Custom DocType на конкретном site
+кастомизация через Customize Form
+запись БД, которую приложение поставляет как fixture
 ```
 
 И может показать, каким способом каждый тип переносится на новый site.
@@ -172,21 +172,22 @@ fixture record
 3. Показать отличие System User от Website User.
 4. Разобрать автоматические роли Guest, All, Administrator и Desk User.
 5. Создать роли заявителя, исполнителя и координатора.
-6. Открыть полную строку DocType Permissions и разобрать стандартные флаги.
-7. Настроить необходимые Create / Read / Write / Delete.
+6. Открыть полную строку DocType Permissions и сверить реальные поля v16.32.0: Select, Read, Write, Create, Delete, Submit, Cancel, Amend, Mask, Report, Export, Import, Share, Print и Email.
+7. Настроить необходимые Select / Read / Write / Create / Delete.
 8. Проверить Report / Export / Import / Print / Email там, где они применимы.
 9. Настроить If Owner.
 10. Проверить Permission Level на одном поле.
 11. Создать User Permission для ограничения связанного справочника.
 12. Проверить Share.
-13. Войти под каждым учебным пользователем и проверить положительные и отрицательные сценарии.
-14. Назначить заявку через Assign To.
-15. Найти созданный ToDo.
-16. Проверить Due Date и Priority.
-17. Использовать Comments и Timeline.
-18. Добавить Tags.
-19. Настроить Kanban по обычному статусу.
-20. Определить, какие роли/настройки этого проекта должны поставляться вместе с app, и при необходимости обновить fixtures.
+13. Дополнительным упражнением посмотреть Mask / Data Masking и отдельно отметить экспериментальный статус этой возможности в v16.
+14. Войти под каждым учебным пользователем и проверить положительные и отрицательные сценарии.
+15. Назначить заявку через Assign To.
+16. Найти созданный ToDo.
+17. Проверить Due Date и Priority.
+18. Использовать Comments и Timeline.
+19. Добавить Tags.
+20. Настроить Kanban по обычному статусу.
+21. Определить, какие роли и настройки этого проекта должны поставляться вместе с app, и при необходимости обновить fixtures.
 
 ### Самостоятельная работа
 
@@ -332,7 +333,7 @@ Assignment = ответственность
 5. Создать вариант с Login Required.
 6. Проверить Website User.
 7. Проверить Apply document permissions.
-8. Проверить Allow editing after submit.
+8. Проверить Allow editing after submit. Это настройка Web Form и она не имеет отношения к `Allow on Submit` поля DocType из P4.
 9. Проверить Allow multiple responses и Show list.
 10. Проверить Attachments.
 11. Comments и Print включать только там, где это нужно сценарию.
@@ -389,7 +390,7 @@ Assignment = ответственность
 7. Проверить fixtures.
 8. Проверить роли и права.
 9. Проверить Workflow.
-10. Проверить Workspace/отчёты.
+10. Проверить Workspace и отчёты.
 11. Проверить автоматизацию после штатного запуска scheduler.
 12. Проверить Standard Web Form.
 13. Пройти полный пользовательский сценарий под несколькими пользователями.
