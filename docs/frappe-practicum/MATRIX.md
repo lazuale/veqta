@@ -22,13 +22,13 @@
 | L2 | оборудование | Equipment |
 | L3 | данные | filters, import, export, bulk edit |
 | L4 | документ | Service Request + data invariants |
-| L5 | доступ | hardened Role Permission model |
+| L5 | доступ | Level 0 document authority + Level 1 field authority |
 | L6 | collaboration | Assign To, ToDo, Comments, Tags, Kanban |
-| L7 | процесс | Workflow + enforcement boundaries |
+| L7 | процесс | Workflow + permission/transition separation |
 | L8 | контроль | Report, Cards, Chart, Workspace |
 | L9 | automation | Notification, Assignment Rule, scheduler |
-| L10 | web intake | Web Form create/read-only final mode |
-| L11 | поставка | clean-site portability + dual create proof |
+| L10 | web intake | separate Web Form capability; final update Off |
+| L11 | поставка | clean-site portability + permission acceptance |
 
 ---
 
@@ -95,19 +95,52 @@ Closed
 | Delete | L5 | Core, temporary for Service Request; final Off |
 | Report / Export / Import | L5 | Core |
 | If Owner | L5 | Core |
-| Permission Level | L5 | Core |
+| Permission Level | L5 | Core, server-enforced high-level field protection |
 | User Permission | L5 | Core, temporary |
 | Share | L5 | Core, temporary |
 | Mask | Lab F | Lab |
 | custom permission hooks | — | Later |
 
-Final Desk outcome:
+## Final Level 0 outcome
 
 ```text
 Requester   → Create + Read own; Write/Delete No
 Technician  → Read/Write; Create/Delete No
 Supervisor  → Read/Write/Create; Delete No; Report/Export
 ```
+
+## Final Level 1 outcome for Service Request content
+
+Fields:
+
+```text
+subject
+location
+equipment
+description
+priority
+target_date
+attachment
+```
+
+Permissions:
+
+```text
+Requester   → Read/Write
+Technician  → Read only
+Supervisor  → Read/Write
+```
+
+`status` remains Level 0.
+
+Ключевой proof:
+
+```text
+Technician document Write
+≠ Technician write every field
+```
+
+Exact `Document.validate_higher_perm_levels()` participates in ordinary insert/save.
 
 ---
 
@@ -125,6 +158,8 @@ Supervisor  → Read/Write/Create; Delete No; Report/Export
 Assignment = responsibility, not authorization
 ```
 
+Assignment не выдаёт Level 1 content write.
+
 ---
 
 # Workflow
@@ -139,6 +174,7 @@ Assignment = responsibility, not authorization
 | Only Allow Edit For | L7 | Core, Desk guard |
 | existing `status` as state field | L7 | Core |
 | Read Only status | L7 | Core, UI guard |
+| Technician transition without Level 1 content write | L7 | Core |
 | Is Submittable / DocStatus | Lab B | Lab |
 
 Final Desk states:
@@ -149,6 +185,19 @@ Accepted    → Technician
 In Progress → Technician
 Resolved    → Supervisor
 Closed      → Supervisor
+```
+
+Security layers:
+
+```text
+Level 0 Role Permission
+→ save/access
+
+Level 1 Permission
+→ business fields
+
+Workflow Allowed Role/Condition
+→ state transitions
 ```
 
 ---
@@ -183,6 +232,8 @@ Closed      → Supervisor
 | scheduler/background jobs | L9 | Core |
 | Auto Repeat | Lab C | Lab |
 
+Automation не расширяет Technician Level 1 permission.
+
 ---
 
 # Web
@@ -207,7 +258,7 @@ Closed      → Supervisor
 
 ```text
 Desk Requester Create
-→ Role Permission mechanism
+→ Role Permission + Permission Level mechanism
 
 Web Form new insert
 → Web Form capability
@@ -218,6 +269,8 @@ Apply Document Permissions
 → не create authorization
 ```
 
+Именно поэтому final Web Form update выключен: active `ignore_permissions` update path нельзя считать защищённым Level 1 permission model.
+
 ---
 
 # Packaging
@@ -225,12 +278,14 @@ Apply Document Permissions
 | Механизм | Где | Статус |
 |---|---|---|
 | Export Customizations | L11/Lab D | Core |
-| Custom Permissions export | L11 | Core |
+| Custom Permissions Level 0 | L11 | Core |
+| Custom Permissions Level 1 | L11 | Core |
 | fixtures / fixture_auto_order | L11 | Core |
 | export-fixtures | L11 | Core |
 | install-app / migrate | L11 | Core |
 | clean-site portability | L11 | Core |
-| dual Desk/Web Form create acceptance | L11 | Core |
+| Desk/Web Form dual create acceptance | L11 | Core |
+| Technician Workflow + content protection acceptance | L11 | Core |
 | arbitrary multi-app compatibility | — | Later |
 
 ---
@@ -275,4 +330,4 @@ Service Request Delete → studied → final Off
 Web Form Allow Edit     → studied → final Off
 ```
 
-Coverage не подменяет architecture quality.
+Coverage не подменяет architecture quality, а document-level `Write` не подменяет field-level authority.
