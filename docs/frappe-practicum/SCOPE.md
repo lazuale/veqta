@@ -2,9 +2,11 @@
 
 ## Цель
 
-Базовая программа показывает Frappe Framework 16 как настоящую платформу приложений, а не как набор форм и не как искусственно урезанный no-code конструктор.
+Базовая программа показывает Frappe Framework 16 как платформу приложений, а не как набор форм и не как искусственно урезанный no-code конструктор.
 
-Мы создаём собственный app, работаем в Developer Mode и используем штатные механизмы Frappe. Собственная бизнес-логика на Python или JavaScript начинается позже, когда появляется задача, которую штатная конфигурация уже не решает.
+Весь курс развивается вокруг **одного app `facility_ops`**. Мы работаем в Developer Mode, используем штатные механизмы Frappe и постепенно собираем небольшую систему службы эксплуатации.
+
+Собственная бизнес-логика на Python или JavaScript начинается только на следующем уровне обучения, когда появляется задача, которую штатная конфигурация уже не решает.
 
 ## Проверенная версия
 
@@ -12,12 +14,38 @@
 
 Порядок проверки спорных мест:
 
-1. стенд на v16.32.0;
+1. фактический стенд на v16.32.0;
 2. исходники тега `v16.32.0`;
 3. официальная документация Frappe;
-4. ветка `version-16` — только для проверки будущих изменений.
+4. ветка `version-16` — только для будущих изменений.
 
-Курс не должен ссылаться на поведение, которое есть только в более свежей ветке и отсутствует в v16.32.0.
+Курс не должен ссылаться на поведение, отсутствующее в v16.32.0.
+
+## Учебный продукт
+
+Техническая база:
+
+```text
+Bench:  facility-ops-bench
+App:    facility_ops
+Site:   facility-ops.localhost
+Module: Facility Operations
+```
+
+Основные DocType:
+
+```text
+Facility Location (Tree)
+Equipment Type
+Equipment
+Equipment Movement
+Equipment Movement Item (Child)
+Service Request
+Inspection
+Maintenance Work
+```
+
+Этого достаточно для базового курса. Новая сущность не добавляется только потому, что во Frappe существует ещё одна функция.
 
 ## Что входит в базовую программу
 
@@ -28,28 +56,28 @@
 - `bench new-app`;
 - установка app на site;
 - Developer Mode;
-- модуль, созданный вместе с app;
+- default Module;
 - структура app;
-- `hooks.py` как штатная точка конфигурации приложения;
+- `hooks.py` как штатная точка конфигурации;
 - Git;
-- Desk v16, Workspace Sidebar, Apps Page, Awesomebar/command palette;
-- scheduler и background workers на уровне понимания и проверки;
-- установка app на второй чистый site.
+- Desk v16, Workspace Sidebar, Apps Page, Awesomebar / command palette;
+- scheduler и background workers;
+- установка app на чистые sites.
 
-`hooks.py` не изучается как Python-программирование. В базовой программе он нужен для простых штатных настроек, прежде всего fixtures. Дополнительные hooks показываются только при реальной необходимости.
+`hooks.py` не изучается как Python-программирование. В базовой программе он нужен для штатной конфигурации, прежде всего fixtures.
 
 ### Модель данных
 
 - DocType, DocField, Document и `name`;
-- стандартный DocType своего app;
+- Standard DocType своего app;
 - Child DocType;
 - Tree DocType;
-- Single DocType — как дополнительный сценарий, если основной проект не требует глобальных настроек;
-- Custom DocType — как отдельный site-specific сценарий;
+- Single DocType — дополнительной лабораторией;
+- Custom DocType — дополнительным site-specific сценарием;
 - основные Field Types;
-- дополнительные Field Types короткими лабораторными упражнениями;
+- дополнительные Field Types короткими лабораториями;
 - Link;
-- Dynamic Link — только там, где одна ссылка действительно может вести на разные DocType;
+- Dynamic Link только при реальной необходимости;
 - Table и Table MultiSelect;
 - Section / Column / Tab Break;
 - Naming;
@@ -62,7 +90,7 @@
 - Allow Auto Repeat;
 - Default Sort;
 - Preview;
-- DocType Links / Actions, когда они нужны модели.
+- DocType Links / Actions при естественной задаче.
 
 ### Кастомизация и переносимость
 
@@ -70,24 +98,25 @@
 - Custom Field;
 - Property Setter;
 - DocType Layout;
-- отличие Standard DocType / Custom DocType / Customize Form;
+- Standard / Custom / Customized;
 - Export Customizations;
-- fixtures;
+- fixtures только после появления реальной конфигурации;
 - `bench export-fixtures`;
 - `bench migrate`;
-- проверка файлов app через Git diff;
-- установка app на второй site и проверка, что нужная конфигурация приехала.
+- Git diff;
+- первый clean-site test в P4;
+- финальный clean-site test в P8.
 
-Главное правило: ученик должен понимать, что не всё созданное в Desk автоматически становится частью app.
+Главное правило: не всё, что создано в Desk, автоматически является частью app.
 
 ### Работа с данными и интерфейсом
 
 - Form View;
 - List View;
-- фильтры и сортировка;
+- filters и sorting;
 - Saved Filters;
-- массовые действия;
-- import/export;
+- mass actions;
+- Data Import и Export;
 - attachments;
 - comments;
 - Timeline;
@@ -97,13 +126,13 @@
 - Workspace;
 - Shortcuts;
 - Quick Lists;
-- Gantt как дополнительное представление там, где модель дат действительно подходит.
+- Gantt как дополнительное представление, если модель дат действительно подходит.
 
 ### Пользователи и права
 
 - User;
 - System User и Website User;
-- автоматические роли Guest, All, Administrator, Desk User;
+- Guest, All, Administrator, Desk User;
 - Role;
 - Role Permission Manager;
 - Select;
@@ -114,12 +143,10 @@
 - If Owner;
 - Permission Level;
 - User Permission;
-- Mask / Data Masking как дополнительная экспериментальная возможность v16;
-- ограничения страниц, отчётов и Workspace на уровне базовой практики.
+- Mask / Data Masking как дополнительная экспериментальная возможность;
+- ограничения Page / Report / Workspace на базовом уровне.
 
-Не каждая галка должна получить отдельный сценарий, но ученик должен увидеть реальный набор полей `DocPerm` именно v16.32.0 и понимать назначение основных флагов.
-
-Официальная страница Users and Permissions на момент проверки всё ещё упоминает `Set User Permissions` как permission-флаг. В `DocPerm` тега v16.32.0 такого поля нет, поэтому курс не выдаёт его за отдельный флаг Role Permission Manager. Сам User Permission как механизм ограничения данных изучается обязательно.
+Права проверяются реальным входом под учебными пользователями. Проверка под `Administrator` не считается.
 
 ### Совместная работа
 
@@ -129,11 +156,11 @@
 - Priority;
 - Comments;
 - Timeline;
-- персональная очередь задач.
+- персональная очередь работы.
 
 ### Жизненный цикл и Workflow
 
-- обычное поле Status;
+- обычное предметное состояние;
 - Is Submittable;
 - Draft / Submit / Cancel / Amend;
 - DocStatus;
@@ -144,13 +171,15 @@
 - Workflow Action Master;
 - Workflow Transition;
 - allowed role;
-- Workflow Action как фактическая запись действия;
-- простые штатные условия переходов.
+- Workflow Action record;
+- простые transition conditions.
+
+Курс обязан разводить `Status`, `Workflow State` и `DocStatus` как разные понятия.
 
 ### Аналитика и печать
 
 - Report Builder;
-- фильтры;
+- filters;
 - Group By;
 - Count / Sum / Average;
 - Number Card;
@@ -165,12 +194,13 @@
 
 - Notification;
 - System Notification;
-- Filters в Notification;
+- Notification Filters;
+- date-based Notification;
 - Auto Repeat;
 - Assignment Rule;
-- один основной алгоритм распределения в рабочем сценарии;
-- сравнение Round Robin, Load Balancing, Based on Field и Weighted Distribution;
-- простые встроенные PythonExpression там, где их требует сам механизм;
+- один основной алгоритм распределения;
+- сравнение остальных алгоритмов;
+- простые встроенные PythonExpression там, где их требует штатный механизм;
 - scheduler/background jobs на уровне пользователя.
 
 ### Web
@@ -179,6 +209,7 @@
 - Route;
 - Anonymous responses;
 - Login Required;
+- Website User;
 - Apply document permissions;
 - Allow editing after submit;
 - Allow multiple responses;
@@ -190,33 +221,31 @@
 
 ## Что не требуется для завершения базовой программы
 
-Эти механизмы существуют во Frappe, но базовые проекты не должны зависеть от них:
-
-- собственные Python controllers;
+- собственные Python controllers с бизнес-логикой;
 - собственные server-side hooks с бизнес-логикой;
 - собственный JavaScript;
 - Client Script;
 - Server Script;
 - собственные whitelisted methods;
-- Custom Permission Types, потому что их смысл раскрывается только вместе с проверкой прав в собственном коде;
+- Custom Permission Types;
 - REST API и Webhooks;
 - Query Report;
 - Script Report;
 - ручные Jinja-шаблоны;
-- собственные Website/Portal Pages;
+- собственные Website / Portal Pages;
 - Virtual DocType;
 - внешние библиотеки;
 - сторонние приложения.
 
-Это не запрет. Это следующий уровень обучения.
+Это не запрет на Frappe. Это граница базового уровня.
 
 ## Как работаем со штатными выражениями
 
-Если сам Frappe предлагает поле для выражения, его можно использовать.
+Если сам Frappe предлагает expression field, его можно использовать.
 
-Пример: `Assignment Rule` v16.32.0 требует `Assign Condition` с типом `PythonExpression`.
+Например `Assignment Rule` v16.32.0 использует `PythonExpression` для условия.
 
-В таком случае практикум:
+Практикум в таком случае:
 
 1. объясняет назначение поля;
 2. использует минимальное понятное выражение;
@@ -225,43 +254,55 @@
 
 ## Что считается частью app
 
-Перед каждым коммитом ученик должен уметь ответить, к какому типу относится созданный объект.
+Перед каждым commit ученик должен определить тип изменения.
 
-### Стандартный объект приложения
+### Standard metadata
 
-Создан в Developer Mode, относится к Module приложения и хранится в файлах app штатным способом.
+Создано в Developer Mode внутри Module `Facility Operations` и штатно хранится в файлах `facility_ops`.
 
 ### Site-specific customization
 
-Например, Custom Field и Property Setter. Для переноса используется Export Customizations.
+Custom Field, Property Setter и подобные изменения конкретного site. Для включения принятой кастомизации в app используется Export Customizations.
 
-### Запись базы данных, нужная приложению
+### Конфигурационная запись базы данных
 
-Например, выбранные роли или другие конфигурационные записи. Для таких случаев используются fixtures, если они действительно должны поставляться вместе с app.
+Например Role или Workflow. Fixture используется только если запись действительно необходима для воспроизводимости приложения.
 
-Не следует экспортировать в fixtures всё подряд. В app попадает только та конфигурация, без которой приложение не воспроизводится на новом site.
+### Рабочие данные
+
+Equipment, Service Request, Inspection, Maintenance Work и другие конкретные рабочие документы не превращаются в fixtures ради переноса тестовых данных.
 
 ## Проверка переносимости
 
-Базовая программа не считается пройденной, если приложение работает только на исходном учебном site.
+Переносимость проверяется дважды.
 
-Минимальная проверка:
+### P4
 
-1. сохранить изменения app в Git;
-2. создать второй чистый site;
-3. установить app;
-4. выполнить migrate;
-5. проверить модель данных, кастомизации, необходимые роли/настройки, Workspace, Workflow и Web Form;
-6. исправить всё, что осталось только на первом site.
+Первый технический контроль после появления Standard metadata, Export Customizations, Roles, Workflow и fixtures.
+
+### P8
+
+Полная установка приложения на новый чистый site и сквозная приёмка.
+
+Минимальный принцип:
+
+```text
+clean compatible Frappe site
++ facility_ops
++ install-app
++ migrate
+= принятая конфигурация без повторного ручного накликивания
+```
 
 ## Правило отбора тем
 
-Тема входит в обязательную программу, если одновременно выполняются три условия:
+Тема входит в обязательную программу, если одновременно:
 
 1. это штатная возможность Frappe v16.32.0;
-2. она решает понятную задачу проекта;
-3. её можно воспроизвести и проверить на учебном стенде.
+2. она решает понятную задачу `facility_ops`;
+3. её можно воспроизвести и проверить;
+4. ради неё не приходится портить предметную модель.
 
-Если функция нужна только ради строки в матрице, она переносится в дополнительное упражнение.
+Если функция нужна только для строки в матрице, она остаётся дополнительной лабораторией.
 
 Список официальных источников и проверяемых исходников находится в [REFERENCES.md](REFERENCES.md).
