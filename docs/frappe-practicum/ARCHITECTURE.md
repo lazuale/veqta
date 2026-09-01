@@ -4,7 +4,7 @@
 
 Курс использует одно приложение — `facility_ops`.
 
-Его задача:
+Его задача намеренно небольшая:
 
 ```text
 хранить места
@@ -18,27 +18,15 @@
 вести заявку до закрытия
 ```
 
-Это учебное приложение, а не попытка построить полноценную систему эксплуатации.
+Это учебное приложение для изучения Frappe Framework, а не попытка построить ERP, CMMS или Service Desk.
 
-Поэтому ядро ограничено тремя DocType.
-
----
-
-# 2. Техническая основа
-
-```text
-Bench:  facility-ops-bench
-App:    facility_ops
-Site:   facility-ops.localhost
-Module: Facility Operations
-Frappe: v16.32.0
-```
-
-Один app используется на всём курсе.
+Базовая версия — **Frappe Framework v16.32.0**.
 
 ---
 
-# 3. Предметная модель
+# 2. Постоянное ядро
+
+В приложении только три обязательных предметных DocType:
 
 ```text
 Facility Location (Tree)
@@ -48,33 +36,23 @@ Facility Location (Tree)
         └─────────────────┴────────────► Service Request
 ```
 
-`Service Request` всегда связан с `Facility Location`.
-
-Связь с `Equipment` необязательна.
-
-Это позволяет одинаково обрабатывать:
+Смысл модели:
 
 ```text
-сломалось конкретное оборудование
+Facility Location = где
+Equipment         = что эксплуатируется
+Service Request   = что произошло / что нужно сделать
 ```
 
-и
+`Service Request.location` обязателен.
 
-```text
-проблема относится только к помещению или месту
-```
+`Service Request.equipment` необязателен: проблема может относиться к помещению или территории без конкретной единицы Equipment.
 
 ---
 
-# 4. Facility Location
+# 3. Facility Location
 
-Назначение — структура мест эксплуатации.
-
-Тип:
-
-```text
-Tree DocType
-```
+Тип: Tree DocType.
 
 Пример:
 
@@ -88,29 +66,15 @@ Main Site
 └── Warehouse
 ```
 
-Минимальная предметная информация:
+Tree используется потому, что местам нужна настоящая иерархия.
 
-```text
-Location Name
-```
-
-На этом объекте изучаются:
-
-- Standard DocType;
-- Tree DocType;
-- Naming;
-- Tree View;
-- Form View;
-- List View;
-- связь metadata с app и Git.
+Технические nested-set поля (`parent`, `lft`, `rgt`, `is_group`) создаёт и обслуживает Frappe. Ученик не проектирует их вручную.
 
 ---
 
-# 5. Equipment
+# 4. Equipment
 
-Назначение — реестр конкретных единиц оборудования.
-
-Минимальные поля:
+Основные поля:
 
 | Поле | Тип |
 |---|---|
@@ -132,33 +96,27 @@ Out of Service
 Retired
 ```
 
-`Category` остаётся `Select`.
+Naming:
 
-Отдельный `Equipment Type` не создаётся, пока у категории нет собственной модели данных.
+```text
+field:equipment_code
+```
 
-На Equipment изучаются:
+Title Field:
 
-- основные Field Types;
-- Link;
-- Select;
-- required/default;
-- Naming;
-- Title Field;
-- Search Fields;
-- Quick Entry;
-- Track Changes;
-- Form layout;
-- List View;
-- Filters / Sorting;
-- Data Import / Export.
+```text
+equipment_name
+```
+
+`Category` остаётся Select. Отдельный `Equipment Type` не создаётся, пока реальная задача не докажет необходимость справочника.
+
+После L5 `notes` имеет Permission Level 1 и используется как учебный пример field-level permissions.
 
 ---
 
-# 6. Service Request
+# 5. Service Request
 
-Центральный рабочий документ приложения.
-
-Минимальные поля:
+Основные поля:
 
 | Поле | Тип |
 |---|---|
@@ -170,10 +128,6 @@ Retired
 | Status | Select |
 | Target Date | Date |
 | Attachment | Attach |
-
-`Location` обязателен.
-
-`Equipment` необязателен.
 
 Priority:
 
@@ -193,31 +147,59 @@ Resolved
 Closed
 ```
 
-Не создаём собственное поле исполнителя.
-
-Ответственный хранится штатной связкой:
+Naming:
 
 ```text
-Assign To
-   ↓
-ToDo
+SR-.#####
 ```
 
-Не создаём собственные сущности комментариев и истории.
-
-Используются штатные:
+Title Field:
 
 ```text
-Comments
-Timeline
-Track Changes / Version
+subject
 ```
+
+До L7 `status` — обычный Select. В L7 то же поле становится Workflow State Field и Read Only для обычной работы.
+
+Второе поле `workflow_state` не вводится.
 
 ---
 
-# 7. Пользователи и роли
+# 6. Assignment не является полем Service Request
 
-Минимально:
+В core-модели нет:
+
+```text
+Assigned Technician
+Technician
+Assignee
+```
+
+Назначение выполняется штатно:
+
+```text
+Service Request
+      ↓ Assign To / Assignment Rule
+ToDo
+      ↓
+User
+```
+
+Поэтому:
+
+```text
+Permission = что пользователь может делать
+Assignment = какая конкретная работа ему назначена
+Status     = состояние Service Request
+```
+
+Эти три понятия не объединяются в одно поле.
+
+---
+
+# 7. Роли и доступ
+
+Учебные роли:
 
 ```text
 Facility Requester
@@ -225,257 +207,405 @@ Facility Technician
 Facility Supervisor
 ```
 
-## Facility Requester
+Модель:
 
-Создаёт заявки и работает только с разрешёнными ему данными.
+```text
+Requester
+→ читает Location / Equipment
+→ создаёт свои Service Request
+→ работает только со своими заявками через If Owner
 
-## Facility Technician
+Technician
+→ читает Location / Equipment
+→ читает и изменяет разрешённые Service Request
+→ получает конкретную работу через ToDo
 
-Работает с доступными и назначенными ему заявками.
+Supervisor
+→ управляет рабочими данными
+→ видит все заявки
+→ выполняет управляющие Workflow transitions
+```
 
-## Facility Supervisor
+Дополнительно курс отдельно показывает:
 
-Контролирует очередь, распределение, отчёты и настройки рабочего процесса.
+- Permission Level;
+- User Permission;
+- Share;
+- Data Masking в Lab F.
 
-`Administrator` используется только для настройки и диагностики.
-
-Проверка обычных permissions под `Administrator` не считается.
+Data Masking не заменяет Permission Level: это другой механизм.
 
 ---
 
-# 8. Основной процесс
+# 8. Workflow
 
-Сначала Status работает как обычное поле:
+Итоговый маршрут:
 
 ```text
 New
- ↓
+ │ Mark Assigned / Facility Supervisor
+ ▼
 Assigned
- ↓
+ │ Start Work / Facility Technician
+ ▼
 In Progress
- ↓
+ │ Resolve / Facility Technician
+ ▼
 Resolved
- ↓
+ │ Close / Facility Supervisor
+ ▼
 Closed
 ```
 
-После того как ручной процесс понятен, на него накладывается Workflow.
-
-Учебная последовательность:
+Все состояния:
 
 ```text
-ручной Status
-      ↓
-понятна проблема свободного изменения
-      ↓
-Workflow
+docstatus = 0
 ```
 
-Workflow не вводится раньше рабочего документа.
+`Service Request` не становится Submittable.
+
+Workflow управляет переходами, но не назначает человека.
+
+Поэтому реальная операция Supervisor выглядит так:
+
+```text
+Assign To technician
++
+Mark Assigned
+```
 
 ---
 
-# 9. Что не входит в ядро
+# 9. Kanban и Workflow
 
-Не создаём отдельные обязательные DocType только ради демонстрации возможностей Frappe:
+В L6 Kanban по `Service Request.status` нужен, чтобы показать альтернативное представление одних и тех же Documents.
+
+В L7 он удаляется из итоговой конфигурации.
+
+Причина не в том, что Kanban полностью обходит save validation: в `v16.32.0` его `frappe.set_value` приходит к обычному `doc.save()` и workflow validation.
+
+Проблема другая:
+
+```text
+Kanban field update
+≠
+apply_workflow / Workflow Action
+```
+
+Для учебного процесса оставляется один однозначный интерфейс переходов — Workflow Action.
+
+---
+
+# 10. Контроль работы
+
+L8 не создаёт аналитические таблицы.
+
+Используются штатные представления над `Service Request`:
+
+```text
+Service Requests Overview        → Report Builder
+Open Requests                    → Number Card
+High Priority Requests           → Number Card
+Closed Requests                  → Number Card
+Service Requests by Status       → Dashboard Chart
+Facility Operations              → Workspace
+```
+
+Главный принцип:
+
+```text
+рабочие данные остаются в Service Request
+отчёт и Workspace только читают их
+```
+
+---
+
+# 11. Автоматизация
+
+L9 добавляет два независимых механизма.
+
+## Notification
+
+```text
+Service Request
+      ↓
+Notification
+      ↓
+Notification Log
+```
+
+Используются System Notification и date-based scheduler.
+
+## Assignment Rule
+
+```text
+Service Request
+      ↓
+Assignment Rule
+      ↓
+Assign To mechanism
+      ↓
+ToDo
+```
+
+Основной алгоритм курса — Round Robin.
+
+Assignment Rule не двигает Workflow state.
+
+`Service Request Auto Assignment` содержит конкретных учебных Users, поэтому считается site-specific configuration и не входит в универсальные fixtures L11.
+
+---
+
+# 12. Web Form
+
+L10 не создаёт внешний дубль заявки.
+
+```text
+Browser
+  ↓
+Report a Facility Issue
+  ↓
+Service Request
+  ↓
+Notification / Assignment / Workflow
+  ↓
+Desk
+```
+
+Финальный Web Form:
+
+- Login Required;
+- Website User;
+- Show List;
+- Allow Edit;
+- Apply Document Permissions = No;
+- Location и Equipment доступны как Link options;
+- Status не редактируется через Web Form.
+
+Guest-сценарий нужен как временная проверка и после неё форма возвращается в Login Required.
+
+---
+
+# 13. Поставка приложения
+
+Курс разделяет четыре слоя.
+
+## 13.1 Standard source
+
+Хранится в `facility_ops` и Git:
+
+```text
+Standard DocType
+Standard Report
+Standard Number Card
+Standard Dashboard Chart
+Standard Workspace
+Standard Notification
+Standard Web Form
+Standard Print Format
+```
+
+## 13.2 Универсальная app configuration
+
+Нужна на любом site, но экспортируется fixtures:
+
+```text
+Facility Requester
+Facility Technician
+Facility Supervisor
+Workflow State
+Workflow Action Master
+Service Request Workflow
+```
+
+## 13.3 Site-specific configuration
+
+Не переносится автоматически на любой site:
+
+```text
+Users
+User Permission
+Share
+Assignment Rule с конкретными Users
+Letter Head конкретного развёртывания
+```
+
+## 13.4 Working data
+
+```text
+Facility Location Documents
+Equipment Documents
+Service Request Documents
+ToDo
+Comments
+Files
+Notification Log
+```
+
+Это содержимое site, а не приложение.
+
+---
+
+# 14. Customize Form
+
+Lab D специально показывает второй путь изменения metadata.
+
+```text
+Standard DocType editor
+→ изменение исходного определения нашего app
+
+Customize Form
+→ Custom Field / Property Setter поверх существующего DocType
+```
+
+Экспортированная кастомизация может поставляться через `Export Customizations` и `migrate`.
+
+Но удаление записи из exported JSON не является декларативной командой удалить уже синхронизированный Custom Field/Property Setter на другом site.
+
+---
+
+# 15. Печать
+
+Lab E добавляет переносимый:
+
+```text
+Service Request Summary
+```
+
+как Standard Print Format.
+
+Отдельно временно создаётся Letter Head учебного site.
+
+```text
+Print Format
+→ app source
+
+Letter Head
+→ site-specific configuration
+
+PDF
+→ результат вывода
+```
+
+Для лаборатории явно выбирается Chrome PDF generator `v16.32.0`.
+
+---
+
+# 16. Лабораторные объекты
+
+Лаборатории могут временно создавать metadata, но не расширяют core.
+
+## Lab A
+
+```text
+Work Log — Child DocType
+```
+
+После упражнения удаляется.
+
+## Lab B
+
+```text
+Service Report — Submittable DocType
+```
+
+После упражнения удаляется.
+
+## Lab C
+
+Временно включает Auto Repeat для Service Request и затем убирает служебную кастомизацию.
+
+## Lab D
+
+Работает поверх существующего Equipment через Customize Form. Custom DocType не создаётся.
+
+## Lab E
+
+Оставляет полезный Standard Print Format, но не создаёт новый business DocType.
+
+## Lab F
+
+Временно создаёт:
+
+```text
+Lab Feature Settings — Single
+Lab Equipment Link   — Child
+Lab Feature Record   — обычный Standard DocType-полигон
+```
+
+и проверяет:
+
+```text
+Dynamic Link
+Table MultiSelect
+Check
+Percent
+Time
+Duration
+Barcode
+Signature
+Geolocation
+Attachment Gallery
+Markdown Editor
+Data Masking
+```
+
+Calendar и Gantt проверяются на встроенном `Event` Frappe.
+
+Для собственного DocType в `v16.32.0` эти views требуют `frappe.views.calendar[...]`, то есть собственного JavaScript-конфига. Это уже следующий уровень курса.
+
+После Lab F временные DocType удаляются.
+
+---
+
+# 17. Что намеренно не является архитектурой base course
+
+Не вводим без доказанной необходимости:
 
 ```text
 Equipment Type
-Equipment Movement
-Inspection
-Maintenance Work
 Department
 Team
 Technician
 Requester
-Status
-Priority
+Status DocType
+Priority DocType
+Automation Log
+Workflow History
+Notification Queue
+Public Request
 ```
 
-Если специальному механизму нужен отдельный объект, он создаётся внутри лаборатории.
-
-После лаборатории объект может быть удалён.
-
----
-
-# 10. Что изучается на ядре
-
-## Модель данных
+Не используем в базовом маршруте:
 
 ```text
-DocType
-DocField
-Document
-name
-Standard DocType
-Tree
-Link
-Field Types
-Naming
-Title/Search
-Forms
-Lists
-Data Import
-```
-
-## Работа пользователей
-
-```text
-User
-Role
-Permissions
-User Permission
-Share
-Assign To
-ToDo
-Comments
-Timeline
-Tags
-Kanban
-Workflow
-```
-
-## Представление и контроль
-
-```text
-Report Builder
-Number Card
-Dashboard Chart
-Workspace
-```
-
-## Автоматизация и внешний вход
-
-```text
-Notification
-Assignment Rule
-Web Form
-```
-
-## Поставка приложения
-
-```text
-Git
-Standard metadata
-fixtures
-Export Customizations
-install-app
-migrate
-clean site
+Custom DocType как отдельную практику
+DocType Layout
+Client Script
+Server Script
+собственный Python controller
+собственные hooks с бизнес-логикой
+REST API
+Query Report
+Script Report
+ручной Jinja Print Format
+собственные Portal Pages
+Virtual DocType
+собственный calendar JS
 ```
 
 ---
 
-# 11. Лаборатории
+# 18. Главный архитектурный тест
 
-## Lab A — Child Table
-
-Временная таблица выполненных работ внутри Service Request:
+Любое новое учебное решение должно проходить простой вопрос:
 
 ```text
-Work Log
-├── Description
-├── Hours
-└── Cost
+эта сущность нужна рабочей модели
+или только демонстрирует функцию Frappe?
 ```
 
-Изучаются Child DocType и Table.
+Если только демонстрирует функцию — ей место в Lab, а не в core.
 
-## Lab B — DocStatus
-
-Отдельный маленький `Service Report`:
-
-```text
-Draft
-Submit
-Cancel
-Amend
-```
-
-Изучаются:
-
-- Is Submittable;
-- DocStatus;
-- Allow on Submit;
-- Audit Trail.
-
-## Lab C — Auto Repeat
-
-Создать повторяющуюся профилактическую заявку и изучить Auto Repeat.
-
-## Lab D — Customize Form
-
-Добавить локальное поле в Equipment и изучить:
-
-- Customize Form;
-- Custom Field;
-- Property Setter;
-- Export Customizations.
-
-## Lab E — Print / PDF
-
-Печатная форма Service Request.
-
-## Lab F — специальные возможности
-
-Короткие упражнения:
-
-- Single DocType;
-- Dynamic Link;
-- Table MultiSelect;
-- Duration;
-- Percent;
-- Barcode;
-- Signature;
-- Geolocation;
-- Attachment Gallery;
-- Gantt.
-
-Ни одна из этих тем не должна раздувать основную предметную модель.
-
----
-
-# 12. Как устроено обучение
-
-```text
-L0  платформа и app
- ↓
-L1  места
- ↓
-L2  оборудование
- ↓
-L3  данные
- ↓
-L4  заявка
- ↓
-L5  права
- ↓
-L6  совместная работа
- ↓
-L7  Workflow
- ↓
-L8  аналитика и Workspace
- ↓
-L9  автоматизация
- ↓
-L10 Web Form
- ↓
-L11 переносимость
-```
-
-Лаборатории подключаются после того, как базовый объект, на котором они выполняются, уже знаком.
-
----
-
-# 13. Архитектурные правила курса
-
-1. Ядро — три DocType.
-2. Один app развивается весь курс.
-3. Новая сущность появляется только по необходимости предметной модели.
-4. Механизм Frappe не должен диктовать новую бизнес-сущность.
-5. Права и Assignment — разные вещи.
-6. Workflow появляется после ручного процесса.
-7. Автоматизация появляется после ручного действия.
-8. Рабочие данные не экспортируются как конфигурация приложения.
-9. Редкая возможность изучается лабораторией, а не усложнением ядра.
-10. Если v16.32.0 работает иначе, исправляется курс.
+Итоговый `facility_ops` после всего практикума по-прежнему строится вокруг трёх предметных DocType.
