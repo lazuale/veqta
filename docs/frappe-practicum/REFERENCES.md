@@ -2,8 +2,6 @@
 
 Основная версия — **Frappe Framework v16.32.0**.
 
-Этот файл — карта exact-source оснований для архитектуры, уроков и `INVARIANTS.md`.
-
 Приоритет:
 
 1. фактический стенд `v16.32.0`;
@@ -28,287 +26,163 @@ Python >=3.14,<3.15
 Node >=24
 ```
 
-Стек стенда фиксируется в `projects/00-lab/SETUP_WSL2.md`.
-
 ---
 
-# 2. DocType / Document / fields
+# 2. DocType / Document
 
-Документация:
-
-- https://docs.frappe.io/framework/user/en/basics/doctypes
-- https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes
-- https://docs.frappe.io/framework/user/en/basics/doctypes/naming
-- https://docs.frappe.io/framework/user/en/basics/doctypes/child-doctype
-- https://docs.frappe.io/framework/user/en/basics/doctypes/single-doctype
-
-Exact source:
-
-- DocType: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/doctype/doctype.json
+- DocTypes: https://docs.frappe.io/framework/user/en/basics/doctypes
+- Field Types: https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes
+- Naming: https://docs.frappe.io/framework/user/en/basics/doctypes/naming
+- Child DocType: https://docs.frappe.io/framework/user/en/basics/doctypes/child-doctype
+- Single: https://docs.frappe.io/framework/user/en/basics/doctypes/single-doctype
+- DocType source: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/doctype/doctype.json
 - DocField: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/docfield/docfield.json
 - Document lifecycle: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py
-- standard/optional fields: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/__init__.py
+- model standard/optional fields: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/__init__.py
 
-`_assign` — штатный optional field Frappe, не бизнес-поле `facility_ops`.
+`_assign` — штатное optional field Frappe, не business field `facility_ops`.
 
 ---
 
-# 3. Data Import / Export / List
+# 3. Data Import / Export
 
 - Data Import: https://github.com/frappe/frappe/tree/v16.32.0/frappe/core/doctype/data_import
 - Data Export: https://github.com/frappe/frappe/tree/v16.32.0/frappe/core/doctype/data_export
 - List View: https://github.com/frappe/frappe/tree/v16.32.0/frappe/public/js/frappe/list
 
-L3 использует 10 дополнительных Equipment, negative import, filters, Saved Filter, export и Bulk Edit.
-
 ---
 
-# 4. Permissions — hard boundary
+# 4. Permissions
 
-Документация:
-
-- https://docs.frappe.io/framework/user/en/basics/users-and-permissions
-- https://docs.frappe.io/framework/data-masking
-- https://docs.frappe.io/framework/permission-types
-
-Exact source:
-
+- Users and Permissions: https://docs.frappe.io/framework/user/en/basics/users-and-permissions
+- Permission Types: https://docs.frappe.io/framework/permission-types
 - DocPerm: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/docperm/docperm.json
 - Custom DocPerm: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/custom_docperm/custom_docperm.json
-- permissions engine: https://github.com/frappe/frappe/blob/v16.32.0/frappe/permissions.py
-- Permission Manager UI: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/page/permission_manager/permission_manager.js
+- permission engine: https://github.com/frappe/frappe/blob/v16.32.0/frappe/permissions.py
+- Permission Manager: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/page/permission_manager/permission_manager.js
 
-## Permission Level
+## If Owner / Create
 
-Для `permlevel > 0` Permission Manager предоставляет field-level `read/write/mask`; document operations относятся к level 0.
-
-## If Owner и Create — критический exact-source факт
-
-`get_role_permissions()` при owner-only permission переносит permission type в `if_owner` только когда:
+Exact `get_role_permissions()` owner-only folding исключает:
 
 ```text
-ptype != "create"
+ptype == "create"
 ```
 
-Следовательно корректна комбинация курса:
+Поэтому работает финальная Desk policy:
 
 ```text
-Facility Requester
+Requester
 Create = Yes
 Read = Yes
 Write = No
 If Owner = Yes
 ```
 
-Она означает:
+то есть Create возможен, owner read остаётся, post-create Write не выдаётся.
 
-```text
-новый Service Request создать можно
-после insert читать можно только собственный
-post-create Write не выдаётся
-```
+## Delete
 
-То есть Requester append-only intake основан на реальном permission engine, а не на Workflow UI.
-
-## Delete policy
-
-`Delete` — обычный DocPerm permission type. L5 временно включает его Supervisor только для отдельного experiment и возвращает `No`.
-
-Финальная app policy:
-
-```text
-Requester Delete = No
-Technician Delete = No
-Supervisor Delete = No
-```
-
-Это server permission рабочих ролей, но не попытка ограничить `Administrator`.
+Delete — обычный DocPerm permission type. В финале `Service Request Delete = No` у всех рабочих ролей; L5 включает его Supervisor только временно.
 
 ---
 
-# 5. Assign To / ToDo — ответственность, не authorization
+# 5. Assign To / ToDo
 
-Документация:
-
-- https://docs.frappe.io/framework/assignments-and-todos
-
-Exact source:
-
+- docs: https://docs.frappe.io/framework/assignments-and-todos
 - Assign To: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/form/assign_to.py
 - ToDo JSON: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/todo/todo.json
-- ToDo controller/permissions: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/todo/todo.py
+- ToDo controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/todo/todo.py
 
-Из `assign_to._add()`:
-
-```text
-создаётся ToDo
-↓
-проверяется доступ assignee к reference document
-↓
-нет доступа + sharing разрешён
-→ может создаться DocShare
-
-нет доступа + sharing запрещён
-→ Missing Permission
-```
+`assign_to._add()` создаёт ToDo и проверяет access assignee. При недостаточном access штатный механизм может создать DocShare; при disabled sharing возможен Missing Permission.
 
 Поэтому:
 
 ```text
-Assignment
-≠ authorization
+Assignment ≠ authorization
 ```
-
-Основные Technician получают совместимый Role-based access заранее; Assignment не должен быть скрытым permission distributor.
-
-`ToDo.update_in_reference()` обновляет штатное `_assign`, но `_assign` не становится доменным полем.
 
 ---
 
-# 6. Workflow — server transition vs Desk editability
+# 6. Workflow
 
-Документация:
-
-- https://docs.frappe.io/erpnext/workflows
-- https://docs.frappe.io/erpnext/workflow-actions
-- https://docs.frappe.io/framework/user/en/audit-trail
-
-Exact source:
-
-- Workflow engine: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/workflow.py
-- client Workflow model: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/model/workflow.js
-- Workflow controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/workflow/doctype/workflow/workflow.py
+- docs: https://docs.frappe.io/erpnext/workflows
+- Workflow Actions: https://docs.frappe.io/erpnext/workflow-actions
+- engine: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/workflow.py
+- client model: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/model/workflow.js
+- Workflow source: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow
 - Workflow State: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_state
 - Workflow Action: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_action
-- Workflow Transition: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_transition
+- Transition: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_transition
 
-## Server transition
-
-`get_transitions()` / `validate_workflow()` используют current state, Allowed Role и Condition для state change.
-
-`apply_workflow()` выбирает Transition по Action и сохраняет новый state.
-
-Поэтому:
+Server transition проверяет state/role/condition.
 
 ```text
 Allowed Role / Condition
-= server transition enforcement
+= server transition gate
 ```
 
-## Only Allow Edit For
-
-Client `frappe.workflow.is_read_only()` использует state `allow_edit` для Desk editability.
-
-Поэтому:
+Client `is_read_only()` использует state `allow_edit`:
 
 ```text
 Only Allow Edit For
-= Desk state guard
+= Desk guard
 ```
 
-а не универсальная ACL любого update path.
-
-## Новый local Document — критический compatibility fact
-
-В exact client source:
+Критический exact-source факт:
 
 ```text
 if (doc.__islocal) return false
 ```
 
-в `is_read_only()`.
-
-Следовательно новый Requester Document не становится read-only только потому, что:
-
-```text
-New.only_allow_edit_for = Facility Supervisor
-```
-
-Server `validate_workflow()` также не рассматривает insert первой state как переход между двумя states.
-
-Это делает совместимой строгую модель:
-
-```text
-Requester Create = Yes
-New Desk edit role = Supervisor
-Requester post-create Write = No
-```
+поэтому New state с edit role Supervisor не мешает Requester заполнить новый local Document. После insert Role Permission `Write = No` становится настоящей boundary.
 
 ---
 
-# 7. Kanban + Workflow
+# 7. Kanban
 
 - Kanban Board: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/kanban_board/kanban_board.py
 - `frappe.set_value`: https://github.com/frappe/frappe/blob/v16.32.0/frappe/__init__.py
 - client set_value: https://github.com/frappe/frappe/blob/v16.32.0/frappe/client.py
 
-Kanban update приходит к обычному save, поэтому Workflow validation не исчезает.
-
-Но Kanban move не является `apply_workflow(Action)`, поэтому Status-Kanban удаляется после L7.
+Kanban update идёт через обычный save, но не является `apply_workflow(Action)` lifecycle.
 
 ---
 
-# 8. Reports / Cards / Charts / Workspace
+# 8. Reports / Workspace
 
 - Report Builder: https://docs.frappe.io/framework/user/en/desk/reports/report-builder
 - Workspace: https://docs.frappe.io/framework/user/en/desk/workspace
-- Report JSON: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/report/report.json
 - Number Card: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/number_card
 - Dashboard Chart: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/dashboard_chart
-- Workspace: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/workspace
-
-L8 создаёт один Report Builder, три Number Cards, один Chart и `Facility Operations Control` Workspace.
+- Workspace source: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/workspace
 
 ---
 
 # 9. Notification / Assignment Rule
 
-- Notification docs: https://docs.frappe.io/framework/notifications
-- Notification JSON: https://github.com/frappe/frappe/blob/v16.32.0/frappe/email/doctype/notification/notification.json
-- Notification controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/email/doctype/notification/notification.py
+- Notification: https://docs.frappe.io/framework/notifications
+- Notification source: https://github.com/frappe/frappe/blob/v16.32.0/frappe/email/doctype/notification/notification.py
 - Assignment Rule JSON: https://github.com/frappe/frappe/blob/v16.32.0/frappe/automation/doctype/assignment_rule/assignment_rule.json
 - Assignment Rule controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/automation/doctype/assignment_rule/assignment_rule.py
 
-Assignment Rule поддерживает Round Robin, Load Balancing, Based on Field, Weighted Distribution.
+`do_assignment()` использует штатный Assign To.
 
-`do_assignment()` вызывает штатный `assign_to._add(...)`.
+Close Condition Rule-owned ToDo — behavior конкретного Assignment Rule, не универсальное свойство Workflow.
 
-`Due Date Based On` передаёт значение field в ToDo `date`; `update_due_date()` обновляет Rule-owned open ToDo.
-
-Close Condition закрывает ToDo только как behavior конкретного Assignment Rule.
-
-```text
-Workflow Close
-≠ универсально ToDo Close
-```
+Target Date Optional, поэтому due/overdue behavior conditional.
 
 ---
 
-# 10. Target Date / date-based Notification
-
-`Days After = 1` означает точку через один день после Reference Date.
-
-Поэтому Notification называется:
-
-```text
-Service Request One Day Overdue
-```
-
-`Target Date` Optional, значит due/overdue behavior — conditional invariant.
-
----
-
-# 11. Auto Repeat
+# 10. Auto Repeat
 
 - docs: https://docs.frappe.io/erpnext/auto-repeat
 - source: https://github.com/frappe/frappe/tree/v16.32.0/frappe/automation/doctype/auto_repeat
 - `make_repeatable`: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/doctype/doctype.py
 
-`Allow Auto Repeat` создаёт служебный `auto_repeat` Custom Field; Lab C его очищает и восстанавливает L9 Assignment Rule.
-
 ---
 
-# 12. Web Form — security boundary
+# 11. Web Form — ключевая permission граница
 
 Документация:
 
@@ -321,22 +195,63 @@ Exact source:
 - Web Form JSON: https://github.com/frappe/frappe/blob/v16.32.0/frappe/website/doctype/web_form/web_form.json
 - Web Form controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/website/doctype/web_form/web_form.py
 
-## Owner update
+## Published
 
-В `accept()`:
+`raise_if_unpublished()` блокирует direct API use непубликованной формы.
+
+## Login Required
+
+`accept()` блокирует Guest при `login_required = true`.
+
+Это authentication boundary, не role-specific authorization.
+
+## New insert
+
+Критический exact-source факт:
 
 ```text
-data.name + allow_edit = false
-→ update отклоняется
+new target Document
+→ doc.insert(ignore_permissions=True, ...)
 ```
 
-Owner/web-form permission при `Apply Document Permissions = No` может сохранить разрешённый update через:
+Следовательно:
+
+```text
+Web Form submit
+≠ Role Permission Create check
+```
+
+`Apply Document Permissions` не меняет это поведение нового insert.
+
+Поэтому L10/L11 разделяют:
+
+```text
+Desk Requester create
+→ proof Role Permission Create
+
+Website User Web Form create
+→ proof Web Form intake capability
+```
+
+## Existing document
+
+Для existing Document:
+
+```text
+Apply Document Permissions = Off
+→ owner / website permission model
+
+Apply Document Permissions = On
+→ ordinary document permission model
+```
+
+При разрешённом owner edit update может сохраняться через:
 
 ```text
 doc.save(ignore_permissions=True)
 ```
 
-Поэтому финал L10:
+поэтому final:
 
 ```text
 Allow Editing After Submit = No
@@ -344,61 +259,43 @@ Allow Editing After Submit = No
 
 ## Link options
 
-При login-required форме без `Allow Read On All Link Options` Link options по умолчанию получают owner filter.
-
-С `Allow Read On All Link Options = Yes` общий каталог options доступен через `frappe.get_all`.
-
-Threat model курса:
-
-```text
-Website User = trusted internal reporter
-```
-
-Public untrusted external catalog — Later.
+Login-required Link options без `Allow Read On All Link Options` получают owner filter. Включение этой настройки сознательно раскрывает authenticated reporters общий каталог имён.
 
 ---
 
-# 13. Fixtures / customizations / install
+# 12. Fixtures / customizations / install
 
 - Hooks/fixtures: https://docs.frappe.io/framework/user/en/python-api/hooks
 - Export Customizations: https://docs.frappe.io/framework/user/en/guides/app-development/exporting-customizations
-- fixtures: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/fixtures.py
+- fixtures implementation: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/fixtures.py
 - customization sync: https://github.com/frappe/frappe/blob/v16.32.0/frappe/modules/utils.py
 - installer: https://github.com/frappe/frappe/blob/v16.32.0/frappe/installer.py
-- standard source sync: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/sync.py
-- import flags: https://github.com/frappe/frappe/blob/v16.32.0/frappe/modules/import_file.py
+- source sync: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/sync.py
 
-`install_app()` выполняет initial sync source/fixtures/customizations/dashboards.
-
-L11 поэтому использует последующий `migrate` как convergence/update test, а не как обязательную вторую половину первоначальной установки.
+`install_app()` выполняет initial source/fixtures/customizations/dashboard sync. Последующий migrate в L11 — convergence test.
 
 ---
 
-# 14. Customize Form
+# 13. Customize Form
 
-- https://docs.frappe.io/framework/user/en/basics/doctypes/customize
-- https://github.com/frappe/frappe/tree/v16.32.0/frappe/custom/doctype/customize_form
-- https://github.com/frappe/frappe/tree/v16.32.0/frappe/custom/doctype/custom_field
-- https://github.com/frappe/frappe/tree/v16.32.0/frappe/custom/doctype/property_setter
-
-Lab D не учит ложной модели «удалил строку из exported JSON — migrate гарантированно удалил уже синхронизированный Custom Field другого site».
+- docs: https://docs.frappe.io/framework/user/en/basics/doctypes/customize
+- source: https://github.com/frappe/frappe/tree/v16.32.0/frappe/custom/doctype/customize_form
+- Custom Field: https://github.com/frappe/frappe/tree/v16.32.0/frappe/custom/doctype/custom_field
+- Property Setter: https://github.com/frappe/frappe/tree/v16.32.0/frappe/custom/doctype/property_setter
 
 ---
 
-# 15. Printing / PDF
+# 14. Printing / PDF
 
 - Printing: https://docs.frappe.io/framework/user/en/desk/printing
 - Print Format: https://github.com/frappe/frappe/blob/v16.32.0/frappe/printing/doctype/print_format/print_format.json
 - PDF: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/pdf.py
 - generators: https://github.com/frappe/frappe/tree/v16.32.0/frappe/utils/pdf_generator
-- built-in hooks: https://github.com/frappe/frappe/blob/v16.32.0/frappe/hooks.py
 - `setup-chrome`: https://github.com/frappe/frappe/blob/v16.32.0/frappe/commands/utils.py
-
-Lab E использует штатный Chromium generator.
 
 ---
 
-# 16. Special fields / Calendar / Gantt
+# 15. Special fields / Calendar / Gantt
 
 - Table MultiSelect: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/form/controls/table_multiselect.js
 - Barcode: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/form/controls/barcode.js
@@ -407,24 +304,21 @@ Lab E использует штатный Chromium generator.
 - Geolocation: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/form/controls/geolocation.js
 - Calendar: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/views/calendar/calendar.js
 - Gantt: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/views/gantt/gantt_view.js
-- Event config: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/event/event_calendar.js
-
-Own Calendar/Gantt mapping требует JS configuration и остаётся Later.
 
 ---
 
-# 17. Что намеренно Later
+# 16. Later
 
 ```text
 Server Script
 custom controller validation
 custom has_permission / permission_query_conditions
 assignee-only authorization
-hard state-dependent immutability
-public untrusted portal catalog
+hard Closed immutability
+role-restricted/public-untrusted portal intake
 custom Client Script / JS
 arbitrary multi-app integration audit
 production hardening
 ```
 
-Поэтому `INVARIANTS.md` разделяет server guarantees, structural rules, UI guards и site policies.
+Именно поэтому `INVARIANTS.md` разделяет hard guarantees, structure, UI guards, conditional behavior и deployment policies.
