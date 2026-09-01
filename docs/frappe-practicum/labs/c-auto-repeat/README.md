@@ -439,7 +439,7 @@ Runtime Auto Repeat/Service Request/ToDo в Git не входят.
 
 ---
 
-# 23. Rollback Auto Repeat
+# 23. Rollback Auto Repeat и runtime data
 
 Удалить созданный Auto Repeat штатно.
 
@@ -449,7 +449,21 @@ Runtime Auto Repeat/Service Request/ToDo в Git не входят.
 reference auto_repeat = пусто
 ```
 
-Тестовые generated Documents удалить, если больше не нужны.
+Reference/generated `Service Request` не удалять под Supervisor или Technician: у рабочих ролей финально `Delete = No`.
+
+Если лабораторные runtime Documents нужно убрать полностью:
+
+```text
+Administrator
+→ administrative cleanup
+→ удалить только лабораторные записи
+```
+
+при этом **не менять Role Permission Manager**.
+
+Альтернатива — оставить/закрыть учебные Service Request как runtime data.
+
+Запрещено ради cleanup снова включать Supervisor `Delete = Yes`.
 
 ---
 
@@ -536,6 +550,7 @@ Assignment Rule enabled
 Rule = Round Robin
 Workflow unchanged
 Level 0/1 permissions unchanged
+Supervisor Delete remains No
 ```
 
 Core domain:
@@ -567,6 +582,7 @@ Auto Repeat removed
 Allow Auto Repeat No
 auto_repeat field removed
 Assignment Rule enabled / Round Robin
+no working-role Delete permission added
 ```
 
 ## Final state
@@ -577,6 +593,8 @@ original Workflow
 original Level 0/1 permission model
 Git clean
 ```
+
+Runtime lab Service Requests may remain/close, or may be removed by Administrator as explicit administrative cleanup.
 
 ---
 
@@ -598,6 +616,7 @@ Git clean
 - отключить Allow Auto Repeat;
 - удалить technical Custom Field;
 - вернуть Round Robin Assignment Rule;
+- не включать рабочим ролям Service Request Delete ради cleanup;
 - доказать восстановление исходной Level 0/1 permission model;
 - получить clean Git.
 
