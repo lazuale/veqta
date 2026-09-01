@@ -2,8 +2,6 @@
 
 Курс изучает Frappe через одно небольшое приложение `facility_ops`.
 
-Учебный сценарий:
-
 ```text
 место
 → оборудование
@@ -13,7 +11,7 @@
 → контроль
 ```
 
-Ядро ограничено тремя DocType:
+Core domain:
 
 ```text
 Facility Location (Tree)
@@ -22,8 +20,6 @@ Facility Location (Tree)
         │              │
         └──────────────┴────────► Service Request
 ```
-
-`Service Request` может относиться к конкретному Equipment или только к месту.
 
 ## Учебный стенд
 
@@ -46,34 +42,35 @@ Frappe: v16.32.0
 → Git/site boundary
 ```
 
-Собственную бизнес-логику на Python/JavaScript в базовом маршруте не пишем.
+Собственную business logic на Python/JavaScript в базовом маршруте не пишем.
 
-Поэтому курс принципиально различает:
+Поэтому курс различает:
 
 ```text
 server-enforced guarantee
 structural invariant
 UI/process guard
+conditional behavior
 deployment policy
 ```
 
 Формальная модель: **[INVARIANTS.md](INVARIANTS.md)**.
 
-## Основные DocType
+---
 
-### Facility Location
+# Основные DocType
+
+## Facility Location
 
 Tree структуры мест.
 
-### Equipment
+## Equipment
 
 Карточка единицы оборудования.
 
-`Equipment.location` означает текущее размещение.
+`Equipment.location` = текущее размещение.
 
-### Service Request
-
-Центральный рабочий Document.
+## Service Request
 
 Mandatory:
 
@@ -92,27 +89,27 @@ Target Date
 Attachment
 ```
 
-`Service Request.location` означает место события. Оно не обязано навсегда совпадать с будущим `Equipment.location`.
+`Service Request.location` = историческое место события.
 
-Базовый процесс:
+Status:
 
 ```text
 New
- ↓
 Accepted
- ↓
 In Progress
- ↓
 Resolved
- ↓
 Closed
 ```
 
-`Accepted` означает, что Supervisor принял заявку в рабочий процесс.
+`Accepted` = заявка принята Supervisor в рабочий процесс.
 
-Это **не** синоним `Assigned To`.
+```text
+Accepted ≠ Assigned To
+```
 
-## Роли
+---
+
+# Роли и доступ
 
 ```text
 Facility Requester
@@ -120,50 +117,98 @@ Facility Technician
 Facility Supervisor
 ```
 
+Final Desk policy:
+
+```text
+Requester
+→ Create + Read own
+→ Write/Delete No after insert
+
+Technician
+→ Read/Write
+→ Create/Delete No
+
+Supervisor
+→ Read/Write/Create
+→ Delete No
+→ Report/Export
+```
+
 Главное разделение:
 
 ```text
-Permission = доступ
-Assignment = ответственность
-Workflow   = состояние процесса
+Permission = access
+Assignment = responsibility
+Workflow   = process state
 ```
 
-Назначение выполняется штатным `Assign To → ToDo`, а не полем исполнителя.
+Assignment выполняется штатным `Assign To → ToDo` и не является authorization boundary.
 
-Assignment не считается authorization boundary.
+---
 
-## Основной маршрут
+# Два intake-channel
 
-| Урок | Результат | Главные механизмы |
-|---|---|---|
-| [L0](projects/00-lab/README.md) | настоящий `facility_ops` | Bench, app, site, Module, Developer Mode, Desk, Git |
-| [L1](projects/01-locations/README.md) | структура мест | Standard DocType, Tree, Documents, Naming |
-| [L2](projects/02-equipment/README.md) | Equipment | Field Types, Link, Form/List, Title/Search, Track Changes |
-| [L3](projects/03-data/README.md) | рабочие данные | Filters, Import, Export, Bulk Edit |
-| [L4](projects/04-service-request/README.md) | Service Request | Links, data invariants, Status, Attachments |
-| [L5](projects/05-users-permissions/README.md) | доступ | User, Role, Role Permission, If Owner, Permission Level, User Permission, Share |
-| [L6](projects/06-collaboration/README.md) | ответственность | Assign To, ToDo, Comments, Timeline, Tags, Kanban |
-| [L7](projects/07-workflow/README.md) | управляемый процесс | Workflow, Allowed Role, Condition, enforcement границы |
-| [L8](projects/08-control-workspace/README.md) | контроль | Report Builder, Number Card, Chart, Workspace |
-| [L9](projects/09-automation/README.md) | automation | Notification, Assignment Rule, scheduler |
-| [L10](projects/10-web-form/README.md) | authenticated intake | Web Form create/read-only final mode |
-| [L11](projects/11-portability/README.md) | clean-site portability | fixtures, customizations, install/migrate, deployment boundary |
+После L10 существуют два разных create path.
 
-## Финальный Web Form
-
-Финальная форма намеренно:
+## Desk
 
 ```text
+Facility Requester
+→ Role Permission Create
+→ после Save Write = No
+```
+
+## Web Form
+
+```text
+trusted authenticated Website User
+→ Report a Facility Issue
+→ Web Form insert
+```
+
+Exact `v16.32.0` новый Web Form target Document создаётся через `insert(ignore_permissions=True)`.
+
+Поэтому:
+
+```text
+Desk Create ≠ Web Form Create
+```
+
+Web Form submission не является доказательством Role Permission Create.
+
+Final Web Form:
+
+```text
+Published = Yes
 Login Required = Yes
 Show List = Yes
 Allow Editing After Submit = No
 ```
 
-`Allow Edit` изучается в L10 временно и отключается, чтобы Web Form не оставался parallel editor поверх Workflow.
+`Login Required` — authentication, не role-specific authorization.
 
-## Лаборатории
+---
 
-Отдельно: **[индекс лабораторий](labs/README.md)**.
+# Основной маршрут
+
+| Урок | Результат | Главные механизмы |
+|---|---|---|
+| [L0](projects/00-lab/README.md) | настоящий `facility_ops` | Bench, app, site, Module, Developer Mode, Desk, Git |
+| [L1](projects/01-locations/README.md) | структура мест | Standard DocType, Tree, Naming |
+| [L2](projects/02-equipment/README.md) | Equipment | Fields, Link, Form/List, Track Changes |
+| [L3](projects/03-data/README.md) | рабочие данные | Filters, Import, Export, Bulk Edit |
+| [L4](projects/04-service-request/README.md) | Service Request | data invariants, Status, Attachments |
+| [L5](projects/05-users-permissions/README.md) | hardened Desk access | Role Permission, If Owner, Permission Level, User Permission, Share |
+| [L6](projects/06-collaboration/README.md) | ответственность | Assign To, ToDo, Comments, Tags, Kanban |
+| [L7](projects/07-workflow/README.md) | процесс | Workflow, Allowed Role, Condition, enforcement layers |
+| [L8](projects/08-control-workspace/README.md) | контроль | Report, Cards, Chart, Workspace |
+| [L9](projects/09-automation/README.md) | automation | Notification, Assignment Rule, scheduler |
+| [L10](projects/10-web-form/README.md) | authenticated intake | Web Form create/read-only; separate create capability |
+| [L11](projects/11-portability/README.md) | portability | fixtures, Custom DocPerm, clean-site dual acceptance |
+
+---
+
+# Лаборатории
 
 - [Lab A — Child Table](labs/a-child-table/README.md)
 - [Lab B — DocStatus](labs/b-docstatus/README.md)
@@ -172,24 +217,28 @@ Allow Editing After Submit = No
 - [Lab E — Print / PDF](labs/e-print-pdf/README.md)
 - [Lab F — специальные возможности](labs/f-special-features/README.md)
 
-Лаборатория не обязана оставлять новый domain object. При этом presentation configuration, например Standard Print Format, может остаться осознанно.
+Lab не обязана оставлять новый domain object. Presentation configuration может остаться осознанно.
 
-## Версия и источники
+---
+
+# Версия и источники
 
 Приоритет:
 
 1. фактический стенд `v16.32.0`;
 2. exact source tag `v16.32.0`;
 3. официальная документация;
-4. moving `version-16` только для будущих изменений.
+4. moving `version-16` только для future changes.
 
-## Документы
+---
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — итоговая архитектура;
-- [INVARIANTS.md](INVARIANTS.md) — формальная модель гарантий и enforcement layers;
-- [ROADMAP.md](ROADMAP.md) — последовательность реализации;
-- [MATRIX.md](MATRIX.md) — реально покрытые механизмы;
-- [SCOPE.md](SCOPE.md) — границы Core/Labs/Later;
-- [REFERENCES.md](REFERENCES.md) — exact-source карта.
+# Документы
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) — архитектура;
+- [INVARIANTS.md](INVARIANTS.md) — formal guarantees;
+- [ROADMAP.md](ROADMAP.md) — последовательность;
+- [MATRIX.md](MATRIX.md) — coverage;
+- [SCOPE.md](SCOPE.md) — Core/Labs/Later;
+- [REFERENCES.md](REFERENCES.md) — exact-source map.
 
 Начало: **[L0 — Основа приложения](projects/00-lab/README.md)**.
