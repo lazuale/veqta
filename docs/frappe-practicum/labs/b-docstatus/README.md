@@ -1,88 +1,60 @@
 # Lab B. Draft / Submit / Cancel / Amend / DocStatus
 
-Lab B — отдельная лаборатория по жизненному циклу submittable-документа.
+Lab B изучает системный lifecycle Submittable Document отдельно от рабочего Workflow `Service Request`.
 
-Она **не меняет жизненный цикл `Service Request`**.
-
-Для эксперимента создаём временный Standard DocType:
+Для эксперимента временно создаём:
 
 ```text
 Service Report
 ```
 
-После лаборатории `Service Report` удаляется штатно, чтобы постоянное ядро курса снова состояло только из:
-
-```text
-Facility Location
-Equipment
-Service Request
-```
+После лаборатории `Service Report` и его test Documents удаляются штатно.
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
 ---
 
-# 1. Что изучаем
+# 1. Главная граница
 
-В этой лаборатории нужны штатные механизмы:
-
-```text
-Is Submittable
-DocStatus
-Draft
-Submit
-Update After Submit
-Allow on Submit
-Cancel
-Amend
-Amended From
-Audit Trail
-```
-
-Никакого Workflow для `Service Report` не создаём.
-
-Задача лаборатории — увидеть разницу между:
+В курсе существуют три разных понятия:
 
 ```text
-бизнес-статусом
-Workflow State
+Service Request.status
+= бизнес-состояние процесса
+
+Workflow
+= допустимые переходы между бизнес-состояниями
+
 DocStatus
+= системное состояние Submittable Document
 ```
+
+Для `Service Request`:
+
+```text
+New
+Accepted
+In Progress
+Resolved
+Closed
+```
+
+Для Submittable `Service Report`:
+
+```text
+0 Draft
+1 Submitted
+2 Cancelled
+```
+
+Эти модели не смешиваются.
 
 ---
 
-# 2. Базовая модель DocStatus
-
-В Frappe `DocStatus` имеет три значения:
-
-```text
-0 = Draft
-1 = Submitted
-2 = Cancelled
-```
-
-Это системное состояние документа, а не наше поле `Status`.
-
-Для обычного `Service Request` из основного курса мы оставили обычный lifecycle и Workflow.
-
-В Lab B специально создаём другой документ, которому естественно подходит фиксация факта:
-
-```text
-черновик отчёта
-→ подтверждённый отчёт
-→ отменённый отчёт
-→ исправленная версия
-```
-
----
-
-# 3. Проверить стенд
-
-В терминале:
+# 2. Preconditions
 
 ```bash
 cd ~/frappe/facility-ops-bench
-
 bench version
 bench --site facility-ops.localhost list-apps
 
@@ -96,32 +68,14 @@ git status
 Frappe 16.32.0
 facility_ops установлен
 Developer Mode включён
-Git working tree clean
+working tree clean
 ```
 
 ---
 
-# 4. Создать временный Standard DocType
+# 3. Создать временный Service Report
 
-Войти под:
-
-```text
-Administrator
-```
-
-Через Awesomebar открыть:
-
-```text
-DocType
-```
-
-Нажать:
-
-```text
-New
-```
-
-Создать:
+Через `DocType → New`:
 
 ```text
 Name:           Service Report
@@ -137,104 +91,80 @@ Naming Rule: Expression
 Auto Name:   SRPT-.#####
 ```
 
-Сохранить.
-
-После включения `Is Submittable` Frappe добавляет системное поле:
-
-```text
-amended_from
-```
-
-Его вручную создавать не нужно.
+Frappe добавит служебный `amended_from`; вручную его не создаём.
 
 ---
 
-# 5. Добавить поля Service Report
-
-Добавить поля в таком порядке:
+# 4. Поля
 
 | Label | Fieldname | Type | Mandatory | Allow on Submit |
-|---|---|---|---|---|
-| Service Request | service_request | Link → Service Request | Yes | No |
-| Report Date | report_date | Date | Yes | No |
-| Summary | summary | Small Text | Yes | No |
-| Work Performed | work_performed | Text | No | No |
-| Final Note | final_note | Small Text | No | Yes |
+|---|---|---|---:|---:|
+| Service Request | `service_request` | Link → Service Request | Yes | No |
+| Report Date | `report_date` | Date | Yes | No |
+| Summary | `summary` | Small Text | Yes | No |
+| Work Performed | `work_performed` | Text | No | No |
+| Final Note | `final_note` | Small Text | No | Yes |
 
-Для `Service Request`:
-
-```text
-Options = Service Request
-```
-
-Для `Final Note` включить:
-
-```text
-Allow on Submit = Yes
-```
-
-Остальные поля после Submit должны стать фактически зафиксированными.
-
-Сохранить DocType.
+`Final Note` специально используется для проверки исключения `Allow on Submit`.
 
 ---
 
-# 6. Проверить generated metadata
+# 5. Создать Draft
 
-В терминале:
-
-```bash
-cd ~/frappe/facility-ops-bench/apps/facility_ops
-
-find facility_ops/facility_operations/doctype/service_report -maxdepth 1 -type f -print
-
-git status --short
-```
-
-Должны появиться файлы Standard DocType.
-
-Рабочих `Service Report` в Git пока нет.
-
----
-
-# 7. Создать первый Draft
-
-Через Awesomebar открыть:
+Создать:
 
 ```text
-Service Report
-```
-
-Создать документ:
-
-```text
-Service Request: <любая существующая заявка>
-Report Date:     <сегодня>
+Service Request: <существующий SR>
+Report Date:     сегодня
 Summary:         Initial service report
 Work Performed:  Inspected equipment and restored operation.
-Final Note:      <пусто>
 ```
 
-Нажать:
+Нажать только:
 
 ```text
 Save
 ```
 
-Не нажимать Submit.
-
----
-
-# 8. Проверить Draft
-
-После обычного Save документ остаётся:
+Проверить:
 
 ```text
 DocStatus = 0
 Draft
 ```
 
-В Draft изменить:
+В Draft обычные поля можно редактировать.
+
+Главный вывод:
+
+```text
+Save ≠ Submit
+```
+
+---
+
+# 6. Submit
+
+Нажать:
+
+```text
+Submit
+```
+
+После подтверждения:
+
+```text
+DocStatus = 1
+Submitted
+```
+
+`docstatus` — системное поле Frappe, а не наш Select.
+
+---
+
+# 7. Submitted data зафиксированы
+
+Попробовать изменить:
 
 ```text
 Summary
@@ -242,89 +172,15 @@ Work Performed
 Report Date
 ```
 
-Сохранить.
+Обычное изменение полей без `Allow on Submit` должно быть запрещено для Submitted Document.
 
-Все обычные поля должны редактироваться.
-
-Главный вывод:
-
-```text
-Save
-≠
-Submit
-```
-
-`Save` сохраняет текущий черновик, но не фиксирует его как подтверждённый документ.
+Это сильнее, чем `Service Request.status = Closed`: Submittable lifecycle имеет отдельную серверную семантику `docstatus`.
 
 ---
 
-# 9. Проверить Timeline до Submit
+# 8. Allow on Submit
 
-Открыть Timeline документа.
-
-Так как включён:
-
-```text
-Track Changes = Yes
-```
-
-изменения Draft должны быть видны в истории.
-
-Не создаём собственный журнал изменений.
-
----
-
-# 10. Выполнить Submit
-
-На форме `Service Report` нажать:
-
-```text
-Submit
-```
-
-Подтвердить действие.
-
-После Submit:
-
-```text
-DocStatus = 1
-Submitted
-```
-
-Это не значение отдельного пользовательского поля.
-
-Frappe меняет системный `docstatus` документа.
-
----
-
-# 11. Проверить, что обычные поля зафиксированы
-
-После Submit попробовать изменить:
-
-```text
-Summary
-```
-
-или:
-
-```text
-Work Performed
-```
-
-Попытка сохранения не должна разрешить обычное изменение этих полей после Submit.
-
-Это принцип submittable-документа:
-
-```text
-Submitted
-→ подтверждённые данные больше нельзя тихо переписать
-```
-
----
-
-# 12. Проверить Allow on Submit
-
-Теперь изменить только:
+Изменить только:
 
 ```text
 Final Note
@@ -338,353 +194,195 @@ Customer informed after completion.
 
 Сохранить.
 
-Изменение должно пройти, потому что для `final_note` явно включено:
+Изменение должно пройти, потому что:
 
 ```text
-Allow on Submit = Yes
+final_note.allow_on_submit = Yes
 ```
 
-Именно это поле разрешено менять после Submit.
-
-Не включать `Allow on Submit` на все поля подряд.
-
-Иначе смысл фиксации документа исчезает.
+Не раздавать `Allow on Submit` всем полям — иначе смысл Submit размывается.
 
 ---
 
-# 13. Проверить Audit Trail
+# 9. Audit Trail
 
-После изменения `Final Note` открыть Timeline / Audit Trail.
+Посмотреть Timeline / Audit Trail.
 
-Нужно увидеть:
-
-```text
-создание Draft
-изменения Draft
-Submit
-изменение разрешённого поля после Submit
-```
-
-Главный вывод:
+Нужно различать:
 
 ```text
 Track Changes
-+
-DocStatus
-+
-Allow on Submit
-```
+= аудит изменений
 
-дают штатный контролируемый lifecycle без собственного audit-модуля.
+DocStatus
+= lifecycle документа
+
+Allow on Submit
+= точечное исключение после Submit
+```
 
 ---
 
-# 14. Выполнить Cancel
+# 10. Cancel
 
-На Submitted документе нажать:
+Нажать:
 
 ```text
 Cancel
 ```
 
-Подтвердить.
-
-После этого:
+Получить:
 
 ```text
 DocStatus = 2
 Cancelled
 ```
 
-Cancelled — не удалённый документ.
+`Cancel ≠ Delete`.
 
-Он остаётся в системе как отменённая версия.
-
----
-
-# 15. Не путать Cancel и Delete
-
-Зафиксировать различие:
-
-```text
-Cancel
-→ документ остаётся
-→ docstatus = 2
-→ история сохраняется
-
-Delete
-→ удаление документа
-```
-
-Для подтверждённых учётных документов Cancel обычно важнее удаления, потому что сохраняет факт существования исходной версии.
+Cancelled Document остаётся частью истории.
 
 ---
 
-# 16. Выполнить Amend
+# 11. Amend
 
-На Cancelled документе нажать:
+На Cancelled документе выполнить:
 
 ```text
 Amend
 ```
 
-Frappe создаст новый Draft на основе отменённого документа.
-
-В новом документе проверить:
+Frappe создаёт новый Draft:
 
 ```text
 DocStatus = 0
-Amended From = <номер отменённого Service Report>
+Amended From = <cancelled Service Report>
 ```
 
-Поле `amended_from` было добавлено Frappe автоматически из-за:
+Исправить `Summary`, сохранить и Submit новую версию.
+
+Итоговая цепочка:
 
 ```text
-Is Submittable = Yes
-```
-
----
-
-# 17. Исправить amended document
-
-В новой версии изменить, например:
-
-```text
-Summary:
-Corrected service report
-```
-
-и при необходимости:
-
-```text
-Work Performed
-```
-
-Сохранить.
-
-Получаем цепочку:
-
-```text
-старый документ
-DocStatus = 2 Cancelled
+old Service Report
+→ Cancelled / docstatus 2
         │
         └── amended_from
                 ↓
-новый документ
-DocStatus = 0 Draft
-```
-
----
-
-# 18. Submit исправленную версию
-
-Нажать:
-
-```text
-Submit
-```
-
-Новая версия должна перейти:
-
-```text
-Draft 0
+new Service Report
+→ Draft 0
 → Submitted 1
 ```
 
-Старая версия при этом остаётся:
-
-```text
-Cancelled 2
-```
-
-Frappe не переписывает историю старого подтверждённого документа.
+История старой версии не переписывается.
 
 ---
 
-# 19. Сравнить Workflow и DocStatus
-
-Теперь сравнить два уже изученных механизма.
+# 12. Workflow vs DocStatus
 
 ## Service Request
 
 ```text
-Status:
 New
-Assigned
-In Progress
-Resolved
-Closed
-
-Workflow управляет бизнес-процессом.
-```
-
-## Service Report
-
-```text
-DocStatus:
-0 Draft
-1 Submitted
-2 Cancelled
-
-DocStatus управляет фиксацией документа.
-```
-
-Это разные оси.
-
-Не нужно автоматически делать любой рабочий документ `Is Submittable` только потому, что Frappe умеет Submit.
-
----
-
-# 20. Почему Service Request не делаем Submittable
-
-Для `Service Request` нужен живой процесс:
-
-```text
-New
-→ Assigned
+→ Accepted
 → In Progress
 → Resolved
 → Closed
 ```
 
-Заявку нормально редактировать по мере работы.
-
-Принудительный lifecycle:
+Это бизнес-процесс. Все states курса имеют:
 
 ```text
-Draft
-→ Submitted
-→ Cancelled
+docstatus = 0
 ```
 
-не даёт нам полезной предметной модели для заявки.
+## Service Report
 
-Поэтому `Is Submittable` изучается отдельно на `Service Report`.
+```text
+Draft 0
+Submitted 1
+Cancelled 2
+```
+
+Это системный lifecycle фиксации документа.
+
+Не делаем `Service Request` Submittable только потому, что такая возможность существует.
 
 ---
 
-# 21. Проверить системный docstatus из List View
+# 13. Почему Service Request остаётся обычным Document
 
-Открыть список `Service Report`.
-
-Должны существовать как минимум:
+Для заявки нужен живой рабочий процесс и отдельный Workflow.
 
 ```text
-Cancelled исходная версия
-Submitted amended версия
+New → Accepted → In Progress → Resolved → Closed
 ```
 
-Использовать стандартный фильтр `DocStatus`, если он доступен в List View.
-
-Проверить отдельно:
+не является заменой:
 
 ```text
-Draft
-Submitted
-Cancelled
+Draft → Submitted → Cancelled
 ```
+
+и наоборот.
+
+Lab B нужен именно для того, чтобы не применять `Is Submittable` механически ко всем рабочим документам.
 
 ---
 
-# 22. Проверить metadata и data
-
-В терминале:
-
-```bash
-cd ~/frappe/facility-ops-bench/apps/facility_ops
-
-git status --short
-```
-
-Нужно понимать:
+# 14. Metadata vs working data
 
 ```text
 Service Report DocType
 → Standard metadata
-→ source app
-→ Git
+→ app source / Git
 
-Service Report Documents
-→ working data текущего site
+SRPT-... Documents
+→ working data site
 → не Git
 ```
 
-`Submit`, `Cancel` и `Amend` не создают source-файлы для каждого документа.
-
----
-
-# 23. Зафиксировать эксперимент отдельным commit
-
-Пока `Service Report` существует, сделать commit:
+При желании сделать отдельный experiment commit:
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
-
 git add .
 git commit -m "Add temporary Service Report DocStatus lab"
 ```
 
-Так в истории Git останется полноценный пример submittable DocType.
-
 ---
 
-# 24. Удалить тестовые Service Report Documents
+# 15. Rollback
 
-Перед удалением DocType удалить рабочие тестовые документы штатно через Desk.
+Перед удалением DocType удалить лабораторные Service Report Documents штатно, с учётом связей Cancelled/Amended.
 
-Если есть связанная цепочка Cancelled → Amended, удалять в порядке, который разрешает Frappe с учётом ссылочной целостности.
-
-Не удалять строки напрямую SQL-командами.
-
-Цель — использовать штатный lifecycle и штатное удаление Documents.
-
----
-
-# 25. Удалить временный Service Report
-
-Через Awesomebar открыть:
+Затем удалить:
 
 ```text
-DocType
+DocType → Service Report
 ```
 
-Открыть:
+штатным Delete.
 
-```text
-Service Report
-```
+Не использовать SQL или `rm -rf` как замену lifecycle.
 
-Удалить DocType штатно.
-
-Проверить, что файлы:
-
-```text
-facility_ops/facility_operations/doctype/service_report/
-```
-
-удалились из source app.
-
----
-
-# 26. Commit очистки
-
-В терминале:
+После удаления:
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
-
 git status --short
 git add -A
 git commit -m "Remove temporary Service Report DocStatus lab"
+git status
 ```
 
-Теперь Git history хранит эксперимент, но текущее приложение снова не содержит `Service Report`.
+Если experiment commit не делался, достаточно убедиться, что финальный source снова соответствует baseline core.
 
 ---
 
-# 27. Финальная проверка ядра
+# 16. Final state
 
-В Desk должны оставаться постоянными предметными DocType:
+В постоянном domain остаются:
 
 ```text
 Facility Location
@@ -692,80 +390,42 @@ Equipment
 Service Request
 ```
 
-Не должны оставаться:
+Не остаётся:
 
 ```text
 Service Report
 ```
 
-Lab B закончена только после этой очистки.
-
----
-
-# 28. Что нужно уметь объяснить после лаборатории
-
-Без подсказки объяснить:
+Workflow Service Request по-прежнему:
 
 ```text
-что такое DocStatus
-чем Save отличается от Submit
-что означает 0 / 1 / 2
-зачем нужен Is Submittable
-почему Submitted document нельзя свободно переписывать
-что делает Allow on Submit
-чем Cancel отличается от Delete
-что делает Amend
-зачем нужен amended_from
-чем DocStatus отличается от Workflow State
-почему не каждый DocType должен быть Submittable
+New
+Accepted
+In Progress
+Resolved
+Closed
 ```
 
 ---
 
-# 29. Приёмка Lab B
+# 17. Приёмка
 
-Лаборатория принята, если ученик реально проделал цепочку:
-
-```text
-создал Service Report
-      ↓
-Save
-      ↓
-Draft / docstatus 0
-      ↓
-Submit
-      ↓
-Submitted / docstatus 1
-      ↓
-попытался изменить обычное поле
-      ↓
-получил запрет
-      ↓
-изменил Final Note с Allow on Submit
-      ↓
-Cancel
-      ↓
-Cancelled / docstatus 2
-      ↓
-Amend
-      ↓
-новый Draft + amended_from
-      ↓
-Submit исправленной версии
-      ↓
-удалил тестовые Documents
-      ↓
-удалил временный Service Report
-      ↓
-ядро снова состоит из трёх DocType
-```
-
-И ученик понимает главный принцип:
+Ученик должен показать и объяснить:
 
 ```text
-Workflow
-= управление бизнес-состоянием
-
-DocStatus
-= фиксация жизненного цикла документа
+Save → Draft 0
+Submit → Submitted 1
+Cancel → Cancelled 2
+Amend → новый Draft с amended_from
+Allow on Submit → точечное поле, разрешённое после Submit
 ```
+
+и ответить:
+
+1. почему `DocStatus` не является `Service Request.status`;
+2. почему Workflow и DocStatus решают разные задачи;
+3. почему Submitted Document сильнее фиксирует данные, чем просто terminal Workflow State;
+4. почему `Allow on Submit` нужно применять точечно;
+5. почему `Service Request` в базовой архитектуре не Submittable.
+
+После rollback лаборатория не оставляет новую постоянную domain entity.
