@@ -137,7 +137,7 @@ Facility Supervisor
 |---|---|---|
 | [L0](projects/00-lab/README.md) | настоящий `facility_ops` | Bench, app, site, Module, Developer Mode, Desk, Git |
 | [L1](projects/01-locations/README.md) | структура мест | Standard DocType, Tree, Documents, Naming |
-| L2 | реестр оборудования | Field Types, Link, Form, List, Title/Search, Track Changes |
+| [L2](projects/02-equipment/README.md) | реестр оборудования | Field Types, Link, Form, List, Title/Search, Track Changes |
 | L3 | рабочие данные | Filters, Sorting, Data Import, Export, массовая работа |
 | L4 | Service Request | рабочий DocType, Links, Status, Priority, Attachments |
 | L5 | пользователи и доступ | User, Role, Permissions, User Permission, Share |
