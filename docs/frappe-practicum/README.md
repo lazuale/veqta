@@ -156,7 +156,7 @@ Facility Supervisor
 - **[Lab B — Draft / Submit / Cancel / Amend / DocStatus](labs/b-docstatus/README.md)**;
 - **[Lab C — Auto Repeat](labs/c-auto-repeat/README.md)**;
 - **[Lab D — Customize Form / Custom Field / Property Setter / Export Customizations](labs/d-customize-form/README.md)**;
-- **Lab E — Print / PDF**;
+- **[Lab E — Print / Print Format / Letter Head / PDF](labs/e-print-pdf/README.md)**;
 - **Lab F — специальные Field Types и представления**.
 
 Лаборатория не обязана оставлять новую сущность в итоговом приложении.
