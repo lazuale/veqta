@@ -56,6 +56,21 @@ Report a Facility Issue
 
 Standard objects не дублируются fixtures.
 
+Standard metadata `Service Request` уже содержит:
+
+```text
+status → Permission Level 0 + Read Only
+
+subject
+location
+equipment
+description
+priority
+target_date
+attachment
+→ Permission Level 1
+```
+
 ---
 
 # 3. Universal app configuration
@@ -83,7 +98,7 @@ Close
 Service Request Workflow
 ```
 
-Custom Permissions поставляются exported customizations.
+Custom Permissions Level 0 и Level 1 поставляются exported customizations.
 
 ---
 
@@ -145,7 +160,7 @@ facility_ops установлен
 working tree clean
 ```
 
-Проверить process names:
+Process names:
 
 ```text
 States:  New / Accepted / In Progress / Resolved / Closed
@@ -158,19 +173,70 @@ Web Form:
 Allow Editing After Submit = No
 ```
 
-Service Request Role Permissions:
+---
+
+# 7. Проверить финальную permission model до экспорта
+
+## Service Request Level 0
 
 ```text
-Requester → Create + Read own, Write/Delete No
-Technician → Read/Write, Create/Delete No
-Supervisor → Read/Write/Create, Delete No, Report/Export
+Requester
+Read = Yes
+Write = No
+Create = Yes
+Delete = No
+If Owner = Yes
+
+Technician
+Read = Yes
+Write = Yes
+Create = No
+Delete = No
+
+Supervisor
+Read = Yes
+Write = Yes
+Create = Yes
+Delete = No
+Report = Yes
+Export = Yes
 ```
 
-Если это не так — L11 не начинать.
+## Service Request Level 1
+
+Для content fields:
+
+```text
+subject
+location
+equipment
+description
+priority
+target_date
+attachment
+```
+
+проверить:
+
+```text
+Requester
+Read = Yes
+Write = Yes
+
+Technician
+Read = Yes
+Write = No
+
+Supervisor
+Read = Yes
+Write = Yes
+```
+
+Если Technician Level 1 Write = Yes, Requester Level 0 Write = Yes или Supervisor Delete = Yes — L11 не начинать.
 
 ---
 
-# 7. Экспортировать Custom Permissions
+# 8. Экспортировать Custom Permissions
 
 Для:
 
@@ -201,7 +267,7 @@ JSON вручную не редактировать.
 
 ---
 
-# 8. Проверить custom JSON
+# 9. Проверить custom JSON
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
@@ -216,18 +282,36 @@ find facility_ops/facility_operations/custom \
 "custom_perms"
 ```
 
-`service_request.json` должен отражать **финальную**, а не временную L5 matrix:
+`service_request.json` должен содержать **финальную**, а не временную L5 matrix.
+
+Минимальные gates:
 
 ```text
+Level 0:
 Requester Write = 0
 Requester Delete = 0
 Technician Delete = 0
 Supervisor Delete = 0
+
+Level 1:
+Requester Read/Write = 1/1
+Technician Read/Write = 1/0
+Supervisor Read/Write = 1/1
+```
+
+Custom Permissions и Standard field `permlevel` — разные части модели:
+
+```text
+DocField.permlevel
+→ к какому уровню относится field
+
+Custom DocPerm.permlevel
+→ какие роли имеют read/write этого уровня
 ```
 
 ---
 
-# 9. Fixtures в hooks.py
+# 10. Fixtures в hooks.py
 
 ```python
 fixtures = [
@@ -269,7 +353,7 @@ fixture_auto_order = True
 
 ---
 
-# 10. Что не fixture
+# 11. Что не fixture
 
 Не добавлять:
 
@@ -293,7 +377,7 @@ Web Form
 
 ---
 
-# 11. Export fixtures
+# 12. Export fixtures
 
 ```bash
 cd ~/frappe/facility-ops-bench
@@ -302,7 +386,7 @@ bench --site facility-ops.localhost export-fixtures --app facility_ops
 
 ---
 
-# 12. Проверить fixtures
+# 13. Проверить fixtures
 
 Не должно быть runtime users/data.
 
@@ -322,7 +406,7 @@ Mark Assigned
 
 ---
 
-# 13. Проверить Workflow fixture
+# 14. Проверить Workflow fixture
 
 | State | Only Allow Edit For |
 |---|---|
@@ -335,13 +419,19 @@ Mark Assigned
 Напоминание:
 
 ```text
-Only Allow Edit For = Desk guard
-Requester post-create Write No = Role Permission hard boundary
+Only Allow Edit For
+= Desk guard
+
+Level 0 Role Permission
+= document authority
+
+Level 1 Permission
+= business field authority
 ```
 
 ---
 
-# 14. Commit поставки
+# 15. Commit поставки
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
@@ -361,7 +451,7 @@ git status
 
 ---
 
-# 15. Создать clean site
+# 16. Создать clean site
 
 ```bash
 cd ~/frappe/facility-ops-bench
@@ -375,7 +465,7 @@ Database старого site не копировать.
 
 ---
 
-# 16. install-app и migrate
+# 17. install-app и migrate
 
 ```bash
 bench --site facility-ops-clean.localhost install-app facility_ops
@@ -395,7 +485,7 @@ bench --site facility-ops-clean.localhost clear-cache
 
 ---
 
-# 17. Переключиться на clean site
+# 18. Переключиться на clean site
 
 ```bash
 bench use facility-ops-clean.localhost
@@ -403,31 +493,53 @@ bench use facility-ops-clean.localhost
 
 ---
 
-# 18. Проверить Standard metadata
+# 19. Проверить Standard metadata
 
 Должны существовать три core DocType.
 
 `Service Request.status`:
 
 ```text
+Options:
 New
 Accepted
 In Progress
 Resolved
 Closed
+
+Read Only = Yes
+Permission Level = 0
 ```
 
-и `Read Only = Yes`.
+Content fields:
 
-`Equipment.notes`:
+```text
+Subject
+Location
+Equipment
+Description
+Priority
+Target Date
+Attachment
+```
+
+должны иметь:
 
 ```text
 Permission Level = 1
 ```
 
+Также:
+
+```text
+Equipment.notes → Permission Level 1
+```
+
+Если field-level metadata не приехала — portability провалена ещё до проверки ролей.
+
 ---
 
-# 19. Проверить fixtures
+# 20. Проверить fixtures
 
 Transitions:
 
@@ -446,7 +558,7 @@ Facility Supervisor
 
 ---
 
-# 20. Критическая проверка Role Permissions
+# 21. Критическая проверка Custom DocPerm Level 0
 
 На clean site:
 
@@ -473,11 +585,31 @@ Report = Yes
 Export = Yes
 ```
 
-Requester Write Yes или Supervisor Delete Yes = провал packaging acceptance.
+---
+
+# 22. Критическая проверка Custom DocPerm Level 1
+
+На Permission Level 1 `Service Request`:
+
+```text
+Facility Requester
+Read = Yes
+Write = Yes
+
+Facility Technician
+Read = Yes
+Write = No
+
+Facility Supervisor
+Read = Yes
+Write = Yes
+```
+
+Это обязательная часть packaging acceptance, а не косметическая настройка формы.
 
 ---
 
-# 21. Проверить Standard UI/config
+# 23. Проверить Standard UI/config
 
 Должны существовать:
 
@@ -495,7 +627,7 @@ Report a Facility Issue
 
 ---
 
-# 22. Проверить Web Form configuration
+# 24. Проверить Web Form configuration
 
 ```text
 Published = Yes
@@ -515,21 +647,22 @@ Show Attachments = Yes
 ```text
 Web Form new insert
 ≠ Role Permission Create
+≠ Permission Level proof
 ```
 
 Exact `v16.32.0` Web Form создаёт новый target Document с `ignore_permissions=True`.
 
-`Apply Document Permissions` относится к existing-document permission path, а не превращает insert в обычный Role Create check.
+Поэтому Level 0/1 portability всегда доказываем отдельно через Desk users.
 
 ---
 
-# 23. Доказать отсутствие старого runtime state
+# 25. Доказать отсутствие старого runtime state
 
 Не должно быть старых Users, User Permission, Share, Assignment Rule, ToDo или business Documents.
 
 ---
 
-# 24. Создать clean-site Users
+# 26. Создать clean-site Users
 
 ```text
 requester.clean@example.com
@@ -545,11 +678,11 @@ web.clean@example.com
 → Website User
 ```
 
-`web.clean@example.com` специально **не получает Facility Requester**: Web Form test должен доказывать отдельный intake path, а не дублировать Desk permission test.
+`web.clean@example.com` специально не получает Facility Requester: Web Form test должен доказать отдельный intake path.
 
 ---
 
-# 25. Создать clean working data
+# 27. Создать clean working data
 
 ```text
 Main Site
@@ -569,7 +702,7 @@ Status:         Active
 
 ---
 
-# 26. Proof A — Desk Role Permission Create
+# 28. Proof A — Requester Desk Create + append-only
 
 Под:
 
@@ -595,25 +728,46 @@ Status = New
 Owner = requester.clean@example.com
 ```
 
-После Save изменить Description.
-
-Ожидается отказ:
+Этот positive proof одновременно подтверждает:
 
 ```text
-Write = No
+Level 0 Create = Yes
+Level 1 Write = Yes
 ```
 
-Это proof именно:
+потому что Mandatory content находится на Level 1.
+
+После Save изменить Description.
+
+Ожидается отказ на повторный document save:
 
 ```text
-exported Custom DocPerm / Role Permission
+Level 0 Write = No
 ```
 
 ---
 
-# 27. Supervisor New-state handling
+# 29. Proof B — Supervisor content authority
 
-Под Supervisor открыть Desk-заявку.
+Под Supervisor открыть Requester заявку.
+
+Изменить:
+
+```text
+Priority
+Target Date
+```
+
+и сохранить.
+
+Ожидается успех:
+
+```text
+Level 0 Write = Yes
+Level 1 Write = Yes
+```
+
+Затем:
 
 ```text
 Assign To → technician.clean@example.com
@@ -629,20 +783,53 @@ Status = Accepted
 
 ---
 
-# 28. Technician process
+# 30. Proof C — Technician Workflow без content Write
+
+Под:
+
+```text
+technician.clean@example.com
+```
+
+проверить, что Technician видит:
+
+```text
+Description
+Priority
+Target Date
+Location
+Equipment
+```
+
+но Level 1 content не редактируется штатным permission-aware path.
+
+Выполнить:
 
 ```text
 Start Work
+→ In Progress
+
 Resolve
+→ Resolved
 ```
 
-Получить `Status = Resolved`.
+Ожидается успех Workflow.
 
-Technician не имеет Create/Delete.
+Ключевой proof:
+
+```text
+Technician Level 0 Write + status Level 0
+→ transitions работают
+
+Technician Level 1 Write = No
+→ business content не становится writeable
+```
+
+Если Technician может обычным permission-aware save изменить Description/Priority — packaging acceptance провалена.
 
 ---
 
-# 29. Manual ToDo boundary
+# 31. Manual ToDo boundary
 
 На clean site Assignment Rule отсутствует.
 
@@ -657,7 +844,7 @@ Technician завершает manual ToDo отдельно.
 
 ---
 
-# 30. Close + no-delete proof
+# 32. Close + no-delete proof
 
 Под Supervisor:
 
@@ -670,13 +857,13 @@ Close
 
 ---
 
-# 31. Workspace
+# 33. Workspace
 
 Под Supervisor проверить `Facility Operations Control` и L8 artifacts на clean data.
 
 ---
 
-# 32. Proof B — Web Form intake capability
+# 34. Proof D — Web Form intake capability
 
 Под:
 
@@ -711,35 +898,41 @@ Status = New
 Это proof:
 
 ```text
-Standard Web Form + authenticated intake работает после установки app
+Standard Web Form + authenticated intake
 ```
 
-Это **не** proof Role Permission `Create`, потому что Website User не имеет Facility Requester и Web Form insert использует отдельный create path.
+Это **не** proof Role Permission или Level 1 permission, потому что Web Form insert использует отдельный `ignore_permissions=True` path.
 
-Проверить также:
+Проверить:
 
 ```text
 Allow Editing After Submit = No
-→ Web Form не даёт update
+→ Web Form не даёт update Level 1 content после создания
 ```
 
 ---
 
-# 33. Сравнить два proof
+# 35. Сравнить четыре proof
 
 ```text
-requester.clean через Desk
-→ доказывает Role Permission Create + post-create Write No
+Requester / Desk
+→ Level 0 Create + Level 1 intake + post-create no-Write
 
-web.clean через Web Form
-→ доказывает отдельную authenticated Web Form intake capability
+Supervisor / Desk
+→ Level 1 content Write
+
+Technician / Desk + Workflow
+→ Level 0 state transition + Level 1 no-Write
+
+Website User / Web Form
+→ separate authenticated intake capability
 ```
 
-Если эти тесты описываются как один и тот же permission mechanism — L11 академически не принят.
+Если это описывается как один общий permission mechanism — L11 академически не принят.
 
 ---
 
-# 34. Assignment Rule на новом site
+# 36. Assignment Rule на новом site
 
 После основной acceptance при желании создать локальный Rule с clean Users.
 
@@ -747,7 +940,7 @@ web.clean через Web Form
 
 ---
 
-# 35. Повторный migrate
+# 37. Повторный migrate
 
 ```bash
 bench --site facility-ops-clean.localhost migrate
@@ -755,9 +948,11 @@ bench --site facility-ops-clean.localhost migrate
 
 App configuration и clean runtime data должны сохраниться.
 
+Повторно проверить Level 0/1 Custom DocPerm: migrate не должен возвращать временную L5 matrix.
+
 ---
 
-# 36. Git после clean site
+# 38. Git после clean site
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
@@ -768,14 +963,17 @@ Clean Users/Locations/Equipment/Requests/ToDo не должны менять Git
 
 ---
 
-# 37. Portability map
+# 39. Portability map
 
 ```text
 facility_ops Git
 │
 ├── Standard source
+│   └── DocField permlevel metadata
 ├── fixtures
 └── exported Custom DocPerm
+    ├── Level 0
+    └── Level 1
 
 clean site DB
 │
@@ -786,7 +984,7 @@ clean site DB
 
 ---
 
-# 38. Вернуть основной site
+# 40. Вернуть основной site
 
 ```bash
 cd ~/frappe/facility-ops-bench
@@ -795,12 +993,12 @@ bench use facility-ops.localhost
 
 ---
 
-# 39. State contract L11
+# 41. State contract L11
 
 ## Preconditions
 
 ```text
-L5 hardened Role Permission matrix
+L5 Level 0 + Level 1 permission model
 L7 Accepted/Accept workflow
 L10 final Allow Edit = No
 Git clean
@@ -809,10 +1007,11 @@ Git clean
 ## Output proof
 
 ```text
-Desk Requester create works by Role Permission
-Requester saved request Write = No
-Supervisor Delete = No
-Workflow portable
+Requester Desk create works
+Requester post-create save blocked
+Supervisor Level 1 content write works
+Technician Workflow works without Level 1 content write
+Supervisor Delete blocked
 Web Form Website User create works as separate intake capability
 Web Form update disabled
 runtime data not copied
@@ -820,24 +1019,28 @@ runtime data not copied
 
 ---
 
-# 40. Приёмка L11
+# 42. Приёмка L11
 
 L11 принят, если:
 
 - Standard source устанавливается на clean site;
+- Service Request content fields восстановлены как Permission Level 1;
+- `status` восстановлен как Level 0 + Read Only;
 - fixtures содержат `Accepted/Accept`, не legacy `Assigned/Mark Assigned`;
 - `New.only_allow_edit_for = Facility Supervisor`;
-- exported Custom DocPerm восстанавливает exact final Role Permission matrix;
-- Requester clean через Desk создаёт заявку, читает свою и не может переписать после Save;
-- Supervisor clean не может удалить Service Request;
+- exported Custom DocPerm восстанавливает exact Level 0 matrix;
+- exported Custom DocPerm восстанавливает exact Level 1 matrix;
+- Requester clean через Desk создаёт заявку и не может повторно save после insert;
+- Supervisor clean может менять Level 1 content, но не Delete Service Request;
+- Technician clean выполняет Workflow transitions, но не получает Level 1 content Write;
 - Website User clean без Facility Requester создаёт через Web Form;
-- Web Form create не называется доказательством Role Permission Create;
+- Web Form create не называется доказательством Role Permission/Permission Level;
 - `Apply Document Permissions` не приписывается к create authorization;
 - final Web Form `Allow Edit = No`;
 - old runtime state не приехал;
 - manual ToDo не смешан с Workflow Close;
 - clean Equipment использует допустимую Category;
-- repeat migrate сохраняет runtime data;
+- repeat migrate сохраняет runtime data и permission configuration;
 - работа второго site не меняет Git;
 - active site возвращён на `facility-ops.localhost`.
 
@@ -845,6 +1048,7 @@ L11 принят, если:
 
 ```text
 app ≠ database copy
+Level 0 ≠ Level 1 ≠ Workflow
 Desk Create ≠ Web Form Create
 portable core ≠ site-specific operating policy
 ```
