@@ -2,13 +2,11 @@
 
 L4 добавляет третий и последний основной DocType приложения — `Service Request`.
 
-Цель урока: собрать первый настоящий рабочий документ `facility_ops`, связать его одновременно с местом и оборудованием и получить простую очередь заявок, которая пока работает без ролей, назначений и Workflow.
+Цель урока: собрать первый настоящий рабочий документ `facility_ops`, связать его с местом и, при необходимости, с оборудованием, но **не смешивать состояние процесса с назначением исполнителя**.
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
-## Что должно получиться
-
-После урока ядро приложения полностью собрано:
+## Итоговая модель
 
 ```text
 Facility Location
@@ -18,9 +16,9 @@ Facility Location
       └──────────────┴────────► Service Request
 ```
 
-`Service Request` всегда связан с `Facility Location`.
+`Service Request` всегда имеет `Location`.
 
-Связь с `Equipment` необязательна:
+`Equipment` необязателен:
 
 ```text
 сломался кондиционер
@@ -30,7 +28,7 @@ Facility Location
 → только Location
 ```
 
-Поля `Service Request`:
+Поля:
 
 | Label | Fieldname | Type | Mandatory | Default |
 |---|---|---|---:|---|
@@ -55,25 +53,29 @@ Status:
 
 ```text
 New
-Assigned
+Accepted
 In Progress
 Resolved
 Closed
 ```
+
+Критическое изменение архитектуры:
+
+```text
+Accepted
+= Supervisor принял заявку в рабочий процесс
+
+Accepted
+≠ назначен конкретный Technician
+```
+
+Конкретное поручение появится в L6 через `Assign To → ToDo` и останется отдельной осью.
 
 Naming:
 
 ```text
 Naming Rule: Expression
 Auto Name:   SR-.#####
-```
-
-Примеры:
-
-```text
-SR-00001
-SR-00002
-SR-00003
 ```
 
 Title Field:
@@ -92,11 +94,8 @@ Yes
 
 # 1. Проверить состояние после L3
 
-В терминале:
-
 ```bash
 cd ~/frappe/facility-ops-bench
-
 bench version
 bench --site facility-ops.localhost list-apps
 
@@ -112,16 +111,7 @@ facility_ops установлен
 Git working tree clean
 ```
 
-В Desk должны существовать:
-
-```text
-Facility Location
-Equipment
-```
-
-и рабочие данные из предыдущих уроков.
-
-Минимально должны существовать Locations:
+Минимально существуют:
 
 ```text
 Room 101
@@ -131,68 +121,74 @@ Floor 2
 Warehouse
 ```
 
-и Equipment:
-
-```text
-EQ-0001
-EQ-0004
-EQ-0006
-```
+и несколько `Equipment` из L2/L3.
 
 Если L3 не принят — L4 не начинаем.
 
 ---
 
-# 2. Зафиксировать модель до кликов
+# 2. Зафиксировать семантику Location
+
+До создания DocType важно определить смысл двух похожих полей.
+
+```text
+Equipment.location
+= текущее размещение Equipment
+
+Service Request.location
+= место события / проблемы, зафиксированное заявкой
+```
+
+Поэтому курс **не вводит** правило:
+
+```text
+Service Request.location == Equipment.location навсегда
+```
+
+Почему это было бы плохим инвариантом:
+
+```text
+сегодня Equipment находится в Room 101
+→ там создаётся заявка
+
+через месяц Equipment переместили в Warehouse
+→ Equipment.location изменился
+→ историческая заявка всё равно должна помнить Room 101
+```
+
+При создании заявки выбираем Equipment, который **сейчас логично относится к выбранной Location**, но это контроль качества исходных данных, а не серверная синхронизация.
+
+Не пишем код автоподстановки и не связываем два поля жёстко.
+
+---
+
+# 3. Зафиксировать тип документа
 
 `Service Request` — обычный Standard DocType.
 
 Он не является:
 
-- Tree;
-- Child Table;
-- Single;
-- Submittable.
-
-Каждый Document — отдельная заявка.
-
-Пример:
-
 ```text
-name:        SR-00001
-Subject:     Не охлаждает кондиционер
-Location:    Room 101
-Equipment:   EQ-0001
-Priority:    High
-Status:      New
+Tree
+Child Table
+Single
+Submittable
 ```
 
-Главное отличие от Equipment:
+Каждый Document — отдельная рабочая заявка.
 
-```text
-Equipment
-= относительно постоянная карточка объекта
-
-Service Request
-= рабочий документ, который меняется по ходу процесса
-```
+`Draft / Submit / Cancel / Amend` изучаются отдельно в Lab B и не навязываются рабочей заявке.
 
 ---
 
-# 3. Создать Standard DocType Service Request
+# 4. Создать Standard DocType
 
-В Desk через Awesomebar открыть:
-
-```text
-DocType
-```
-
-Создать новый DocType:
+Через Awesomebar открыть `DocType` и создать:
 
 ```text
 Name:   Service Request
 Module: Facility Operations
-Custom: выключено
+Custom: No
 ```
 
 Не включать:
@@ -204,104 +200,68 @@ Is Single
 Is Submittable
 ```
 
-Сейчас заявка специально остаётся обычным Document.
-
-`Draft / Submit / Cancel / Amend` изучаются отдельно в лаборатории, а не навязываются заявке.
-
 ---
 
-# 4. Добавить основные поля
-
-Добавить поля в следующем порядке.
+# 5. Добавить поля
 
 ## Subject
 
 ```text
-Label:      Subject
-Fieldname:  subject
-Type:       Data
-Mandatory:  Yes
-```
-
-Это короткая суть проблемы.
-
-Пример:
-
-```text
-Не охлаждает кондиционер
+Label:     Subject
+Fieldname: subject
+Type:      Data
+Mandatory: Yes
 ```
 
 ## Location
 
 ```text
-Label:      Location
-Fieldname:  location
-Type:       Link
-Options:    Facility Location
-Mandatory:  Yes
+Label:     Location
+Fieldname: location
+Type:      Link
+Options:   Facility Location
+Mandatory: Yes
 ```
-
-Любая заявка должна относиться к месту.
 
 ## Equipment
 
 ```text
-Label:      Equipment
-Fieldname:  equipment
-Type:       Link
-Options:    Equipment
-Mandatory:  No
+Label:     Equipment
+Fieldname: equipment
+Type:      Link
+Options:   Equipment
+Mandatory: No
 ```
-
-Оборудование указывается только если проблема относится к конкретной единице.
-
----
-
-# 5. Добавить описание
 
 Добавить `Section Break`:
 
 ```text
-Label: Details
+Details
 ```
-
-После него добавить:
 
 ## Description
 
 ```text
-Label:      Description
-Fieldname:  description
-Type:       Text
-Mandatory:  Yes
+Label:     Description
+Fieldname: description
+Type:      Text
+Mandatory: Yes
 ```
-
-`Subject` отвечает на вопрос «что случилось кратко».
-
-`Description` — «что именно наблюдаем».
-
-Не дублировать одно и то же содержание в обоих полях.
-
----
-
-# 6. Добавить управление очередью
 
 Добавить `Section Break`:
 
 ```text
-Label: Processing
+Processing
 ```
-
-Добавить поля:
 
 ## Priority
 
 ```text
-Label:      Priority
-Fieldname:  priority
-Type:       Select
-Mandatory:  Yes
-Default:    Medium
+Label:     Priority
+Fieldname: priority
+Type:      Select
+Mandatory: Yes
+Default:   Medium
 Options:
 Low
 Medium
@@ -311,194 +271,142 @@ High
 ## Status
 
 ```text
-Label:      Status
-Fieldname:  status
-Type:       Select
-Mandatory:  Yes
-Default:    New
+Label:     Status
+Fieldname: status
+Type:      Select
+Mandatory: Yes
+Default:   New
 Options:
 New
-Assigned
+Accepted
 In Progress
 Resolved
 Closed
 ```
-
-## Column Break
 
 Добавить `Column Break`.
 
 ## Target Date
 
 ```text
-Label:      Target Date
-Fieldname:  target_date
-Type:       Date
-Mandatory:  No
+Label:     Target Date
+Fieldname: target_date
+Type:      Date
+Mandatory: No
 ```
 
 ## Attachment
 
 ```text
-Label:      Attachment
-Fieldname:  attachment
-Type:       Attach
-Mandatory:  No
+Label:     Attachment
+Fieldname: attachment
+Type:      Attach
+Mandatory: No
 ```
 
-В результате форма должна оставаться короткой:
+Не добавлять:
 
 ```text
-[ Subject ]      [ Location ]
-                 [ Equipment ]
-
-Details
-[ Description                         ]
-
-Processing
-[ Priority ]     [ Target Date ]
-[ Status   ]     [ Attachment  ]
+Assigned Technician
+Requester business entity
+Department
+Status reference
+Priority reference
+даты каждого перехода
+свой журнал комментариев
 ```
 
-Не добавлять пока:
+---
 
-- исполнителя;
-- подразделение;
-- отдельный справочник Priority;
-- отдельный справочник Status;
-- даты каждого перехода;
-- собственные комментарии;
-- собственную историю.
+# 6. Почему статус называется Accepted, а не Assigned
+
+`Assigned` создаёт опасное ложное ожидание:
+
+```text
+Status = Assigned
+→ обязательно существует конкретный assignee
+```
+
+Штатный Frappe этого не гарантирует.
+
+`Assign To` хранит поручение через `ToDo`, а Workflow/Status — состояние процесса.
+
+Поэтому используем:
+
+```text
+New
+→ заявка поступила
+
+Accepted
+→ Supervisor принял её в рабочую очередь
+
+In Progress
+→ работа выполняется
+
+Resolved
+→ Technician считает проблему решённой
+
+Closed
+→ Supervisor завершил процесс
+```
+
+Так модель остаётся корректной даже если Assignment меняется, закрывается или отсутствует.
 
 ---
 
 # 7. Настроить Naming
-
-В Naming DocType `Service Request` выбрать:
 
 ```text
 Naming Rule: Expression
 Auto Name:   SR-.#####
 ```
 
-Смысл:
-
-```text
-Subject
-= бизнес-заголовок
-
-name
-= системный уникальный номер заявки
-```
-
 Например:
 
 ```text
-name    = SR-00001
-Subject = Не охлаждает кондиционер
+SR-00001
+SR-00002
 ```
 
-Следующая заявка с тем же Subject всё равно получит новый `name`.
-
-Это сознательно отличается от `Equipment`, где `name` задаётся полем `Equipment Code`.
+`Subject` — бизнес-заголовок, `name` — системный идентификатор.
 
 ---
 
-# 8. Настроить Title Field и поиск
-
-Указать:
+# 8. Title Field и Search Fields
 
 ```text
 Title Field: subject
+Search Fields: location,equipment,priority,status
 ```
-
-Search Fields:
-
-```text
-location,equipment,priority,status
-```
-
-Нужно различать:
-
-```text
-name
-= SR-00001
-
-Title Field
-= Не охлаждает кондиционер
-```
-
-Позже `Service Request` будет удобнее искать по связанному месту, Equipment и состоянию.
 
 ---
 
-# 9. Включить Track Changes
+# 9. Track Changes
 
-В настройках DocType включить:
+Включить:
 
 ```text
 Track Changes = Yes
 ```
 
-Это важно для рабочего документа, потому что его Status, Priority и другие данные будут меняться.
-
-Не создаём собственный журнал изменений.
+Рабочий Document будет меняться по ходу процесса. Для аудита используем штатный `Version/Timeline`, а не свой History DocType.
 
 ---
 
-# 10. Сохранить DocType
-
-После сохранения ещё раз открыть `Service Request` и проверить:
-
-```text
-Module = Facility Operations
-Custom = No
-Is Tree = No
-Is Submittable = No
-Naming Rule = Expression
-Auto Name = SR-.#####
-Title Field = subject
-Track Changes = Yes
-```
-
----
-
-# 11. Проверить generated metadata
-
-В терминале:
+# 10. Проверить metadata
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
 
 git status --short
 
-find facility_ops/facility_operations/doctype/service_request \
-  -maxdepth 1 -type f -printf '%f\n' | sort
-```
-
-Ожидается boilerplate примерно:
-
-```text
-__init__.py
-service_request.js
-service_request.json
-service_request.py
-test_service_request.py
-```
-
-Открыть metadata:
-
-```bash
-sed -n '1,360p' \
+sed -n '1,380p' \
   facility_ops/facility_operations/doctype/service_request/service_request.json
 ```
 
 Найти:
 
 ```text
-"name": "Service Request"
-"module": "Facility Operations"
-"naming_rule": "Expression"
 "autoname": "SR-.#####"
 "title_field": "subject"
 "track_changes": 1
@@ -521,15 +429,7 @@ JSON вручную не редактировать.
 
 ---
 
-# 12. Создать первую заявку с Equipment
-
-Открыть:
-
-```text
-Service Request → New
-```
-
-Создать:
+# 11. Создать заявку с Equipment
 
 ```text
 Subject:     Не охлаждает кондиционер
@@ -538,30 +438,16 @@ Equipment:   EQ-0001
 Description: Кондиционер включается, но температура в помещении не снижается.
 Priority:    High
 Status:      New
-Target Date: выбрать ближайшую будущую дату
+Target Date: ближайшая будущая дата
 ```
 
-Сохранить.
+Перед сохранением убедиться, что выбранное `EQ-0001` действительно сейчас относится к `Room 101` в учебных данных.
 
-Проверить, что Frappe присвоил имя вида:
-
-```text
-SR-00001
-```
-
-Точное число зависит от состояния site.
-
-Главное — формат:
-
-```text
-SR- + 5 цифр
-```
+Сохранить и проверить имя `SR-.....`.
 
 ---
 
-# 13. Создать заявку без Equipment
-
-Создать вторую заявку:
+# 12. Создать заявку без Equipment
 
 ```text
 Subject:     Не работает освещение
@@ -572,92 +458,70 @@ Priority:    Medium
 Status:      New
 ```
 
-Сохранить.
+Заявка должна сохраниться.
 
-Заявка должна успешно создаться.
+Не создавать фиктивный Equipment `General` ради заполнения Link.
 
-Главное правило модели:
+---
+
+# 13. Проверить Mandatory
+
+Отдельно получить отказ без каждого из ключевых обязательных значений:
 
 ```text
+Subject
 Location
-= обязательно
-
-Equipment
-= только когда существует конкретный объект Equipment
+Description
+Priority
 ```
 
-Не создавать фиктивный Equipment вроде `General` или `Building` ради заполнения Link.
+Минимум обязательно проверить отсутствие `Location` и `Description`.
 
----
-
-# 14. Проверить обязательный Location
-
-Попробовать создать:
+Итог:
 
 ```text
-Subject:     Тест без места
-Location:    пусто
-Description: Проверка обязательности Location
-Priority:    Low
-Status:      New
+Web Form/Automation следующих уроков
+не имеют права ослаблять эту модель
 ```
-
-Сохранение должно быть остановлено обязательностью `Location`.
-
-После проверки запись не сохранять.
 
 ---
 
-# 15. Проверить Link на несуществующий Equipment
+# 14. Проверить Link
 
-В новой заявке попробовать указать в поле Equipment значение, которого нет в реестре, например:
+Попробовать указать:
 
 ```text
-EQ-NOT-EXISTS
+Equipment = EQ-NOT-EXISTS
 ```
 
-Обычный Link должен ссылаться на существующий Document `Equipment`.
-
-Не создаём Equipment из текста заявки автоматически.
-
-После проверки отменить тестовую запись.
+Обычный Link должен ссылаться на существующий `Equipment` Document.
 
 ---
 
-# 16. Создать рабочий набор заявок
+# 15. Создать рабочий набор заявок
 
-Создать минимум 8 заявок.
+Создать минимум 8 записей.
 
-Использовать разные места, оборудование, Priority и Status.
-
-Пример набора:
+Пример:
 
 | Subject | Location | Equipment | Priority | Status |
 |---|---|---|---|---|
 | Не охлаждает кондиционер | Room 101 | EQ-0001 | High | New |
 | Не работает освещение | Floor 1 | — | Medium | New |
 | Нет сети у коммутатора | Room 101 | EQ-0004 | High | In Progress |
-| Проверить ИБП | Warehouse | EQ-0006 | Low | Assigned |
+| Проверить ИБП | Warehouse | EQ-0006 | Low | Accepted |
 | Шум от кондиционера | Room 102 | EQ-0002 | Medium | New |
 | Повреждена розетка | Room 102 | — | High | Resolved |
 | Убрать старое оборудование | Floor 2 | EQ-0008 | Low | Closed |
 | Слабый сигнал Wi-Fi | Room 102 | EQ-0005 | Medium | In Progress |
 
-Не стремиться воспроизвести номера `SR-...` из примера.
-
-Frappe назначает их сам.
+В L4 статусы пока вводятся вручную специально для подготовки данных.
 
 ---
 
-# 17. Проверить обычный Status до Workflow
+# 16. Проверить обычный Select до Workflow
 
-Открыть одну заявку со Status:
-
-```text
-New
-```
-
-Вручную изменить:
+Открыть заявку `New` и вручную изменить:
 
 ```text
 New → Closed
@@ -665,283 +529,113 @@ New → Closed
 
 Сохранить.
 
-На этом этапе Frappe должен позволить изменение, потому что `Status` пока обычный `Select`.
-
-После проверки вернуть заявке логичное состояние.
-
-Что нужно понять:
+Frappe должен позволить это, потому что пока:
 
 ```text
-Select Status
-= хранит состояние
+Select
+= набор допустимых значений
 
-но сам по себе
-не описывает допустимые переходы
+Select
+≠ state machine
 ```
 
-Это сознательная подготовка к L7 Workflow.
+Вернуть заявке логичное состояние.
 
 ---
 
-# 18. Проверить Track Changes
+# 17. Проверить Track Changes
 
-Открыть одну рабочую заявку.
+Изменить у тестовой заявки `Priority` или `Description` и посмотреть Timeline/Version.
 
-Например изменить:
-
-```text
-Priority: Medium → High
-```
-
-и:
-
-```text
-Status: New → In Progress
-```
-
-Сохранить.
-
-В Timeline проверить историю изменений.
-
-Затем вернуть данные в состояние, подходящее тестовому сценарию.
-
-Вывод:
+Зафиксировать:
 
 ```text
 Track Changes
-= штатная история изменения Document
-```
+= аудит изменений
 
-Отдельный `Service Request History` DocType не нужен.
+но
+
+Track Changes
+≠ запрет изменений
+```
 
 ---
 
-# 19. Проверить Attachment
+# 18. List View и Filters
 
-К одной заявке прикрепить небольшой тестовый файл через поле:
-
-```text
-Attachment
-```
-
-Например фотографию или простой документ.
-
-После сохранения убедиться, что файл доступен из заявки.
-
-Не хранить путь к файлу вручную в Data field.
-
----
-
-# 20. Поработать со списком
-
-Открыть List View `Service Request`.
-
-Проверить фильтры:
+Проверить фильтры минимум по:
 
 ```text
-Status = New
-Priority = High
-Location = Room 101
-Equipment = EQ-0001
+Status
+Priority
+Location
+Equipment
 ```
 
-Затем комбинированный фильтр:
+Сохранить один полезный фильтр, например:
 
 ```text
 Status != Closed
 Priority = High
 ```
 
-Сейчас Saved Filters повторно подробно не изучаем — механизм уже пройден в L3.
-
-Главная задача — увидеть, что рабочий Document естественно образует очередь.
-
 ---
 
-# 21. Отличить три основных DocType
+# 19. Что изменилось в архитектуре
 
-После L4 ученик должен уже видеть разницу между всеми тремя сущностями ядра.
+После L4 существуют три разные сущности/оси:
 
 ```text
-Facility Location
-= иерархический справочник мест
+Location / Equipment
+= предметные данные
 
-Equipment
-= карточка относительно постоянного объекта
+Service Request.status
+= состояние рабочего процесса
 
-Service Request
-= изменяемый рабочий документ
+Assignment
+= ещё отсутствует и появится отдельно в L6
 ```
 
-Их не объединяем в один универсальный DocType.
-
-И не делим на десяток сущностей без необходимости.
+Это разделение нельзя ломать в следующих уроках.
 
 ---
 
-# 22. Проверить Git после создания рабочих данных
-
-В терминале:
+# 20. Commit L4
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
 
-git status --short
-git diff
-```
-
-Git должен видеть metadata нового Standard DocType `Service Request`.
-
-Созданные заявки:
-
-```text
-SR-.....
-SR-.....
-SR-.....
-```
-
-не должны превращаться в source-файлы app.
-
-Итог:
-
-```text
-service_request.json
-= metadata app
-= Git
-
-конкретный SR-00001
-= рабочий Document
-= database site
-```
-
----
-
-# 23. Зафиксировать L4 в Git
-
-Проверить:
-
-```bash
 git status
 git diff
-```
 
-Добавить metadata:
+git add facility_ops/facility_operations/doctype/service_request
 
-```bash
-git add .
 git diff --cached
-```
-
-Commit:
-
-```bash
 git commit -m "Add service request doctype"
 git status
 ```
 
-Ожидается:
-
-```text
-working tree clean
-```
-
-Рабочие Service Request остаются в database site и в commit не попадают.
+Рабочие `SR-...` Documents в Git не попадают.
 
 ---
 
-# 24. Самостоятельная практика
+# 21. Приёмка L4
 
-Без готовой пошаговой инструкции выполнить три действия.
+L4 принят, если:
 
-## Сценарий A
+- создан Standard `Service Request`;
+- `Subject`, `Location`, `Description`, `Priority` Mandatory;
+- `Equipment` Optional;
+- `Priority` имеет `Low / Medium / High`, default `Medium`;
+- `Status` имеет `New / Accepted / In Progress / Resolved / Closed`;
+- ученик объясняет, почему `Accepted ≠ Assigned To`;
+- ученик объясняет разницу `Service Request.location` и `Equipment.location`;
+- не заявляется ложный hard invariant равенства этих Location;
+- naming `SR-.#####` работает;
+- Track Changes работает;
+- создан рабочий набор заявок;
+- доказано, что обычный Select до L7 не ограничивает переходы;
+- metadata находится в app source, рабочие Documents — только на site;
+- Git чист после commit.
 
-Создать заявку на конкретное Equipment со Status `New` и Priority `High`.
-
-## Сценарий B
-
-Создать заявку на помещение без Equipment.
-
-## Сценарий C
-
-Вывести List View только с незакрытыми заявками высокого приоритета.
-
-После выполнения ответить:
-
-1. Почему Equipment необязателен?
-2. Почему Location обязателен?
-3. Почему Subject не используется как `name`?
-4. Почему Status пока можно менять свободно?
-5. Где хранится Attachment?
-6. Какие из выполненных действий должны изменить Git?
-
----
-
-# 25. Приёмка L4
-
-L4 принят, если ученик может показать следующее.
-
-## В Desk
-
-- существует Standard DocType `Service Request`;
-- Module = `Facility Operations`;
-- Naming создаёт `SR-.....`;
-- Subject используется как Title Field;
-- Location — обязательный Link на `Facility Location`;
-- Equipment — необязательный Link на `Equipment`;
-- Priority и Status работают как Select;
-- Target Date работает как Date;
-- Attachment принимает файл;
-- Track Changes показывает историю;
-- создано минимум 8 рабочих заявок.
-
-## В модели
-
-Ученик без подсказки объясняет:
-
-```text
-Facility Location
-→ где
-
-Equipment
-→ что эксплуатируем
-
-Service Request
-→ что произошло и что нужно обработать
-```
-
-## В процессе
-
-Ученик понимает:
-
-```text
-Status
-= значение текущего состояния
-
-Workflow
-= будущие правила переходов
-```
-
-Workflow в L4 ещё не создаётся.
-
-## В Git
-
-```bash
-cd ~/frappe/facility-ops-bench/apps/facility_ops
-git status
-```
-
-Рабочее дерево чистое после commit.
-
-## Итог L4
-
-Основная предметная модель `facility_ops` закончена:
-
-```text
-3 DocType
-1 рабочий процесс
-0 лишних сущностей
-```
-
-Дальше новые основные DocType для курса не нужны.
-
-Следующий урок — **L5. Пользователи и права**. В нём впервые перестаём работать только под `Administrator` и проверяем приложение глазами разных пользователей.
+После L4 переходим к **L5 — пользователи и права**.
