@@ -146,7 +146,7 @@ Facility Supervisor
 | [L8](projects/08-control-workspace/README.md) | контроль работы | Report Builder, Number Card, Dashboard Chart, Workspace |
 | [L9](projects/09-automation/README.md) | автоматизация | Notification, Assignment Rule, scheduler |
 | [L10](projects/10-web-form/README.md) | внешний ввод | Web Form, Guest, Website User, permissions, attachments |
-| L11 | переносимость | metadata, fixtures, customizations, clean site, migrate |
+| [L11](projects/11-portability/README.md) | переносимость | metadata, fixtures, customizations, clean site, migrate |
 
 ## Лаборатории
 
