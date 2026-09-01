@@ -57,11 +57,11 @@ Facility Supervisor
 Service Request Workflow
 
 New Service Request
-Overdue Service Request
+Service Request One Day Overdue
 
 Service Request Auto Assignment
 
-Facility Operations
+Facility Operations Control
 Service Requests Overview
 Open Requests
 High Priority Requests
@@ -70,6 +70,10 @@ Service Requests by Status
 
 Report a Facility Issue
 ```
+
+`Facility Operations` — Module приложения.
+
+`Facility Operations Control` — отдельный Workspace L8.
 
 `Service Request Auto Assignment` существует только на исходном site и содержит конкретных Users L9.
 
@@ -100,10 +104,10 @@ Open Requests Number Card
 High Priority Requests Number Card
 Closed Requests Number Card
 Service Requests by Status Dashboard Chart
-Facility Operations Workspace
+Facility Operations Control Workspace
 
 New Service Request Notification
-Overdue Service Request Notification
+Service Request One Day Overdue Notification
 Report a Facility Issue Web Form
 ```
 
@@ -628,14 +632,14 @@ Equipment.notes → Level 1 только Supervisor
 На clean site должны существовать:
 
 ```text
-Workspace:       Facility Operations
+Workspace:       Facility Operations Control
 Report:          Service Requests Overview
 Number Card:     Open Requests
 Number Card:     High Priority Requests
 Number Card:     Closed Requests
 Dashboard Chart: Service Requests by Status
 Notification:    New Service Request
-Notification:    Overdue Service Request
+Notification:    Service Request One Day Overdue
 Web Form:        Report a Facility Issue
 ```
 
@@ -829,7 +833,7 @@ Status = Closed
 Под Supervisor открыть:
 
 ```text
-Facility Operations
+Facility Operations Control
 ```
 
 Проверить:
@@ -1034,7 +1038,7 @@ facility-ops-clean.localhost
 - Standard metadata приехала из app source;
 - Roles и Workflow приехали через fixtures;
 - Custom Permissions восстановились через exported customizations;
-- Standard Workspace/Report/Cards/Chart/Notifications/Web Form установились вместе с app;
+- Standard Workspace `Facility Operations Control`, Report/Cards/Chart, Notifications и Web Form установились вместе с app;
 - `install-app` корректно понимается как первоначальная установка, а не только копирование schema;
 - последующий `migrate` является проверкой штатной повторной синхронизации;
 - старые Users, User Permission, Share, Assignment Rule и рабочие Documents не приехали;
