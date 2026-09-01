@@ -2,17 +2,19 @@
 
 Курс развивается последовательно на одном app — `facility_ops`.
 
-Основная модель:
+Основная модель неизменна:
 
 ```text
-Facility Location
-      │
-      ├────────► Equipment
-      │             │
-      └─────────────┴────────► Service Request
+Facility Location (Tree)
+        │
+        ├────────────► Equipment
+        │                 │
+        └─────────────────┴────────────► Service Request
 ```
 
-Ядро не расширяется ради отдельных функций Frappe. Специальные механизмы идут в лаборатории.
+Ядро не расширяется ради отдельных функций Frappe. Всё, чему не нужно постоянное место в этой модели, изучается в лабораториях.
+
+Базовая версия курса — **Frappe Framework v16.32.0**.
 
 ---
 
@@ -31,34 +33,36 @@ Frappe: v16.32.0
 ## Практика
 
 1. Поднять стенд по `projects/00-lab/SETUP_WSL2.md`.
-2. Проверить точную версию Frappe.
+2. Проверить точную версию Frappe и зависимости стенда.
 3. Создать `facility_ops`.
 4. Создать site и установить app.
 5. Включить Developer Mode.
-6. Найти Module, `modules.txt`, `hooks.py`, структуру app.
+6. Найти Module, `modules.txt`, `hooks.py` и структуру app.
 7. Пройти базовую навигацию Desk.
-8. Проверить scheduler/workers.
+8. Проверить scheduler и workers.
 9. Создать временный Standard DocType `Lab Note`.
 10. Создать обычный Document.
 11. Посмотреть generated files и Git diff.
 12. Удалить `Lab Note` штатно.
 13. Оставить чистый app перед L1.
 
-## Ученик должен объяснить
+## После урока ученик различает
 
-- Bench / site / app / Module;
-- DocType / Document;
-- metadata / рабочие данные;
-- Developer Mode;
-- что хранит Git.
+```text
+Bench
+Site
+App
+Module
+DocType
+Document
+metadata
+working data
+Git
+```
 
 ---
 
 # L1. Места эксплуатации
-
-## Задача
-
-Создать структуру мест.
 
 ## Создаём
 
@@ -68,7 +72,7 @@ Facility Location
 
 Тип: Tree DocType.
 
-Пример данных:
+Пример:
 
 ```text
 Main Site
@@ -85,33 +89,19 @@ Main Site
 - Standard DocType;
 - Tree DocType;
 - Naming;
-- Tree View;
-- Form View;
-- List View;
-- Documents;
-- metadata и Git.
-
-## Практика
-
-1. Создать `Facility Location` в Module `Facility Operations`.
-2. Настроить понятное имя документа.
-3. Построить иерархию минимум из двух уровней.
-4. Открыть те же записи через Tree, List и Form.
-5. Найти JSON DocType в app.
-6. Посмотреть Git diff.
-7. Commit.
+- Tree / List / Form View;
+- group и leaf;
+- nested-set infrastructure Frappe;
+- metadata и Documents;
+- Git.
 
 ## Приёмка
 
-Ученик может объяснить, когда нужен Tree, а когда обычный DocType.
+Ученик понимает, почему дерево — это структура мест, а не обычный справочник со случайным `Parent`.
 
 ---
 
 # L2. Реестр оборудования
-
-## Задача
-
-Создать реестр оборудования и связать его с местами.
 
 ## Создаём
 
@@ -144,44 +134,23 @@ Retired
 ## Изучаем
 
 - Data / Select / Date / Link / Attach Image / Small Text;
-- Mandatory / Default;
-- Naming;
+- Mandatory;
+- Naming `field:equipment_code`;
 - Title Field;
 - Search Fields;
 - Quick Entry;
 - Track Changes;
-- Section / Column / Tab Break;
-- Form View;
-- List View.
+- Section / Column Break;
+- Form / List View;
+- Link на Tree DocType.
 
 ## Практика
 
-1. Создать `Equipment`.
-2. Разложить поля по понятной форме.
-3. Настроить Naming.
-4. Настроить Title Field и Search Fields.
-5. Включить Track Changes.
-6. Проверить Quick Entry там, где он удобен.
-7. Создать 5–10 записей вручную.
-8. Изменить одну запись и посмотреть Timeline/Version.
-9. Посмотреть JSON и Git diff.
-10. Commit.
-
-## Приёмка
-
-Ученик различает:
-
-- Link и Select;
-- `name` и Title Field;
-- metadata и Document.
+Создать рабочий набор Equipment вручную, проверить Quick Entry, поиск, отрицательный duplicate и связь с Location.
 
 ---
 
 # L3. Работа с данными
-
-## Задача
-
-Научиться работать с реестром как с данными, а не только проектировать форму.
 
 Новых DocType нет.
 
@@ -189,38 +158,35 @@ Retired
 
 - List View;
 - Filters;
-- Sorting;
+- Sorting текущей выборки;
 - Saved Filters;
 - Search;
+- Allow Import;
 - Data Import;
 - Export;
-- массовые действия;
-- attachments;
-- Timeline.
+- Bulk Edit;
+- metadata против рабочих данных.
 
 ## Практика
 
-1. Подготовить CSV минимум на 30 единиц оборудования.
-2. Включить Allow Import для Equipment.
-3. Импортировать данные через Data Import.
-4. Проверить ошибки импорта на намеренно неправильной строке.
-5. Создать фильтры по Location, Status и Category.
-6. Сохранить полезный filter.
-7. Отсортировать список.
-8. Выполнить одну безопасную массовую операцию.
-9. Экспортировать отфильтрованную выборку.
+1. Включить `Allow Import` у Equipment.
+2. Скачать **штатный шаблон Frappe** из Data Import.
+3. Подготовить **10 новых Equipment** `EQ-0010` … `EQ-0019`.
+4. Импортировать их через `Insert New Records`.
+5. Отдельно проверить ошибочный импорт со ссылкой на несуществующий Location.
+6. Создать полезные фильтры и персональный Saved Filter.
+7. Проверить сортировку List View.
+8. Экспортировать отфильтрованную выборку.
+9. Выполнить безопасный Bulk Edit двух записей и вернуть исходное состояние.
+10. Зафиксировать в Git только изменение `Equipment.allow_import`.
 
 ## Приёмка
 
-Ученик умеет загрузить, найти, отфильтровать и выгрузить данные штатными средствами.
+Ученик умеет загрузить, найти, отфильтровать, массово изменить и выгрузить Documents и не путает это с поставкой приложения.
 
 ---
 
-# L4. Заявка
-
-## Задача
-
-Добавить основной рабочий процесс приложения.
+# L4. Service Request
 
 ## Создаём
 
@@ -264,37 +230,21 @@ Closed
 ## Изучаем
 
 - рабочий DocType;
-- несколько Link;
-- обязательные/необязательные связи;
-- Status как обычное поле;
+- обязательную и необязательную Link-связь;
 - Priority;
+- Status как обычный Select до Workflow;
 - Attach;
 - Track Changes;
+- naming `SR-.#####`;
 - фильтры рабочего списка.
 
 ## Практика
 
-Создать минимум пять сценариев:
-
-1. проблема конкретного Equipment;
-2. проблема Location без Equipment;
-3. High Priority;
-4. заявка с Target Date;
-5. заявка с attachment.
-
-Затем вручную провести несколько заявок через Status.
-
-## Приёмка
-
-Приложение уже решает минимальную задачу без пользователей, Workflow и автоматизации.
+Создать рабочий набор заявок для следующих уроков и вручную провести несколько из них через Status.
 
 ---
 
 # L5. Пользователи и права
-
-## Задача
-
-Сделать приложение многопользовательским.
 
 ## Роли
 
@@ -304,6 +254,17 @@ Facility Technician
 Facility Supervisor
 ```
 
+## Базовые учебные пользователи
+
+```text
+requester.one@example.com
+requester.two@example.com
+technician.one@example.com
+supervisor.one@example.com
+```
+
+Все четыре — System User без System Manager.
+
 ## Изучаем
 
 - User;
@@ -311,26 +272,23 @@ Facility Supervisor
 - Role;
 - Role Permission Manager;
 - Read / Write / Create / Delete;
+- Report / Export / Import там, где они реально нужны;
 - If Owner;
 - Permission Level;
 - User Permission;
-- Share;
-- Report / Export / Import permissions на базовом уровне.
+- Share.
 
 ## Практика
 
-1. Создать минимум трёх учебных пользователей.
-2. Создать роли.
-3. Настроить права для Facility Location, Equipment и Service Request.
-4. Проверить каждую роль отдельным входом.
-5. Проверить If Owner.
-6. Ограничить данные через User Permission.
-7. Разово открыть документ через Share.
-8. Проверить отрицательные сценарии.
+1. Настроить права на три core DocType.
+2. Проверить каждую роль отдельным входом.
+3. Доказать `If Owner` двумя Requester.
+4. Перевести `Equipment.notes` на Permission Level 1 и дать доступ Supervisor.
+5. Ограничить `technician.one@example.com` через User Permission на `Room 101` для Service Request.
+6. Открыть один чужой документ точечно через Share.
+7. Проверить отрицательные сценарии.
 
-## Приёмка
-
-Ученик понимает:
+Главное:
 
 ```text
 Permission = что разрешено
@@ -341,9 +299,7 @@ Assignment = какая конкретная работа назначена
 
 # L6. Совместная работа
 
-## Задача
-
-Организовать работу исполнителей без новых предметных сущностей.
+Новых предметных DocType нет.
 
 ## Изучаем
 
@@ -357,156 +313,176 @@ Assignment = какая конкретная работа назначена
 
 ## Практика
 
-1. Supervisor назначает Service Request технику через Assign To.
-2. Найти созданный ToDo.
-3. Проверить личную очередь техника.
-4. Добавить комментарий.
-5. Проверить Timeline.
-6. Добавить Tags.
-7. Создать Kanban по Status.
-8. Пройти несколько заявок вручную.
+1. Supervisor назначает Service Request Technician через Assign To.
+2. Найти созданный ToDo и проверить reference на заявку.
+3. Проверить очередь Technician.
+4. Сравнить Assignment и `Service Request.status`.
+5. Добавить Comment и посмотреть Timeline.
+6. Закрыть assignment и убедиться, что это не закрывает Service Request автоматически.
+7. Проверить duplicate active assignment.
+8. Добавить полезные Tags.
+9. Создать Kanban по `Status` и убедиться, что карточки — те же Service Request Documents.
 
-## Приёмка
-
-Ученик не создаёт поле `Assigned Technician`, потому что штатное назначение уже решает эту задачу.
+Kanban здесь учебный. После появления Workflow в L7 Status-Kanban удаляется, чтобы процесс имел один понятный интерфейс переходов.
 
 ---
 
 # L7. Workflow
 
-## Задача
-
-Ограничить допустимые переходы Service Request.
-
-До урока Status меняется вручную.
-
 ## Процесс
 
 ```text
 New
- ↓
+ │ Mark Assigned / Facility Supervisor
+ ▼
 Assigned
- ↓
+ │ Start Work / Facility Technician
+ ▼
 In Progress
- ↓
+ │ Resolve / Facility Technician
+ ▼
 Resolved
- ↓
+ │ Close / Facility Supervisor
+ ▼
 Closed
 ```
+
+## Принцип
+
+Используется существующее поле:
+
+```text
+Service Request.status
+```
+
+как единственный `Workflow State Field`.
+
+Второй `workflow_state` не создаётся.
+
+Все состояния имеют `docstatus = 0`: Service Request не становится Submittable.
 
 ## Изучаем
 
 - Workflow;
 - Workflow State;
+- Workflow Action Master;
 - Workflow Transition;
 - Allowed Role;
+- Only Allow Edit For;
 - Workflow Action;
-- условия переходов на базовом уровне.
+- простую Condition.
 
 ## Практика
 
-1. Зафиксировать, что обычный Select не контролирует маршрут.
-2. Создать Workflow для Service Request.
-3. Использовать существующее поле Status/согласованное workflow state field без дублирования смысла.
-4. Назначить роли переходам.
-5. Проверить правильные переходы.
+1. Сделать `status` Read Only.
+2. Создать пять Workflow State.
+3. Создать четыре Action Master.
+4. Создать и активировать `Service Request Workflow`.
+5. Проверить переходы под Requester, Technician и Supervisor.
 6. Проверить запрещённые переходы.
-7. Посмотреть Workflow Action.
+7. Коротко проверить Condition по Priority и вернуть линейную схему.
+8. Проверить Timeline и Workflow Action records.
+9. Удалить Status-Kanban из L6.
 
-## Приёмка
+## Граница Kanban
 
-Ученик объясняет разницу между полем состояния и правилами переходов.
+В `v16.32.0` Kanban меняет выбранное поле через `frappe.set_value`, который приводит к обычному `doc.save()` и workflow validation. Но это не тот же путь, что штатный `apply_workflow`: Workflow Action остаётся единственным учебным способом выполнять переход процесса.
 
 ---
 
 # L8. Контроль работы
 
-## Задача
+Новых предметных DocType нет.
 
-Собрать рабочий интерфейс руководителя на накопленных данных.
+## Результат
+
+Создаём **один** рабочий набор контроля:
+
+### Report Builder
+
+```text
+Service Requests Overview
+```
+
+Поля заявки + `Group By = Status` + `Count`.
+
+### Number Cards
+
+```text
+Open Requests
+High Priority Requests
+Closed Requests
+```
+
+### Dashboard Chart
+
+```text
+Service Requests by Status
+```
+
+### Workspace
+
+```text
+Facility Operations
+```
+
+Workspace предназначен `Facility Supervisor` и содержит:
+
+- три Number Card;
+- один Dashboard Chart;
+- Shortcuts на Service Request, Equipment, Facility Location и Report;
+- одну Quick List Service Request.
 
 ## Изучаем
 
 - Report Builder;
 - Filters;
 - Group By;
-- Count / Sum / Average там, где применимо;
+- Count;
 - Number Card;
 - Dashboard Chart;
 - Workspace;
-- Shortcuts;
-- Quick Lists;
-- Workspace access.
+- Shortcut;
+- Quick List;
+- Workspace / Chart roles.
 
-## Практика
-
-Создать:
-
-### Reports
-
-- Service Requests by Status;
-- Service Requests by Priority;
-- Service Requests by Location;
-- Service Requests by Equipment.
-
-### Number Cards
-
-- Open Requests;
-- Overdue Requests;
-- High Priority Requests.
-
-### Dashboard Chart
-
-- Requests by Status.
-
-### Workspace
-
-```text
-Facility Operations
-
-[Open Requests] [Overdue] [High Priority]
-
-New Request
-Equipment
-Locations
-
-Requests by Status
-```
-
-## Приёмка
-
-Workspace отвечает на рабочие вопросы, а не демонстрирует все блоки Frappe.
+SQL, отдельные таблицы статистики и собственная BI-логика не нужны.
 
 ---
 
 # L9. Автоматизация
 
-## Задача
-
-Автоматизировать то, что уже умеем делать вручную.
+Новых предметных DocType нет.
 
 ## Изучаем
 
 - Notification;
 - System Notification;
-- Notification Filters;
+- Filters;
 - date-based Notification;
 - Assignment Rule;
-- Round Robin или Load Balancing;
-- PythonExpression только в штатном поле механизма;
-- scheduler/background jobs.
+- Round Robin;
+- Due Date Based On;
+- Close Condition;
+- scheduler/background jobs;
+- штатные Python expressions внутри механизмов Frappe.
 
 ## Практика
 
-1. Notification на новую Service Request.
-2. Notification на просроченную Service Request.
-3. Assignment Rule для автоматического назначения техников.
-4. Сравнить автоматическое назначение с ручным Assign To.
-5. Проверить scheduler и фоновые задания.
+1. Создать Standard Notification `New Service Request`.
+2. Создать date-based `Overdue Service Request`.
+3. Проверить Preview / Alerts for Today.
+4. Запустить штатный daily notification job вручную для немедленного теста.
+5. Создать второго Technician.
+6. Создать Assignment Rule `Service Request Auto Assignment`.
+7. Настроить Round Robin между двумя Technician.
+8. Связать Due Date ToDo с `Target Date`.
+9. Проверить `Close Condition = status == "Closed"`.
+10. Сравнить ручной Assign To и Assignment Rule.
+11. Убедиться, что Assignment Rule не двигает Workflow.
+12. В самостоятельной практике кратко проверить Load Balancing и вернуть Round Robin.
 
-## Приёмка
-
-Никакого собственного Python/JS для этих сценариев.
+Assignment Rule остаётся configuration record текущего site, потому что содержит конкретных Users. В L11 это решение подтверждается: правило не входит в универсальные fixtures приложения.
 
 ---
 
@@ -514,161 +490,180 @@ Workspace отвечает на рабочие вопросы, а не демо�
 
 ## Задача
 
-Открыть внешний вход в существующий Service Request.
+Открыть внешний вход в **тот же** Service Request.
+
+```text
+Browser
+  ↓
+Web Form
+  ↓
+Service Request
+  ↓
+Assignment / Notification / Workflow
+  ↓
+Desk
+```
 
 ## Изучаем
 
-- Web Form;
+- Standard Web Form;
 - Route;
 - Anonymous responses;
+- Guest;
 - Login Required;
 - Website User;
-- Guest;
-- Apply document permissions;
-- attachments;
-- Show List / editing на подходящем сценарии;
-- Standard Web Form.
+- Allow Edit;
+- Show List;
+- Apply Document Permissions;
+- Link options;
+- attachments.
 
 ## Практика
 
-1. Создать Web Form для Service Request.
-2. Проверить создание документа из браузера.
-3. Проверить Guest-сценарий.
-4. Проверить Login Required.
-5. Проверить Website User.
-6. Проверить attachment.
-7. Убедиться, что созданный документ появляется в обычном Desk-процессе.
+1. Создать `Report a Facility Issue`, route `facility-request`.
+2. Временно проверить Guest submission без публикации внутренних справочников.
+3. Проверить attachment.
+4. Перевести форму в финальный `Login Required`.
+5. Создать Website User.
+6. Проверить создание и редактирование своих ответов.
+7. Проверить owner-границу.
+8. Переключить `Apply Document Permissions` и сравнить поведение.
+9. Оставить финальную форму без editable `Status`.
 
-Цепочка:
-
-```text
-Web Form
-   ↓
-Service Request
-   ↓
-Assignment / Workflow
-   ↓
-Desk
-```
+Web Form не создаёт второй backend-процесс.
 
 ---
 
 # L11. Переносимость приложения
 
-## Задача
+## Цель
 
-Понять, что является приложением и как оно восстанавливается на чистом site.
+Доказать, что `facility_ops` восстанавливается на чистом site без копирования старой базы.
 
 ## Классификация
 
-Каждый созданный объект отнести к одному типу:
+### Standard source app
+
+Уже поставляются исходниками и **не требуют fixtures**:
 
 ```text
-Standard metadata
-site-specific customization
-configuration record
-working data
+Facility Location / Equipment / Service Request DocType
+Standard Report
+Standard Number Card
+Standard Dashboard Chart
+Standard Workspace
+Standard Notification
+Standard Web Form
 ```
 
-## Изучаем
+### Универсальная app configuration
 
-- Git как поставку app metadata;
-- fixtures;
-- `bench export-fixtures`;
-- Export Customizations;
-- `install-app`;
-- `bench migrate`;
-- clean site.
+Поставляется fixtures:
+
+```text
+Facility Requester
+Facility Technician
+Facility Supervisor
+Workflow State
+Workflow Action Master
+Service Request Workflow
+```
+
+### Site-specific configuration
+
+Не поставляется универсальными fixtures:
+
+```text
+Users
+User Permission
+Share
+Service Request Auto Assignment
+```
+
+Assignment Rule здесь site-specific, потому что его Users зависят от конкретного развёртывания.
+
+### Working data
+
+Не входит в поставку app:
+
+```text
+Facility Location Documents
+Equipment Documents
+Service Request Documents
+ToDo
+Comments
+Files
+Notification Log
+Workflow Action records
+```
 
 ## Практика
 
-1. Проверить Git app.
-2. Определить, какие Roles, Workflow, Workspace, Notification, Assignment Rule и Web Form должны поставляться с app.
-3. Добавить fixtures только для реально нужных конфигурационных записей.
-4. Если Lab D оставил нужную кастомизацию — экспортировать её.
-5. Создать новый чистый site.
+1. Экспортировать Custom Permissions трёх core DocType через Export Customizations.
+2. Добавить точные fixtures в `hooks.py`.
+3. Выполнить `bench export-fixtures`.
+4. Проверить fixture JSON на отсутствие Users и рабочих Documents.
+5. Создать `facility-ops-clean.localhost`.
 6. Установить `facility_ops`.
-7. Выполнить migrate.
-8. Проверить конфигурацию.
-9. Убедиться, что рабочие Equipment и Service Request не приехали как fixtures.
-
-## Финальная приёмка
-
-На чистом site можно заново пройти путь:
-
-```text
-создать Location
-создать Equipment
-создать Service Request
-назначить
-провести Workflow
-увидеть в Workspace
-создать через Web Form
-```
+7. Выполнить `migrate`.
+8. Проверить Standard metadata, Roles, Workflow, permissions, Workspace, Notifications и Web Form.
+9. Убедиться, что рабочие данные и Assignment Rule не приехали.
+10. Создать новых site-specific пользователей и минимальные рабочие данные.
+11. Вручную настроить локальное назначение и пройти end-to-end.
+12. Повторить `migrate` и убедиться в идемпотентности поставки.
 
 ---
 
 # Лаборатории
 
+Лаборатории изучают возможности Frappe, которым не нужно постоянное место в core-модели.
+
 ## Lab A. Child Table
 
-Временная таблица `Work Log` внутри Service Request:
+Временно добавить `Work Log` в Service Request:
 
-| Поле | Тип |
-|---|---|
-| Description | Data / Small Text |
-| Hours | Float |
-| Cost | Currency |
+```text
+Description
+Hours
+Cost
+```
 
-Изучить Child DocType / Table и затем решить, оставлять ли таблицу.
+Изучить Child DocType, Table, `parent / parenttype / parentfield / idx`, затем удалить эксперимент.
 
----
+## Lab B. DocStatus
 
-## Lab B. Draft / Submit / Cancel / Amend
+Временно создать `Service Report` и пройти:
 
-Создать маленький `Service Report` только для изучения:
+```text
+Draft → Submit → Cancel → Amend
+```
 
-- Is Submittable;
-- Draft;
-- Submit;
-- Cancel;
-- Amend;
-- DocStatus;
-- Allow on Submit;
-- Audit Trail.
-
-Не переносить этот lifecycle на Service Request только ради урока.
-
----
+Изучить Is Submittable, DocStatus, Allow on Submit и Audit Trail. После лаборатории удалить Service Report.
 
 ## Lab C. Auto Repeat
 
-Создать повторяющуюся профилактическую Service Request.
-
-Изучить:
+Временно включить Auto Repeat для Service Request:
 
 - Allow Auto Repeat;
 - Auto Repeat;
 - Assignee;
-- scheduler.
-
----
+- scheduler;
+- generated Document;
+- cleanup служебного Custom Field `auto_repeat`.
 
 ## Lab D. Customize Form
 
-На конкретном site добавить в Equipment локальное поле.
-
-Изучить:
+На Equipment изучить:
 
 - Customize Form;
 - Custom Field;
 - Property Setter;
-- DocType Layout при необходимости;
-- Export Customizations.
+- Module for Export;
+- Export Customizations;
+- Sync on Migrate;
+- точечный rollback.
 
-После лаборатории оставить изменение только если оно действительно нужно итоговому приложению.
-
----
+`Custom DocType` и `DocType Layout` в эту лабораторию не входят.
 
 ## Lab E. Print / PDF
 
@@ -676,33 +671,47 @@ working data
 
 - Print View;
 - Print Format Builder;
+- Standard Print Format;
 - Letter Head;
-- PDF.
+- Print Settings;
+- browser Print;
+- PDF;
+- Chrome PDF generator.
 
----
+`Service Request Summary` остаётся app-owned Print Format. Учебный Letter Head удаляется.
 
 ## Lab F. Специальные возможности
 
-Коротко проверить без изменения ядра:
+На временном полигоне проверить:
 
 - Single DocType;
 - Dynamic Link;
 - Table MultiSelect;
 - Percent;
-- Time / Duration;
+- Time;
+- Duration;
 - Barcode;
 - Signature;
 - Geolocation;
 - Attachment Gallery;
-- Gantt.
+- Markdown Editor;
+- Data Masking.
+
+Calendar и Gantt проверяются на штатном `Event` Frappe.
+
+Для собственного DocType в `v16.32.0` эти views требуют calendar JavaScript-конфигурацию `frappe.views.calendar[...]`; собственный JS остаётся за пределами базового курса.
+
+После лаборатории временные DocType удаляются.
 
 ---
 
 # Правило перехода между уроками
 
-Следующий урок начинается, когда:
+Следующий урок начинается, когда одновременно выполнено четыре условия:
 
-1. текущий результат работает;
-2. ученик может объяснить использованные механизмы;
-3. понятна разница между metadata, configuration и working data;
-4. Git чистый или изменения осознанно зафиксированы.
+1. текущий результат работает на фактическом стенде `v16.32.0`;
+2. ученик может объяснить использованные механизмы без заученных формулировок;
+3. понятно, что изменилось в metadata, configuration, working data и Git;
+4. Git clean либо все изменения осознанно зафиксированы.
+
+Если ROADMAP расходится с подробным уроком или фактическим поведением `v16.32.0`, исправляется ROADMAP, а не рабочий урок подгоняется под старую формулировку.
