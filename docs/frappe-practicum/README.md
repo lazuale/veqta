@@ -144,7 +144,7 @@ Facility Supervisor
 | [L6](projects/06-collaboration/README.md) | совместная работа | Assign To, ToDo, Comments, Timeline, Tags, Kanban |
 | [L7](projects/07-workflow/README.md) | управляемый процесс | Workflow, Workflow State, Transition, Workflow Action |
 | [L8](projects/08-control-workspace/README.md) | контроль работы | Report Builder, Number Card, Dashboard Chart, Workspace |
-| L9 | автоматизация | Notification, Assignment Rule, scheduler |
+| [L9](projects/09-automation/README.md) | автоматизация | Notification, Assignment Rule, scheduler |
 | L10 | внешний ввод | Web Form, Guest, Website User, permissions, attachments |
 | L11 | переносимость | metadata, fixtures, customizations, clean site, migrate |
 
