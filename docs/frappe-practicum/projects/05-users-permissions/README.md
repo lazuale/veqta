@@ -1,31 +1,44 @@
 # L5. Пользователи и права
 
-L5 делает `facility_ops` многопользовательским и вводит **базовую server-side permission model** приложения.
+L5 вводит **базовую server-side permission model** `facility_ops`.
 
 Новых предметных DocType нет.
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
-Главный результат урока:
+Финальная политика после L5:
 
 ```text
-Role Permission
-= базовая граница доступа
+Requester
+→ Create Service Request
+→ Read только свои
+→ после создания не Write
+→ не Delete
 
-If Owner
-= ограничение permission владельцем Document
+Technician
+→ Read/Write Service Request
+→ не Create
+→ не Delete
 
-Permission Level
-= field-level access
-
-User Permission
-= дополнительное ограничение набора Documents/Link values
-
-Share
-= точечное исключение для конкретного Document
+Supervisor
+→ Read/Write/Create Service Request
+→ не Delete в финальной политике
+→ Report/Export
 ```
 
-Assignment появится в L6 и **не будет считаться permission mechanism**.
+Причина жёсткости:
+
+```text
+заявитель отправил заявку
+→ дальше это рабочая запись системы
+→ он не должен тихо переписывать её после создания
+
+рабочие Service Request
+→ не удаляем как штатную операцию
+→ сохраняем audit trail
+```
+
+Assignment появится в L6 и **не является permission mechanism**.
 
 ---
 
@@ -48,15 +61,7 @@ facility_ops установлен
 working tree clean
 ```
 
-Существуют:
-
-```text
-Facility Location
-Equipment
-Service Request
-```
-
-и валидные Documents L4.
+Существуют три core DocType и валидные Documents L4.
 
 ---
 
@@ -68,7 +73,7 @@ Facility Technician
 Facility Supervisor
 ```
 
-Роль — набор полномочий. User может иметь одну или несколько ролей.
+Role — набор полномочий. User и Role не являются одной сущностью.
 
 ---
 
@@ -103,11 +108,11 @@ Administrator
 System Manager
 ```
 
-`technician.two@example.com` здесь не создаём. Он появится только в L9 для Round Robin.
+`technician.two@example.com` появится только в L9.
 
 ---
 
-# 4. Базовая permission matrix
+# 4. Финальная permission matrix
 
 ## Facility Location
 
@@ -129,34 +134,45 @@ System Manager
 
 | Role | Read | Write | Create | Delete | Report | Export | If Owner |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Facility Requester | Yes | Yes | Yes | No | No | No | Yes |
+| Facility Requester | Yes | **No** | Yes | No | No | No | Yes |
 | Facility Technician | Yes | Yes | No | No | No | No | No |
-| Facility Supervisor | Yes | Yes | Yes | Yes | Yes | Yes | No |
+| Facility Supervisor | Yes | Yes | Yes | **No** | Yes | Yes | No |
 
-`If Owner` используется только для Requester на Permission Level 0.
+Ключевой exact-source факт `v16.32.0`:
 
-Это базовая server permission model. Позже Workflow добавит transition rules, но не заменит эту матрицу.
+```text
+If Owner
+не превращает Create в owner-only запрет
+```
+
+Permission engine отдельно исключает `create` из owner-only свёртки.
+
+Поэтому Requester может:
+
+```text
+создать новый Service Request
+```
+
+но после insert:
+
+```text
+Read own = Yes
+Write = No
+```
+
+Это и есть безопасная модель intake.
 
 ---
 
 # 5. Настроить Role Permission Manager
 
-Последовательно настроить:
-
-```text
-Facility Location
-Equipment
-Service Request
-```
-
-строго по таблицам выше.
-
-Для Requester у Service Request:
+Для Requester `Service Request`:
 
 ```text
 Read = Yes
-Write = Yes
+Write = No
 Create = Yes
+Delete = No
 Only If Creator = Yes
 ```
 
@@ -165,6 +181,8 @@ Only If Creator = Yes
 ```text
 Read = Yes
 Write = Yes
+Create = No
+Delete = No
 ```
 
 Для Supervisor:
@@ -173,27 +191,21 @@ Write = Yes
 Read = Yes
 Write = Yes
 Create = Yes
-Delete = Yes
+Delete = No
 Report = Yes
 Export = Yes
 ```
 
+Остальные core DocType настроить по матрицам выше.
+
 ---
 
-# 6. Проверить Requester One
+# 6. Проверить Requester One: create + read own
 
 Войти:
 
 ```text
 requester.one@example.com
-```
-
-Проверить:
-
-```text
-Facility Location → Read
-Equipment → Read
-Equipment Create/Write → запрещены
 ```
 
 Создать:
@@ -202,7 +214,7 @@ Equipment Create/Write → запрещены
 Subject:     Requester One test
 Location:    Room 101
 Equipment:   EQ-0001 или пусто
-Description: Проверка If Owner
+Description: Проверка безопасного intake и If Owner
 Priority:    Medium
 ```
 
@@ -212,35 +224,48 @@ Status получает default:
 New
 ```
 
-Requester One должен открыть и изменить собственную заявку.
+После сохранения Requester One должен:
+
+```text
+видеть собственную заявку
+не иметь штатного Write после создания
+```
+
+Попытка изменить `Description` и сохранить должна быть запрещена permission model.
+
+Это важнее, чем надеяться на будущий Workflow UI.
 
 ---
 
-# 7. Проверить Requester Two и If Owner
+# 7. Requester Two и If Owner
 
-Войти:
+Под:
 
 ```text
 requester.two@example.com
 ```
 
-Создать:
+создать:
 
 ```text
 Subject:     Requester Two test
 Location:    Room 102
-Description: Вторая заявка для проверки owner
+Description: Проверка owner visibility
 Priority:    Low
 ```
 
-Requester Two не получает обычный доступ к заявке Requester One, и наоборот.
-
-Фиксируем:
+Проверить:
 
 ```text
-If Owner
-→ permission row применяется только к Document своего owner
+Requester Two
+→ видит свой Document
+→ не видит обычным способом Requester One Document
+
+Requester One
+→ не видит обычным способом Requester Two Document
 ```
+
+`If Owner` здесь используется как **read boundary**, а не как разрешение переписывать собственную заявку после отправки.
 
 ---
 
@@ -261,41 +286,74 @@ Service Request → Read + Write
 Service Request Create/Delete → запрещены
 ```
 
-Изменить `Description` существующей заявки и сохранить.
+Изменить `Description` отдельной тестовой Service Request и сохранить.
 
-На этом этапе Workflow ещё нет, поэтому Role Permission является основной границей редактирования.
+Это показывает базовый document Write Technician до появления Workflow.
+
+После L7 Workflow добавит state-dependent Desk behavior и transition gates, но Role Permission останется server access boundary.
 
 ---
 
-# 9. Проверить Supervisor
+# 9. Проверить Supervisor без Delete
 
-Войти:
+Под:
 
 ```text
 supervisor.one@example.com
 ```
 
-Проверить:
-
-- все Service Request независимо от owner;
-- Create / Write / Delete Service Request;
-- Create / Write Facility Location и Equipment;
-- Import / Export Equipment.
-
-Для Delete создать отдельную временную заявку:
+проверить:
 
 ```text
-Subject:     Delete permission test
-Location:    Warehouse
-Description: Temporary delete permission test
-Priority:    Low
+Service Request Read/Write/Create = Yes
+Service Request Delete = No
+Equipment Import/Export = Yes
+Facility Location / Equipment management = по матрице
 ```
 
-Удалить только её.
+Рабочие заявки не должны исчезать обычным Delete из финальной operating policy.
+
+Ошибочную/неактуальную заявку можно довести до terminal process state и оставить историю, а не стирать её.
 
 ---
 
-# 10. Permission Level
+# 10. Временно изучить Delete permission
+
+Чтобы механизм Delete не остался только теорией, временно у Supervisor для `Service Request` включить:
+
+```text
+Delete = Yes
+```
+
+Создать только лабораторную заявку:
+
+```text
+Subject:     Delete permission experiment
+Location:    Warehouse
+Description: Temporary record created only to test Delete permission
+Priority:    Low
+```
+
+Удалить её под Supervisor.
+
+Сразу после проверки вернуть:
+
+```text
+Delete = No
+```
+
+Это **обязательный rollback**, а не рекомендация.
+
+Фиксируем:
+
+```text
+Delete capability изучена
+≠ Delete оставлен нормальной рабочей политикой
+```
+
+---
+
+# 11. Permission Level
 
 Под Administrator у:
 
@@ -309,13 +367,11 @@ Equipment.notes
 Permission Level = 1
 ```
 
-В Role Permission Manager добавить:
+Для Supervisor добавить Level 1:
 
 ```text
-Role: Facility Supervisor
-Permission Level: 1
-Read: Yes
-Write: Yes
+Read = Yes
+Write = Yes
 ```
 
 Requester/Technician Level 1 не получают.
@@ -329,11 +385,11 @@ Permission Level
 = field-level permission layer
 ```
 
-Он не создаёт отдельную роль и не заменяет Level 0 document permissions.
+Он не заменяет Level 0 document permissions.
 
 ---
 
-# 11. Проверить metadata в Git
+# 12. Metadata в Git
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
@@ -342,21 +398,13 @@ git diff -- \
   facility_ops/facility_operations/doctype/equipment/equipment.json
 ```
 
-Изменение:
+`Equipment.notes.permlevel = 1` — Standard metadata.
 
-```text
-Equipment.notes.permlevel = 1
-```
-
-является Standard metadata и попадает в source app.
-
-Role Permission Manager configuration пока живёт в site DB; перенос будет собран L11 через Export Customizations.
+Role Permission configuration пока site-specific; L11 экспортирует Custom DocPerm через Export Customizations.
 
 ---
 
-# 12. Создать временного Restricted Technician
-
-Для изолированной проверки дополнительных permission mechanisms создать:
+# 13. Создать временного Restricted Technician
 
 ```text
 technician.restricted@example.com
@@ -367,11 +415,11 @@ Role: Facility Technician
 Send Welcome Email: No
 ```
 
-Этот User **не является частью финальной operating model**.
+Он существует только внутри permission experiment.
 
 ---
 
-# 13. User Permission experiment
+# 14. User Permission experiment
 
 Создать:
 
@@ -382,37 +430,28 @@ For Value:      Room 101
 Applicable For: Service Request
 ```
 
-Под Restricted Technician проверить:
+Проверить:
 
 ```text
-Room 101 Service Request
-→ обычный доступ есть
-
-Room 102 / Warehouse / Floor 2
-→ обычного доступа нет
+Room 101 → обычный доступ
+Room 102 / Warehouse / Floor 2 → обычного доступа нет
 ```
 
 Модель:
 
 ```text
 Role Permission
-→ DocType в принципе доступен
+→ базовый доступ к DocType
 
 User Permission
-→ дополнительно сужает допустимые связанные значения / Documents
+→ дополнительное сужение допустимых Documents/Link values
 ```
 
 ---
 
-# 14. Share experiment
+# 15. Share experiment
 
-Под Administrator открыть одну Service Request:
-
-```text
-Location = Room 102
-```
-
-Создать Share:
+Одну `Room 102` заявку поделить:
 
 ```text
 User:  technician.restricted@example.com
@@ -420,106 +459,113 @@ Read:  Yes
 Write: No
 ```
 
-Под Restricted Technician проверить:
+Проверить:
 
 ```text
-обычные Room 102 заявки
-→ недоступны
-
-конкретная shared заявка
-→ доступна для чтения
+обычные Room 102 → недоступны
+конкретная shared Room 102 → доступна Read
 ```
-
-Фиксируем:
 
 ```text
 User Permission
-= систематическое ограничение
-
-Share
-= точечное исключение Document
+≠ Share
 ```
 
 ---
 
-# 15. Почему experiment обязательно очищается
+# 16. Почему experiment обязательно очищается
 
-В `v16.32.0` штатный `Assign To` после создания ToDo проверяет доступ assignee к reference document.
+В `v16.32.0` штатный `Assign To` после создания ToDo проверяет access assignee.
 
-Если assignee не имеет доступа:
+Если access нет:
 
 ```text
-document sharing разрешён
+sharing разрешён
 → Frappe может автоматически создать DocShare Read
 
 sharing запрещён
 → assignment может завершиться Missing Permission
 ```
 
-Следовательно опасная модель:
+Поэтому опасная комбинация:
 
 ```text
-основной Technician ограничен Location User Permission
-+
 глобальный Round Robin
++
+основные Technician с разными Location User Permission
 ```
 
-может привести не просто к «невидимой задаче», а к тому, что Assignment **начнёт сам менять access model через auto-Share** или падать при отключённом sharing.
+может заставить Assignment менять permission model или падать.
 
-Так не строим.
-
-Основной принцип:
+Финальный принцип:
 
 ```text
-Permission architecture
-задаётся заранее
-
-Assignment
-не должен раздавать скрытые permission exceptions
+permission architecture задаётся заранее
+Assignment не раздаёт скрытые access exceptions
 ```
 
 ---
 
-# 16. Обязательный rollback L5
+# 17. Обязательный rollback permission experiment
 
 Под Administrator:
 
-1. удалить лабораторный Share;
-2. удалить User Permission `technician.restricted@example.com`;
-3. установить Restricted Technician:
+1. удалить explicit Share;
+2. удалить User Permission Restricted Technician;
+3. установить:
 
 ```text
+technician.restricted@example.com
 Enabled = No
 ```
 
-Затем под:
-
-```text
-technician.one@example.com
-```
-
-проверить обычный Role-based доступ к Service Request независимо от Location.
-
-Это обязательный OUTPUT STATE L5.
+Проверить под `technician.one@example.com` обычный Role-based доступ независимо от Location.
 
 ---
 
-# 17. Отрицательные проверки
+# 18. Финальный повторный permission check
+
+Проверить именно **после всех временных экспериментов**:
+
+```text
+Requester:
+Create own request = Yes
+Read own = Yes
+Write after creation = No
+Delete = No
+
+Technician:
+Read/Write = Yes
+Create/Delete = No
+
+Supervisor:
+Read/Write/Create = Yes
+Delete = No
+Report/Export = Yes
+```
+
+Если Supervisor Delete всё ещё Yes — L5 не принят.
+
+---
+
+# 19. Отрицательные проверки
 
 Получить реальные отказы:
 
 ```text
-Requester → Create Equipment запрещён
+Requester → edit saved own Service Request запрещён
 Requester → чужая Service Request запрещена
+Requester → Create Equipment запрещён
 Technician → Create Service Request запрещён
-Restricted Technician до rollback → обычная Room 102 заявка запрещена
+Supervisor → Delete обычной Service Request запрещён после rollback
+Restricted Technician до cleanup → обычная Room 102 запрещена
 ```
 
-Administrator не является доказательством permission model.
+Administrator не используется как доказательство.
 
 ---
 
-# 18. Зафиксировать metadata L5
+# 20. Commit metadata
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
@@ -547,51 +593,45 @@ Custom DocPerm
 
 ---
 
-# 19. State contract L5
+# 21. State contract L5
 
-## Preconditions
-
-```text
-3 core DocType
-valid working data L4
-```
-
-## Persistent mutations
+## Persistent
 
 ```text
 3 Roles
 4 main System Users
-Role Permission configuration
-Equipment.notes Permission Level 1
+final Role Permission matrix
+Equipment.notes permlevel 1
 ```
 
-## Temporary mutations
+## Temporary
 
 ```text
-technician.restricted@example.com enabled
+Supervisor Service Request Delete = Yes
+Restricted Technician enabled
 User Permission Room 101
-one explicit Share Room 102
+one explicit Share
 ```
 
 ## Rollback
 
 ```text
+Supervisor Delete = No
 Share deleted
 User Permission deleted
 Restricted Technician disabled
 ```
 
-## Output state
+## Output
 
 ```text
-technician.one@example.com
-→ no Location User Permission
-
-technician.two@example.com
-→ does not exist yet
+Requester = create + read-own, no post-create write
+main Technician = no Location User Permission
+technician.two = does not exist yet
+no core Service Request Delete permission
 ```
 
-## Git state
+## Git
 
 ```text
 Equipment metadata committed
@@ -600,21 +640,20 @@ working tree clean
 
 ---
 
-# 20. Приёмка L5
+# 22. Приёмка L5
 
 L5 принят, если:
 
-- существуют три роли;
-- четыре основных пользователя работают отдельными входами;
-- Requester ограничен `If Owner`;
-- Technician имеет общий Role-based Read/Write Service Request;
-- Supervisor имеет расширенные права;
-- `Equipment.notes = Permission Level 1`, Level 1 выдан Supervisor;
-- User Permission и Share проверены на temporary user;
-- Share и User Permission удалены;
-- Restricted Technician отключён;
+- Requester создаёт заявку, читает свою, но не может переписать её после сохранения;
+- If Owner ограничивает visibility собственными Documents;
+- Technician имеет общий Read/Write, но не Create/Delete;
+- Supervisor не имеет финального Delete Service Request;
+- Delete permission реально проверен временно и откатан;
+- `Equipment.notes` Level 1 доступен Supervisor;
+- User Permission и Share реально проверены;
+- permission experiment полностью очищен;
 - `technician.two@example.com` ещё не существует;
-- ученик объясняет, почему Assignment не должен использовать auto-Share как штатную permission policy;
+- ученик объясняет automatic Share boundary Assign To;
 - Git clean.
 
-После L5 переходим к **L6 — совместная работа**, где Assignment будет введён как отдельная ось ответственности.
+После L5 переходим к **L6 — совместная работа**.
