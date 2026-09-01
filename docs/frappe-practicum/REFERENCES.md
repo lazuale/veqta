@@ -15,6 +15,23 @@
 
 Официальная установка перечисляет `wkhtmltopdf 0.12.6` с patched Qt как зависимость для PDF. В программе PDF впервые требуется в P5, поэтому P0 не блокируется отсутствием PDF-зависимости. Перед P5 способ установки и работоспособность PDF отдельно проверяются на фактическом учебном стенде.
 
+## Учебный стек P0
+
+`projects/00-lab/SETUP_WSL2.md` фиксирует версии учебного стенда. Перед изменением любой из них проверяются официальные источники:
+
+- WSL installation: https://learn.microsoft.com/windows/wsl/install
+- Debian 13 / Trixie: https://www.debian.org/releases/trixie/
+- MariaDB в Debian 13: https://packages.debian.org/trixie/mariadb-server
+- NVM v0.40.3: https://github.com/nvm-sh/nvm/releases/tag/v0.40.3
+- Node.js v24.20.0 LTS: https://nodejs.org/en/download/archive/v24.20.0
+- Yarn Classic v1.22.22: https://github.com/yarnpkg/yarn/releases/tag/v1.22.22
+- uv 0.12.7: https://github.com/astral-sh/uv/releases/tag/0.12.7
+- Python 3.14.7: https://www.python.org/downloads/release/python-3147/
+- Frappe Bench 5.31.0: https://pypi.org/project/frappe-bench/5.31.0/
+- Frappe Framework v16.32.0: https://github.com/frappe/frappe/releases/tag/v16.32.0
+
+Точное сочетание версий — baseline курса, а не утверждение, что каждая закреплённая версия навсегда останется последней. При обновлении baseline сначала проверяется чистая установка P0, затем меняются инструкция и этот список источников.
+
 ## App, site и Developer Mode
 
 - Apps: https://docs.frappe.io/framework/user/en/basics/apps
@@ -40,6 +57,9 @@
 
 - https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/doctype/doctype.json
 - https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/doctype/doctype.py
+- удаление стандартного DocType в Developer Mode: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/delete_doc.py
+
+`delete_doc.py` подтверждает, что стандартный DocType можно удалить в Developer Mode, а для такого удаления Frappe вызывает `delete_controllers`, удаляющий каталог DocType из Module приложения. Это используется в cleanup P0.
 
 ## Customize Form и переносимость
 
