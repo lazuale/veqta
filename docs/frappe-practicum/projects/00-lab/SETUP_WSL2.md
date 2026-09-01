@@ -338,9 +338,11 @@ App License [mit]:
 Create GitHub Workflow action for unittests [y/N]:
 N
 
-Branch Name [version-16]:
+Branch Name [HEAD]:
 main
 ```
+
+На Bench, созданном непосредственно на tag `v16.32.0`, репозиторий Frappe находится в detached HEAD. Поэтому `bench new-app` может предложить `HEAD` как default branch нового app. **Не принимайте этот default: введите `main` явно.** Если в конкретном окружении в скобках показано другое значение, всё равно введите `main`.
 
 `bench new-app` создаст отдельный Git-репозиторий приложения внутри:
 
@@ -356,6 +358,12 @@ cd ~/frappe/frappe-practicum-bench/apps/frappe_practicum
 git status
 git branch --show-current
 cat frappe_practicum/modules.txt
+```
+
+Ожидается branch:
+
+```text
+main
 ```
 
 В `modules.txt` должен быть default Module:
@@ -493,6 +501,7 @@ bench --site frappe-practicum.localhost scheduler status
 echo "=== APP GIT ==="
 cd apps/frappe_practicum
 git status
+git branch --show-current
 cat frappe_practicum/modules.txt
 ```
 
@@ -505,4 +514,5 @@ P0 можно продолжать, если одновременно выпол
 - scheduler enabled;
 - `bench doctor` работает;
 - app `frappe_practicum` имеет собственный Git-репозиторий;
+- branch учебного app = `main`;
 - default Module `Frappe Practicum` существует.
