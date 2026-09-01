@@ -4,7 +4,7 @@
 
 - [Lab A — Child Table](a-child-table/README.md)
 - [Lab B — Draft / Submit / Cancel / Amend / DocStatus](b-docstatus/README.md)
-- Lab C — Auto Repeat
+- [Lab C — Auto Repeat](c-auto-repeat/README.md)
 - Lab D — Customize Form / Export Customizations
 - Lab E — Print / PDF
 - Lab F — специальные Field Types и представления
