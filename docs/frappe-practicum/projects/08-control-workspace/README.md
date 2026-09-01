@@ -1,12 +1,12 @@
 # L8. Контроль работы и Workspace
 
-L8 превращает накопленные `Service Request` в один рабочий экран контроля без новой аналитической модели данных.
+L8 строит контрольный экран над уже существующими `Service Request` без новой аналитической модели данных.
 
 Новых предметных DocType нет.
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
-## Что создаём
+## Создаём
 
 ```text
 Report Builder:   Service Requests Overview
@@ -17,18 +17,32 @@ Dashboard Chart:  Service Requests by Status
 Workspace:        Facility Operations Control
 ```
 
-Название Workspace специально **не совпадает** с Module:
+Различать:
 
 ```text
 Module    = Facility Operations
 Workspace = Facility Operations Control
 ```
 
-Так новичок не путает технический Module приложения с отдельным рабочим экраном Desk.
-
 ---
 
-# 1. Проверить состояние после L7
+# 1. Preconditions
+
+После L7:
+
+```text
+Service Request Workflow активен
+Status values:
+New
+Accepted
+In Progress
+Resolved
+Closed
+```
+
+Kanban `Service Request Status Board` удалён.
+
+Проверить:
 
 ```bash
 cd ~/frappe/facility-ops-bench
@@ -39,63 +53,46 @@ cd apps/facility_ops
 git status
 ```
 
-Нужно подтвердить:
-
-```text
-Frappe 16.32.0
-facility_ops установлен
-working tree clean
-```
-
-На site уже должны работать:
-
-```text
-Service Request Workflow
-Facility Requester
-Facility Technician
-Facility Supervisor
-```
-
-Kanban `Service Request Status Board` после L7 удалён.
+Ожидается clean working tree.
 
 ---
 
-# 2. Зафиксировать границу аналитики
+# 2. Граница аналитики
 
-Рабочие данные уже находятся в:
+Рабочие данные остаются в:
 
 ```text
 Service Request
 ```
 
-L8 не создаёт:
+Не создаём:
 
 ```text
 Analytics Request
-Request Summary Table
+Summary Table
 Dashboard Data
 BI Mart
 ```
 
-Штатные Report/Card/Chart/Workspace читают существующие Documents с учётом permissions.
+Report/Card/Chart/Workspace — способы чтения и навигации.
+
+Они **не выдают permission сами** и не заменяют Role Permission.
 
 ---
 
-# 3. Создать Report Builder
+# 3. Report Builder
 
-Под Administrator открыть `Report` и создать:
+Создать:
 
 ```text
-Report Name:        Service Requests Overview
-Report Type:        Report Builder
-Reference DocType:  Service Request
-Module:             Facility Operations
-Is Standard:        Yes
+Report Name:       Service Requests Overview
+Report Type:       Report Builder
+Reference DocType: Service Request
+Module:            Facility Operations
+Is Standard:       Yes
 ```
 
-Сохранить.
-
-Настроить отображаемые поля так, чтобы отчёт оставался рабочим и коротким, например:
+Показать минимум:
 
 ```text
 Subject
@@ -107,37 +104,43 @@ Target Date
 Modified
 ```
 
-Не включать технические поля без необходимости.
-
 ---
 
 # 4. Group By Status
 
-В Report Builder сгруппировать по:
+Сгруппировать по:
 
 ```text
 Status
 ```
 
-и использовать Count.
+с Count.
 
-Цель — увидеть распределение текущих Service Request по состояниям без SQL/Python.
+Допустимые группы соответствуют реальной модели:
 
-Пример смысла:
+```text
+New
+Accepted
+In Progress
+Resolved
+Closed
+```
+
+Пример результата:
 
 ```text
 New          4
-Assigned     2
+Accepted     2
 In Progress  3
 Resolved     1
 Closed       5
 ```
 
-Точные числа зависят от данных site.
+Точные counts зависят от working data текущего site.
 
 ---
 
-# 5. Создать Number Card Open Requests
+# 5. Open Requests
 
 Создать Standard Number Card:
 
@@ -157,11 +160,11 @@ Filter:
 Status != Closed
 ```
 
-Percentage stats не нужны.
+Здесь `Open` — аналитическое имя группы всех незакрытых заявок, а не отдельный Workflow state.
 
 ---
 
-# 6. Создать High Priority Requests
+# 6. High Priority Requests
 
 ```text
 Name:          High Priority Requests
@@ -182,7 +185,7 @@ Status != Closed
 
 ---
 
-# 7. Создать Closed Requests
+# 7. Closed Requests
 
 ```text
 Name:          Closed Requests
@@ -200,90 +203,93 @@ Filter:
 Status = Closed
 ```
 
-Не создавать отдельную карточку для каждого Status.
+---
+
+# 8. Permission-aware counts
+
+Под Supervisor посмотреть Cards.
+
+Под `requester.one@example.com` открыть доступную Number Card напрямую и сравнить count.
+
+В `v16.32.0` Document Type Number Card использует штатный list-query с permissions.
+
+Фиксируем:
+
+```text
+Card
+→ считает только доступные query results
+
+Card
+≠ permission grant
+```
 
 ---
 
-# 8. Проверить permissions Number Card
-
-Под Supervisor проверить карточки.
-
-Под `requester.one@example.com` открыть ту же Number Card напрямую и убедиться, что результат учитывает доступные ему `Service Request`.
-
-Number Card не выдаёт доступ к данным самостоятельно: в `v16.32.0` Document Type Number Card получает данные штатным list-query с permissions.
-
----
-
-# 9. Создать Dashboard Chart
+# 9. Dashboard Chart
 
 Создать:
 
 ```text
-Chart Name:         Service Requests by Status
-Chart Type:         Group By
-Document Type:      Service Request
-Group By Based On:  Status
-Group By Type:      Count
-Type:               Bar
-Is Public:          Yes
-Is Standard:        Yes
-Module:             Facility Operations
+Chart Name:        Service Requests by Status
+Chart Type:        Group By
+Document Type:     Service Request
+Group By Based On: Status
+Group By Type:     Count
+Type:              Bar
+Is Public:         Yes
+Is Standard:       Yes
+Module:            Facility Operations
 ```
 
-Filters оставить пустыми.
-
-В Roles добавить:
+В Roles:
 
 ```text
 Facility Supervisor
 ```
 
-Chart отвечает на вопрос распределения заявок по Status и не является Kanban.
+Chart показывает те же Status values:
+
+```text
+New / Accepted / In Progress / Resolved / Closed
+```
 
 ---
 
-# 10. Проверить Chart permissions
+# 10. Chart role vs data permission
 
-Под Supervisor график должен быть доступен.
+Role `Facility Supervisor` ограничивает доступ к самому Chart object.
 
-Под Technician он не должен использоваться как его рабочий dashboard, если доступ к Chart ограничен Role `Facility Supervisor`.
+Это не означает, что Chart role заменяет permissions underlying `Service Request`.
 
-Role на Chart ограничивает сам объект Chart и не заменяет permissions `Service Request`.
+Различать:
+
+```text
+доступ к визуализации
+≠
+доступ к исходным Documents
+```
 
 ---
 
-# 11. Создать Workspace
+# 11. Workspace
 
-Под Administrator создать новый Workspace:
+Создать:
 
 ```text
 Title:  Facility Operations Control
 Public: Yes
 Module: Facility Operations
 Type:   Workspace
+Roles:  Facility Supervisor
 ```
 
-В Roles оставить:
-
-```text
-Facility Supervisor
-```
-
-Различать:
-
-```text
-Facility Operations
-= Module app
-
-Facility Operations Control
-= рабочий Workspace руководителя
-```
+Не называть Workspace просто `Facility Operations`, чтобы не смешивать его с Module.
 
 ---
 
-# 12. Добавить Number Cards
+# 12. Наполнить Workspace
 
-В верхнюю часть Workspace добавить:
+Добавить Number Cards:
 
 ```text
 Open Requests
@@ -291,25 +297,13 @@ High Priority Requests
 Closed Requests
 ```
 
-Не заполнять экран карточками ради количества.
-
----
-
-# 13. Добавить Dashboard Chart
-
-Ниже добавить:
+Добавить Chart:
 
 ```text
 Service Requests by Status
 ```
 
-Проверить, что он отображает данные `Service Request` текущего site.
-
----
-
-# 14. Добавить Shortcuts
-
-Добавить Shortcuts:
+Shortcuts:
 
 ```text
 Service Request
@@ -318,27 +312,19 @@ Facility Location
 Service Requests Overview
 ```
 
-Workspace должен быть входной точкой контроля, а не копией всего Desk.
-
----
-
-# 15. Добавить Quick List
-
-Добавить один Quick List:
+Quick List:
 
 ```text
-Document Type: Service Request
+Service Request
 ```
 
-Проверить несколько последних/доступных заявок.
-
-Один Quick List достаточен для изучения механизма.
+Не превращать Workspace в копию всего Desk.
 
 ---
 
-# 16. Проверить Workspace под Supervisor
+# 13. Проверить под Supervisor
 
-Войти как:
+Войти:
 
 ```text
 supervisor.one@example.com
@@ -354,38 +340,35 @@ Facility Operations Control
 
 ```text
 3 Number Cards
-Dashboard Chart
+1 Dashboard Chart
 Shortcuts
 Quick List
+Report link
 ```
-
-и переход в `Service Requests Overview`.
 
 ---
 
-# 17. Проверить границу Workspace
+# 14. Доказать отсутствие аналитической копии
 
-Workspace не хранит копию Service Request.
+Создать или изменить обычный `Service Request`, затем обновить Report/Card/Chart.
 
-Изменить или создать рабочую заявку штатным способом, затем обновить Card/Chart/Report.
-
-Результат должен строиться по актуальным Documents.
+Показатели должны отражить актуальные working Documents.
 
 ```text
 Service Request
-= данные
+= source operational data
 
-Report / Card / Chart / Workspace
-= app-owned способы чтения и навигации
+Report/Card/Chart/Workspace
+= read model / presentation
 ```
+
+В базовом курсе отдельный OLAP/BI слой не создаётся.
 
 ---
 
-# 18. Проверить source и Git
+# 15. Source и Git
 
-Report, Number Cards, Dashboard Chart и Workspace создаются как Standard objects с Module `Facility Operations`.
-
-В Developer Mode они должны появиться в source app.
+Standard Report, Cards, Chart и Workspace при Developer Mode должны появиться в source app.
 
 Проверить:
 
@@ -395,42 +378,84 @@ cd ~/frappe/facility-ops-bench/apps/facility_ops
 git status --short
 
 find facility_ops/facility_operations \
-  -type f \
-  | sort \
+  -type f | sort \
   | grep -E 'report|number_card|dashboard_chart|workspace'
 ```
 
-Не редактировать exported JSON вручную.
+Не редактировать generated JSON вручную.
 
 ---
 
-# 19. Commit L8
+# 16. Commit
 
-Добавить только app-owned Standard configuration и проверить staged diff.
+Добавить только app-owned Standard configuration.
 
-Пример commit:
+Пример:
 
 ```bash
 git commit -m "Add service request control workspace"
 ```
 
-Рабочие `Service Request` в Git не добавляются.
+Working `Service Request` Documents в Git не попадают.
 
 ---
 
-# 20. Приёмка L8
+# 17. State contract L8
+
+## Preconditions
+
+```text
+Workflow L7 active
+Status set = New / Accepted / In Progress / Resolved / Closed
+```
+
+## Persistent mutations
+
+```text
+Service Requests Overview
+Open Requests
+High Priority Requests
+Closed Requests
+Service Requests by Status
+Facility Operations Control
+```
+
+## Temporary mutations
+
+```text
+нет обязательных
+```
+
+## Output state
+
+```text
+один рабочий control Workspace
+никаких новых domain DocType
+```
+
+## Git state
+
+```text
+Standard analytics/workspace source committed
+working tree clean
+```
+
+---
+
+# 18. Приёмка L8
 
 L8 принят, если:
 
-- существует `Service Requests Overview` как Report Builder;
+- Report Builder существует;
+- Group By показывает только актуальные Status values, включая `Accepted`, не старый `Assigned`;
 - существуют ровно три учебные Number Cards;
-- существует `Service Requests by Status` как Group By Count Chart;
-- Chart ограничен Facility Supervisor;
-- существует Workspace `Facility Operations Control`;
-- Module и Workspace больше не имеют одинаковое имя;
-- Workspace содержит Cards, Chart, Shortcuts и один Quick List;
-- показатели отражают актуальные Service Request и permissions;
-- Standard configuration находится в app source/Git;
-- никакой SQL/Python/отдельной аналитической таблицы не создано.
+- Number Card counts permission-aware;
+- существует `Service Requests by Status` Chart;
+- существует `Facility Operations Control` Workspace;
+- Module и Workspace различаются;
+- визуализации не трактуются как permission boundary;
+- никаких SQL/Python reports и аналитических копий data не создано;
+- Standard configuration находится в source/Git;
+- Git clean.
 
 После L8 переходим к **L9 — автоматизация**.
