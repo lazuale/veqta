@@ -44,33 +44,11 @@ Frappe: v16.32.0
 
 Собственную business logic на Python/JavaScript в базовом маршруте не пишем.
 
-Поэтому курс различает:
-
-```text
-server-enforced guarantee
-structural invariant
-UI/process guard
-conditional behavior
-deployment policy
-```
-
 Формальная модель: **[INVARIANTS.md](INVARIANTS.md)**.
 
 ---
 
-# Основные DocType
-
-## Facility Location
-
-Tree структуры мест.
-
-## Equipment
-
-Карточка единицы оборудования.
-
-`Equipment.location` = текущее размещение.
-
-## Service Request
+# Service Request
 
 Mandatory:
 
@@ -89,8 +67,6 @@ Target Date
 Attachment
 ```
 
-`Service Request.location` = историческое место события.
-
 Status:
 
 ```text
@@ -101,15 +77,17 @@ Resolved
 Closed
 ```
 
-`Accepted` = заявка принята Supervisor в рабочий процесс.
-
 ```text
 Accepted ≠ Assigned To
 ```
 
+`Service Request.location` = historical event location.
+
+`Equipment.location` = current location.
+
 ---
 
-# Роли и доступ
+# Роли и hardened permissions
 
 ```text
 Facility Requester
@@ -122,7 +100,7 @@ Facility Supervisor
 ```text
 Requester
 → Create + Read own
-→ Write/Delete No after insert
+→ Write/Delete No
 
 Technician
 → Read/Write
@@ -134,9 +112,7 @@ Supervisor
 → Report/Export
 ```
 
-## Level 1 — business content authority
-
-На Permission Level 1 находятся:
+## Level 1 — business content
 
 ```text
 Subject
@@ -148,57 +124,52 @@ Target Date
 Attachment
 ```
 
-Permissions:
-
 ```text
 Requester   → Read/Write
 Technician  → Read only
 Supervisor  → Read/Write
 ```
 
-`Status` остаётся Level 0.
-
-Зачем это нужно:
+## Level 2 — process state
 
 ```text
-Requester
-→ может заполнить новую заявку
-→ после insert не может сохранить её повторно
-
-Technician
-→ может участвовать в Workflow
-→ не получает право переписывать исходные реквизиты заявки
-
-Supervisor
-→ может корректировать содержание и управлять процессом
+Status
 ```
 
-Exact `v16.32.0` проверяет high Permission Level при ordinary insert/save на сервере.
+```text
+Requester   → Read only
+Technician  → Read/Write
+Supervisor  → Read/Write
+```
 
-Главное разделение:
+После L7 Workflow добавляет transition gate поверх Level 2.
+
+Итог:
 
 ```text
 Level 0 Permission = document authority
-Level 1 Permission = field authority
+Level 1 Permission = content authority
+Level 2 Permission = state-field authority
+Workflow           = transition authority
 Assignment         = responsibility
-Workflow           = process transition authority
 ```
 
-Assignment выполняется штатным `Assign To → ToDo` и не является authorization boundary.
+Requester может заполнить новый Level 1 Document, но не менять Status и не save заявку после insert.
+
+Technician может вести process state, но не переписывать business content.
 
 ---
 
 # Два intake-channel
 
-После L10 существуют два разных create path.
-
 ## Desk
 
 ```text
 Facility Requester
-→ Role Permission Create
-→ Level 1 позволяет заполнить business fields
-→ после Save Level 0 Write = No
+→ Level 0 Create
+→ Level 1 Write для intake fields
+→ Level 2 Status read-only / default New
+→ after insert Level 0 Write No
 ```
 
 ## Web Form
@@ -209,7 +180,11 @@ trusted authenticated Website User
 → Web Form insert
 ```
 
-Exact `v16.32.0` новый Web Form target Document создаётся через `insert(ignore_permissions=True)`.
+Exact `v16.32.0` Web Form new target Document создаётся через:
+
+```text
+insert(ignore_permissions=True)
+```
 
 Поэтому:
 
@@ -217,7 +192,7 @@ Exact `v16.32.0` новый Web Form target Document создаётся чере
 Desk Create ≠ Web Form Create
 ```
 
-Web Form submission не является доказательством Role Permission или Permission Level enforcement.
+Web Form submit не является доказательством Level 0/1/2 permissions.
 
 Final Web Form:
 
@@ -228,9 +203,9 @@ Show List = Yes
 Allow Editing After Submit = No
 ```
 
-Final `Allow Edit = No` принципиален ещё и потому, что Web Form update с `ignore_permissions=True` не должен оставаться обходным редактором Level 1 protected content.
+`Status` в Web Form отсутствует.
 
-`Login Required` — authentication, не role-specific authorization.
+Final `Allow Edit = No` не оставляет bypass update path поверх Level 1/2 protection.
 
 ---
 
@@ -243,13 +218,13 @@ Final `Allow Edit = No` принципиален ещё и потому, что 
 | [L2](projects/02-equipment/README.md) | Equipment | Fields, Link, Form/List, Track Changes |
 | [L3](projects/03-data/README.md) | рабочие данные | Filters, Import, Export, Bulk Edit |
 | [L4](projects/04-service-request/README.md) | Service Request | data invariants, Status, Attachments |
-| [L5](projects/05-users-permissions/README.md) | hardened Desk access | Level 0/1 Permission, If Owner, User Permission, Share |
+| [L5](projects/05-users-permissions/README.md) | hardened access | Level 0/1/2, If Owner, User Permission, Share |
 | [L6](projects/06-collaboration/README.md) | ответственность | Assign To, ToDo, Comments, Tags, Kanban |
-| [L7](projects/07-workflow/README.md) | процесс | Workflow, Allowed Role, Level 1 content protection |
+| [L7](projects/07-workflow/README.md) | процесс | Workflow поверх Level 2 Status |
 | [L8](projects/08-control-workspace/README.md) | контроль | Report, Cards, Chart, Workspace |
 | [L9](projects/09-automation/README.md) | automation | Notification, Assignment Rule, scheduler |
 | [L10](projects/10-web-form/README.md) | authenticated intake | separate Web Form capability; final update disabled |
-| [L11](projects/11-portability/README.md) | portability | fixtures, Custom DocPerm Level 0/1, clean-site acceptance |
+| [L11](projects/11-portability/README.md) | portability | fixtures, Custom DocPerm Level 0/1/2, clean-site acceptance |
 
 ---
 
@@ -262,9 +237,7 @@ Final `Allow Edit = No` принципиален ещё и потому, что 
 - [Lab E — Print / PDF](labs/e-print-pdf/README.md)
 - [Lab F — специальные возможности](labs/f-special-features/README.md)
 
-Lab не обязана оставлять новый domain object и не должна незаметно ослаблять финальную permission model.
-
-Presentation configuration может остаться осознанно.
+Lab не должна незаметно ослаблять Level 0/1/2 permission baseline.
 
 ---
 
