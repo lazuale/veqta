@@ -2,7 +2,7 @@
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
-Практикум развивается вокруг одного учебного приложения:
+Учебное приложение:
 
 ```text
 Bench:  facility-ops-bench
@@ -11,7 +11,7 @@ Site:   facility-ops.localhost
 Module: Facility Operations
 ```
 
-Постоянное предметное ядро:
+Постоянное ядро:
 
 ```text
 Facility Location (Tree)
@@ -21,31 +21,48 @@ Facility Location (Tree)
         └─────────────────┴────────────► Service Request
 ```
 
-Курс не строит ERP/CMMS/Service Desk и не добавляет сущности только ради демонстрации возможностей Frappe.
-
-Основной принцип:
-
-```text
-сначала рабочая модель
-→ потом permissions
-→ потом collaboration
-→ потом Workflow
-→ потом аналитика
-→ потом automation
-→ потом web-вход
-→ потом переносимость
-```
-
-Собственную бизнес-логику на Python/JavaScript в базовом маршруте не пишем. Штатные expression-поля, generated files, `hooks.py`, fixtures и exported customizations допустимы как нативные механизмы Frappe.
+Архитектурные гарантии формально описаны в **[INVARIANTS.md](INVARIANTS.md)**.
 
 ---
 
-# Инварианты всего курса
+# 1. Принцип последовательности
 
-1. `Service Request.location` — Mandatory.
-2. `Service Request.description` — Mandatory.
-3. `Service Request.equipment` — Optional.
-4. `Equipment.category` допускает только:
+```text
+платформа
+→ модель
+→ данные
+→ рабочий документ
+→ permissions
+→ collaboration
+→ Workflow
+→ observability
+→ automation
+→ external intake
+→ portability
+```
+
+Каждый следующий урок должен использовать выход предыдущего без ручного исправления противоречий.
+
+---
+
+# 2. Главные инварианты
+
+## Данные
+
+```text
+Service Request mandatory:
+Subject
+Location
+Description
+Priority
+```
+
+```text
+Equipment = optional
+Target Date = optional
+```
+
+Equipment Category:
 
 ```text
 HVAC
@@ -54,47 +71,78 @@ IT
 Other
 ```
 
-5. Assignment не хранится собственным полем в `Service Request`.
-6. После L7 `Service Request.status` управляется Workflow и остаётся единственным state field.
-7. Основные Technician после L5 не имеют постоянного Location User Permission.
-8. `technician.two@example.com` впервые создаётся только в L9.
-9. Assignment Rule с конкретными Users — site-specific configuration, не universal fixture.
-10. Module и основной Workspace имеют разные имена:
+Status:
 
 ```text
-Module    = Facility Operations
-Workspace = Facility Operations Control
+New
+Accepted
+In Progress
+Resolved
+Closed
 ```
 
-11. Date-based Notification `Days After = 1` называется:
+`Accepted` означает принятие заявки Supervisor, а не наличие assignee.
+
+## Location
 
 ```text
-Service Request One Day Overdue
+Service Request.location = место события
+Equipment.location       = текущее размещение Equipment
 ```
 
-12. После L11 активным site снова становится `facility-ops.localhost`.
+Жёсткого вечного равенства между ними нет.
+
+## Security
+
+```text
+Role Permission
+= базовый server access
+
+Assignment
+= ответственность, не ACL
+
+Workflow Allowed Role / Condition
+= server transition gate
+
+Only Allow Edit For
+= Desk state guard, не самостоятельная ACL
+```
+
+## Web
+
+Финальная форма:
+
+```text
+Login Required = Yes
+Show List = Yes
+Allow Edit = No
+```
+
+## Deployment
+
+Assignment Rule с конкретными Users остаётся site-specific.
+
+L11 доказывает clean-site portability.
 
 ---
 
 # L0. Основа приложения
 
-## Результат
+Создать настоящий Bench/site/app в Developer Mode.
 
-Настоящий Bench, site и app в Developer Mode.
-
-## Изучаем
+Изучаем:
 
 - Bench;
 - `bench new-app`;
 - `bench new-site`;
 - `install-app`;
 - Module;
-- Developer Mode;
 - Desk / Awesomebar;
-- структура app;
+- Developer Mode;
+- app source;
 - Git.
 
-## Приёмка
+Приёмка:
 
 ```text
 facility-ops-bench
@@ -104,13 +152,11 @@ Facility Operations
 Frappe v16.32.0
 ```
 
-работают, app находится под Git.
-
 ---
 
 # L1. Facility Location
 
-Tree DocType:
+Создать Tree DocType:
 
 ```text
 Facility Location
@@ -128,27 +174,33 @@ Main Site
 └── Warehouse
 ```
 
-Изучаем Standard DocType, Tree, Documents, Naming, generated metadata и Git.
+Изучаем Standard DocType, Tree, Naming, generated metadata и Git.
 
 ---
 
 # L2. Equipment
 
+Создать:
+
+```text
+Equipment
+```
+
 Поля:
 
-| Поле | Тип |
-|---|---|
-| Equipment Code | Data |
-| Equipment Name | Data |
-| Location | Link → Facility Location |
-| Category | Select |
-| Status | Select |
-| Serial Number | Data |
-| Commissioning Date | Date |
-| Photo | Attach Image |
-| Notes | Small Text |
+```text
+Equipment Code
+Equipment Name
+Location
+Category
+Status
+Serial Number
+Commissioning Date
+Photo
+Notes
+```
 
-Category:
+Category строго:
 
 ```text
 HVAC
@@ -157,15 +209,11 @@ IT
 Other
 ```
 
-Status:
+Naming:
 
 ```text
-Active
-Out of Service
-Retired
+field:equipment_code
 ```
-
-Изучаем Link, Form/List, Title Field, Search Fields, Quick Entry, Track Changes и naming `field:equipment_code`.
 
 ---
 
@@ -173,59 +221,70 @@ Retired
 
 Изучаем:
 
-- Filters;
-- Sorting текущего List View;
-- Saved Filters;
-- Search;
-- Allow Import;
-- Data Import;
-- штатный template;
-- negative import test;
-- Export;
-- Bulk Edit.
+```text
+Filters
+Sorting
+Saved Filters
+Search
+Allow Import
+Data Import
+negative import
+Export
+Bulk Edit
+```
 
-Импортировать 10 дополнительных Equipment (`EQ-0010`–`EQ-0019`) и доказать, что Documents не являются source app.
+Импортировать 10 дополнительных Equipment и доказать разницу source vs working Documents.
 
 ---
 
 # L4. Service Request
 
-| Поле | Тип | Mandatory |
-|---|---|---:|
-| Subject | Data | Yes |
-| Location | Link → Facility Location | Yes |
-| Equipment | Link → Equipment | No |
-| Description | Text | **Yes** |
-| Priority | Select | Yes |
-| Status | Select | Yes, default New |
-| Target Date | Date | No |
-| Attachment | Attach | No |
+Создать третий core DocType.
 
-Priority:
+Поля:
 
-```text
-Low
-Medium
-High
-```
+| Поле | Mandatory |
+|---|---:|
+| Subject | Yes |
+| Location | Yes |
+| Equipment | No |
+| Description | Yes |
+| Priority | Yes |
+| Status | Yes |
+| Target Date | No |
+| Attachment | No |
 
 Status:
 
 ```text
 New
-Assigned
+Accepted
 In Progress
 Resolved
 Closed
 ```
 
-Все дальнейшие примеры создания Service Request обязаны соблюдать Mandatory fields L4.
+Ключевая семантика:
+
+```text
+Accepted
+≠ Assigned To
+```
+
+и:
+
+```text
+Service Request.location
+≠ обязано навсегда совпадать с Equipment.location
+```
+
+До L7 Status остаётся обычным Select.
 
 ---
 
-# L5. Пользователи и права
+# L5. Пользователи и permissions
 
-Постоянные роли:
+Роли:
 
 ```text
 Facility Requester
@@ -233,7 +292,7 @@ Facility Technician
 Facility Supervisor
 ```
 
-Постоянные пользователи:
+Основные Users:
 
 ```text
 requester.one@example.com
@@ -242,51 +301,85 @@ technician.one@example.com
 supervisor.one@example.com
 ```
 
-`technician.two@example.com` в L5 не создаётся.
+Изучаем:
 
-Изучаем User, Role, Role Permission Manager, If Owner, Permission Level, User Permission и Share.
+```text
+Role Permission Manager
+If Owner
+Permission Level
+User Permission
+Share
+```
 
-Практика:
+`User Permission + Share` проверяются на временном:
 
-1. Настроить права на три core DocType.
-2. Доказать `If Owner` двумя Requester.
-3. `Equipment.notes` → Permission Level 1 для Supervisor.
-4. Создать временного `technician.restricted@example.com`.
-5. Проверить User Permission `Room 101`.
-6. Одну Room 102 заявку открыть через Share.
-7. Удалить Share и User Permission.
-8. Отключить Restricted Technician.
-9. Доказать, что основной `technician.one@example.com` не ограничен Location.
+```text
+technician.restricted@example.com
+```
+
+После эксперимента:
+
+```text
+Share удалить
+User Permission удалить
+Restricted Technician отключить
+```
+
+Основные Technician остаются без Location restriction.
 
 ---
 
-# L6. Совместная работа
+# L6. Collaboration
 
-Изучаем Assign To, ToDo, Due Date, Comments, Timeline, Tags, Kanban.
+Изучаем:
 
-Создаём временную доску:
+```text
+Assign To
+ToDo
+Comments
+Timeline
+Tags
+Kanban
+```
+
+Главная модель:
+
+```text
+Permission = доступ
+Assignment = ответственность
+Status = процесс
+```
+
+Assignment не считается authorization.
+
+После Assign To нормально:
+
+```text
+Assigned To = Technician
+Status = New
+```
+
+Kanban:
 
 ```text
 Service Request Status Board
 ```
 
-по полю `status`.
-
-Проверяем:
+колонки:
 
 ```text
-Assignment ≠ Status
-ToDo close ≠ Service Request close
-Kanban = другое представление тех же Documents
+New
+Accepted
+In Progress
+Resolved
+Closed
 ```
-
-Основной Technician не ограничен конкретной Location.
 
 ---
 
 # L7. Workflow
 
-Используется существующее поле:
+Использовать существующий:
 
 ```text
 Service Request.status
@@ -298,9 +391,9 @@ Service Request.status
 
 ```text
 New
- │ Mark Assigned / Facility Supervisor
+ │ Accept / Facility Supervisor
  ▼
-Assigned
+Accepted
  │ Start Work / Facility Technician
  ▼
 In Progress
@@ -312,95 +405,103 @@ Resolved
 Closed
 ```
 
-Все states имеют `docstatus = 0`.
+Изучаем:
 
-Практика: Read Only status, Workflow State, Workflow Action Master, Transitions, temporary Condition, сравнение Kanban-save с `apply_workflow`, затем удаление `Service Request Status Board`.
+```text
+Workflow State
+Workflow Action Master
+Transition
+Allowed Role
+Only Allow Edit For
+Condition
+```
+
+Академическая граница:
+
+```text
+Allowed Role / Condition
+= server transition enforcement
+
+Only Allow Edit For
+= Desk guard
+```
+
+Closed — terminal state, но абсолютную API immutability базовый курс не обещает.
+
+Kanban после сравнения удалить.
 
 ---
 
-# L8. Контроль работы
+# L8. Контроль
 
-Создаём:
-
-```text
-Report Builder:   Service Requests Overview
-Number Card:      Open Requests
-Number Card:      High Priority Requests
-Number Card:      Closed Requests
-Dashboard Chart:  Service Requests by Status
-Workspace:        Facility Operations Control
-```
-
-Module остаётся:
+Создать:
 
 ```text
-Facility Operations
+Report:          Service Requests Overview
+Cards:           Open / High Priority / Closed Requests
+Chart:           Service Requests by Status
+Workspace:       Facility Operations Control
 ```
 
-Workspace специально имеет другое имя, чтобы не смешивать Module и рабочий экран.
+Module остаётся `Facility Operations`.
 
-Изучаем Report Builder, Filters, Group By/Count, Number Card, Dashboard Chart, Workspace, Shortcut, Quick List и role access.
+Никаких SQL/Python reports в Core.
 
 ---
 
-# L9. Автоматизация
+# L9. Automation
 
-Создаём второго постоянного Technician:
+Создать второго Technician:
 
 ```text
 technician.two@example.com
 ```
 
-Это первый урок, где появляется этот User.
-
-Standard Notifications:
+Notifications:
 
 ```text
 New Service Request
 Service Request One Day Overdue
 ```
 
-Второе имя точно отражает:
-
-```text
-Days After = 1
-```
-
 Assignment Rule:
 
 ```text
 Service Request Auto Assignment
-Rule: Round Robin
-Users:
-  technician.one@example.com
-  technician.two@example.com
+Round Robin
+Technician One / Technician Two
 ```
 
-Assign Condition:
+После assignment:
 
-```python
-status == "New"
+```text
+Assigned To = Technician
+Status = New
 ```
 
-Close Condition:
+Supervisor отдельно выполняет:
 
-```python
-status == "Closed"
+```text
+Accept
 ```
 
-Практика: One → Two → One, Due Date synchronization, Workflow остаётся отдельным, Closed закрывает ToDo, ручной Assign To сравнивается с Assignment Rule.
+Target Date — conditional input:
 
-Load Balancing — Optional; после теста Rule обязательно возвращается в Round Robin.
+```text
+задан
+→ Due Date / overdue automation возможны
 
-Все тестовые Service Request содержат Mandatory `Description`.
+пуст
+→ этих гарантий нет
+```
 
-Assignment Rule остаётся site-specific и в L11 не экспортируется universal fixture.
+Assignment Rule содержит конкретных Users и остаётся site-specific.
 
 ---
 
 # L10. Web Form
 
-Standard Web Form:
+Standard:
 
 ```text
 Report a Facility Issue
@@ -408,87 +509,67 @@ Route: facility-request
 DocType: Service Request
 ```
 
-Поля:
+Guest mode — временный experiment с закрытыми внутренними Link catalogs.
+
+Финальный trust model:
 
 ```text
-Subject     Mandatory
-Location    Mandatory
-Equipment   Optional
-Description Mandatory
-Priority    Mandatory
-Target Date Optional
-Attachment  Optional
+Website User = доверенный внутренний заявитель
+Login Required = Yes
+Anonymous = No
+Show List = Yes
+Allow Edit = No
+Apply Document Permissions = No
 ```
 
-Практика: Guest, обязательность Subject/Description, attachment, Login Required, Website User, Show List, Allow Edit, owner boundary, Apply Document Permissions, Link options, Web Form → Assignment Rule → Workflow → Desk.
+`Allow Edit` временно изучается и затем обязательно выключается.
 
-Финальный режим authenticated, Status из Web Form не управляется.
+Причина: Web Form не должен оставаться parallel editor рабочего Workflow Document.
 
 ---
 
-# L11. Переносимость
+# L11. Portability
 
 Четыре слоя:
 
 ```text
 Standard source
-app configuration
+universal app configuration
 site-specific configuration
 working data
-```
-
-Standard source:
-
-```text
-3 core DocType
-Service Requests Overview
-Open Requests
-High Priority Requests
-Closed Requests
-Service Requests by Status
-Facility Operations Control
-New Service Request
-Service Request One Day Overdue
-Report a Facility Issue
 ```
 
 Fixtures:
 
 ```text
 Roles
-Workflow State
-Workflow Action Master
-Workflow
+Workflow States:
+  New
+  Accepted
+  In Progress
+  Resolved
+  Closed
+
+Workflow Actions:
+  Accept
+  Start Work
+  Resolve
+  Close
+
+Service Request Workflow
 ```
 
-Exported customizations:
-
-```text
-Custom DocPerm
-```
-
-Не переносим:
+Не fixtures:
 
 ```text
 Users
 User Permission
 Share
 Assignment Rule tied to concrete Users
-working Documents
-ToDo / Files / Logs
+working data
 ```
 
-На clean site `install-app` выполняет первоначальную синхронизацию; последующий `migrate` используется как проверка обычного update/convergence пути уже установленного app.
-
-Clean-site Equipment:
-
-```text
-Equipment Code: EQ-CLEAN-001
-Equipment Name: Clean Site Pump
-Category: Other
-```
-
-Web Form request на clean site обязательно содержит `Description`.
+На clean site ручной ToDo **не обязан закрываться Workflow Close**, потому что L9 Assignment Rule отсутствует.
 
 После проверки:
 
@@ -498,69 +579,65 @@ bench use facility-ops.localhost
 
 ---
 
-# Лаборатории
+# Labs A–F
 
-## Lab A — Child Table
+Лаборатории изучают специальные механизмы, не расширяя core domain автоматически.
 
-Временный `Work Log`, Child DocType/Table/Editable Grid/parent fields, затем полный cleanup.
+```text
+A → Child Table
+B → DocStatus/Submittable
+C → Auto Repeat
+D → Customize Form
+E → Print/PDF
+F → special fields/views
+```
 
-## Lab B — DocStatus
+Каждая Lab должна иметь:
 
-Временный `Service Report`; Draft/Submit/Cancel/Amend/Allow on Submit. `Service Request` не делаем Submittable.
+```text
+Temporary Mutation
+Persistent Mutation
+Rollback
+Final State
+```
 
-## Lab C — Auto Repeat
-
-Временно включаем Auto Repeat для `Service Request`, отключаем L9 Assignment Rule на время чистого теста, затем полностью очищаем Auto Repeat и возвращаем Assignment Rule.
-
-## Lab D — Customize Form
-
-Custom Field, Property Setter, Export Customizations, Sync on Migrate и точечный rollback.
-
-## Lab E — Print / PDF
-
-Standard Print Format `Service Request Summary` остаётся в app, временный Letter Head удаляется.
-
-## Lab F — специальные возможности
-
-Временный metadata-полигон. Calendar/Gantt проверяются на штатном Event; собственный JS calendar config — Later.
+Lab E может оставить Standard Print Format как presentation configuration — это не новый domain entity.
 
 ---
 
-# Финальная приёмка последовательности
-
-Курс считается консистентным, если:
+# Финальная проверка последовательности
 
 ```text
-L4 Mandatory fields
-→ не нарушаются L9/L10/L11
-
-L5 temporary permissions
-→ очищены до L6
-
-technician.two
-→ впервые появляется L9
-
-L6 Kanban
-→ Service Request Status Board
-→ удаляется L7
-
-L8 Workspace
-→ Facility Operations Control
-→ не путается с Module Facility Operations
-
-L9 date Notification
-→ Service Request One Day Overdue
-→ точно соответствует Days After = 1
-
-L9 global Round Robin
-→ не назначает недоступные документы
-
-L10 Web Form
-→ создаёт валидный Service Request
-
-L11 clean site
-→ использует допустимые Select values
-→ возвращает active site на facility-ops.localhost
+OUTPUT(Ln)
+→ должен удовлетворять PRECONDITIONS(Ln+1)
 ```
 
-После этого выполняется отдельный execution-аудит на чистом стенде.
+Критические gates:
+
+```text
+L4
+→ Accepted вместо Assigned
+→ Mandatory не ослабляются дальше
+
+L5
+→ temporary permission experiment очищен
+
+L6
+→ Assignment не превращён в ACL
+
+L7
+→ Workflow enforcement классифицирован точно
+
+L9
+→ Assignment Rule не создаёт скрытые permission exceptions
+→ Target Date conditional
+
+L10
+→ final Allow Edit = No
+
+L11
+→ portable core отделён от site policy
+→ active site возвращён main
+```
+
+После этого выполняется execution-аудит на чистом `v16.32.0`.
