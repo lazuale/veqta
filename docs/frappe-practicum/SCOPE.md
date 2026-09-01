@@ -2,11 +2,7 @@
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
-Практикум изучает Frappe через одно приложение:
-
-```text
-facility_ops
-```
+Практикум изучает Frappe через `facility_ops`.
 
 Core domain:
 
@@ -24,11 +20,9 @@ Service Request
 
 Собственную Python/JavaScript business logic в основном маршруте не пишем.
 
-Допустимы штатные expression fields, Workflow/Assignment Rule Conditions, fixtures/hooks configuration, generated files и exported customizations.
+Допустимы штатные expressions, Workflow/Assignment Rule Conditions, fixtures/hooks configuration, generated files и exported customizations.
 
 Server Script, custom controller, custom permission hooks и Client Script — Later.
-
-Поэтому base course не обещает гарантий, которые без отдельного server layer нельзя честно обеспечить.
 
 ---
 
@@ -98,42 +92,29 @@ Assigned Technician field
 Core изучает:
 
 ```text
-User
-System User
-Website User
-Guest
+User / System User / Website User / Guest
 Role
 Role Permission Manager
 Read/Write/Create/Delete
 Report/Export/Import
 If Owner
-Permission Level
+Permission Level 1
+Permission Level 2
 User Permission
 Share
 ```
 
 ## Level 0 — document authority
 
-Final Desk Service Request policy:
-
 ```text
-Requester
-→ Create + Read own
-→ Write/Delete No
-
-Technician
-→ Read/Write
-→ Create/Delete No
-
-Supervisor
-→ Read/Write/Create
-→ Delete No
-→ Report/Export
+Requester   → Create + Read own; Write/Delete No
+Technician  → Read/Write; Create/Delete No
+Supervisor  → Read/Write/Create; Delete No; Report/Export
 ```
 
-## Level 1 — business content authority
+## Level 1 — business content
 
-На Permission Level 1 находятся:
+Fields:
 
 ```text
 subject
@@ -145,48 +126,29 @@ target_date
 attachment
 ```
 
-`status` остаётся Level 0.
-
-Level 1 role policy:
-
 ```text
-Requester
-→ Read/Write
-
-Technician
-→ Read only
-
-Supervisor
-→ Read/Write
+Requester   → Read/Write
+Technician  → Read only
+Supervisor  → Read/Write
 ```
 
-Это не противоречит Requester `Write = No` на Level 0:
+## Level 2 — process state
 
 ```text
-new Document
-→ Create Level 0 + Write Level 1
-→ можно заполнить Mandatory business fields
-
-saved Document
-→ Level 0 Write = No
-→ повторный save запрещён
+status → Permission Level 2
 ```
-
-Для Technician:
 
 ```text
-Level 0 Write = Yes
-→ Workflow/document save возможен
-
-Level 1 Write = No
-→ business content не должен изменяться ordinary permission-aware save
+Requester   → Read only
+Technician  → Read/Write
+Supervisor  → Read/Write
 ```
 
-Exact `v16.32.0` server `validate_higher_perm_levels()` участвует в insert/save и сбрасывает недопустимые high-permlevel изменения.
+Это позволяет дать Technician process-state authority без content authority и не выдавать Requester state write на create path.
 
-Гарантия не распространяется на explicit `ignore_permissions=True` path.
+Exact `v16.32.0` high Permission Level validation участвует в ordinary insert/save; explicit `ignore_permissions=True` является bypass.
 
-Delete, User Permission и Share частично изучаются temporary и откатываются к безопасному baseline.
+Delete, User Permission и Share частично изучаются temporary и откатываются.
 
 ---
 
@@ -203,18 +165,17 @@ Kanban
 ```
 
 ```text
-Permission = access
 Assignment = responsibility
-Status = process
+не document/content/state authority
 ```
-
-Assignment не расширяет Level 1 content permission.
 
 Assignee-only authorization — Later.
 
 ---
 
 # 7. Workflow scope
+
+Core:
 
 ```text
 Workflow
@@ -224,7 +185,7 @@ Transition
 Allowed Role
 Only Allow Edit For
 Condition
-existing status state field
+existing status field
 ```
 
 Process:
@@ -233,19 +194,30 @@ Process:
 New → Accepted → In Progress → Resolved → Closed
 ```
 
-Enforcement:
+После L7:
 
 ```text
-Level 0 Role Permission      = document save/access authority
-Level 1 Permission           = business field authority
-Allowed Role / Condition     = server transition gate
-Only Allow Edit For          = Desk guard
-Status Read Only             = UI guard
+status = Permission Level 2 + Read Only UI
 ```
 
-Requester can create local New doc; after insert Level 0 `Write = No` is the hard boundary.
+Enforcement stack:
 
-Technician может выполнять разрешённые Workflow transitions, не получая Level 1 Write на исходные реквизиты.
+```text
+Level 0 Role Permission
+→ document save/access
+
+Level 1 Permission
+→ business fields
+
+Level 2 Permission
+→ status field authority
+
+Allowed Role / Condition
+→ server transition gate
+
+Only Allow Edit For
+→ Desk guard
+```
 
 Closed terminal, но absolute API immutability — Later.
 
@@ -268,7 +240,7 @@ Quick List
 role access
 ```
 
-Query/Script Reports and separate BI layer — Later.
+Query/Script Reports и BI layer — Later.
 
 ---
 
@@ -289,17 +261,17 @@ scheduler
 
 Load Balancing — Optional.
 
-Target Date Optional, поэтому due/overdue behavior conditional.
+Target Date = Level 1 Optional/conditional input.
 
-Assignment Rule с concrete Users остаётся site-specific.
+Automation не меняет Level 1/2 authority.
 
-Automation не является поводом выдавать Technician Level 1 Write.
+Assignment Rule с concrete Users site-specific.
 
 ---
 
 # 10. Web scope
 
-Core изучает:
+Core:
 
 ```text
 Standard Web Form
@@ -315,7 +287,7 @@ Allow Read On All Link Options
 attachments
 ```
 
-## Final mode
+Final:
 
 ```text
 Published = Yes
@@ -326,46 +298,27 @@ Allow Edit = No
 Apply Document Permissions = No
 ```
 
-## Критическая граница create
-
 Desk:
 
 ```text
-System User
-→ ordinary Role Permission Create
-→ Permission Level validation
+Role Permission Level 0/1/2
 ```
 
-Web Form:
+Web Form new insert:
 
 ```text
-new target Document
-→ insert(ignore_permissions=True)
+insert(ignore_permissions=True)
 ```
 
-Поэтому:
+Поэтому Web Form Create не является Role Permission proof.
 
-```text
-Web Form Create
-≠ Role Permission Create
-```
+`Status` не входит в Web Form allow-list.
 
-и Web Form insert не доказывает Level 0/Level 1 Role Permission enforcement.
+Final `Allow Edit = No` закрывает bypass update path, который иначе мог бы обходить Level 1/2 protections.
 
-`Apply Document Permissions` относится к existing-document access и не превращает new insert в ordinary Create check.
+Website User = trusted internal reporter.
 
-`Login Required` — authentication boundary, не role-specific authorization.
-
-Final `Allow Edit = No` закрывает parallel Web Form update path, который иначе мог бы работать с `ignore_permissions=True` и обходить обычную Level 1 protection.
-
-Final threat model:
-
-```text
-published authenticated Web Form
-→ trusted internal website population
-```
-
-Role-restricted/public-untrusted portal intake — Later.
+Role-restricted/public-untrusted admission — Later.
 
 ---
 
@@ -392,12 +345,13 @@ Universal:
 
 ```text
 3 core DocType
+field permlevels 1/2
 Reports/Cards/Chart/Workspace
 Notifications
 Web Form
 Roles
 Workflow
-Custom DocPerm Level 0 + Level 1
+Custom DocPerm Level 0/1/2
 ```
 
 Site-specific:
@@ -409,28 +363,11 @@ Share
 Assignment Rule tied to local Users
 ```
 
-L11 must test separately:
-
-```text
-Desk Requester create/no-write
-Technician Workflow with Level 1 content read-only
-Supervisor Level 1 write + no Delete
-Web Form Website User create
-```
-
-These are different permission/capability paths.
+L11 отдельно проверяет Level 0/1/2 и Web Form capability.
 
 ---
 
-# 12. Main vs clean site
-
-Main site may have Assignment Rule Close Condition.
-
-Clean site intentionally has no Assignment Rule during portability acceptance; manual ToDo lifecycle remains separate.
-
----
-
-# 13. Labs
+# 12. Labs
 
 ```text
 A Child Table
@@ -441,15 +378,20 @@ E Print/PDF
 F special fields/views
 ```
 
-Domain rollback is mandatory.
+Lab, меняющая `Service Request`, должна вернуть:
 
-Lab не должна оставлять ослабленную Service Request permission model, если это не её явно заявленный temporary experiment с rollback.
+```text
+Level 0 matrix
+Level 1 matrix
+Level 2 matrix
+Workflow
+```
 
-Presentation configuration может остаться сознательно.
+Временный business-content field/table получает explicit Permission Level.
 
 ---
 
-# 14. Later
+# 13. Later
 
 ```text
 Server Script
@@ -468,26 +410,17 @@ production hardening
 
 ---
 
-# 15. Exit criterion
+# 14. Exit criterion
 
-Ученик должен уметь назвать для каждого механизма:
-
-```text
-server guarantee
-structural rule
-UI guard
-conditional behavior
-deployment policy
-```
-
-И отдельно различать:
+Ученик должен различать:
 
 ```text
 Level 0 document authority
-Level 1 field authority
+Level 1 business-content authority
+Level 2 process-state authority
 Workflow transition authority
 Assignment responsibility
 Web Form intake capability
 ```
 
-Если эти слои смешаны в одну абстрактную «permission», практикум академически не принят.
+Если это всё называется просто «права», практикум академически не принят.
