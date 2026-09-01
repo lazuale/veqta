@@ -4,13 +4,16 @@
 
 Основная версия практикумов: **Frappe Framework v16.32.0**.
 
-## Версия и исходники
+## Версия, установка и исходники
 
 - Release v16.32.0: https://github.com/frappe/frappe/releases/tag/v16.32.0
 - Tag v16.32.0: https://github.com/frappe/frappe/tree/v16.32.0
 - Ветка для отслеживания будущих v16.x: https://github.com/frappe/frappe/tree/version-16
+- Installation: https://docs.frappe.io/framework/user/en/installation
 
 При расхождении между текущей веткой и установленным стендом базового курса приоритет имеет tag `v16.32.0` и фактическое поведение стенда.
+
+Официальная установка перечисляет `wkhtmltopdf 0.12.6` с patched Qt как зависимость для PDF. В программе PDF впервые требуется в P5, поэтому P0 не блокируется отсутствием PDF-зависимости. Перед P5 способ установки и работоспособность PDF отдельно проверяются на фактическом учебном стенде.
 
 ## App, site и Developer Mode
 
@@ -56,6 +59,7 @@
 - Data Masking: https://docs.frappe.io/framework/data-masking
 - Custom Permission Types v16: https://docs.frappe.io/framework/permission-types
 - `DocPerm` v16.32.0: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/docperm/docperm.json
+- Permission constants and automatic roles: https://github.com/frappe/frappe/blob/v16.32.0/frappe/permissions.py
 
 Для курса набор permission-флагов сверяется прежде всего с `DocPerm` тега v16.32.0. В нём есть:
 
@@ -74,6 +78,8 @@
 - Share;
 - Print;
 - Email.
+
+В `frappe/permissions.py` тега v16.32.0 `Guest`, `All`, `Desk User` и `Administrator` входят в `AUTOMATIC_ROLES`, поэтому именно так они рассматриваются в P3.
 
 На момент проверки страница Users and Permissions всё ещё перечисляет `Set User Permissions` как permission-флаг, однако в `DocPerm` v16.32.0 такого поля нет. Поэтому курс не выдаёт его за отдельную галку Role Permission Manager. User Permission при этом остаётся отдельным обязательным механизмом ограничения данных.
 
