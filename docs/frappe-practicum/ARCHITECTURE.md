@@ -26,50 +26,7 @@ Facility Location (Tree)
 
 ---
 
-# 2. Facility Location
-
-Tree структуры мест.
-
----
-
-# 3. Equipment
-
-```text
-Equipment Code
-Equipment Name
-Location
-Category
-Status
-Serial Number
-Commissioning Date
-Photo
-Notes
-```
-
-Category:
-
-```text
-HVAC
-Electrical
-IT
-Other
-```
-
-Status:
-
-```text
-Active
-Out of Service
-Retired
-```
-
-`Equipment.location` = текущее размещение.
-
-`Equipment.notes` после L5 — Permission Level 1, доступен для write Supervisor.
-
----
-
-# 4. Service Request
+# 2. Service Request
 
 Mandatory:
 
@@ -100,42 +57,30 @@ Closed
 
 `Service Request.location` = historical event location.
 
----
+`Equipment.location` = current equipment location.
 
-# 5. Temporal semantics
-
-```text
-Service Request.location
-≠ обязана навсегда совпадать
-Equipment.location
-```
-
-Исторический факт заявки не переписывается из-за будущего перемещения Equipment.
+Жёсткого вечного equality нет.
 
 ---
 
-# 6. Независимые оси
+# 3. Независимые оси
 
 ```text
 DATA
-PERMISSION
-FIELD ACCESS
+DOCUMENT AUTHORITY
+CONTENT AUTHORITY
+STATE-FIELD AUTHORITY
 ASSIGNMENT
-PROCESS
+WORKFLOW TRANSITIONS
 ```
 
-```text
-Permission  → можно ли работать с Document
-Field Access→ какие business fields можно менять
-Assignment  → кто отвечает
-Process     → какой Workflow state
-```
+Ни одна ось не выводится автоматически из другой.
 
 ---
 
-# 7. Level 0 document permission
+# 4. Level 0 — document authority
 
-Final Service Request:
+Final `Service Request`:
 
 ```text
 Requester
@@ -157,9 +102,9 @@ Requester Desk intake = append-only after insert.
 
 ---
 
-# 8. Level 1 business content protection
+# 5. Level 1 — business content authority
 
-После L5 поля:
+Поля:
 
 ```text
 subject
@@ -177,9 +122,7 @@ attachment
 Permission Level = 1
 ```
 
-`status` остаётся Level 0.
-
-Role matrix Level 1:
+Role matrix:
 
 ```text
 Requester   → Read/Write
@@ -187,45 +130,84 @@ Technician  → Read only
 Supervisor  → Read/Write
 ```
 
-Почему это работает:
+Requester Level 1 Write нужен для заполнения нового Document.
 
-```text
-Requester Level 0 Create
-+ Requester Level 1 Write
-→ может заполнить новый Document
+После insert Level 0 Write No блокирует повторный save.
 
-Requester Level 0 Write No
-→ после insert не может повторно save
+Technician Level 0 Write не означает право переписывать content.
 
-Technician Level 0 Write
-+ Technician Level 1 Write No
-→ может участвовать в Workflow
-→ не сохраняет изменения business content через permission-aware save
-```
-
-Exact `Document.validate_higher_perm_levels()` сбрасывает high-permlevel values, для которых у текущего пользователя нет write access, перед DB write.
-
-Это server-side permission layer штатного save/insert.
+Exact `validate_higher_perm_levels()` защищает high-permlevel fields на ordinary permission-aware insert/save.
 
 ---
 
-# 9. Граница Permission Level
-
-Если операция явно выполняется с:
+# 6. Level 2 — process-state field authority
 
 ```text
-ignore_permissions=True
+Service Request.status
+→ Permission Level = 2
 ```
 
-Permission Level enforcement пропускается.
+Role matrix:
 
-Поэтому architecture не утверждает, что Permission Level защищает от доверенного server code, который сознательно bypass permissions.
+```text
+Requester   → Read only
+Technician  → Read/Write
+Supervisor  → Read/Write
+```
 
-Это особенно важно для Web Form insert.
+Зачем отдельный уровень:
+
+```text
+business content
+≠ process state
+```
+
+Requester не должен выбирать process state даже при создании заявки.
+
+Default:
+
+```text
+status = New
+```
+
+На ordinary permission-aware insert отсутствие Requester Level 2 Write не даёт ему штатной authority установить другое process-state value.
+
+До L7 Technician/Supervisor могут менять Status как обычный Select, что позволяет доказать отсутствие state machine.
+
+После L7 Level 2 Write остаётся необходимой field authority, а Workflow добавляет transition authority.
 
 ---
 
-# 10. Assignment
+# 7. Почему четыре слоя не избыточны
+
+```text
+Level 0
+→ можно ли вообще сохранить Document
+
+Level 1
+→ можно ли менять исходные/рабочие реквизиты
+
+Level 2
+→ можно ли менять поле состояния
+
+Workflow
+→ разрешён ли именно этот переход состояния
+```
+
+Пример Technician после L7:
+
+```text
+Level 0 Write = Yes
+Level 1 Write = No
+Level 2 Write = Yes
+Allowed Workflow transition = Yes/No по state/action/role
+```
+
+Поэтому Technician может вести процесс, но не переписывает заявку.
+
+---
+
+# 8. Assignment
 
 ```text
 Service Request
@@ -236,24 +218,25 @@ Service Request
 
 ```text
 Assignment ≠ authorization
+Assignment ≠ Level 1/2 permission
 ```
 
-Основные Technician имеют совместимый base access, чтобы assignment не создавал неожиданные DocShare exceptions.
+ToDo показывает ответственность.
 
 ---
 
-# 11. Accepted
+# 9. Accepted
 
 ```text
 Accepted
-= Supervisor принял заявку в процесс
+= Supervisor принял заявку в рабочий процесс
 ```
 
-Не является синонимом assignment.
+Не означает наличие конкретного ToDo.
 
 ---
 
-# 12. Workflow
+# 10. Workflow
 
 ```text
 New
@@ -283,21 +266,30 @@ Resolved    → Supervisor
 Closed      → Supervisor
 ```
 
-Technician state form может быть Workflow-editable, но Level 1 business fields остаются read-only для его роли.
+`status` после L7 также:
+
+```text
+Read Only = Yes
+```
+
+как UI guard.
 
 ---
 
-# 13. Enforcement stack
+# 11. Enforcement stack
 
 ```text
 Level 0 Role Permission
 → document create/read/write/delete
 
 Permission Level 1
-→ business field read/write
+→ business content read/write
+
+Permission Level 2
+→ status field read/write
 
 Workflow Allowed Role / Condition
-→ server state transition
+→ server transition validation
 
 Only Allow Edit For
 → Desk state guard
@@ -306,43 +298,43 @@ Status Read Only
 → UI guard
 ```
 
-Это не пять названий одного механизма, а разные уровни.
-
 ---
 
-# 14. Closed
+# 12. Closed
 
-Closed terminal в Workflow; рабочие роли no-delete.
+Closed — terminal Workflow state.
+
+Рабочие роли не имеют Delete.
 
 Absolute immutability через любой API — Later.
 
 ---
 
-# 15. Analytics
+# 13. Automation
 
-Report/Cards/Chart/Workspace читают существующий Service Request и не создают новую data/permission model.
+Assignment Rule создаёт ToDo, не меняет status и не расширяет Level 1/2 authority.
 
----
+Target Date = Level 1 conditional automation input.
 
-# 16. Automation
-
-Assignment Rule создаёт ToDo и не меняет status.
-
-Target Date — conditional input.
-
-Rule-owned ToDo close — main-site policy, не Workflow invariant.
+Rule-owned ToDo close = main-site policy, не Workflow invariant.
 
 ---
 
-# 17. Desk create vs Web Form create
+# 14. Desk create vs Web Form create
 
-## Desk
+## Desk Requester
 
 ```text
-Requester
-→ Level 0 Create
-→ Level 1 Write заполняет business fields
-→ after insert Level 0 Write No
+Level 0 Create
++ Level 1 Write
++ Level 2 Read only / default New
+→ корректный новый Service Request
+```
+
+После insert:
+
+```text
+Level 0 Write No
 ```
 
 ## Web Form
@@ -354,15 +346,13 @@ new target doc
 → insert(ignore_permissions=True)
 ```
 
-Следовательно Web Form insert обходит Role Permission и high Permission Level validation.
+Поэтому Web Form insert — отдельная trusted intake capability и не является proof Level 0/1/2 permissions.
 
-Это отдельная trusted intake capability.
-
-Поэтому Web Form field list — explicit allow-list безопасных intake fields.
+`Status` не включён в Web Form fields, поэтому используется default `New`.
 
 ---
 
-# 18. Web Form final
+# 15. Web Form final
 
 ```text
 Published = Yes
@@ -375,59 +365,64 @@ Apply Document Permissions = No
 
 `Login Required` = authentication, not role authorization.
 
-`Allow Edit = No` критичен, потому что owner update иначе также способен использовать `ignore_permissions=True` и обойти field-level hardening.
+`Allow Edit = No` закрывает bypass update path, который иначе мог бы использовать `ignore_permissions=True` и обходить Level 1/2 protection.
 
 ---
 
-# 19. Threat model
-
-Website accounts с доступом к published authenticated form = trusted internal reporters.
-
-Public-untrusted или role-restricted portal admission — Later.
-
----
-
-# 20. Packaging
+# 16. Packaging
 
 ```text
 Standard source
-→ DocTypes + UI/config
+→ DocTypes + field permlevels + Standard UI/config
 
 fixtures
 → Roles + Workflow
 
 exported customizations
-→ Custom DocPerm Level 0 + Level 1
+→ Custom DocPerm Level 0 + Level 1 + Level 2
 
 site-specific
 → Users / Share / User Permission / Assignment Rule
 ```
 
-L11 обязан восстановить и проверить обе permission layers.
-
 ---
 
-# 21. Clean-site proof
+# 17. Clean-site proof
 
-Отдельно:
+Отдельно доказываются:
 
 ```text
-Desk Requester
-→ Role Create + Level1 field input + post-save no Write
+Requester Desk
+→ Create + Level1 input + status New + no post-save Write
 
 Technician
-→ Workflow works + Level1 content stays protected
+→ content read-only + Level2 state authority + Workflow transitions
 
 Supervisor
-→ Level1 content edit + no Delete
+→ content/state authority + no Delete
 
 Website User
-→ separate Web Form intake
+→ separate Web Form intake capability
 ```
 
 ---
 
-# 22. Итог
+# 18. Labs
+
+Лаборатории не должны ослаблять:
+
+```text
+Level 0 document matrix
+Level 1 content matrix
+Level 2 status matrix
+Workflow
+```
+
+Временный business-content field/table получает явный Permission Level и удаляется при rollback.
+
+---
+
+# 19. Итог
 
 ```text
 Facility Location
@@ -436,12 +431,13 @@ Facility Location
       │
       └── Service Request
               │
-              ├── Level0 document permissions
-              ├── Level1 business-field permissions
+              ├── Level 0 document authority
+              ├── Level 1 content authority
+              ├── Level 2 status authority
               ├── ToDo / Assignment
-              ├── Workflow
+              ├── Workflow transition authority
               ├── Notifications
               └── Web Form intake
 ```
 
-Стальная архитектура = **минимальная модель + наименьшие необходимые права + точное разделение native enforcement layers**.
+Стальная архитектура = **минимальная модель + least privilege + точное разделение native enforcement layers**.
