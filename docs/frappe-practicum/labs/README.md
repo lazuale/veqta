@@ -7,7 +7,7 @@
 - [Lab C — Auto Repeat](c-auto-repeat/README.md)
 - [Lab D — Customize Form / Custom Field / Property Setter / Export Customizations](d-customize-form/README.md)
 - [Lab E — Print / Print Format / Letter Head / PDF](e-print-pdf/README.md)
-- Lab F — специальные Field Types и представления
+- [Lab F — специальные Field Types и представления](f-special-features/README.md)
 
 Лаборатория может временно менять приложение, но после очистки ядро курса остаётся:
 
