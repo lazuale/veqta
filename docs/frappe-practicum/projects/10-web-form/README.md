@@ -4,7 +4,7 @@ L10 открывает внешний веб-вход в уже существу
 
 Новых предметных DocType нет.
 
-Цель урока:
+Цель:
 
 ```text
 Browser
@@ -20,15 +20,30 @@ Desk
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
+Главное правило урока:
+
+```text
+Web Form
+не ослабляет модель Service Request
+```
+
+Если поле Mandatory в основном DocType, оно остаётся обязательным и во внешней форме. В L4 обязательны:
+
+```text
+Subject
+Location
+Description
+Priority
+```
+
+`Status` получает default `New` и пользователю Web Form не показывается как управляющее поле.
+
 ---
 
 # 1. Проверить стенд
 
-В терминале:
-
 ```bash
 cd ~/frappe/facility-ops-bench
-
 bench version
 bench --site facility-ops.localhost list-apps
 bench --site facility-ops.localhost scheduler status
@@ -45,35 +60,24 @@ facility_ops установлен
 working tree clean
 ```
 
-На site уже должны работать:
+На site уже работают:
 
 ```text
 Service Request Workflow
-Assignment Rule
-Notification
+Service Request Auto Assignment
+New Service Request Notification
 ```
+
+Оба Technician из L9 имеют обычный доступ к Service Request независимо от Location.
 
 ---
 
-# 2. Не создавать отдельный внешний процесс
+# 2. Не создавать второй внешний процесс
 
-Web Form не получает свой DocType.
-
-Используем тот же:
+Web Form работает с тем же:
 
 ```text
 Service Request
-```
-
-То есть внешний пользователь создаёт обычный Document, который затем виден в Desk и участвует в тех же механизмах:
-
-```text
-Naming
-Workflow
-Assignment Rule
-Notification
-Timeline
-Permissions
 ```
 
 Не создаём:
@@ -85,54 +89,47 @@ Website Request
 Portal Ticket
 ```
 
+Обычный Document, созданный из браузера, должен участвовать в тех же:
+
+```text
+Naming
+Workflow
+Assignment Rule
+Notification
+Timeline
+Permissions
+```
+
 ---
 
 # 3. Создать Standard Web Form
 
-Войти под:
+Под Administrator, при включённом Developer Mode, открыть `Web Form` и создать:
 
 ```text
-Administrator
-```
-
-Developer Mode должен быть включён.
-
-Через Awesomebar открыть:
-
-```text
-Web Form
-```
-
-Создать:
-
-```text
-Title:       Report a Facility Issue
-Route:       facility-request
+Title:          Report a Facility Issue
+Route:          facility-request
 Select DocType: Service Request
-Module:      Facility Operations
-Is Standard: Yes
+Module:         Facility Operations
+Is Standard:    Yes
 ```
 
 Сохранить.
 
-Standard Web Form в Developer Mode экспортируется в app.
-
-Frappe также создаёт рядом штатные boilerplate-файлы `.js` и `.py` для Web Form.
-
-Их в базовом курсе не редактируем.
+Standard Web Form экспортируется в source app. Frappe может создать рядом штатные `.json`, `.js` и `.py` boilerplate-файлы. В базовом курсе `.js` и `.py` не редактируем.
 
 ---
 
-# 4. Настроить поля формы
+# 4. Настроить поля
 
-Добавить в `Web Form Fields`:
+В `Web Form Fields` добавить:
 
 | Field | Настройка |
 |---|---|
 | Subject | Mandatory |
 | Location | Mandatory |
 | Equipment | Optional |
-| Description | Optional |
+| Description | **Mandatory** |
 | Priority | Mandatory |
 | Target Date | Optional |
 | Attachment | Optional |
@@ -146,15 +143,20 @@ Modified
 Assigned To
 ```
 
-`Status` получает default `New` из `Service Request` и дальше управляется Workflow.
+Критично:
 
-Исполнитель назначается штатным Assignment Rule.
+```text
+Service Request.description = Mandatory
+→ Web Form Description тоже Mandatory
+```
+
+Нельзя делать UI «Optional», если backend-модель требует значение.
 
 ---
 
-# 5. Настроить базовый вид
+# 5. Базовый вид
 
-Для формы задать:
+Настроить:
 
 ```text
 Introduction:
@@ -177,27 +179,23 @@ Max attachment size:
 
 ---
 
-# 6. Первый режим: публичный Guest
+# 6. Первый режим: Guest
 
-Сначала проверяем максимально простой внешний сценарий.
-
-Настроить:
+Временно настроить:
 
 ```text
-Published:            Yes
-Anonymous responses:  Yes
-Login required:       No
-Apply document permissions: No
-Allow editing after submit: No
-Allow multiple responses:   No
-Show list:            No
+Published:                   Yes
+Anonymous responses:         Yes
+Login required:              No
+Apply document permissions:  No
+Allow editing after submit:  No
+Allow multiple responses:    No
+Show list:                   No
 ```
 
-Для публичного теста не раскрываем справочники Equipment и Location.
+Для публичного Guest-теста не раскрываем внутренние справочники.
 
-В `Web Form Fields` временно:
-
-## Location
+Временно у `Location`:
 
 ```text
 Hidden:    Yes
@@ -205,43 +203,31 @@ Mandatory: Yes
 Default:   Main Site
 ```
 
-## Equipment
+`Equipment` удалить из Web Form Fields или скрыть без обязательности.
 
-временно удалить из Web Form Fields или скрыть без обязательности.
-
-Остальные поля оставить видимыми.
-
-Причина простая:
-
-```text
-Guest submission
-не должен автоматически превращать внутренние справочники
-Location / Equipment в публичный каталог
-```
+`Subject`, `Description` и `Priority` остаются видимыми и Mandatory.
 
 ---
 
 # 7. Проверить Guest submission
 
-Выйти из Frappe.
-
-Открыть в браузере:
+Выйти из системы и открыть:
 
 ```text
 http://facility-ops.localhost:8000/facility-request
 ```
 
-Web Form должен открыть страницу создания заявки.
-
 Создать:
 
 ```text
 Subject:     Guest web form test
-Description: Public web form submission
+Description: Public web form submission with required description
 Priority:    High
-Target Date: <любая будущая дата>
+Target Date: будущая дата
 Attachment:  небольшой тестовый файл
 ```
+
+Location должна подставиться как `Main Site`.
 
 Нажать:
 
@@ -249,69 +235,45 @@ Attachment:  небольшой тестовый файл
 Create Request
 ```
 
-Ожидается success message.
-
 ---
 
 # 8. Проверить результат в Desk
 
-Войти под Administrator или Supervisor.
-
-Открыть:
-
-```text
-Service Request
-```
-
-Найти созданную заявку.
+Под Administrator или Supervisor найти созданный `Service Request`.
 
 Проверить:
 
 ```text
 Subject     = Guest web form test
 Location    = Main Site
+Description = заполнено
 Priority    = High
 Status      = New
 Attachment  = загружен
 ```
 
-При `Anonymous responses = Yes` Document должен быть создан как анонимный web-form response.
-
-Главное:
-
-```text
-Web Form
-не хранит отдельную копию заявки
-```
-
-Создан обычный `Service Request`.
+Web Form не хранит отдельную копию заявки.
 
 ---
 
 # 9. Проверить автоматизацию L9
 
-На той же заявке проверить:
+На Guest-заявке проверить:
 
 ```text
 Assignment Rule
 → создал ToDo
 
-Target Date
-→ попал в Due Date ToDo
-
 Notification
-→ отработала по настройкам L9
+→ отработала для Supervisor
+
+Status
+→ остался New
 ```
 
-Статус остаётся:
+Назначенный Technician должен иметь возможность открыть заявку независимо от Location.
 
-```text
-New
-```
-
-до отдельного Workflow Action.
-
-То есть:
+Фиксируем:
 
 ```text
 Web Form = канал создания
@@ -321,63 +283,67 @@ Workflow = состояние процесса
 
 ---
 
-# 10. Проверить обязательное поле
+# 10. Проверить Mandatory в Web Form
 
-В Guest Web Form попробовать отправить форму без:
+Сделать два отрицательных теста.
 
-```text
-Subject
-```
+## Без Subject
+
+Попробовать отправить форму без `Subject`.
 
 Отправка должна быть заблокирована.
 
-Затем вернуть корректное значение и отправить.
+## Без Description
 
-Не включать `Allow incomplete forms` ради обхода Mandatory.
+Попробовать отправить форму без `Description`.
+
+Отправка также должна быть заблокирована.
+
+Не включать:
+
+```text
+Allow incomplete forms
+```
+
+ради обхода metadata.
 
 ---
 
 # 11. Проверить attachment
 
-Создать ещё одну тестовую заявку с небольшим файлом.
+Создать ещё одну корректно заполненную Guest-заявку с небольшим файлом.
 
-После сохранения проверить в Desk:
+Проверить:
 
 ```text
 Service Request.attachment
 ```
 
-и наличие File, связанного с Document.
+и связанный `File`.
 
-Затем попробовать файл больше установленного ограничения, если это удобно на стенде.
-
-Frappe должен применить лимит Web Form / site.
+При желании проверить файл больше `Max attachment size`.
 
 ---
 
-# 12. Перевести форму в финальный режим Login Required
+# 12. Перевести Web Form в финальный Login Required режим
 
-Вернуться под Administrator.
-
-Изменить Web Form:
+Вернуться под Administrator и установить:
 
 ```text
-Anonymous responses: No
-Login required:      Yes
-Allow multiple responses: Yes
-Allow editing after submit: Yes
-Show list:           Yes
-Apply document permissions: No
-Show attachments:   Yes
+Anonymous responses:         No
+Login required:              Yes
+Allow multiple responses:    Yes
+Allow editing after submit:  Yes
+Show list:                   Yes
+Apply document permissions:  No
+Show attachments:            Yes
 ```
 
-Финальная форма курса требует входа пользователя.
+Это финальный режим формы курса.
 
 ---
 
 # 13. Вернуть Location и Equipment
-
-В Web Form Fields:
 
 ## Location
 
@@ -396,40 +362,27 @@ Mandatory: No
 Allow Read On All Link Options: Yes
 ```
 
-Почему включаем `Allow Read On All Link Options`:
-
-при `Login Required` Frappe по умолчанию ограничивает Link options значениями, owner которых совпадает с текущим пользователем.
-
-Для справочников:
+`Description` остаётся:
 
 ```text
-Facility Location
-Equipment
+Mandatory = Yes
 ```
 
-это в нашем учебном приложении не подходит: пользователь не является owner справочника только потому, что создаёт заявку.
+`Allow Read On All Link Options` нужен, чтобы Website User мог выбрать справочные значения Web Form, не становясь owner этих справочников.
 
-Настройка разрешает Web Form читать все options конкретного Link-поля.
-
-Не путать это с полным доступом пользователя к DocType в Desk.
+Это не равно полноценному Desk permission на DocType.
 
 ---
 
 # 14. Создать Website User
 
-Через Awesomebar открыть:
-
-```text
-User
-```
-
 Создать:
 
 ```text
-Email:      web.requester@example.com
-First Name: Web Requester
-User Type:  Website User
-Enabled:    Yes
+Email:              web.requester@example.com
+First Name:         Web Requester
+User Type:          Website User
+Enabled:            Yes
 Send Welcome Email: No
 ```
 
@@ -439,25 +392,20 @@ Send Welcome Email: No
 
 ```text
 System Manager
-Desk User
 Administrator
 ```
 
-Для основной проверки Web Form отдельная роль не нужна.
+Для основной проверки при `Apply document permissions = No` отдельная Desk role не нужна.
 
 ---
 
 # 15. Проверить Login Required
 
-Выйти из системы.
-
-Открыть:
+Незалогиненный Guest не должен получить обычную форму создания по route:
 
 ```text
-http://facility-ops.localhost:8000/facility-request
+/facility-request
 ```
-
-Незалогиненный Guest не должен получить обычную форму создания.
 
 Войти как:
 
@@ -465,7 +413,7 @@ http://facility-ops.localhost:8000/facility-request
 web.requester@example.com
 ```
 
-После входа открыть тот же route.
+и открыть тот же route.
 
 Форма должна стать доступной.
 
@@ -477,15 +425,13 @@ web.requester@example.com
 
 ```text
 Subject:     Website user request
-Location:    Room 101
-Equipment:   <любое Equipment из Room 101 или пусто>
+Location:    Warehouse
+Equipment:   любое Equipment из Warehouse или пусто
 Description: Authenticated Web Form test
 Priority:    Medium
-Target Date: <будущая дата>
+Target Date: будущая дата
 Attachment:  тестовый файл
 ```
-
-Сохранить.
 
 Проверить в Desk:
 
@@ -494,17 +440,19 @@ Owner = web.requester@example.com
 Status = New
 ```
 
-и нормальную работу Assignment Rule.
+и работу Assignment Rule.
+
+Назначенный Technician должен открывать документ независимо от выбранной Location.
 
 ---
 
-# 17. Проверить Show List
+# 17. Show List
 
-Под `web.requester@example.com` открыть route списка Web Form.
+Под Website User открыть список ответов Web Form.
 
-При `Show List = Yes` пользователь должен получить список своих доступных ответов.
+При `Show List = Yes` пользователь должен видеть свои доступные ответы.
 
-Для List Columns оставить минимум:
+List Columns оставить минимум:
 
 ```text
 Subject
@@ -517,9 +465,9 @@ Target Date
 
 ---
 
-# 18. Проверить Allow Edit
+# 18. Allow Edit
 
-Открыть созданную Website User заявку через Web Form.
+Открыть собственную заявку через Web Form.
 
 При:
 
@@ -528,66 +476,42 @@ Allow editing after submit = Yes
 Apply document permissions = No
 ```
 
-owner документа может работать со своим ответом через Web Form.
+owner может изменить свой ответ.
 
-Изменить:
-
-```text
-Description
-```
-
-Сохранить.
-
-Проверить то же изменение в Desk.
+Изменить `Description`, сохранить и проверить то же значение в Desk.
 
 ---
 
 # 19. Доказать owner-границу
 
-Под Administrator заранее создать или найти Service Request другого owner.
+Под Administrator найти Service Request другого owner.
 
-Под:
+Под `web.requester@example.com` попытаться открыть чужой Document через Web Form URL.
 
-```text
-web.requester@example.com
-```
-
-попробовать открыть чужой Document через Web Form URL.
-
-Он не должен стать доступным только потому, что пользователь знает его `name`.
-
-При `Apply document permissions = No` базовое правило Web Form для обычного logged-in пользователя:
-
-```text
-свой Document
-→ доступен
-
-чужой Document
-→ не доступен без отдельного website permission
-```
+При `Apply document permissions = No` обычный logged-in пользователь не должен получить чужой ответ только потому, что знает его `name`.
 
 ---
 
-# 20. Проверить Apply Document Permissions
+# 20. Apply Document Permissions
 
-Теперь временно включить:
+Временно включить:
 
 ```text
 Apply document permissions = Yes
 ```
 
-Под `web.requester@example.com` снова проверить доступ к созданному им Service Request.
+Под Website User снова проверить свою заявку.
 
-Website User не имеет нашей Desk role / DocType permission matrix из L5, поэтому поведение должно измениться согласно обычным permissions `Service Request`.
+Website User не имеет нашей Desk role matrix L5, поэтому теперь Web Form должен опираться на обычные document permissions.
 
-Это и есть смысл настройки:
+Смысл переключателя:
 
 ```text
 OFF
-→ Web Form использует собственную owner/website permission модель
+→ Web Form owner/website access model
 
 ON
-→ Web Form проверяет обычные document permissions
+→ обычные document permissions
 ```
 
 После проверки вернуть:
@@ -595,8 +519,6 @@ ON
 ```text
 Apply document permissions = No
 ```
-
-Финальный authenticated Web Form курса использует owner-based access.
 
 ---
 
@@ -608,117 +530,84 @@ Apply document permissions = No
 requester.one@example.com
 ```
 
-Открыть тот же Web Form.
-
-Создать заявку.
-
-Затем временно включить:
+Создать через Web Form корректную заявку:
 
 ```text
-Apply document permissions = Yes
+Subject:     System user web form test
+Location:    Room 101
+Description: Проверка Web Form под Facility Requester
+Priority:    Low
 ```
 
-Проверить, что для `Facility Requester` начинают применяться права L5, включая `If Owner`.
+Временно включить `Apply document permissions = Yes` и проверить влияние L5 `If Owner`.
 
-После проверки вернуть финальную настройку:
-
-```text
-Apply document permissions = No
-```
+После теста вернуть `Apply document permissions = No`.
 
 ---
 
-# 22. Не давать Web Form управлять Workflow
+# 22. Web Form не управляет Workflow
 
-В Web Form Fields не должно быть editable поля:
+`Status` не должен быть editable полем Web Form.
 
-```text
-Status
-```
-
-Website User не переводит заявку напрямую:
+Website User не выполняет:
 
 ```text
 New → Assigned
 New → Closed
 ```
 
-После создания заявка входит в обычный Desk-процесс:
+После создания:
 
 ```text
 Web Form submission
-      ↓
-New
-      ↓
-Supervisor Workflow Action
-      ↓
-Assigned
-      ↓
-Technician
+→ New
+→ Assignment Rule назначает Technician
+→ Supervisor Mark Assigned
+→ Technician Start Work / Resolve
+→ Supervisor Close
 ```
 
-Web Form не становится вторым Workflow UI.
+Один процесс, один underlying Document.
 
 ---
 
 # 23. Проверить Standard Web Form в Git
 
-В терминале:
-
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
 
 git status --short
-```
 
-Найти exported Web Form:
-
-```bash
 find facility_ops/facility_operations \
   -type f \
   | sort \
   | grep -i 'web_form\|facility_request'
 ```
 
-Ожидаются app-owned файлы Standard Web Form.
+Frappe может создать `.json`, `.js`, `.py` boilerplate.
 
-Frappe может создать рядом boilerplate:
-
-```text
-.json
-.js
-.py
-```
-
-В базовом курсе `.js` и `.py` не редактируем.
-
-Их наличие не означает, что мы написали собственную бизнес-логику.
+В базовом курсе кодовые файлы не редактируем.
 
 ---
 
-# 24. Проверить границу source и data
-
-После L10:
+# 24. Source против data
 
 ```text
 Web Form definition
-→ app source
-→ Git
+→ app source / Git
 
-Service Request created through Web Form
-→ database site
-→ не Git
+Service Request, созданный через Web Form
+→ working data site
 
-Website User
-→ configuration/data site
-→ не source приложения автоматически
+web.requester@example.com
+→ site data/configuration
 ```
 
-Пользователя не экспортируем как fixture.
+Website User не экспортируем fixture.
 
 ---
 
-# 25. Финальная конфигурация Web Form
+# 25. Финальная конфигурация
 
 Оставить:
 
@@ -730,197 +619,59 @@ Published:    Yes
 Is Standard:  Yes
 Module:       Facility Operations
 
-Anonymous responses: No
-Login required:      Yes
-Allow multiple responses: Yes
-Allow editing after submit: Yes
-Show list:           Yes
-Apply document permissions: No
-Show attachments:   Yes
+Anonymous responses:         No
+Login required:              Yes
+Allow multiple responses:    Yes
+Allow editing after submit:  Yes
+Show list:                   Yes
+Apply document permissions:  No
+Show attachments:            Yes
 ```
 
-Поля:
+Fields:
 
 ```text
-Subject
-Location
-Equipment
-Description
-Priority
-Target Date
-Attachment
+Subject     Mandatory
+Location    Mandatory + Allow Read On All Link Options
+Equipment   Optional + Allow Read On All Link Options
+Description Mandatory
+Priority    Mandatory
+Target Date Optional
+Attachment  Optional
 ```
 
-Location и Equipment:
-
-```text
-Allow Read On All Link Options = Yes
-```
-
-Status в Web Form отсутствует.
+`Status` отсутствует в пользовательском наборе полей.
 
 ---
 
 # 26. Commit L10
 
-Проверить:
+Проверить app-owned Web Form files и закоммитить их без рабочих данных и Users.
 
-```bash
-git status
-git diff
-```
-
-Добавить exported Standard Web Form:
-
-```bash
-git add .
-git diff --cached
-```
-
-Проверить, что staged diff не содержит рабочих Service Request, паролей или пользовательских данных.
-
-Commit:
+Пример сообщения:
 
 ```bash
 git commit -m "Add service request web form"
-git status
-```
-
-Ожидается:
-
-```text
-working tree clean
 ```
 
 ---
 
-# 27. Самостоятельная практика
+# 27. Приёмка L10
 
-Без подсказки выполнить три проверки.
+L10 принят, если:
 
-## A. Guest
+- Web Form создаёт обычный `Service Request`;
+- Guest-сценарий проверен и затем выключен;
+- `Description` нигде не становится Optional;
+- отсутствие Subject/Description реально блокирует отправку;
+- attachment работает;
+- финальный режим требует Login;
+- Website User может создать, увидеть в Show List и изменить собственный ответ;
+- чужой ответ не открывается через знание name;
+- `Apply document permissions` проверен и возвращён в `No`;
+- Location/Equipment options работают в authenticated форме;
+- Web Form не управляет Workflow State;
+- Assignment Rule может назначить заявку из любой выбранной Location доступному Technician;
+- Standard Web Form находится в source app, рабочие заявки и Website User — нет.
 
-Временно открыть Web Form для Guest, спрятать Location с default `Main Site`, создать заявку и вернуть Login Required.
-
-## B. Website User
-
-Создать второй Service Request и открыть оба через Show List.
-
-## C. Permissions
-
-Переключить `Apply document permissions` и объяснить, почему один и тот же пользователь получает разный результат.
-
-После проверки вернуть финальную конфигурацию из раздела 25.
-
----
-
-# 28. Приёмка L10
-
-L10 принят, если ученик может показать:
-
-## Web Form
-
-```text
-Report a Facility Issue
-Route = facility-request
-DocType = Service Request
-Standard = Yes
-Published = Yes
-```
-
-## Guest test
-
-```text
-Guest смог создать временную публичную заявку
-создан обычный Service Request
-attachment дошёл до Document
-```
-
-## Website User
-
-```text
-Login Required работает
-Website User создаёт Service Request
-Show List показывает доступные ответы
-Allow Edit позволяет изменить свой ответ
-```
-
-## Permissions
-
-Ученик может объяснить:
-
-```text
-Apply document permissions OFF
-≠
-Apply document permissions ON
-```
-
-## Integration
-
-Заявка из Web Form проходит через уже существующие:
-
-```text
-Assignment Rule
-Notification
-Workflow
-```
-
-## Архитектура
-
-По-прежнему только три предметных DocType:
-
-```text
-Facility Location
-Equipment
-Service Request
-```
-
----
-
-# Что нужно понять после L10
-
-```text
-Web Form
-= внешний интерфейс над существующим DocType
-```
-
-Он не требует второго backend-процесса.
-
-```text
-Guest / Website User / System User
-```
-
-— разные контексты доступа к одной и той же форме.
-
-```text
-Login Required
-```
-
-определяет необходимость аутентификации.
-
-```text
-Allow Edit / Show List
-```
-
-дают web-пользователю работу с ранее созданными ответами.
-
-```text
-Apply Document Permissions
-```
-
-определяет, будет ли Web Form опираться на обычные permissions DocType или на собственную web-form access модель.
-
-```text
-Web Form submission
-→ обычный Document
-```
-
-поэтому вся остальная штатная механика Frappe продолжает работать без дублирования.
-
----
-
-Следующий урок:
-
-```text
-L11 — Переносимость приложения
-```
+После L10 переходим к **L11 — переносимость и clean site**.
