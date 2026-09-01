@@ -141,7 +141,7 @@ Facility Supervisor
 | [L3](projects/03-data/README.md) | рабочие данные | Filters, Sorting, Saved Filters, Data Import, Export, Bulk Edit |
 | [L4](projects/04-service-request/README.md) | Service Request | рабочий DocType, Links, Status, Priority, Attachments |
 | [L5](projects/05-users-permissions/README.md) | пользователи и доступ | User, Role, Permissions, If Owner, Permission Level, User Permission, Share |
-| L6 | совместная работа | Assign To, ToDo, Comments, Timeline, Tags, Kanban |
+| [L6](projects/06-collaboration/README.md) | совместная работа | Assign To, ToDo, Comments, Timeline, Tags, Kanban |
 | L7 | управляемый процесс | Workflow, Workflow State, Transition, Workflow Action |
 | L8 | контроль работы | Report Builder, Number Card, Dashboard Chart, Workspace |
 | L9 | автоматизация | Notification, Assignment Rule, scheduler |
