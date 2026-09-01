@@ -1,6 +1,6 @@
 # Lab C. Auto Repeat
 
-Lab C изучает штатное повторное создание Documents без изменения постоянной доменной модели.
+Lab C изучает штатное повторное создание Documents без изменения постоянной доменной модели и security baseline.
 
 Используем существующий:
 
@@ -16,7 +16,7 @@ Allow Auto Repeat
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
-После лаборатории Auto Repeat и служебный Custom Field удаляются, Assignment Rule L9 возвращается в исходное состояние.
+После лаборатории Auto Repeat и служебный Custom Field удаляются, Assignment Rule L9 возвращается, а Level 0/1 permission model `Service Request` остаётся исходной.
 
 ---
 
@@ -44,20 +44,24 @@ Auto Repeat schedule
         ↓
 scheduler
         ↓
-новый Service Request
+new Service Request
         ↓
 optional Auto Repeat Assignee
         ↓
 ToDo
 ```
 
-Auto Repeat не является Workflow и не является Assignment Rule.
+```text
+Auto Repeat ≠ Assignment Rule
+Assignment ≠ Workflow
+Automation ≠ permission escalation
+```
 
 ---
 
 # 2. Preconditions
 
-После L11 active site снова:
+После L11 active site:
 
 ```text
 facility-ops.localhost
@@ -76,13 +80,13 @@ cd apps/facility_ops
 git status
 ```
 
-На основном site L9 должен существовать:
+На основном site существует:
 
 ```text
 Service Request Auto Assignment
 ```
 
-Workflow states:
+Workflow:
 
 ```text
 New
@@ -91,6 +95,23 @@ In Progress
 Resolved
 Closed
 ```
+
+Security baseline:
+
+```text
+status → Permission Level 0
+
+subject
+location
+equipment
+description
+priority
+target_date
+attachment
+→ Permission Level 1
+```
+
+Technician Level 1 Write должен быть `No`.
 
 ---
 
@@ -103,17 +124,7 @@ Service Request Auto Assignment
 Disabled = Yes
 ```
 
-Причина:
-
-```text
-Auto Repeat Assignee
-и
-Assignment Rule
-```
-
-оба используют штатный assignment/ToDo механизм.
-
-Для чистого эксперимента оставляем один источник назначения.
+Причина: Auto Repeat Assignee и Assignment Rule оба используют assignment/ToDo. Для чистого эксперимента оставляем один источник назначения.
 
 ---
 
@@ -126,8 +137,6 @@ DocType → Service Request
 Allow Auto Repeat = Yes
 ```
 
-Сохранить.
-
 Frappe создаёт служебный Custom Field:
 
 ```text
@@ -136,30 +145,30 @@ auto_repeat
 
 Его не создаём вручную.
 
+Это техническое поле лаборатории, а не новый business-content field core.
+
 ---
 
-# 5. Проверить Custom Field
+# 5. Проверить, что core Permission Levels не изменились
 
-Через `Custom Field` найти:
+После `Allow Auto Repeat = Yes` сразу проверить `Service Request` metadata.
 
-```text
-Document Type = Service Request
-Fieldname     = auto_repeat
-```
-
-Фиксируем:
+Должны остаться:
 
 ```text
-Allow Auto Repeat
-= metadata capability
+status → permlevel 0
 
-auto_repeat
-= служебная связь Document → Auto Repeat
+subject/location/equipment/description/priority/target_date/attachment
+→ permlevel 1
 ```
+
+Если включение Auto Repeat изменило эти поля вручную из-за ошибочной настройки ученика — лабораторию остановить и восстановить baseline.
 
 ---
 
 # 6. Создать reference Service Request
+
+Под Supervisor создать:
 
 ```text
 Subject:     Periodic inspection template
@@ -176,7 +185,7 @@ Target Date: пусто
 Status = New
 ```
 
-`Target Date` оставляем пустым специально: он Optional и не должен магически становиться датой расписания.
+`Target Date` пуст специально: расписание Auto Repeat не должно путаться с due date заявки.
 
 ---
 
@@ -198,11 +207,9 @@ End Date пока пусто.
 
 # 8. Проверить единственность связи
 
-Reference `Service Request.auto_repeat` должен ссылаться на созданный Auto Repeat.
+`Service Request.auto_repeat` должен ссылаться на созданный Auto Repeat.
 
-Попытаться создать второй Auto Repeat на ту же reference заявку.
-
-Frappe должен запретить дублирующую активную связь.
+Попытаться создать второй активный Auto Repeat на ту же reference заявку и получить штатный отказ.
 
 ---
 
@@ -216,20 +223,16 @@ Next Schedule Date
 
 Не вводить его вручную.
 
-Для немедленной лабораторной проверки позже сдвинем Start Date так, чтобы schedule подошёл на сегодня.
-
 ---
 
 # 10. Добавить Assignee
 
 ```text
-Assignee:
-technician.one@example.com
-
+Assignee: technician.one@example.com
 Generate Separate Documents For Each Assignee = No
 ```
 
-При generated Document Frappe использует штатный assignment mechanism:
+Generated Document получит assignment через штатный механизм:
 
 ```text
 new Service Request
@@ -237,11 +240,11 @@ new Service Request
 → ToDo
 ```
 
-Это не создаёт field `Assigned Technician`.
+Это не выдаёт Technician Level 1 Write.
 
 ---
 
-# 11. Submit on Creation — отрицательный тест
+# 11. Submit on Creation — negative test
 
 Попробовать:
 
@@ -249,9 +252,7 @@ new Service Request
 Submit on Creation = Yes
 ```
 
-`Service Request` не Submittable.
-
-Frappe должен отклонить несовместимую настройку.
+`Service Request` не Submittable, поэтому настройка несовместима.
 
 Вернуть:
 
@@ -263,13 +264,11 @@ Submit on Creation = No
 
 # 12. Подготовить запуск на сегодня
 
-Изменить schedule так, чтобы:
+Настроить schedule так, чтобы:
 
 ```text
 Next Schedule Date = сегодня
 ```
-
-Например после уже созданного Auto Repeat сдвинуть Start Date на вчера и проверить пересчёт.
 
 Не править `Next Schedule Date` напрямую.
 
@@ -291,17 +290,13 @@ bench --site facility-ops.localhost show-pending-jobs
 bench --site facility-ops.localhost doctor
 ```
 
-Auto Repeat использует штатную background queue.
-
 ---
 
 # 14. Проверить generated Service Request
 
-Найти новую заявку с тем же Subject.
+Найти новый Document с новым `name`.
 
-У неё должен быть новый `name`.
-
-Проверить копируемые значения:
+Проверить:
 
 ```text
 Subject
@@ -312,7 +307,7 @@ Priority
 Status = New
 ```
 
-Это новый обычный Document.
+Generated request обязана соблюдать H-01 и ту же metadata model, что обычная заявка.
 
 ---
 
@@ -322,7 +317,7 @@ Status = New
 Assigned To = technician.one@example.com
 ```
 
-Связанный ToDo:
+ToDo:
 
 ```text
 Reference Type = Service Request
@@ -330,87 +325,94 @@ Reference Name = generated SR
 Allocated To   = technician.one@example.com
 ```
 
-Assignment Rule L9 сейчас Disabled, поэтому assignment пришёл именно из Auto Repeat.
+Assignment Rule L9 Disabled, поэтому assignment пришёл из Auto Repeat.
 
 ---
 
-# 16. Assignment остаётся отдельным от Workflow
+# 16. Проверить Technician permissions на generated Document
 
-Generated request после назначения остаётся:
+Под `technician.one@example.com` открыть generated request.
+
+Проверить:
+
+```text
+Level 1 content виден
+Description/Priority/Target Date не writable
+```
+
+Assignment из Auto Repeat не должен менять field authority.
+
+---
+
+# 17. Assignment отдельно от Workflow
+
+Generated request после назначения:
 
 ```text
 Status = New
 ```
 
-Под Supervisor выполнить:
+Под Supervisor:
 
 ```text
 Accept
+→ Status = Accepted
 ```
-
-Получить:
 
 ```text
-Status = Accepted
+Auto Repeat = когда создать
+Assignment  = кому поручить
+Workflow    = состояние процесса
 ```
-
-Фиксируем:
-
-```text
-Auto Repeat
-= когда создать Document
-
-Assignment
-= кому поручить
-
-Workflow
-= состояние процесса
-```
-
-`Accepted` не означает «назначен», а assignment не является authorization.
 
 ---
 
-# 17. Next Schedule Date после обработки
+# 18. Technician transition
 
-После успешного запуска проверить переход Next Schedule Date на следующую рассчитанную дату.
+Под Technician:
+
+```text
+Start Work
+```
+
+Переход должен работать, потому что `status` Level 0 и Technician имеет document-level Write.
+
+Level 1 content при этом остаётся read-only.
+
+После теста можно довести заявку до `Resolved` обычным Workflow.
+
+---
+
+# 19. Next Schedule Date после обработки
+
+После успешного запуска проверить следующую рассчитанную дату.
 
 Для Daily ожидается следующий день.
 
 ---
 
-# 18. End Date
+# 20. End Date / Disabled
 
-Задать будущую End Date и посмотреть schedule.
+Проверить корректную End Date и штатную validation на некорректной.
 
-Попробовать некорректный вариант по правилам Auto Repeat и получить штатную validation error.
-
-После теста вернуть корректное значение или очистить End Date.
-
----
-
-# 19. Disabled
-
-Установить:
+Проверить:
 
 ```text
 Disabled = Yes
 ```
 
-Проверить inactive/disabled состояние и отсутствие следующего активного запуска.
-
-Если нужен следующий тест — временно вернуть No.
+и отсутствие следующего активного запуска.
 
 ---
 
-# 20. Где что хранится
+# 21. Где что хранится
 
 ```text
 Reference Service Request
 → working data
 
 Auto Repeat
-→ schedule configuration Document
+→ schedule configuration
 
 Generated Service Request
 → working data
@@ -419,47 +421,39 @@ ToDo
 → assignment data
 
 Allow Auto Repeat
-→ DocType metadata
+→ DocType capability metadata
 
 auto_repeat
-→ служебный Custom Field
+→ technical Custom Field
 ```
 
 ---
 
-# 21. Git во время эксперимента
+# 22. Git во время эксперимента
 
-`Allow Auto Repeat = Yes` меняет Standard metadata `Service Request`, поэтому source diff возможен.
+`Allow Auto Repeat = Yes` может изменить Standard metadata `Service Request`.
 
-Runtime:
+Runtime Auto Repeat/Service Request/ToDo в Git не входят.
+
+При желании experiment можно зафиксировать отдельным commit, но rollback обязателен.
+
+---
+
+# 23. Rollback Auto Repeat
+
+Удалить созданный Auto Repeat штатно.
+
+Проверить:
 
 ```text
-Auto Repeat
-reference/generated Service Request
-ToDo
+reference auto_repeat = пусто
 ```
 
-не являются app source.
-
-При желании сделать отдельный experiment commit, чтобы потом увидеть rollback.
+Тестовые generated Documents удалить, если больше не нужны.
 
 ---
 
-# 22. Rollback: удалить Auto Repeat
-
-Удалить созданный `Auto Repeat` штатно.
-
-Проверить reference document:
-
-```text
-auto_repeat = пусто
-```
-
-Тестовые generated Documents можно удалить отдельно, если они больше не нужны.
-
----
-
-# 23. Rollback: Allow Auto Repeat
+# 24. Rollback Allow Auto Repeat
 
 Вернуть:
 
@@ -472,7 +466,7 @@ Allow Auto Repeat = No
 
 ---
 
-# 24. Rollback: служебный Custom Field
+# 25. Rollback technical Custom Field
 
 Проверить:
 
@@ -482,9 +476,7 @@ Document Type = Service Request
 Fieldname = auto_repeat
 ```
 
-Если запись осталась — удалить штатно.
-
-Затем:
+Если остался — удалить штатно.
 
 ```bash
 bench --site facility-ops.localhost clear-cache
@@ -492,7 +484,7 @@ bench --site facility-ops.localhost clear-cache
 
 ---
 
-# 25. Rollback: вернуть Assignment Rule
+# 26. Restore Assignment Rule
 
 ```text
 Service Request Auto Assignment
@@ -500,27 +492,53 @@ Disabled = No
 Rule = Round Robin
 ```
 
-Сохранить.
+---
 
-После Lab C основной site снова имеет operating policy L9.
+# 27. Критический post-rollback permission gate
+
+После всех cleanup действий проверить `Service Request` заново.
+
+## Metadata
+
+```text
+status → permlevel 0
+
+subject
+location
+equipment
+description
+priority
+target_date
+attachment
+→ permlevel 1
+```
+
+## Role Permission
+
+```text
+Requester Level 0 Write = No
+Technician Level 1 Write = No
+Supervisor Level 1 Write = Yes
+Supervisor Level 0 Delete = No
+```
+
+Lab C не принята, если Auto Repeat очищен, но security baseline изменён.
 
 ---
 
-# 26. Final state
-
-После Lab C:
+# 28. Final state
 
 ```text
 Service Request.allow_auto_repeat = No
-нет Auto Repeat лаборатории
+нет lab Auto Repeat
 нет Service Request.auto_repeat Custom Field
-Assignment Rule включён
+Assignment Rule enabled
 Rule = Round Robin
-Workflow states не изменены
-Status list = New / Accepted / In Progress / Resolved / Closed
+Workflow unchanged
+Level 0/1 permissions unchanged
 ```
 
-Core domain снова:
+Core domain:
 
 ```text
 Facility Location
@@ -530,32 +548,63 @@ Service Request
 
 ---
 
-# 27. Приёмка
+# 29. State contract
 
-Лаборатория принята, если ученик может выполнить:
+## Temporary mutation
 
 ```text
-disable L9 Assignment Rule
-→ enable Allow Auto Repeat
-→ create reference request
-→ create Daily Auto Repeat
-→ add Assignee
-→ schedule today
-→ run native scheduler method
-→ receive new Service Request
-→ see ToDo
-→ prove Status remains New
-→ Supervisor Accept
-→ delete Auto Repeat
-→ disable Allow Auto Repeat
-→ remove technical Custom Field
-→ restore Round Robin Assignment Rule
+Assignment Rule Disabled
+Allow Auto Repeat Yes
+auto_repeat Custom Field
+Auto Repeat config
+lab runtime Documents
 ```
 
-И объяснить:
+## Rollback
+
+```text
+Auto Repeat removed
+Allow Auto Repeat No
+auto_repeat field removed
+Assignment Rule enabled / Round Robin
+```
+
+## Final state
+
+```text
+original domain
+original Workflow
+original Level 0/1 permission model
+Git clean
+```
+
+---
+
+# 30. Приёмка
+
+Лаборатория принята, если ученик может:
+
+- disable L9 Assignment Rule;
+- enable Allow Auto Repeat;
+- создать reference request;
+- создать Daily Auto Repeat;
+- добавить Assignee;
+- запустить native scheduler method;
+- получить новый Service Request и ToDo;
+- доказать `Status = New` после generation/assignment;
+- доказать, что Technician assignment не даёт Level 1 Write;
+- выполнить `Accept` и Technician Workflow transition;
+- удалить Auto Repeat;
+- отключить Allow Auto Repeat;
+- удалить technical Custom Field;
+- вернуть Round Robin Assignment Rule;
+- доказать восстановление исходной Level 0/1 permission model;
+- получить clean Git.
+
+Главный вывод:
 
 ```text
 Auto Repeat ≠ Assignment Rule
 Assignment ≠ Workflow
-Accepted ≠ Assigned To
+Automation ≠ permission authority
 ```
