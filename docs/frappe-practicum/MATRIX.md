@@ -11,7 +11,7 @@
 - **Optional** — самостоятельная проверка;
 - **Later** — следующий уровень.
 
-Формальная сила механизмов описана отдельно в [INVARIANTS.md](INVARIANTS.md).
+Формальная сила механизмов: [INVARIANTS.md](INVARIANTS.md).
 
 ---
 
@@ -24,7 +24,7 @@
 | L2 | оборудование | Equipment |
 | L3 | данные | filters, import, export, bulk edit |
 | L4 | рабочий документ | Service Request + data semantics |
-| L5 | доступ | Users, Roles, Permissions |
+| L5 | доступ | hardened Role Permission model + temporary access experiments |
 | L6 | совместная работа | Assign To, ToDo, Comments, Tags, Kanban |
 | L7 | процесс | Workflow + enforcement boundaries |
 | L8 | контроль | Report, Cards, Chart, Workspace |
@@ -72,10 +72,9 @@
 | Custom DocType | — | Later |
 | Virtual DocType | — | Later |
 
-## Core data invariant
+Core Status:
 
 ```text
-Service Request Status:
 New
 Accepted
 In Progress
@@ -84,8 +83,6 @@ Closed
 ```
 
 `Accepted` не является assignment state.
-
-`Service Request.location` и `Equipment.location` имеют разные temporal semantics; их вечное равенство не заявляется.
 
 ---
 
@@ -134,7 +131,8 @@ Kanban после L7 удаляется из финальной process configur
 | Website User / Guest | L10 | Core |
 | Role | L5 | Core |
 | Role Permission Manager | L5 | Core |
-| Read / Write / Create / Delete | L5 | Core |
+| Read / Write / Create | L5 | Core |
+| Delete permission | L5 | Core, temporary experiment for Service Request; final Off |
 | Report / Export / Import | L5 | Core |
 | If Owner | L5 | Core |
 | Permission Level | L5 | Core |
@@ -144,7 +142,24 @@ Kanban после L7 удаляется из финальной process configur
 | Custom Permission Types | — | Later |
 | custom permission hooks | — | Later |
 
-Академическая классификация:
+Final `Service Request` permission outcome:
+
+```text
+Requester
+→ Create + Read own
+→ Write/Delete No
+
+Technician
+→ Read/Write
+→ Create/Delete No
+
+Supervisor
+→ Read/Write/Create
+→ Delete No
+→ Report/Export
+```
+
+Это важно: матрица покрытия фиксирует и изученный механизм, и финальную безопасную конфигурацию.
 
 ```text
 Role Permission = server access boundary
@@ -162,8 +177,6 @@ Assignment      = не permission mechanism
 | Due Date | L6/L9 | Core |
 | duplicate assignment behavior | L6 | Core |
 | Comments / Timeline / Tags | L6 | Core |
-
-Главный вывод:
 
 ```text
 Assignment = ответственность
@@ -188,12 +201,17 @@ Assignee-only security — Later.
 | Read Only status | L7 | Core, UI guard |
 | Is Submittable / DocStatus | Lab B | Lab |
 
-Важно:
+Final Desk roles:
 
 ```text
-Only Allow Edit For
-не маркируется как server ACL
+New         → Supervisor
+Accepted    → Technician
+In Progress → Technician
+Resolved    → Supervisor
+Closed      → Supervisor
 ```
+
+Requester create остаётся возможным для local new document, а post-create Write блокируется Role Permission.
 
 Closed изучается как terminal Workflow state, не как абсолютная record immutability.
 
@@ -234,7 +252,7 @@ Closed изучается как terminal Workflow state, не как абсол
 | Auto Repeat | Lab C | Lab |
 | Weighted/Based on Field assignment | — | Later |
 
-Assignment Rule остаётся site-specific и не является universal fixture.
+Assignment Rule остаётся site-specific.
 
 ---
 
@@ -247,7 +265,7 @@ Assignment Rule остаётся site-specific и не является universa
 | Guest submission | L10 | Core, temporary experiment |
 | Login Required | L10 | Core, final On |
 | Website User | L10 | Core |
-| Allow Edit | L10 | Core, **temporary experiment; final Off** |
+| Allow Edit | L10 | Core, temporary experiment; final Off |
 | Show List | L10 | Core, final On |
 | Apply Document Permissions | L10 | Core, experiment; final Off |
 | Allow Read On All Link Options | L10 | Core, trusted-internal policy |
@@ -255,7 +273,7 @@ Assignment Rule остаётся site-specific и не является universa
 | own Web Form JS/Python | — | Later |
 | public untrusted external catalog | — | Later |
 
-Финальная форма не является parallel editor Workflow Document.
+Final Web Form не является parallel editor Workflow Document.
 
 ---
 
@@ -273,6 +291,8 @@ Assignment Rule остаётся site-specific и не является universa
 | Standard vs universal vs site-specific vs data | L11 | Core |
 | clean-site portability | L11 | Core |
 | arbitrary multi-app compatibility | — | Later |
+
+Clean-site acceptance включает проверку exact final permission matrix.
 
 ---
 
@@ -308,14 +328,18 @@ Assignment Rule остаётся site-specific и не является universa
 
 # Правило матрицы
 
-Механизм может быть `Core`, даже если финальная конфигурация его выключает, **если ученик реально проверяет его и понимает, почему безопасная архитектура его не оставляет**.
+Механизм может быть `Core`, даже если финальная конфигурация его выключает, если ученик реально проверяет его и понимает rollback.
 
-Пример:
+Примеры:
 
 ```text
+Service Request Delete
+→ изучен L5
+→ final Off
+
 Web Form Allow Edit
-→ изучен в L10
-→ финально Off
+→ изучен L10
+→ final Off
 ```
 
 Coverage не должно подменять architecture quality.
