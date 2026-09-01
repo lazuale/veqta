@@ -492,11 +492,26 @@ Commit сохраняет историю эксперимента, но не п�
 
 ---
 
-# 21. Rollback working data
+# 21. Rollback working data без ослабления Delete policy
 
-Под Supervisor удалить все Work Logs из лабораторной заявки и сохранить.
+Под Supervisor удалить все `Work Logs` из лабораторной заявки и сохранить parent Document.
 
-Удалить лабораторную Service Request, если она больше не нужна.
+Саму лабораторную `Service Request` **не удалять под Supervisor**: финальная permission policy специально имеет:
+
+```text
+Supervisor Delete = No
+```
+
+Если тестовый Document нужно убрать полностью, есть два корректных варианта:
+
+```text
+1. оставить/закрыть его как учебный runtime Document;
+
+2. удалить под Administrator как административный cleanup,
+   не меняя Role Permission Manager.
+```
+
+Запрещено ради cleanup временно включать Supervisor `Delete = Yes`: этот механизм уже изучен и откатан в L5.
 
 ---
 
@@ -608,16 +623,18 @@ lab Service Request + rows
 ## Persistent mutation
 
 ```text
-none
+none in metadata/security
 ```
+
+Лабораторную Service Request можно оставить как runtime data либо удалить Administrator без изменения ролей.
 
 ## Rollback
 
 ```text
 rows removed
-lab request removed if unnecessary
 work_logs removed
 Work Log removed
+Supervisor Delete remains No
 ```
 
 ## Final state
@@ -643,6 +660,7 @@ Git clean
 - Technician видит, но не редактирует Table через штатный permission-aware path;
 - конкретные rows остаются site data;
 - после rollback нет Work Log/work_logs;
+- Supervisor Delete ради cleanup не включался;
 - финальная Service Request permission model не ослаблена;
 - Git clean.
 
