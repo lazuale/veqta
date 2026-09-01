@@ -2,8 +2,6 @@
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
-Этот документ описывает итоговую архитектуру приложения после анализа инвариантов.
-
 Формальный реестр гарантий: **[INVARIANTS.md](INVARIANTS.md)**.
 
 Главный принцип:
@@ -18,7 +16,7 @@
 
 # 1. Цель приложения
 
-`facility_ops` — маленькое учебное приложение:
+`facility_ops` — небольшое учебное приложение:
 
 ```text
 места
@@ -30,7 +28,7 @@
 → внешний intake
 ```
 
-Это не ERP, CMMS или Service Desk.
+Это не ERP, CMMS или полноценный Service Desk.
 
 Постоянное предметное ядро:
 
@@ -60,9 +58,7 @@ Main Site
 └── Warehouse
 ```
 
-`location_name` определяет понятное имя узла.
-
-Nested-set infrastructure поддерживает Frappe.
+Nested-set infrastructure обслуживает Frappe.
 
 ---
 
@@ -154,39 +150,27 @@ Track Changes включён.
 
 ---
 
-# 5. Семантика Location без ложной связанности
+# 5. Семантика Location
 
 ```text
 Service Request.location
-= место события / проблемы
+= историческое место события / проблемы
 
 Equipment.location
 = текущее размещение Equipment
 ```
 
-Не вводим hard invariant:
+Не вводится hard invariant:
 
 ```text
 Service Request.location == Equipment.location
 ```
 
-Причина — время.
-
-```text
-заявка создана в Room 101
-↓
-оборудование позже перемещено в Warehouse
-↓
-историческое место заявки должно остаться Room 101
-```
-
-Учебные данные при создании делаем логичными, но не строим ложную вечную зависимость.
+Причина — время: Equipment может быть позже перемещён, а историческая Location заявки должна остаться прежней.
 
 ---
 
 # 6. Четыре независимые оси
-
-Архитектура намеренно разделяет:
 
 ```text
 DATA
@@ -206,9 +190,9 @@ PROCESS
 
 ---
 
-# 7. Permission — security boundary
+# 7. Permission — основная server security boundary
 
-Основные роли:
+Роли:
 
 ```text
 Facility Requester
@@ -216,32 +200,69 @@ Facility Technician
 Facility Supervisor
 ```
 
-Role Permission Manager задаёт серверный базовый доступ.
-
-Учебная модель:
+Финальная permission policy для `Service Request`:
 
 ```text
 Requester
-→ Read Location / Equipment
-→ Create Service Request
-→ Read/Write own Service Request через If Owner
+→ Create = Yes
+→ Read own = Yes через If Owner
+→ Write = No после создания
+→ Delete = No
 
 Technician
-→ Read Location / Equipment
-→ Read/Write Service Request
+→ Read = Yes
+→ Write = Yes
+→ Create/Delete = No
 
 Supervisor
-→ управляет рабочими данными
-→ Report / Export / Import где предусмотрено
+→ Read/Write/Create = Yes
+→ Delete = No
+→ Report/Export = Yes
 ```
 
-`User Permission` и `Share` изучаются временно в L5 и не остаются ограничением основных Technician.
+Главное усиление:
+
+```text
+Requester intake
+= append-only после insert
+```
+
+Заявитель не должен тихо переписывать уже поданную рабочую запись.
+
+Удаление нормальных `Service Request` также не является штатной operating policy рабочих ролей. Delete изучается временно в L5 и затем откатывается.
+
+`User Permission` и `Share` изучаются отдельно и временно.
 
 ---
 
-# 8. Assignment — ответственность, а не ACL
+# 8. Почему Requester всё ещё может создавать после L7
 
-Штатная модель:
+Workflow state `New` после L7 имеет:
+
+```text
+Only Allow Edit For = Facility Supervisor
+```
+
+Это не ломает создание Requester.
+
+В exact `v16.32.0` client Workflow `is_read_only()` возвращает `false` для нового `doc.__islocal`, а server insert первой Workflow State не считается state transition.
+
+Поэтому:
+
+```text
+Requester Create = Yes
+→ новый Service Request создаётся
+
+после insert
+→ Role Permission Write = No
+→ Requester больше не редактирует его
+```
+
+Это сильнее и точнее, чем полагаться на `Only Allow Edit For` как на ACL.
+
+---
+
+# 9. Assignment — ответственность, а не ACL
 
 ```text
 Service Request
@@ -250,7 +271,7 @@ Service Request
 → User
 ```
 
-Не создаём поле:
+Не создаётся поле:
 
 ```text
 Assigned Technician
@@ -263,55 +284,30 @@ Assignment
 ≠ authorization
 ```
 
-Наличие ToDo показывает ответственность и рабочую очередь.
+Наличие ToDo показывает ответственность. Role Permission определяет базовый доступ.
 
-Role Permission определяет базовое право работать с Document.
-
-Если будущий продукт потребует:
-
-```text
-редактировать может только конкретный assignee
-```
-
-это требует отдельной server-side permission/validation архитектуры следующего уровня.
-
-В базовом no-own-code курсе такую гарантию не имитируем.
+Assignee-only authorization находится в Later.
 
 ---
 
-# 9. Почему state Accepted
+# 10. Почему state `Accepted`
 
-Старое имя `Assigned` было семантически опасным:
+Состояние `Assigned` было семантически опасным, потому что выглядело как гарантия существования конкретного assignment.
 
-```text
-Status = Assigned
-```
-
-выглядело как гарантия:
-
-```text
-существует конкретный ToDo / assignee
-```
-
-Frappe не создаёт такого hard coupling.
-
-Поэтому state называется:
+Поэтому:
 
 ```text
 Accepted
+= Supervisor принял заявку в рабочий процесс
 ```
 
-и означает только:
+и только это.
 
-```text
-Supervisor принял заявку в рабочий процесс
-```
-
-Assignment остаётся отдельным механизмом.
+Assignment остаётся отдельной осью.
 
 ---
 
-# 10. Workflow
+# 11. Workflow
 
 ```text
 New
@@ -341,45 +337,44 @@ Workflow State Field:
 Service Request.status
 ```
 
-Второго state field нет.
+Desk edit roles:
+
+| State | Only Allow Edit For |
+|---|---|
+| New | Facility Supervisor |
+| Accepted | Facility Technician |
+| In Progress | Facility Technician |
+| Resolved | Facility Supervisor |
+| Closed | Facility Supervisor |
+
+Это UX/state guard, а не самостоятельная ACL.
 
 ---
 
-# 11. Три уровня Workflow enforcement
-
-## Role Permission
+# 12. Три уровня Workflow enforcement
 
 ```text
-server access boundary
+Role Permission
+= server access boundary
+
+Transition Allowed Role / Condition
+= server transition boundary
+
+Only Allow Edit For
+= state-dependent Desk editability
 ```
 
-## Transition Allowed Role / Condition
-
-```text
-server transition boundary
-```
-
-`get_transitions()` и `validate_workflow()` проверяют допустимость state change.
-
-## Only Allow Edit For
-
-```text
-state-dependent Desk editability
-```
-
-Не считаем его самостоятельной ACL.
-
-То же относится к:
+Также:
 
 ```text
 status → Read Only
 ```
 
-Это хороший UI guard, но server state transition защищает сам Workflow.
+является UI guard. Server-side допустимость смены состояния проверяет Workflow validation.
 
 ---
 
-# 12. Closed
+# 13. Closed
 
 ```text
 Closed
@@ -388,19 +383,13 @@ Closed
 
 У него нет следующего transition.
 
-Но базовый курс **не обещает**:
+Рабочие роли также не имеют Delete.
 
-```text
-Closed Document физически неизменяем любым API
-```
-
-Для абсолютной state-dependent immutability нужна отдельная server validation policy.
-
-Track Changes нужен для аудита допустимых коррекций.
+Но базовый курс не обещает абсолютную физическую immutability всех полей Closed Document через любой API. Для этого потребовалась бы отдельная server validation policy.
 
 ---
 
-# 13. Kanban
+# 14. Kanban
 
 L6 временно использует:
 
@@ -409,8 +398,6 @@ Service Request Status Board
 ```
 
 После L7 доска удаляется.
-
-Причина:
 
 ```text
 Kanban field update
@@ -429,7 +416,7 @@ Kanban move
 
 ---
 
-# 14. Контроль работы
+# 15. Контроль работы
 
 L8 создаёт представления над теми же Documents:
 
@@ -444,15 +431,17 @@ Facility Operations Control  → Workspace
 
 ```text
 Service Request
-= данные
+= рабочие данные
 
 Report/Card/Chart/Workspace
 = способы чтения и навигации
 ```
 
+Они не создают отдельную permission boundary и не хранят копию данных.
+
 ---
 
-# 15. Automation
+# 16. Automation
 
 Standard Notifications:
 
@@ -461,7 +450,7 @@ New Service Request
 Service Request One Day Overdue
 ```
 
-Assignment Rule основного site:
+Main-site Assignment Rule:
 
 ```text
 Service Request Auto Assignment
@@ -469,7 +458,7 @@ Rule = Round Robin
 Users = Technician One / Technician Two
 ```
 
-После auto assignment нормальное состояние:
+После auto assignment:
 
 ```text
 Assigned To = Technician
@@ -484,32 +473,24 @@ Accept
 
 ---
 
-# 16. Почему основные Technician имеют одинаковый базовый доступ
+# 17. Почему основные Technician имеют одинаковый базовый доступ
 
-`Assign To` в `v16.32.0` при отсутствии доступа assignee может:
+`Assign To` v16.32.0 при отсутствии доступа assignee может автоматически создать `DocShare`; при отключённом sharing — завершиться Missing Permission.
 
-```text
-создать DocShare
-```
-
-а при отключённом sharing — завершиться Missing Permission.
-
-Чтобы Assignment не менял access model скрытыми исключениями:
+Поэтому:
 
 ```text
-оба основных Technician
-→ имеют одинаковый Role-based Service Request access
+основные Technician
+→ одинаковый Role-based Service Request access
 ```
 
-Поэтому Location User Permission L5 остаётся временным experiment.
+Assignment не должен незаметно перестраивать access model.
 
 ---
 
-# 17. Target Date — conditional automation input
+# 18. Target Date — conditional automation input
 
-`Target Date` Optional.
-
-Если заполнен:
+Если `Target Date` заполнен:
 
 ```text
 Assignment Rule ToDo.date
@@ -526,11 +507,9 @@ Due Date не обещается
 Overdue trigger неприменим
 ```
 
-Это условный, а не глобальный инвариант.
-
 ---
 
-# 18. Main-site Close Condition
+# 19. Main-site Close Condition
 
 На основном site L9:
 
@@ -539,21 +518,15 @@ Assignment Rule Close Condition
 = status == "Closed"
 ```
 
-может закрывать Rule-owned ToDo.
+может закрывать Rule-managed ToDo.
 
-Но это:
+Это site operating policy, а не свойство Workflow.
 
-```text
-site operating policy
-```
-
-а не свойство Workflow.
-
-На clean site L11 без Assignment Rule ручной ToDo живёт своим lifecycle и при необходимости закрывается отдельно.
+На clean site L11 без Assignment Rule manual ToDo живёт своим lifecycle.
 
 ---
 
-# 19. Web Form как intake, а не parallel editor
+# 20. Web Form — intake, а не parallel editor
 
 Standard Web Form:
 
@@ -561,7 +534,7 @@ Standard Web Form:
 Report a Facility Issue
 ```
 
-Финальная конфигурация:
+Финал:
 
 ```text
 Login Required = Yes
@@ -571,34 +544,28 @@ Allow Edit = No
 Apply Document Permissions = No
 ```
 
-Смысл:
-
 ```text
 Website User
 → создаёт Service Request
 → видит свои ответы
-→ не продолжает редактировать рабочий Document через Web Form
+→ не редактирует рабочий Document после submit
 ```
 
-Это устраняет параллельный owner-based update path поверх Workflow.
-
-`Allow Edit` изучается временно в L10 и обязательно отключается.
+`Allow Edit` изучается временно и обязательно отключается.
 
 ---
 
-# 20. Web trust model
+# 21. Web trust model
 
-Authenticated Website User курса — **доверенный внутренний заявитель**.
+Authenticated Website User курса — доверенный внутренний заявитель.
 
-`Allow Read On All Link Options = Yes` для Location/Equipment означает осознанное раскрытие имён этих справочников такому пользователю.
+`Allow Read On All Link Options = Yes` для Location/Equipment означает осознанное раскрытие названий этих справочников этому классу пользователей.
 
-Для публичного internet intake неизвестных людей эта модель не считается достаточной.
-
-Нужен отдельный safe external catalog/permission design — Later.
+Public untrusted intake — Later.
 
 ---
 
-# 21. Четыре слоя поставки
+# 22. Четыре слоя поставки
 
 ```text
 1. Standard source
@@ -654,7 +621,7 @@ Logs
 
 ---
 
-# 22. Portability scope
+# 23. Portability scope
 
 L11 доказывает:
 
@@ -662,21 +629,11 @@ L11 доказывает:
 clean-site portability
 ```
 
-То есть `facility_ops` устанавливается на новый чистый Frappe site.
-
-Он не доказывает автоматически:
-
-```text
-arbitrary co-installation compatibility
-```
-
-с любым набором сторонних apps и глобальных имён.
-
-Это отдельная integration-задача.
+а не arbitrary co-installation compatibility с любым набором сторонних apps.
 
 ---
 
-# 23. install-app и migrate
+# 24. install-app и migrate
 
 В `v16.32.0` install flow выполняет первоначальную синхронизацию source/fixtures/customizations/dashboards.
 
@@ -686,13 +643,11 @@ arbitrary co-installation compatibility
 bench migrate
 ```
 
-в L11 проверяет штатную повторную синхронизацию уже установленного app.
+проверяет повторную синхронизацию уже установленного app.
 
 ---
 
-# 24. Лаборатории
-
-Лаборатория может временно менять metadata, но не должна незаметно расширять core domain.
+# 25. Лаборатории
 
 ```text
 Lab A → временный Child Table → удалить
@@ -703,31 +658,10 @@ Lab E → Print Format остаётся presentation config; Letter Head уда�
 Lab F → временные special-feature DocType → удалить
 ```
 
-Важно:
-
 ```text
 domain rollback
 ≠ обязательно byte-identical Git rollback
 ```
-
-Lab E сознательно оставляет Standard Print Format, не добавляя новую бизнес-сущность.
-
----
-
-# 25. Уровни гарантий
-
-Полная классификация находится в `INVARIANTS.md`.
-
-Коротко:
-
-```text
-H = server-enforced
-S = structural
-U = UI/process guard
-P = deployment/process policy
-```
-
-Нельзя повышать U/P до H только потому, что интерфейс выглядит убедительно.
 
 ---
 
@@ -740,7 +674,7 @@ Facility Location
       │
       └── Service Request
               │
-              ├── Permission / Roles
+              ├── Role Permission
               ├── ToDo / Assignment
               ├── Workflow
               ├── Notifications
