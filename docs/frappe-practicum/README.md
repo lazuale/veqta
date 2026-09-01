@@ -2,23 +2,18 @@
 
 Курс изучает Frappe через одно небольшое приложение `facility_ops`.
 
-Учебный сценарий простой:
+Учебный сценарий:
 
 ```text
 место
-  ↓
-оборудование
-  ↓
-заявка
-  ↓
-исполнитель
-  ↓
-выполнение
-  ↓
-закрытие
+→ оборудование
+→ заявка
+→ ответственность
+→ процесс
+→ контроль
 ```
 
-Мы не строим ERP, CMMS или полноценный Service Desk. Ядро приложения намеренно ограничено тремя DocType:
+Ядро ограничено тремя DocType:
 
 ```text
 Facility Location (Tree)
@@ -28,7 +23,7 @@ Facility Location (Tree)
         └──────────────┴────────► Service Request
 ```
 
-`Service Request` может относиться к конкретному оборудованию или только к месту.
+`Service Request` может относиться к конкретному Equipment или только к месту.
 
 ## Учебный стенд
 
@@ -40,79 +35,71 @@ Module: Facility Operations
 Frappe: v16.32.0
 ```
 
-Один app развивается весь курс.
-
 ## Принцип курса
-
-Каждый урок делает приложение полезнее и вводит только те механизмы Frappe, которые нужны для следующего рабочего шага.
 
 ```text
 задача
-  ↓
-модель
-  ↓
-сборка в Frappe
-  ↓
-проверка
-  ↓
-что изменилось в app / site / Git
+→ модель
+→ штатный механизм Frappe
+→ проверка
+→ настоящий enforcement layer
+→ Git/site boundary
 ```
 
-Собственную бизнес-логику на Python или JavaScript в базовой программе не пишем.
+Собственную бизнес-логику на Python/JavaScript в базовом маршруте не пишем.
 
-Редкие механизмы, которым нет естественного места в основном приложении, изучаются отдельными лабораториями и не усложняют ядро.
+Поэтому курс принципиально различает:
+
+```text
+server-enforced guarantee
+structural invariant
+UI/process guard
+deployment policy
+```
+
+Формальная модель: **[INVARIANTS.md](INVARIANTS.md)**.
 
 ## Основные DocType
 
 ### Facility Location
 
-Tree DocType для структуры мест:
-
-```text
-Main Site
-├── Building A
-│   ├── Floor 1
-│   └── Floor 2
-└── Warehouse
-```
+Tree структуры мест.
 
 ### Equipment
 
-Конкретная единица оборудования.
+Карточка единицы оборудования.
 
-Основные данные:
-
-- Equipment Code;
-- Equipment Name;
-- Location;
-- Category;
-- Status;
-- Serial Number;
-- Commissioning Date;
-- Photo;
-- Notes.
+`Equipment.location` означает текущее размещение.
 
 ### Service Request
 
-Центральный рабочий документ.
+Центральный рабочий Document.
 
-Основные данные:
+Mandatory:
 
-- Subject;
-- Location;
-- Equipment — необязательно;
-- Description;
-- Priority;
-- Status;
-- Target Date;
-- Attachment.
+```text
+Subject
+Location
+Description
+Priority
+```
+
+Optional:
+
+```text
+Equipment
+Target Date
+Attachment
+```
+
+`Service Request.location` означает место события. Оно не обязано навсегда совпадать с будущим `Equipment.location`.
 
 Базовый процесс:
 
 ```text
 New
  ↓
-Assigned
+Accepted
  ↓
 In Progress
  ↓
@@ -121,7 +108,11 @@ Resolved
 Closed
 ```
 
-## Учебные роли
+`Accepted` означает, что Supervisor принял заявку в рабочий процесс.
+
+Это **не** синоним `Assigned To`.
+
+## Роли
 
 ```text
 Facility Requester
@@ -129,7 +120,17 @@ Facility Technician
 Facility Supervisor
 ```
 
-Назначение конкретной работы выполняется штатным `Assign To` / `ToDo`, а не отдельным полем исполнителя.
+Главное разделение:
+
+```text
+Permission = доступ
+Assignment = ответственность
+Workflow   = состояние процесса
+```
+
+Назначение выполняется штатным `Assign To → ToDo`, а не полем исполнителя.
+
+Assignment не считается authorization boundary.
 
 ## Основной маршрут
 
@@ -137,47 +138,58 @@ Facility Supervisor
 |---|---|---|
 | [L0](projects/00-lab/README.md) | настоящий `facility_ops` | Bench, app, site, Module, Developer Mode, Desk, Git |
 | [L1](projects/01-locations/README.md) | структура мест | Standard DocType, Tree, Documents, Naming |
-| [L2](projects/02-equipment/README.md) | реестр оборудования | Field Types, Link, Form, List, Title/Search, Track Changes |
-| [L3](projects/03-data/README.md) | рабочие данные | Filters, Sorting, Saved Filters, Data Import, Export, Bulk Edit |
-| [L4](projects/04-service-request/README.md) | Service Request | рабочий DocType, Links, Status, Priority, Attachments |
-| [L5](projects/05-users-permissions/README.md) | пользователи и доступ | User, Role, Permissions, If Owner, Permission Level, User Permission, Share |
-| [L6](projects/06-collaboration/README.md) | совместная работа | Assign To, ToDo, Comments, Timeline, Tags, Kanban |
-| [L7](projects/07-workflow/README.md) | управляемый процесс | Workflow, Workflow State, Transition, Workflow Action |
-| [L8](projects/08-control-workspace/README.md) | контроль работы | Report Builder, Number Card, Dashboard Chart, Workspace |
-| [L9](projects/09-automation/README.md) | автоматизация | Notification, Assignment Rule, scheduler |
-| [L10](projects/10-web-form/README.md) | внешний ввод | Web Form, Guest, Website User, permissions, attachments |
-| [L11](projects/11-portability/README.md) | переносимость | metadata, fixtures, customizations, clean site, migrate |
+| [L2](projects/02-equipment/README.md) | Equipment | Field Types, Link, Form/List, Title/Search, Track Changes |
+| [L3](projects/03-data/README.md) | рабочие данные | Filters, Import, Export, Bulk Edit |
+| [L4](projects/04-service-request/README.md) | Service Request | Links, data invariants, Status, Attachments |
+| [L5](projects/05-users-permissions/README.md) | доступ | User, Role, Role Permission, If Owner, Permission Level, User Permission, Share |
+| [L6](projects/06-collaboration/README.md) | ответственность | Assign To, ToDo, Comments, Timeline, Tags, Kanban |
+| [L7](projects/07-workflow/README.md) | управляемый процесс | Workflow, Allowed Role, Condition, enforcement границы |
+| [L8](projects/08-control-workspace/README.md) | контроль | Report Builder, Number Card, Chart, Workspace |
+| [L9](projects/09-automation/README.md) | automation | Notification, Assignment Rule, scheduler |
+| [L10](projects/10-web-form/README.md) | authenticated intake | Web Form create/read-only final mode |
+| [L11](projects/11-portability/README.md) | clean-site portability | fixtures, customizations, install/migrate, deployment boundary |
+
+## Финальный Web Form
+
+Финальная форма намеренно:
+
+```text
+Login Required = Yes
+Show List = Yes
+Allow Editing After Submit = No
+```
+
+`Allow Edit` изучается в L10 временно и отключается, чтобы Web Form не оставался parallel editor поверх Workflow.
 
 ## Лаборатории
 
-Отдельно от ядра: **[индекс лабораторий](labs/README.md)**.
+Отдельно: **[индекс лабораторий](labs/README.md)**.
 
-- **[Lab A — Child Table](labs/a-child-table/README.md)**;
-- **[Lab B — Draft / Submit / Cancel / Amend / DocStatus](labs/b-docstatus/README.md)**;
-- **[Lab C — Auto Repeat](labs/c-auto-repeat/README.md)**;
-- **[Lab D — Customize Form / Custom Field / Property Setter / Export Customizations](labs/d-customize-form/README.md)**;
-- **[Lab E — Print / Print Format / Letter Head / PDF](labs/e-print-pdf/README.md)**;
-- **[Lab F — специальные Field Types и представления](labs/f-special-features/README.md)**.
+- [Lab A — Child Table](labs/a-child-table/README.md)
+- [Lab B — DocStatus](labs/b-docstatus/README.md)
+- [Lab C — Auto Repeat](labs/c-auto-repeat/README.md)
+- [Lab D — Customize Form](labs/d-customize-form/README.md)
+- [Lab E — Print / PDF](labs/e-print-pdf/README.md)
+- [Lab F — специальные возможности](labs/f-special-features/README.md)
 
-Лаборатория не обязана оставлять новую сущность в итоговом приложении.
+Лаборатория не обязана оставлять новый domain object. При этом presentation configuration, например Standard Print Format, может остаться осознанно.
 
 ## Версия и источники
 
-Базовая версия курса — **Frappe Framework v16.32.0**.
+Приоритет:
 
-Приоритет проверки:
-
-1. фактический стенд v16.32.0;
-2. исходники тега `v16.32.0`;
-3. официальная документация Frappe;
-4. `version-16` только для отслеживания будущих изменений.
+1. фактический стенд `v16.32.0`;
+2. exact source tag `v16.32.0`;
+3. официальная документация;
+4. moving `version-16` только для будущих изменений.
 
 ## Документы
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — архитектура приложения;
-- [ROADMAP.md](ROADMAP.md) — реализация по урокам;
-- [MATRIX.md](MATRIX.md) — покрытие механизмов Frappe;
-- [SCOPE.md](SCOPE.md) — границы базового курса;
-- [REFERENCES.md](REFERENCES.md) — источники проверки.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — итоговая архитектура;
+- [INVARIANTS.md](INVARIANTS.md) — формальная модель гарантий и enforcement layers;
+- [ROADMAP.md](ROADMAP.md) — последовательность реализации;
+- [MATRIX.md](MATRIX.md) — реально покрытые механизмы;
+- [SCOPE.md](SCOPE.md) — границы Core/Labs/Later;
+- [REFERENCES.md](REFERENCES.md) — exact-source карта.
 
-Начало курса: **[L0 — Основа приложения](projects/00-lab/README.md)**.
+Начало: **[L0 — Основа приложения](projects/00-lab/README.md)**.
