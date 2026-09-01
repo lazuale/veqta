@@ -1,48 +1,37 @@
 # Источники для проверки практикума
 
-Этот файл не является учебником. Здесь собраны официальные материалы и exact-source файлы, по которым проверяются формулировки L0–L11 и Lab A–F.
+Этот файл — карта официальных источников для L0–L11 и Lab A–F, а не отдельный учебник.
 
-Основная версия практикума — **Frappe Framework v16.32.0**.
+Основная версия — **Frappe Framework v16.32.0**.
 
-## Правило источников
+## Приоритет
 
-Приоритет:
-
-1. фактический учебный стенд `v16.32.0`;
+1. фактический стенд `v16.32.0`;
 2. exact tag `v16.32.0`;
 3. официальная документация Frappe;
-4. `version-16` только для отслеживания будущих изменений.
+4. `version-16` только для отслеживания изменений.
 
-Если текущая документация описывает более новую реализацию, она не заменяет exact-source курса.
+Если current docs описывают более новую реализацию, для курса приоритетнее exact source.
 
 ---
 
 # Версия и установка
 
-- Release v16.32.0: https://github.com/frappe/frappe/releases/tag/v16.32.0
-- Tag v16.32.0: https://github.com/frappe/frappe/tree/v16.32.0
+- Release: https://github.com/frappe/frappe/releases/tag/v16.32.0
+- Tag: https://github.com/frappe/frappe/tree/v16.32.0
 - Version 16 branch: https://github.com/frappe/frappe/tree/version-16
 - Installation: https://docs.frappe.io/framework/user/en/installation
+- Python requirements: https://github.com/frappe/frappe/blob/v16.32.0/pyproject.toml
+- Node requirements: https://github.com/frappe/frappe/blob/v16.32.0/package.json
 
-Exact source требований runtime:
-
-- Python: https://github.com/frappe/frappe/blob/v16.32.0/pyproject.toml
-- Node.js: https://github.com/frappe/frappe/blob/v16.32.0/package.json
-
-В `v16.32.0`:
+Exact `v16.32.0` требует:
 
 ```text
 Python >=3.14,<3.15
 Node >=24
 ```
 
-Учебный стенд фиксирует конкретные patch-версии внутри этих требований.
-
----
-
-# Учебный стек L0
-
-`projects/00-lab/SETUP_WSL2.md` использует:
+Стек L0:
 
 ```text
 Debian 13 / Trixie
@@ -56,11 +45,11 @@ Frappe Bench 5.31.0
 Frappe Framework v16.32.0
 ```
 
-Источники:
+Дополнительные источники:
 
 - WSL: https://learn.microsoft.com/windows/wsl/install
 - Debian 13: https://www.debian.org/releases/trixie/
-- MariaDB package in Trixie: https://packages.debian.org/trixie/mariadb-server
+- MariaDB in Trixie: https://packages.debian.org/trixie/mariadb-server
 - NVM 0.40.3: https://github.com/nvm-sh/nvm/releases/tag/v0.40.3
 - Node 24.20.0: https://nodejs.org/en/download/archive/v24.20.0
 - Yarn 1.22.22: https://github.com/yarnpkg/yarn/releases/tag/v1.22.22
@@ -68,13 +57,9 @@ Frappe Framework v16.32.0
 - Python 3.14.7: https://www.python.org/downloads/release/python-3147/
 - Bench 5.31.0: https://pypi.org/project/frappe-bench/5.31.0/
 
-Точное сочетание — baseline курса, а не обещание использовать навсегда последние версии каждого компонента.
-
 ---
 
-# App, site и Developer Mode
-
-Документация:
+# App, Site, Developer Mode
 
 - Apps: https://docs.frappe.io/framework/user/en/basics/apps
 - Create an App: https://docs.frappe.io/framework/user/en/tutorial/create-an-app
@@ -82,20 +67,17 @@ Frappe Framework v16.32.0
 - Create a DocType / Developer Mode: https://docs.frappe.io/framework/user/en/tutorial/create-a-doctype
 - Apps Page: https://docs.frappe.io/framework/user/en/apps-page
 - Hooks: https://docs.frappe.io/framework/user/en/python-api/hooks
+- branch detection: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/change_log.py
 
-Exact source для default branch `bench new-app`:
-
-- https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/change_log.py
-
-На Bench, созданном прямо на tag `v16.32.0`, репозиторий Frappe находится в detached HEAD, поэтому L0 явно задаёт branch `main` для учебного app.
+На Bench, созданном непосредственно на tag, Frappe находится в detached HEAD, поэтому L0 явно задаёт `main` для нового учебного app.
 
 ---
 
-# DocType, Naming и данные
+# DocType и Documents
 
 Документация:
 
-- DocType basics: https://docs.frappe.io/framework/user/en/basics/doctypes
+- DocType: https://docs.frappe.io/framework/user/en/basics/doctypes
 - Field Types: https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes
 - Child DocType: https://docs.frappe.io/framework/user/en/basics/doctypes/child-doctype
 - Single DocType: https://docs.frappe.io/framework/user/en/basics/doctypes/single-doctype
@@ -110,238 +92,170 @@ Exact source:
 - DocField: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/docfield/docfield.json
 - deletion: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/delete_doc.py
 
-Standard DocType, созданный в Developer Mode внутри app, экспортируется в source приложения. Временные Standard DocType лабораторий удаляются штатно, а не вычищаются вручную из БД.
-
-`DocType Layout` существует в Frappe, но после аудита не считается покрытым базовым практикумом:
+`DocType Layout` существует, но текущим практикумом не покрывается:
 
 - https://docs.frappe.io/framework/doctypes/doctype-layout
 
 ---
 
-# Data Import / Export
+# Data Import / Export / List
 
-- Data Import source: https://github.com/frappe/frappe/tree/v16.32.0/frappe/core/doctype/data_import
-- Data Export source: https://github.com/frappe/frappe/tree/v16.32.0/frappe/core/doctype/data_export
-- List View: https://github.com/frappe/frappe/tree/v16.32.0/frappe/public/js/frappe/list
+- Data Import: https://github.com/frappe/frappe/tree/v16.32.0/frappe/core/doctype/data_import
+- Data Export: https://github.com/frappe/frappe/tree/v16.32.0/frappe/core/doctype/data_export
+- List View source: https://github.com/frappe/frappe/tree/v16.32.0/frappe/public/js/frappe/list
 
-L3 использует скачанный из Frappe import template, 10 новых Equipment, отдельный отрицательный импорт, filters, Saved Filter, export и Bulk Edit.
+L3 реально использует штатный import template, 10 новых Equipment, отрицательный импорт, filters, Saved Filter, export и Bulk Edit.
 
 ---
 
-# Пользователи и права
-
-Документация:
+# Permissions
 
 - Users and Permissions: https://docs.frappe.io/framework/user/en/basics/users-and-permissions
 - Data Masking: https://docs.frappe.io/framework/data-masking
 - Permission Types: https://docs.frappe.io/framework/permission-types
-
-Exact source:
-
 - DocPerm: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/docperm/docperm.json
 - Custom DocPerm: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/custom_docperm/custom_docperm.json
-- Permissions: https://github.com/frappe/frappe/blob/v16.32.0/frappe/permissions.py
+- permissions.py: https://github.com/frappe/frappe/blob/v16.32.0/frappe/permissions.py
 - masking tests: https://github.com/frappe/frappe/blob/v16.32.0/frappe/tests/test_mask_fields.py
 
-L5 реально проверяет:
+L5 проверяет Read / Write / Create / Delete, Report / Export / Import, If Owner, Permission Level, User Permission и Share.
 
-```text
-Read / Write / Create / Delete
-Report / Export / Import
-If Owner
-Permission Level
-User Permission
-Share
-```
-
-Print permission проверяется в Lab E. Email permission и Custom Permission Types не считаются покрытыми базовым курсом.
-
-Data Masking проверяется в Lab F и остаётся отдельным механизмом от Permission Level.
+Print permission проверяется в Lab E. Email permission и Custom Permission Types — Later.
 
 ---
 
-# Assign To и ToDo
+# Assign To / ToDo
 
-Документация:
-
-- Assignments and ToDos: https://docs.frappe.io/framework/assignments-and-todos
-
-Exact source:
-
+- docs: https://docs.frappe.io/framework/assignments-and-todos
 - Assign To: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/form/assign_to.py
 - ToDo: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/todo
 
-`Assign To` создаёт обычный `ToDo`. Если в целевом DocType нет поля `assigned_to`, назначение не становится новым бизнес-полем документа.
-
-В `facility_ops` такого поля нет.
+`Assign To` создаёт ToDo. В `facility_ops` нет отдельного поля исполнителя.
 
 ---
 
-# Kanban
+# Kanban и Workflow
 
-Exact source:
+Kanban:
 
-- Kanban Board: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/kanban_board/kanban_board.py
+- https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/kanban_board/kanban_board.py
 - `frappe.set_value`: https://github.com/frappe/frappe/blob/v16.32.0/frappe/__init__.py
 - client `set_value`: https://github.com/frappe/frappe/blob/v16.32.0/frappe/client.py
-- Document validation: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py
 
-В `v16.32.0` перенос Kanban-карточки вызывает `frappe.set_value`. Он приходит к `frappe.client.set_value`, затем к `doc.save()`, поэтому обычная workflow validation выполняется.
+Workflow:
 
-Но это не тот же путь, что `apply_workflow`, поэтому после L7 Status-Kanban удаляется и основным интерфейсом переходов остаются Workflow Actions.
-
----
-
-# Workflow и DocStatus
-
-Документация:
-
-- Workflow: https://docs.frappe.io/erpnext/workflows
+- docs: https://docs.frappe.io/erpnext/workflows
 - Workflow Actions: https://docs.frappe.io/erpnext/workflow-actions
 - Audit Trail: https://docs.frappe.io/framework/user/en/audit-trail
-
-Exact source:
-
 - Workflow: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow
 - Workflow State: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_state
 - Workflow Action: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_action
-- Workflow Action Master: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_action_master
-- Workflow Transition: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_transition
-- workflow validation: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/workflow.py
+- Action Master: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_action_master
+- Transition: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_transition
+- validation: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/workflow.py
 
-L7 использует существующее поле `Service Request.status` как Workflow State Field и не создаёт дублирующий `workflow_state`.
-
-Lab B отдельно изучает DocStatus через временный Submittable DocType.
+Kanban `v16.32.0` приходит через `frappe.set_value` к `doc.save()`, поэтому workflow validation выполняется. Но это не `apply_workflow`, поэтому после L7 Status-Kanban не используется как интерфейс процесса.
 
 ---
 
-# Reports, Cards, Charts и Workspace
-
-Документация:
+# Reports / Cards / Charts / Workspace
 
 - Report Builder: https://docs.frappe.io/framework/user/en/desk/reports/report-builder
 - Workspace: https://docs.frappe.io/framework/user/en/desk/workspace
 - Workspace Blocks: https://docs.frappe.io/framework/user/en/desk/workspace/blocks
-
-Exact source:
-
-- Report: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/report/report.json
+- Report JSON: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/report/report.json
 - Number Card: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/number_card
 - Dashboard Chart: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/dashboard_chart
 - Workspace: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/workspace
 
-L8 реально использует один Report Builder, Group By + Count, три Number Card, один Dashboard Chart и один Workspace.
-
-`Sum / Average` после аудита не считаются покрытыми.
+L8 реально создаёт один Report Builder, Group By + Count, три Number Card, один Chart и один Workspace. `Sum / Average` не считаются покрытыми.
 
 ---
 
-# Notification и Assignment Rule
+# Notification / Assignment Rule
 
-Документация:
-
-- Notification: https://docs.frappe.io/framework/notifications
-
-Exact source:
-
-- Notification: https://github.com/frappe/frappe/blob/v16.32.0/frappe/email/doctype/notification/notification.json
+- Notification docs: https://docs.frappe.io/framework/notifications
+- Notification JSON: https://github.com/frappe/frappe/blob/v16.32.0/frappe/email/doctype/notification/notification.json
+- Notification controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/email/doctype/notification/notification.py
 - Assignment Rule JSON: https://github.com/frappe/frappe/blob/v16.32.0/frappe/automation/doctype/assignment_rule/assignment_rule.json
 - Assignment Rule controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/automation/doctype/assignment_rule/assignment_rule.py
 
-Assignment Rule `v16.32.0` использует штатный Assign To mechanism, хранит `last_user` для Round Robin, умеет считать Load Balancing по открытым ToDo, синхронизировать Due Date и закрывать assignments по Condition.
+Для `Days After = 1` exact source ищет Documents с reference date = вчера. Это соответствует L9.
 
-Core L9 использует Round Robin. Load Balancing — самостоятельная проверка.
+Core L9 использует Round Robin. Load Balancing — самостоятельная практика.
 
 ---
 
 # Auto Repeat
 
-Документация:
+- docs: https://docs.frappe.io/erpnext/auto-repeat
+- source: https://github.com/frappe/frappe/tree/v16.32.0/frappe/automation/doctype/auto_repeat
+- `make_repeatable`: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/doctype/doctype.py
 
-- Auto Repeat: https://docs.frappe.io/erpnext/auto-repeat
-
-Exact source:
-
-- Auto Repeat: https://github.com/frappe/frappe/tree/v16.32.0/frappe/automation/doctype/auto_repeat
-- DocType `make_repeatable`: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/doctype/doctype.py
-
-При `Allow Auto Repeat` Frappe добавляет служебный `auto_repeat` Custom Field, поэтому Lab C проверяет и его очистку.
+При `Allow Auto Repeat` Frappe создаёт служебный `auto_repeat` Custom Field; Lab C поэтому явно очищает его.
 
 ---
 
 # Web Form
 
-Документация:
-
 - Web Form: https://docs.frappe.io/framework/user/en/web-form
 - Settings: https://docs.frappe.io/framework/user/en/web-form/settings
 - Customization: https://docs.frappe.io/framework/user/en/web-form/customization
+- JSON: https://github.com/frappe/frappe/blob/v16.32.0/frappe/website/doctype/web_form/web_form.json
+- controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/website/doctype/web_form/web_form.py
 
-Exact source:
-
-- Web Form JSON: https://github.com/frappe/frappe/blob/v16.32.0/frappe/website/doctype/web_form/web_form.json
-- Web Form controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/website/doctype/web_form/web_form.py
-
-Standard Web Form в Developer Mode экспортируется в Module приложения. Generated `.js/.py` не означают, что базовый курс написал собственную бизнес-логику.
-
-Web Form Request/key internals в текущем практикуме не изучаются и отнесены к Later.
+Standard Web Form в Developer Mode входит в source приложения. Web Form Request/key internals — Later.
 
 ---
 
-# Customize Form и Export Customizations
-
-Документация:
+# Customize Form / Export Customizations
 
 - Customize Form: https://docs.frappe.io/framework/user/en/basics/doctypes/customize
 - Export Customizations: https://docs.frappe.io/framework/user/en/guides/app-development/exporting-customizations
-- Fixtures: раздел Fixtures в https://docs.frappe.io/framework/user/en/python-api/hooks
-
-Exact source:
-
-- Customize Form: https://github.com/frappe/frappe/tree/v16.32.0/frappe/custom/doctype/customize_form
+- Fixtures: https://docs.frappe.io/framework/user/en/python-api/hooks
+- Customize Form source: https://github.com/frappe/frappe/tree/v16.32.0/frappe/custom/doctype/customize_form
 - Custom Field: https://github.com/frappe/frappe/tree/v16.32.0/frappe/custom/doctype/custom_field
 - Property Setter: https://github.com/frappe/frappe/tree/v16.32.0/frappe/custom/doctype/property_setter
 
-Lab D показывает Custom Field + Property Setter поверх Standard `Equipment`.
+Lab D работает поверх Standard Equipment. Custom DocType и DocType Layout не считаются покрытыми.
 
-`Custom DocType` и `DocType Layout` в Lab D не изучаются.
-
-Важно: удаление Custom Field/Property Setter из exported customization JSON не гарантирует удаление уже синхронизированной записи на другом site. Lab D поэтому содержит явный rollback.
+Удаление строки из exported customization JSON не гарантирует удаления уже синхронизированной кастомизации на другом site.
 
 ---
 
 # Печать и PDF
 
-Документация:
-
 - Printing: https://docs.frappe.io/framework/user/en/desk/printing
 - Installation: https://docs.frappe.io/framework/user/en/installation
-
-Exact source `v16.32.0`:
-
-- Print Format: https://github.com/frappe/frappe/blob/v16.32.0/frappe/printing/doctype/print_format/print_format.json
-- print utilities: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/print_utils.py
+- Print Format JSON: https://github.com/frappe/frappe/blob/v16.32.0/frappe/printing/doctype/print_format/print_format.json
+- Print utilities: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/print_utils.py
 - PDF: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/pdf.py
-- Chrome PDF generator: https://github.com/frappe/frappe/tree/v16.32.0/frappe/utils/pdf_generator
+- PDF generators: https://github.com/frappe/frappe/tree/v16.32.0/frappe/utils/pdf_generator
+- built-in pdf hook: https://github.com/frappe/frappe/blob/v16.32.0/frappe/hooks.py
+- `setup-chrome` command: https://github.com/frappe/frappe/blob/v16.32.0/frappe/commands/utils.py
 
-В Print Format `v16.32.0` доступны:
+Print Format `v16.32.0` поддерживает:
 
 ```text
 wkhtmltopdf
 chrome
 ```
 
-Default Print Format value — `wkhtmltopdf`, но Lab E **явно выбирает `chrome`**.
+Default поля — wkhtmltopdf. Lab E явно выбирает `chrome`.
 
-Exact `print_utils.py` умеет найти или автоматически скачать headless Chromium на bench. Поэтому L0 не блокируется отдельной установкой PDF-движка: первая реальная проверка PDF выполняется в Lab E на выбранном Chrome generator.
+Frappe имеет штатную команду:
 
-Официальная Installation page при этом продолжает перечислять `wkhtmltopdf 0.12.6` patched Qt для сценариев, использующих wkhtmltopdf. Это не противоречит Lab E: курс выбирает другой штатно поддерживаемый generator exact версии.
+```bash
+bench setup-chrome
+```
+
+и `find_or_download_chromium_executable()`, который скачивает headless Chromium на bench при отсутствии executable.
+
+Официальная Installation page продолжает перечислять `wkhtmltopdf 0.12.6` patched Qt для wkhtmltopdf-сценария. Это не противоречит Lab E: лаборатория выбирает другой штатно поддерживаемый generator exact версии.
 
 ---
 
-# Специальные Field Types Lab F
-
-Exact source:
+# Специальные Field Types
 
 - Table MultiSelect: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/form/controls/table_multiselect.js
 - Barcode: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/form/controls/barcode.js
@@ -349,45 +263,36 @@ Exact source:
 - Signature: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/form/controls/signature.js
 - Geolocation: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/form/controls/geolocation.js
 - Attachment Gallery: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/form/controls/attachment_gallery.js
-- masking tests: https://github.com/frappe/frappe/blob/v16.32.0/frappe/tests/test_mask_fields.py
 
-Table MultiSelect использует Child Table, в которой должен существовать Link field.
+Table MultiSelect использует Child Table с Link field.
 
-Attachment Gallery показывает обычные `File`, прикреплённые к Document, а не создаёт отдельное файловое хранилище.
+Attachment Gallery показывает обычные File текущего Document.
 
-Signature — визуальная подпись Frappe, а не квалифицированная электронная подпись.
+Signature — визуальное поле Frappe, а не квалифицированная электронная подпись.
 
-Geolocation хранит геоданные и отображает их штатной картой.
+Geolocation работает с GeoJSON.
 
 ---
 
-# Calendar и Gantt Lab F
-
-Exact source:
+# Calendar / Gantt
 
 - List view selector: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/list/list_view_select.js
-- Calendar view: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/views/calendar/calendar.js
-- Gantt view: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/views/gantt/gantt_view.js
+- Calendar: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/views/calendar/calendar.js
+- Gantt: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/views/gantt/gantt_view.js
 - Event calendar config: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/event/event_calendar.js
-- Event DocType: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/event/event.json
+- Event: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/event/event.json
 
-Для собственного DocType в `v16.32.0` одного metadata-флага недостаточно для полного штатного Calendar/Gantt сценария: интерфейс опирается на `frappe.views.calendar[doctype]`.
-
-Поскольку собственный JavaScript не входит в base course, Lab F использует встроенный `Event`, для которого Frappe уже поставляет calendar mapping.
+Для собственного DocType в `v16.32.0` Calendar/Gantt опираются на `frappe.views.calendar[doctype]`. Собственный JS не входит в base course, поэтому Lab F использует встроенный Event.
 
 ---
 
-# Поставка и migrate
+# Fixtures и migrate
 
-Документация:
+- Fixtures source: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/fixtures.py
+- Migrate: https://github.com/frappe/frappe/blob/v16.32.0/frappe/migrate.py
+- Modules: https://github.com/frappe/frappe/tree/v16.32.0/frappe/modules
 
-- Fixtures: https://docs.frappe.io/framework/user/en/python-api/hooks
-- Export Customizations: https://docs.frappe.io/framework/user/en/guides/app-development/exporting-customizations
-
-Exact source для миграции и fixtures проверяется в:
-
-- https://github.com/frappe/frappe/tree/v16.32.0/frappe/migrate.py
-- https://github.com/frappe/frappe/tree/v16.32.0/frappe/modules
+Exact fixtures source подтверждает `fixture_auto_order`.
 
 L11 разделяет:
 
@@ -398,30 +303,20 @@ site-specific configuration
 working data
 ```
 
-В fixtures входят только универсальные Roles и Workflow configuration.
+В универсальные fixtures входят Roles и Workflow configuration.
 
-Не входят:
-
-```text
-Users
-User Permission
-Share
-Assignment Rule с конкретными Users
-рабочие Location / Equipment / Service Request
-ToDo / Files / Notification Log
-```
+Не входят Users, User Permission, Share, Assignment Rule с конкретными Users и рабочие Documents.
 
 ---
 
-# Правило обновления курса
+# Обновление baseline
 
-При переходе на новый v16.x или новую major version:
+При переходе на другой release:
 
-1. не менять документацию курса автоматически;
-2. сравнить новый release с `v16.32.0`;
-3. проверить затронутые механизмы на отдельном стенде;
-4. сначала исправить конкретные уроки;
-5. затем синхронно обновить `ROADMAP.md`, `MATRIX.md`, `SCOPE.md`, `ARCHITECTURE.md` и этот файл;
-6. только после этого менять baseline версии.
+1. сравнить release с `v16.32.0`;
+2. проверить затронутые механизмы на отдельном стенде;
+3. исправить конкретные уроки;
+4. синхронно обновить `ROADMAP.md`, `MATRIX.md`, `SCOPE.md`, `ARCHITECTURE.md` и этот файл;
+5. только после этого менять baseline курса.
 
 Матрица не должна обещать механизм, который ученик фактически не проходит руками.
