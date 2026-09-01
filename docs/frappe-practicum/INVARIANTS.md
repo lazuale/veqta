@@ -2,14 +2,11 @@
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
-Этот документ задаёт формальную модель гарантий: что гарантируется, каким механизмом и с какого этапа курса.
-
 Главное правило:
 
 ```text
-не называть hard/security invariant то,
-что Frappe обеспечивает только UI,
-site policy или дисциплиной пользователя
+каждая заявленная гарантия
+должна иметь названный enforcement layer
 ```
 
 ---
@@ -18,51 +15,29 @@ site policy или дисциплиной пользователя
 
 ## H — hard / server-enforced
 
-Примеры:
-
-```text
-Mandatory
-Role Permission
-Workflow Allowed Role / Condition
-Login Required против Guest
-Web Form Allow Edit = No против update
-```
+Сервер Frappe проверяет/нормализует операцию штатным механизмом permissions, validation или workflow.
 
 ## S — structural
 
-Следует из metadata/source и архитектуры.
+Следует из metadata/source и модели.
 
 ## U — UI/process guard
 
-Помогает работать правильно, но не является самостоятельной server ACL.
+Помогает правильному поведению, но не является отдельной server ACL.
 
 ## P — deployment/process policy
 
 Зависит от конфигурации site или обязательного rollback.
 
-## C — conditional invariant
+## C — conditional
 
-Действует только при указанном предусловии.
-
----
-
-# 2. Фазы
-
-```text
-L0–L3  → платформа и справочники
-L4–L6  → ручной рабочий документ
-L7+     → Workflow
-L9+     → main-site automation
-L10+    → authenticated Web Form intake
-L11     → portable app + deployment split
-Labs    → временные mutations с rollback
-```
+Действует только при выполнении предусловия.
 
 ---
 
-# 3. Структура
+# 2. Core structure
 
-## S-01. Постоянное domain core
+## S-01. Domain core
 
 ```text
 Facility Location
@@ -70,42 +45,33 @@ Equipment
 Service Request
 ```
 
-## S-02. Один state field
+## S-02. Единственный process state
 
 ```text
 Service Request.status
 ```
 
-После L7 это же поле — Workflow State Field.
+После L7 — Workflow State Field.
 
-Не создаются `workflow_state`, `request_state` и аналоги.
-
-## S-03. Assignment не дублируется полем
+## S-03. Assignment не дублируется business field
 
 ```text
-Service Request
-→ Assign To
-→ ToDo
-→ User
+Service Request → Assign To → ToDo → User
 ```
 
-Нет собственного `Assigned Technician`.
+## S-04. Assignment ≠ authorization
 
-## S-04. Assignment не authorization
+ToDo = responsibility.
 
-```text
-Permission ≠ Assignment
-```
-
-ToDo показывает ответственность, Role Permission — базовый доступ.
+Role Permission = base access.
 
 Assignee-only authorization — Later.
 
 ---
 
-# 4. Data invariants
+# 3. Data invariants
 
-## H-01. Mandatory Service Request
+## H-01. Mandatory
 
 ```text
 Subject
@@ -114,11 +80,9 @@ Description
 Priority
 ```
 
-Обязательность действует для Desk, Web Form, Auto Repeat, automation tests, clean-site acceptance и Labs.
-
 ## H-02. Equipment Optional
 
-`Service Request.equipment` не Mandatory.
+`equipment` не Mandatory.
 
 ## H-03. Priority
 
@@ -127,8 +91,6 @@ Low
 Medium
 High
 ```
-
-Default `Medium`.
 
 ## H-04. Status
 
@@ -139,8 +101,6 @@ In Progress
 Resolved
 Closed
 ```
-
-`Accepted` = Supervisor принял заявку в процесс.
 
 ```text
 Accepted ≠ Assigned To
@@ -155,23 +115,20 @@ IT
 Other
 ```
 
-## S-05. Temporal semantics Location
+## S-05. Location semantics
 
 ```text
-Service Request.location
-= историческое место события
-
-Equipment.location
-= текущее размещение Equipment
+Service Request.location = historical event location
+Equipment.location       = current equipment location
 ```
 
-Вечного hard equality между ними нет.
+Вечного equality нет.
 
 ---
 
-# 5. Permission invariants
+# 4. Document permission invariants
 
-## H-06. Финальная Role Permission matrix Service Request
+## H-06. Final Service Request Level 0 matrix
 
 ```text
 Requester
@@ -190,80 +147,153 @@ Supervisor
 → Report/Export Yes
 ```
 
-Requester intake через Desk становится append-only после insert.
+Requester Desk intake = append-only after insert.
 
 ## H-06A. If Owner не блокирует Create
 
-Exact `v16.32.0` не переносит `create` в owner-only restriction.
+Exact `v16.32.0` owner-only folding не применяется к `create`.
 
-Поэтому совместимы:
+## H-06B. Working roles no-delete
+
+`Service Request Delete = No` для всех трёх рабочих ролей после temporary L5 experiment.
+
+---
+
+# 5. Field permission invariants
+
+## S/H-07. Service Request business content = Permission Level 1
+
+После L5:
 
 ```text
-Create Yes
-Read own Yes
-Write No
-If Owner Yes
+subject
+location
+equipment
+description
+priority
+target_date
+attachment
 ```
 
-## H-06B. Рабочие роли не удаляют Service Request
-
-У Requester/Technician/Supervisor:
+имеют:
 
 ```text
-Delete = No
+Permission Level = 1
 ```
 
-Delete изучается только temporary experiment L5 и откатывается.
+`status` остаётся Level 0.
 
-## P-01. L5 permission experiments очищаются
+## H-07A. Level 1 role matrix
+
+```text
+Requester
+→ Level 1 Read Yes / Write Yes
+
+Technician
+→ Level 1 Read Yes / Write No
+
+Supervisor
+→ Level 1 Read Yes / Write Yes
+```
+
+## H-07B. Почему Requester Level 1 Write безопасен
+
+Requester Level 1 Write нужен для заполнения high-permlevel fields нового Document.
+
+После insert:
+
+```text
+Level 0 Write = No
+```
+
+блокирует повторный ordinary save целиком.
+
+## H-07C. Technician document Write ≠ content Write
+
+Exact `Document.insert()` / `_save()` вызывают:
+
+```text
+validate_higher_perm_levels()
+```
+
+При отсутствии write-доступа к high Permission Level значения таких полей сбрасываются к разрешённым original/default values перед DB write.
+
+Следовательно штатный permission-aware save Technician не должен сохранять изменения Level 1 content.
+
+При этом Level 0 document Write остаётся для Workflow/state operations.
+
+## Ограничение H-07C
+
+`ignore_permissions=True` отключает этот слой.
+
+Поэтому гарантия формулируется как:
+
+```text
+permission-aware Document insert/save
+```
+
+а не «никакой код никогда не изменит поле».
+
+Именно поэтому финальный Web Form update выключен.
+
+---
+
+# 6. Temporary permission experiments
+
+## P-01. L5 cleanup
 
 До выхода из L5:
 
 ```text
-temporary Share deleted
-User Permission deleted
+Supervisor Delete = No
+Share removed
+User Permission removed
 technician.restricted disabled
-Supervisor Delete returned to No
 ```
 
-## H-07/P-02. Assignment не должен скрыто раздавать доступ
+## H/P-02. Assignment не раздаёт скрытые permissions
 
-`Assign To` может auto-Share document пользователю без access; при disabled sharing может получить Missing Permission.
+Основные Technician имеют совместимый Role-based access, чтобы Assign To не создавал неожиданные DocShare exceptions.
 
-Поэтому основные Technician имеют совместимый Role-based access до Round Robin.
+---
 
-## U-01. Only Allow Edit For — Desk guard
+# 7. UI guards
+
+## U-01. Only Allow Edit For ≠ ACL
 
 ```text
 Role Permission
-= server access
+= server document access
+
+Permission Level
+= server field-level write/read control для permission-aware paths
 
 Workflow Allowed Role / Condition
-= server transition gate
+= server state-transition gate
 
 Only Allow Edit For
 = Desk state editability
 ```
 
-## U-02. Status Read Only — UI guard
+## U-02. Status Read Only
 
-После L7 `status` Read Only в Desk; server transition validity обеспечивает Workflow.
+После L7 Status Read Only в Desk; server state validity проверяет Workflow.
 
 ---
 
-# 6. Process invariants
+# 8. Workflow invariants
 
-## H-08. Workflow
+## H-08. State machine
 
 ```text
 New
- ↓ Accept / Facility Supervisor
+ ↓ Accept / Supervisor
 Accepted
- ↓ Start Work / Facility Technician
+ ↓ Start Work / Technician
 In Progress
- ↓ Resolve / Facility Technician
+ ↓ Resolve / Technician
 Resolved
- ↓ Close / Facility Supervisor
+ ↓ Close / Supervisor
 Closed
 ```
 
@@ -271,210 +301,161 @@ Closed
 
 ## U-03. Desk edit roles
 
-| State | Only Allow Edit For |
-|---|---|
-| New | Facility Supervisor |
-| Accepted | Facility Technician |
-| In Progress | Facility Technician |
-| Resolved | Facility Supervisor |
-| Closed | Facility Supervisor |
+```text
+New         → Supervisor
+Accepted    → Technician
+In Progress → Technician
+Resolved    → Supervisor
+Closed      → Supervisor
+```
 
-Requester всё ещё может создать новый local Document: client Workflow не делает `doc.__islocal` read-only; после insert настоящий server invariant — `Requester Write = No`.
+Requester local create остаётся возможным; после insert Role Permission Write No — hard boundary.
 
-## H-09. Allowed Role / Condition управляют transition
+## H-09. Allowed Role / Condition
 
-State change должен соответствовать доступному transition текущего пользователя.
+Workflow state change должен соответствовать допустимому transition пользователя.
 
 ## S-06. Accepted не доказывает assignment
 
-Нормально:
-
-```text
-Assigned To заполнен
-Status = New
-```
-
-Технически возможно:
-
-```text
-Status = Accepted
-Assigned To пусто
-```
-
-Рекомендуется `Assign To → Accept`, но это не hard coupling.
+`Assign To → Accept` — рекомендуемый process order, но не hard coupling.
 
 ## S-07. Technician role ≠ конкретный assignee
 
-Workflow transition разрешается роли, а не конкретному ToDo assignee.
+Workflow transition разрешается роли, а не ToDo assignee.
 
-## S-08. Closed terminal, но не absolute immutable
+## S-08. Closed terminal, не absolute immutable
 
-У Closed нет исходящего Workflow transition, и рабочие роли не имеют Delete.
+Нет исходящего transition; working roles no-delete.
 
-Абсолютная immutability всех полей через любой API требует отдельной server validation — Later.
+Absolute API immutability — Later.
 
 ---
 
-# 7. Automation invariants
+# 9. Automation invariants
 
 ## P-03. Assignment Rule site-specific
 
-`Service Request Auto Assignment` содержит concrete Users и не является universal fixture.
+Rule с concrete Users не universal fixture.
 
-## H-10. Assignment Rule не двигает Workflow
-
-После auto assignment:
+## H-10. Assignment Rule не меняет Workflow state
 
 ```text
 Assigned To = Technician
 Status = New
 ```
 
-## C-01. Target Date conditional
+## C-01. Target Date
 
-Если Target Date задан:
-
-```text
-ToDo.date может следовать Target Date
-One Day Overdue может сработать +1 day
-```
-
-Если пуст — этих гарантий нет.
+Due/overdue behavior существует только при заполненном Target Date.
 
 ## P-04. Load Balancing rollback
 
-После optional test финал:
+Финал L9:
 
 ```text
-Rule = Round Robin
+Round Robin
 ```
 
 ---
 
-# 8. Web Form invariants
+# 10. Web Form invariants
 
-## H-11. Login Required — authentication boundary
+## H-11. Login Required = authentication boundary
 
-Финал:
+Final:
 
 ```text
 Login Required = Yes
-Anonymous Responses = No
+Anonymous = No
 ```
 
-Это гарантирует:
+Guest submit запрещён, но role-specific authorization не обещается.
 
-```text
-Guest submit запрещён
-```
+## H/S-11A. Web Form new insert = separate capability
 
-Но не означает role-specific authorization.
-
-## H/S-11A. Web Form insert — отдельный create capability
-
-Exact `v16.32.0` для нового Web Form Document вызывает:
+Exact new target insert:
 
 ```text
 doc.insert(ignore_permissions=True, ...)
 ```
 
-Следовательно:
+Следовательно Web Form insert обходит и Level 0 Role Create, и high Permission Level validation path.
 
-```text
-Web Form submit
-≠ Role Permission Create check
-```
+Это сознательная intake capability самой Web Form.
 
-Desk Requester Create и Web Form create — два разных admission path.
+Web Form fields поэтому должны быть **явным allow-list только безопасных intake fields**.
 
-`Apply Document Permissions` не превращает Web Form insert в обычный Role Permission Create.
-
-## H-12. Финальная Web Form create/read-only
+## H-12. Final Web Form update disabled
 
 ```text
 Allow Editing After Submit = No
 ```
 
-Owner-based update при разрешённом edit может использовать `doc.save(ignore_permissions=True)`, поэтому edit изучается и обязательно выключается.
+Owner update иначе способен использовать `save(ignore_permissions=True)`.
 
 ## H-13. Web Form не управляет Workflow
 
-`Status` отсутствует в Web Form fields; новый Document получает default `New`.
+`Status` не входит в form field allow-list; новый Request получает default New.
 
-## H/S-14. Apply Document Permissions относится к existing-document access
+## H/S-14. Apply Document Permissions = existing-document behavior
 
-```text
-Apply Document Permissions = Off
-→ Web Form owner/website permission path
+Не является create authorization.
 
-Apply Document Permissions = On
-→ ordinary document permission path для существующего Document
-```
+## P-05. Web Form population trust policy
 
-Не использовать эту настройку как доказательство create authorization.
+Authenticated website accounts с доступом к published form считаются trusted internal reporters.
 
-## P-05. Authenticated Web Form population — deployment trust decision
+Role-restricted/public-untrusted intake — Later.
 
-Финальная форма не содержит отдельного role gate `Facility Requester only`.
+## P-06. Link catalog disclosure
 
-Поэтому курс принимает policy:
-
-```text
-website accounts, которым deployment разрешает доступ к published authenticated form,
-= trusted internal reporters
-```
-
-Role-restricted/public-untrusted portal intake — Later.
-
-## P-06. Link catalog disclosure — trust decision
-
-`Allow Read On All Link Options = Yes` сознательно раскрывает authenticated reporters названия Location/Equipment options.
+`Allow Read On All Link Options = Yes` — осознанная disclosure policy для trusted reporters.
 
 ---
 
-# 9. Packaging invariants
+# 11. Packaging invariants
 
-## S-09. Четыре слоя
+## S-09. Layers
 
 ```text
 Standard source
-universal app configuration
-site-specific configuration
+universal config
+site-specific config
 working data
 ```
 
 ## S-10. Universal delivery
 
 ```text
-3 core DocType
-Reports/Cards/Chart/Workspace
+core DocTypes
+UI/analytics Standard objects
 Notifications
 Web Form
 Roles
-Workflow States/Actions/Workflow
+Workflow
 Custom DocPerm
 ```
 
-## P-07. Site-specific не fixture
+## P-07. Site-specific
 
 ```text
 Users
 User Permission
 Share
-Assignment Rule tied to local Users
+Assignment Rule tied to Users
 ```
 
-## H-15. install-app — initial installation
+## H-15. install-app
 
-`install_app()` v16.32.0 синхронизирует source, fixtures, customizations и dashboards.
-
-Последующий migrate — convergence/update test.
+Initial app install синхронизирует source/fixtures/customizations/dashboards; migrate — convergence test.
 
 ## S-11. Portability scope
 
-L11 доказывает clean-site portability, не arbitrary multi-app compatibility.
+Clean-site portability, не arbitrary multi-app compatibility.
 
-## P-08. После L11 active site возвращается main
+## P-08. Active site restore
+
+После L11:
 
 ```text
 bench use facility-ops.localhost
@@ -482,45 +463,35 @@ bench use facility-ops.localhost
 
 ---
 
-# 10. Lab invariants
+# 12. Lab invariants
 
-## P-09. Lab rollback contract
+Labs имеют Temporary / Persistent / Rollback / Final State.
 
-Каждая Lab фиксирует Temporary / Persistent / Rollback / Final State.
-
-## S-12. Domain rollback ≠ source rollback
-
-Например Lab E оставляет Standard Print Format как presentation configuration, не расширяя domain core.
+Domain rollback обязателен; presentation config может остаться осознанно.
 
 ---
 
-# 11. Compatibility matrix
+# 13. Compatibility matrix
 
-| Механизмы | Совместимость | Условие |
-|---|---|---|
-| Mandatory ↔ Web Form | жёсткая | Web Form сохраняет H-01 |
-| Requester Desk Create ↔ post-create no-Write | жёсткая | Create Yes + Read own + Write No |
-| Requester ↔ Workflow New | совместимы | local doc editable; saved doc Write No |
-| Desk Create ↔ Web Form Create | разные пути | не считать Web Form proof Role Create |
-| Login Required ↔ role authorization | не эквивалентны | login = authentication only |
-| Apply Document Permissions ↔ Web Form insert | не эквивалентны | setting относится к existing-doc path |
-| Role Permission ↔ Workflow | совместимы | access ≠ transitions |
-| Only Allow Edit For ↔ security | не эквивалентны | UI guard, не ACL |
-| Assignment ↔ Workflow | ортогональны | assignment не кодирует status |
-| Assignment ↔ authorization | не эквивалентны | assignee не permission predicate |
-| User Permission ↔ Round Robin | опасно без cleanup | main Technician без Location restriction |
-| Target Date ↔ Due Date | условно | только при Target Date |
-| Workflow ↔ Web Form edit | небезопасно | final Allow Edit = No |
-| Workflow ↔ Kanban | допустимо для обучения | после L7 Kanban удалить |
-| Standard source ↔ fixtures | совместимы | fixtures не дублируют Standard DocType |
-| Main site ↔ clean site | намеренно различаются | Assignment Rule site-specific |
-| Labs ↔ core domain | совместимы | обязательный rollback |
+| Механизмы | Вердикт |
+|---|---|
+| Requester Create + no post-write | совместимы |
+| Requester Level1 Write + Level0 Write No | совместимы: insert fields yes, later save no |
+| Technician Level0 Write + Level1 Write No | совместимы: Workflow yes, business content protected |
+| Permission Level + ignore_permissions | **не enforcement** при ignore_permissions |
+| Desk Create + Web Form Create | разные admission paths |
+| Login Required + role authorization | не эквивалентны |
+| Apply Document Permissions + Web insert | не эквивалентны |
+| Assignment + authorization | не эквивалентны |
+| Workflow + Only Allow Edit For | server transition vs Desk guard |
+| Workflow + Web Form edit | unsafe; final edit Off |
+| Main Assignment Rule + clean site | intentionally different |
 
 ---
 
-# 12. State contract урока
+# 14. Execution contract
 
-Каждый execution-аудит использует:
+Каждый урок:
 
 ```text
 PRECONDITIONS
@@ -531,25 +502,21 @@ OUTPUT STATE
 GIT STATE
 ```
 
-Критерий:
-
 ```text
 OUTPUT(Ln) ⊇ PRECONDITIONS(Ln+1)
 ```
 
 ---
 
-# 13. Что base course сознательно не обещает
+# 15. Не обещаем в Core
 
 ```text
 assignee-only authorization
-absolute Closed immutability через любой API
-вечное equality Equipment.location и Request.location
-role-specific Web Form submission authorization
-safe public-untrusted Web Form catalog
-arbitrary multi-app co-installation
+absolute Closed immutability
+role-specific Web Form admission
+safe public-untrusted portal
+protection from explicit ignore_permissions code paths
+arbitrary multi-app compatibility
 ```
 
-Для этого нужен отдельный server-side/portal architecture layer.
-
-Базовая архитектура должна быть честно ограниченной, а не псевдобезопасной.
+Steel architecture = **максимум реальных штатных гарантий без выдумывания тех, которых платформа не даёт**.
