@@ -2,7 +2,7 @@
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
-Формальный реестр гарантий: **[INVARIANTS.md](INVARIANTS.md)**.
+Формальные гарантии: [INVARIANTS.md](INVARIANTS.md).
 
 Главный принцип:
 
@@ -12,9 +12,7 @@
 
 ---
 
-# 1. Цель и core
-
-`facility_ops` изучает Frappe на небольшой модели:
+# 1. Core domain
 
 ```text
 Facility Location (Tree)
@@ -24,41 +22,29 @@ Facility Location (Tree)
         └─────────────────┴────────────► Service Request
 ```
 
-Это не ERP, CMMS или полноценный Service Desk.
+Только три постоянных business DocType.
 
 ---
 
 # 2. Facility Location
 
-Tree структуры мест:
-
-```text
-Main Site
-├── Building A
-│   ├── Floor 1
-│   │   ├── Room 101
-│   │   └── Room 102
-│   └── Floor 2
-└── Warehouse
-```
-
-Nested-set infrastructure обслуживает Frappe.
+Tree структуры мест.
 
 ---
 
 # 3. Equipment
 
-| Поле | Тип | Mandatory |
-|---|---|---:|
-| Equipment Code | Data | Yes |
-| Equipment Name | Data | Yes |
-| Location | Link → Facility Location | Yes |
-| Category | Select | Yes |
-| Status | Select | Yes |
-| Serial Number | Data | No |
-| Commissioning Date | Date | No |
-| Photo | Attach Image | No |
-| Notes | Small Text | No |
+```text
+Equipment Code
+Equipment Name
+Location
+Category
+Status
+Serial Number
+Commissioning Date
+Photo
+Notes
+```
 
 Category:
 
@@ -77,35 +63,29 @@ Out of Service
 Retired
 ```
 
-Naming:
-
-```text
-field:equipment_code
-```
-
 `Equipment.location` = текущее размещение.
+
+`Equipment.notes` после L5 — Permission Level 1, доступен для write Supervisor.
 
 ---
 
 # 4. Service Request
 
-| Поле | Тип | Mandatory | Default |
-|---|---|---:|---|
-| Subject | Data | Yes | |
-| Location | Link → Facility Location | Yes | |
-| Equipment | Link → Equipment | No | |
-| Description | Text | Yes | |
-| Priority | Select | Yes | Medium |
-| Status | Select | Yes | New |
-| Target Date | Date | No | |
-| Attachment | Attach | No | |
-
-Priority:
+Mandatory:
 
 ```text
-Low
-Medium
-High
+Subject
+Location
+Description
+Priority
+```
+
+Optional:
+
+```text
+Equipment
+Target Date
+Attachment
 ```
 
 Status:
@@ -118,62 +98,50 @@ Resolved
 Closed
 ```
 
-Naming:
-
-```text
-SR-.#####
-```
-
-Track Changes включён.
+`Service Request.location` = historical event location.
 
 ---
 
-# 5. Temporal semantics Location
+# 5. Temporal semantics
 
 ```text
 Service Request.location
-= историческое место события
-
+≠ обязана навсегда совпадать
 Equipment.location
-= текущее размещение Equipment
 ```
 
-Не вводим вечное hard equality между ними.
+Исторический факт заявки не переписывается из-за будущего перемещения Equipment.
 
 ---
 
-# 6. Четыре независимые оси
+# 6. Независимые оси
 
 ```text
 DATA
 PERMISSION
+FIELD ACCESS
 ASSIGNMENT
 PROCESS
 ```
 
-Расшифровка:
-
 ```text
-DATA       → что произошло и где
-PERMISSION → кто имеет server access
-ASSIGNMENT → кому поручена работа
-PROCESS    → в каком state заявка
+Permission  → можно ли работать с Document
+Field Access→ какие business fields можно менять
+Assignment  → кто отвечает
+Process     → какой Workflow state
 ```
-
-Нельзя выводить одну ось из другой.
 
 ---
 
-# 7. Role Permission — hard access boundary Desk
+# 7. Level 0 document permission
 
-Финальная `Service Request` matrix:
+Final Service Request:
 
 ```text
 Requester
 → Create Yes
-→ Read own Yes / If Owner
-→ Write No после insert
-→ Delete No
+→ Read own Yes
+→ Write/Delete No
 
 Technician
 → Read/Write Yes
@@ -185,19 +153,79 @@ Supervisor
 → Report/Export Yes
 ```
 
-Requester Desk intake:
-
-```text
-Create
-→ Save
-→ далее append-only для Requester
-```
-
-Delete нормальных Service Request не является operating policy рабочих ролей.
+Requester Desk intake = append-only after insert.
 
 ---
 
-# 8. Assignment — ответственность, не ACL
+# 8. Level 1 business content protection
+
+После L5 поля:
+
+```text
+subject
+location
+equipment
+description
+priority
+target_date
+attachment
+```
+
+имеют:
+
+```text
+Permission Level = 1
+```
+
+`status` остаётся Level 0.
+
+Role matrix Level 1:
+
+```text
+Requester   → Read/Write
+Technician  → Read only
+Supervisor  → Read/Write
+```
+
+Почему это работает:
+
+```text
+Requester Level 0 Create
++ Requester Level 1 Write
+→ может заполнить новый Document
+
+Requester Level 0 Write No
+→ после insert не может повторно save
+
+Technician Level 0 Write
++ Technician Level 1 Write No
+→ может участвовать в Workflow
+→ не сохраняет изменения business content через permission-aware save
+```
+
+Exact `Document.validate_higher_perm_levels()` сбрасывает high-permlevel values, для которых у текущего пользователя нет write access, перед DB write.
+
+Это server-side permission layer штатного save/insert.
+
+---
+
+# 9. Граница Permission Level
+
+Если операция явно выполняется с:
+
+```text
+ignore_permissions=True
+```
+
+Permission Level enforcement пропускается.
+
+Поэтому architecture не утверждает, что Permission Level защищает от доверенного server code, который сознательно bypass permissions.
+
+Это особенно важно для Web Form insert.
+
+---
+
+# 10. Assignment
 
 ```text
 Service Request
@@ -206,35 +234,26 @@ Service Request
 → User
 ```
 
-Не создаём собственный `Assigned Technician`.
-
 ```text
 Assignment ≠ authorization
 ```
 
-При недостаточном access штатный Assign To способен создать Share; поэтому main Technician получают совместимый Role-based access заранее.
+Основные Technician имеют совместимый base access, чтобы assignment не создавал неожиданные DocShare exceptions.
 
 ---
 
-# 9. Accepted вместо Assigned
+# 11. Accepted
 
 ```text
 Accepted
 = Supervisor принял заявку в процесс
 ```
 
-Это не гарантия существования ToDo.
-
-Поэтому нормальны независимо:
-
-```text
-Assigned To заполнен + Status New
-Status Accepted + assignment менялся/отсутствует
-```
+Не является синонимом assignment.
 
 ---
 
-# 10. Workflow
+# 12. Workflow
 
 ```text
 New
@@ -254,12 +273,6 @@ Closed
 
 Все states `docstatus = 0`.
 
-Workflow State Field:
-
-```text
-Service Request.status
-```
-
 Desk edit roles:
 
 ```text
@@ -270,137 +283,86 @@ Resolved    → Supervisor
 Closed      → Supervisor
 ```
 
+Technician state form может быть Workflow-editable, но Level 1 business fields остаются read-only для его роли.
+
 ---
 
-# 11. Workflow enforcement layers
+# 13. Enforcement stack
 
 ```text
-Role Permission
-= server document access
+Level 0 Role Permission
+→ document create/read/write/delete
 
-Allowed Role / Condition
-= server transition gate
+Permission Level 1
+→ business field read/write
+
+Workflow Allowed Role / Condition
+→ server state transition
 
 Only Allow Edit For
-= Desk state editability
+→ Desk state guard
 
-status Read Only
-= UI guard
+Status Read Only
+→ UI guard
 ```
 
-Requester всё ещё может создать новый local `New` Document. Exact client Workflow не делает `doc.__islocal` read-only. После insert его hard boundary — Role Permission `Write = No`.
+Это не пять названий одного механизма, а разные уровни.
 
 ---
 
-# 12. Closed
+# 14. Closed
 
-Closed — terminal Workflow state.
+Closed terminal в Workflow; рабочие роли no-delete.
 
-Рабочие роли также не имеют Delete.
-
-Но absolute field immutability через любой API в base course не обещается: для этого нужен отдельный server validation layer.
+Absolute immutability через любой API — Later.
 
 ---
 
-# 13. Kanban
+# 15. Analytics
 
-L6 временно использует `Service Request Status Board`.
-
-После L7 удаляем его как основной process UI:
-
-```text
-Kanban save
-→ Workflow validation
-
-но
-
-Kanban move
-≠ apply_workflow(Action) lifecycle
-```
+Report/Cards/Chart/Workspace читают существующий Service Request и не создают новую data/permission model.
 
 ---
 
-# 14. Analytics
+# 16. Automation
 
-```text
-Service Requests Overview    → Report Builder
-Open Requests                → Number Card
-High Priority Requests       → Number Card
-Closed Requests              → Number Card
-Service Requests by Status   → Dashboard Chart
-Facility Operations Control  → Workspace
-```
+Assignment Rule создаёт ToDo и не меняет status.
 
-Это представления существующих Documents, не новая data/permission model.
+Target Date — conditional input.
+
+Rule-owned ToDo close — main-site policy, не Workflow invariant.
 
 ---
 
-# 15. Automation
+# 17. Desk create vs Web Form create
 
-Notifications:
-
-```text
-New Service Request
-Service Request One Day Overdue
-```
-
-Main-site Assignment Rule:
+## Desk
 
 ```text
-Service Request Auto Assignment
-Rule = Round Robin
-```
-
-После assignment:
-
-```text
-Assigned To = Technician
-Status = New
-```
-
-Supervisor отдельно выполняет `Accept`.
-
-`Target Date` остаётся Optional, поэтому due/overdue behavior условный.
-
-Close Condition Rule-owned ToDo — main-site policy, не свойство Workflow.
-
----
-
-# 16. Два create-channel после L10
-
-Это критически разные пути.
-
-## Desk Requester
-
-```text
-Facility Requester
-→ Role Permission Create = Yes
-→ ordinary Document create
-→ после Save Write = No
+Requester
+→ Level 0 Create
+→ Level 1 Write заполняет business fields
+→ after insert Level 0 Write No
 ```
 
 ## Web Form
 
-Exact `v16.32.0` новый Web Form Document создаёт через:
+Exact `v16.32.0`:
 
 ```text
-doc.insert(ignore_permissions=True, ...)
+new target doc
+→ insert(ignore_permissions=True)
 ```
 
-Следовательно:
+Следовательно Web Form insert обходит Role Permission и high Permission Level validation.
 
-```text
-Web Form submission
-≠ Role Permission Create
-```
+Это отдельная trusted intake capability.
 
-Это сознательная отдельная intake capability Web Form.
+Поэтому Web Form field list — explicit allow-list безопасных intake fields.
 
 ---
 
-# 17. Web Form threat model
-
-Final:
+# 18. Web Form final
 
 ```text
 Published = Yes
@@ -411,125 +373,61 @@ Allow Edit = No
 Apply Document Permissions = No
 ```
 
-`Login Required` блокирует Guest, но не является role-specific submission authorization.
+`Login Required` = authentication, not role authorization.
 
-Поэтому deployment policy:
-
-```text
-authenticated website population с доступом к этой форме
-= trusted internal reporters
-```
-
-Public/untrusted или role-restricted portal intake — Later.
+`Allow Edit = No` критичен, потому что owner update иначе также способен использовать `ignore_permissions=True` и обойти field-level hardening.
 
 ---
 
-# 18. Web Form existing-document access
+# 19. Threat model
 
-`Apply Document Permissions` относится к работе с существующим Document:
+Website accounts с доступом к published authenticated form = trusted internal reporters.
 
-```text
-Off
-→ Web Form owner/website permission model
-
-On
-→ ordinary document permissions
-```
-
-Она не превращает новый Web Form insert в Role Permission `Create` check.
-
-`Allow Edit = No` оставляет форму create/read-only и закрывает parallel edit path поверх Workflow.
+Public-untrusted или role-restricted portal admission — Later.
 
 ---
 
-# 19. Link options
+# 20. Packaging
 
-`Allow Read On All Link Options = Yes` для Location/Equipment сознательно раскрывает authenticated internal reporters названия общих справочников.
+```text
+Standard source
+→ DocTypes + UI/config
 
-Это deployment trust decision.
+fixtures
+→ Roles + Workflow
+
+exported customizations
+→ Custom DocPerm Level 0 + Level 1
+
+site-specific
+→ Users / Share / User Permission / Assignment Rule
+```
+
+L11 обязан восстановить и проверить обе permission layers.
 
 ---
 
-# 20. Поставка
+# 21. Clean-site proof
 
-Четыре слоя:
-
-```text
-1. Standard source
-2. universal app configuration
-3. site-specific configuration
-4. working data
-```
-
-Standard source:
+Отдельно:
 
 ```text
-3 core DocType
-Report/Cards/Chart/Workspace
-Notifications
-Web Form
-```
+Desk Requester
+→ Role Create + Level1 field input + post-save no Write
 
-Universal fixtures:
+Technician
+→ Workflow works + Level1 content stays protected
 
-```text
-Roles
-Workflow States
-Workflow Action Masters
-Workflow
-```
+Supervisor
+→ Level1 content edit + no Delete
 
-Exported customizations:
-
-```text
-Custom DocPerm
-```
-
-Site-specific:
-
-```text
-Users
-User Permission
-Share
-Assignment Rule tied to local Users
+Website User
+→ separate Web Form intake
 ```
 
 ---
 
-# 21. Portability
-
-L11 доказывает clean-site portability.
-
-На clean site отдельно доказываются:
-
-```text
-Desk Requester Create + Read own + no Write
-Supervisor no Delete
-Workflow state/edit-role configuration
-Website User Web Form submission
-```
-
-И эти два create-test не смешиваются:
-
-```text
-Desk create
-= proof Role Permission
-
-Web Form create
-= proof Web Form intake
-```
-
----
-
-# 22. Labs
-
-Labs изучают специальные механизмы с обязательным domain rollback.
-
-Lab E может оставить Standard Print Format как presentation configuration.
-
----
-
-# 23. Итог
+# 22. Итог
 
 ```text
 Facility Location
@@ -538,15 +436,12 @@ Facility Location
       │
       └── Service Request
               │
-              ├── Role Permission / Desk intake
+              ├── Level0 document permissions
+              ├── Level1 business-field permissions
               ├── ToDo / Assignment
               ├── Workflow
               ├── Notifications
-              └── Web Form authenticated intake
-
-Service Request
-      ↓
-Report / Cards / Chart / Workspace
+              └── Web Form intake
 ```
 
-«Стальная» архитектура здесь означает не максимум запретов, а **отсутствие ложных связей между механизмами Frappe и точное понимание, какой слой реально обеспечивает каждую гарантию**.
+Стальная архитектура = **минимальная модель + наименьшие необходимые права + точное разделение native enforcement layers**.
