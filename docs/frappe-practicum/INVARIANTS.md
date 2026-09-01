@@ -344,6 +344,17 @@ Assigned To = Technician
 Status = New
 ```
 
+## H/S-10A. Automation не расширяет field authority
+
+Assignment Rule, Auto Repeat Assignee и ToDo не выдают Technician Level 1 Write.
+
+```text
+assignment created
+≠ permission level escalated
+```
+
+`Target Date` остаётся Level 1 content; на основном сценарии его меняет Supervisor, а Assignment Rule синхронизирует соответствующую Due Date ToDo.
+
 ## C-01. Target Date
 
 Due/overdue behavior существует только при заполненном Target Date.
@@ -433,7 +444,7 @@ Notifications
 Web Form
 Roles
 Workflow
-Custom DocPerm
+Custom DocPerm Level 0 + Level 1
 ```
 
 ## P-07. Site-specific
@@ -465,9 +476,79 @@ bench use facility-ops.localhost
 
 # 12. Lab invariants
 
-Labs имеют Temporary / Persistent / Rollback / Final State.
+## P-09. Каждая Lab имеет rollback contract
 
-Domain rollback обязателен; presentation config может остаться осознанно.
+Для каждой лаборатории фиксируются:
+
+```text
+PRECONDITIONS
+TEMPORARY MUTATION
+PERSISTENT MUTATION
+ROLLBACK
+FINAL STATE
+GIT STATE
+```
+
+Domain rollback обязателен; presentation configuration может остаться только когда это прямо заявлено, как Standard Print Format в Lab E.
+
+## H/S/P-09A. Service Request security baseline переживает Labs
+
+Если лаборатория затрагивает `Service Request` metadata/configuration, её финальное состояние обязано восстановить:
+
+```text
+status → Permission Level 0
+
+subject
+location
+equipment
+description
+priority
+target_date
+attachment
+→ Permission Level 1
+```
+
+и роли:
+
+```text
+Level 0
+Requester   → Create + Read own; Write/Delete No
+Technician  → Read/Write; Create/Delete No
+Supervisor  → Read/Write/Create; Delete No
+
+Level 1
+Requester   → Read/Write
+Technician  → Read only
+Supervisor  → Read/Write
+```
+
+Лаборатория не принята, если эксперимент очищен функционально, но security baseline ослаблен.
+
+## P-09B. Временное Service Request field/table получает явный Permission Level
+
+Новый временный business-content field/table нельзя оставлять на default Level 0 по невнимательности.
+
+Например Lab A:
+
+```text
+work_logs → Permission Level 1
+```
+
+чтобы Technician document Write не превращался в write новой business-content области.
+
+После rollback временное поле удаляется полностью.
+
+## S-12. Domain rollback ≠ byte-identical source rollback
+
+Разрешён осознанный persistent presentation artifact, не меняющий business/security model.
+
+Пример:
+
+```text
+Lab E
+→ Service Request Summary Print Format остаётся
+→ Letter Head удаляется
+```
 
 ---
 
@@ -483,9 +564,11 @@ Domain rollback обязателен; presentation config может остат�
 | Login Required + role authorization | не эквивалентны |
 | Apply Document Permissions + Web insert | не эквивалентны |
 | Assignment + authorization | не эквивалентны |
+| Assignment + Level1 authority | не эквивалентны |
 | Workflow + Only Allow Edit For | server transition vs Desk guard |
 | Workflow + Web Form edit | unsafe; final edit Off |
 | Main Assignment Rule + clean site | intentionally different |
+| Labs + hardened permissions | совместимы только при explicit permlevel + rollback |
 
 ---
 
@@ -505,6 +588,15 @@ GIT STATE
 ```text
 OUTPUT(Ln) ⊇ PRECONDITIONS(Ln+1)
 ```
+
+Для Labs дополнительно:
+
+```text
+FINAL_SECURITY(Lab)
+= hardened baseline
+```
+
+если ослабление не объявлено отдельным persistent архитектурным решением.
 
 ---
 
