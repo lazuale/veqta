@@ -2,35 +2,22 @@
 
 L6 не добавляет новые предметные DocType и не добавляет поле исполнителя в `Service Request`.
 
-Цель: организовать работу с уже существующими заявками штатными средствами Frappe — `Assign To`, `ToDo`, Comments, Timeline, Tags и Kanban.
-
-Базовая версия: **Frappe Framework v16.32.0**.
-
-## Что должно получиться
-
-```text
-Service Request
-      │
-      ├── Assign To ─────► ToDo ─────► Technician
-      ├── Comments / Timeline
-      ├── Tags
-      └── Kanban по Status
-```
-
-Ключевое разделение:
+Цель: изучить штатные `Assign To`, `ToDo`, Comments, Timeline, Tags и Kanban и зафиксировать академически точную границу:
 
 ```text
 Permission
-= может ли пользователь работать с документом
+= право доступа
 
 Assignment
-= кому поручена конкретная работа
+= ответственность / рабочая очередь
 
 Status
-= состояние самой заявки
+= состояние процесса
 ```
 
-После L5 основные Technician не имеют постоянного User Permission по Location. Временный Restricted Technician из L5 отключён и в L6 не используется.
+**Assignment не является механизмом авторизации.** Наличие ToDo не заменяет Role Permission и не означает, что только assignee имеет право работать с Document.
+
+Базовая версия: **Frappe Framework v16.32.0**.
 
 ---
 
@@ -53,7 +40,7 @@ facility_ops установлен
 working tree clean
 ```
 
-Должны существовать роли:
+Основные роли:
 
 ```text
 Facility Requester
@@ -61,7 +48,7 @@ Facility Technician
 Facility Supervisor
 ```
 
-и основные пользователи:
+Пользователи:
 
 ```text
 requester.one@example.com
@@ -70,48 +57,32 @@ technician.one@example.com
 supervisor.one@example.com
 ```
 
-Проверить отдельно:
-
-```text
-technician.one@example.com
-→ нет постоянного User Permission на Facility Location
-```
-
-Если такой User Permission остался после L5, удалить его до продолжения.
+После cleanup L5 у основного Technician нет постоянного Location User Permission.
 
 ---
 
-# 2. Выбрать заявку для назначения
+# 2. Выбрать New-заявку
 
-Под `supervisor.one@example.com` открыть любую незакрытую `Service Request`, например:
+Под Supervisor открыть незакрытую:
 
 ```text
 Status = New
 ```
 
-Зафиксировать до назначения:
+До назначения:
 
 ```text
 Assigned To = пусто
 Status = New
 ```
 
-Location теперь не обязана быть `Room 101`: Technician имеет обычную область доступа, заданную Role Permission.
-
 ---
 
 # 3. Назначить через Assign To
 
-Использовать штатное действие:
-
 ```text
 Assign To
-```
-
-Выбрать:
-
-```text
-technician.one@example.com
+→ technician.one@example.com
 ```
 
 Описание:
@@ -120,23 +91,15 @@ technician.one@example.com
 Проверить заявку и зафиксировать результат.
 ```
 
-Если интерфейс предлагает Due Date, указать ближайшую будущую дату.
+При необходимости указать Due Date.
 
-Не добавлять поле:
-
-```text
-Assigned Technician
-```
-
-в `Service Request`.
+Не создавать поле `Assigned Technician`.
 
 ---
 
-# 4. Проверить созданный ToDo
+# 4. Проверить ToDo
 
-Через Awesomebar открыть `ToDo` и найти назначение.
-
-Проверить:
+Через Awesomebar открыть `ToDo` и найти запись:
 
 ```text
 Allocated To   = technician.one@example.com
@@ -145,93 +108,139 @@ Reference Name = выбранный SR-.....
 Status         = Open
 ```
 
-Главный вывод:
+Фиксируем:
 
 ```text
 Assign To
-→ создаёт штатный ToDo
-→ не записывает исполнителя в наше собственное поле
+→ создаёт ToDo
+→ обновляет штатное представление assignment
+→ не создаёт наше бизнес-поле исполнителя
 ```
 
 ---
 
-# 5. Проверить Status после Assign To
+# 5. Assignment не меняет Status
 
-Вернуться в `Service Request`.
+Вернуться в Service Request.
 
-После обычного Assign To статус остаётся отдельным понятием.
-
-Вручную изменить:
+После Assign To:
 
 ```text
-New → Assigned
+Assigned To = technician.one@example.com
+Status = New
+```
+
+Это **нормальное состояние**, а не ошибка.
+
+Теперь вручную изменить:
+
+```text
+New → Accepted
 ```
 
 Сохранить.
 
-Пока Workflow ещё не создан, `Status` остаётся обычным Select.
+`Accepted` означает:
+
+```text
+заявка принята в рабочий процесс
+```
+
+а не:
+
+```text
+Frappe доказал наличие конкретного assignee
+```
 
 ---
 
-# 6. Проверить работу Technician
+# 6. Проверить Technician
 
-Войти как:
+Войти:
 
 ```text
 technician.one@example.com
 ```
 
-Открыть свою очередь / ToDo и перейти к назначенной заявке.
+Открыть свою очередь / ToDo и перейти к заявке.
 
 Проверить:
 
 - заявка открывается;
-- назначение видно;
-- ToDo ссылается на нужный документ.
+- assignment виден;
+- ToDo ссылается на нужный Service Request.
 
-Изменить:
+Вручную изменить:
 
 ```text
-Assigned → In Progress
+Accepted → In Progress
 ```
 
 Сохранить.
 
+До L7 `Status` ещё обычный Select.
+
 ---
 
-# 7. Comments и Timeline
+# 7. Важная проверка: Assignment не является ACL
 
-В той же заявке добавить Comment:
+Под Supervisor назначить другую заявку `technician.one@example.com`.
+
+Затем войти другим пользователем с ролью `Facility Technician`, если такой пользователь уже существует на стенде. Если второго Technician ещё нет, эту проверку повторим в L9.
+
+Смысл проверки:
+
+```text
+ToDo
+не является record-level permission rule
+```
+
+В базовой архитектуре Technician получает доступ к Service Request через Role Permission, а ToDo отвечает только за ответственность.
+
+Не строить вывод:
+
+```text
+не назначен
+→ значит сервер обязан запретить Document
+```
+
+Штатный Frappe так не устроен.
+
+---
+
+# 8. Comments и Timeline
+
+Добавить Comment:
 
 ```text
 Проверка начата. Требуется дополнительный осмотр оборудования.
 ```
 
-Проверить Timeline.
+Посмотреть Timeline.
 
 Различать:
 
 ```text
 Timeline
-= общий интерфейс истории активности
+= общий интерфейс активности
 
 Track Changes / Version
-= изменение полей Document
+= аудит изменений полей
 
 Comment
-= пользовательская запись обсуждения
+= пользовательская запись
 
 Assignment
-= отдельная активность назначения
+= отдельное поручение
 ```
 
-Не создавать собственные `Comment History` или `Work Note` DocType.
+Не создавать собственный журнал комментариев.
 
 ---
 
-# 8. Закрыть ToDo и сравнить с Status
+# 9. Закрыть ToDo и сравнить со Status
 
-Завершить назначение штатным действием ToDo / Assignment.
+Закрыть назначение штатным действием.
 
 Проверить:
 
@@ -239,15 +248,13 @@ Assignment
 ToDo Status = Closed
 ```
 
-При этом `Service Request` не обязан автоматически стать `Closed`.
+Service Request не обязан стать Closed.
 
-Если заявка всё ещё `In Progress`, вручную перевести:
+Если Status был `In Progress`, вручную перевести:
 
 ```text
 In Progress → Resolved
 ```
-
-Сохранить.
 
 Фиксируем:
 
@@ -256,35 +263,25 @@ In Progress → Resolved
 ≠ закрыть Service Request
 ```
 
----
-
-# 9. Повторное назначение
-
-Под Supervisor взять другую незакрытую заявку и назначить её тому же Technician.
-
-Проверить, что у пользователя существуют отдельные ToDo для разных:
-
-```text
-reference_name
-```
-
-Один Technician может иметь много заданий.
+И обратное тоже не является универсальным правилом без отдельной automation policy.
 
 ---
 
-# 10. Дублирующее назначение
+# 10. Повторное и duplicate assignment
 
-На уже назначенной заявке попробовать снова назначить того же пользователя, пока первое назначение активно.
+На другой заявке снова назначить того же Technician.
 
-На фактическом стенде зафиксировать штатное поведение Frappe.
+Проверить отдельные ToDo по разным `reference_name`.
 
-Не писать обходной код и не создавать собственный assignment registry.
+На уже назначенной заявке повторить Assign To тому же пользователю и зафиксировать фактическое штатное поведение Frappe для duplicate active ToDo.
+
+Не писать обходной registry.
 
 ---
 
 # 11. Tags
 
-Добавить к нескольким Service Request лёгкие дополнительные метки, например:
+Добавить лёгкие метки:
 
 ```text
 hvac
@@ -292,7 +289,7 @@ urgent-check
 network
 ```
 
-Не дублировать Tags уже существующие структурированные данные:
+Не дублировать структурированные поля:
 
 ```text
 Priority
@@ -301,39 +298,33 @@ Location
 Equipment
 ```
 
-То есть не использовать `High`, `New`, `Room 101` как теги только ради копирования значений полей.
-
-Проверить фильтрацию по одному Tag.
-
 ---
 
 # 12. Создать Kanban
 
-Открыть `Service Request` List View → `Kanban` → создать доску:
+Создать:
 
 ```text
-Board Name: Service Request Status Board
+Board Name:        Service Request Status Board
 Reference DocType: Service Request
-Field: Status
+Field:             Status
 ```
 
 Колонки:
 
 ```text
 New
-Assigned
+Accepted
 In Progress
 Resolved
 Closed
 ```
 
-Название специально отличается от Dashboard Chart, который появится позже в L8.
-
 ---
 
-# 13. Kanban — представление тех же Documents
+# 13. Kanban — те же Documents
 
-Сравнить одну заявку:
+Сравнить одну запись в:
 
 ```text
 List View
@@ -341,70 +332,79 @@ Form View
 Kanban
 ```
 
-Во всех трёх местах это один и тот же `Service Request`.
-
-Переместить карточку:
+Переместить:
 
 ```text
-Assigned → In Progress
+Accepted → In Progress
 ```
 
-Открыть Form View и проверить:
+Проверить в Form View:
 
 ```text
 Status = In Progress
 ```
 
-В `v16.32.0` перенос карточки меняет значение поля, выбранного как field доски.
+До Workflow это обычное изменение Select field.
 
 ---
 
-# 14. Проверить permissions через Kanban
+# 14. Permissions через Kanban
 
-Войти под Requester.
+Requester должен видеть только свои Service Request из-за `If Owner` L5.
 
-Он должен видеть только свои `Service Request`, потому что L5 использует `If Owner`.
-
-Kanban не создаёт отдельную систему прав:
+Technician работает в своей Role-based области доступа.
 
 ```text
 List / Form / Kanban
-→ работают над теми же Documents
-→ подчиняются тем же permissions
+→ не создают разные permissions
 ```
 
-Затем под Technician проверить обычный доступ к заявкам независимо от Location. Если Technician внезапно видит только одно помещение, значит после L5 остался лишний User Permission — исправить состояние стенда, а не подстраивать L6.
+Если основного Technician всё ещё ограничивает Location User Permission, это ошибка cleanup L5.
 
 ---
 
-# 15. Не смешивать Assignment и Kanban
+# 15. Не путать три оси
 
-На одной заявке проверить ситуацию:
+Нормальная комбинация:
 
 ```text
 Assigned To = technician.one@example.com
 Status = In Progress
 ```
 
-Это нормально.
-
-Kanban отвечает на вопрос:
+Но из этого нельзя вывести:
 
 ```text
-в каком состоянии заявка
+Status = Accepted
+→ обязательно Assigned To заполнен
 ```
 
-Assign To отвечает:
+и нельзя вывести:
 
 ```text
-кому поручена работа
+Assigned To = Technician One
+→ только Technician One имеет security permission
 ```
+
+Это фундаментальная граница дальнейшей архитектуры.
 
 ---
 
-# 16. Проверить Git
+# 16. Проверить auto-Share как границу Assign To
 
-L6 работает только с site data / штатными служебными Documents:
+Штатный `Assign To` в `v16.32.0` проверяет доступ assignee к reference document.
+
+Если доступа нет и document sharing разрешён, Frappe способен создать `DocShare`; если sharing отключён — получить Missing Permission.
+
+В нашем основном deployment Technician уже имеет нормальный Role Permission, поэтому assignment **не должен тихо менять access model через Share**.
+
+Именно поэтому временные Location User Permission из L5 не оставляются на основных Technician.
+
+---
+
+# 17. Git
+
+L6 работает с site data/configuration:
 
 ```text
 ToDo
@@ -420,33 +420,25 @@ cd ~/frappe/facility-ops-bench/apps/facility_ops
 git status
 ```
 
-Если Standard metadata приложения не менялась, working tree должен оставаться чистым.
-
-Kanban Board в этом курсе рассматриваем как site configuration учебного стенда и не экспортируем вручную.
+Если Standard metadata не менялась, working tree остаётся clean.
 
 ---
 
-# 17. Приёмка L6
+# 18. Приёмка L6
 
 L6 принят, если ученик может показать:
 
-- назначение через `Assign To`;
-- соответствующий `ToDo`;
-- отдельность Assignment и Status;
+- Assign To и соответствующий ToDo;
+- `Assignment ≠ Status`;
+- `Assignment ≠ authorization`;
+- нормальное состояние `Assigned To заполнен + Status New`;
 - Comment и Timeline;
-- Tags без дублирования полей;
-- Kanban `Service Request Status Board`;
-- drag меняет Status того же Service Request;
-- permissions одинаково действуют в List/Form/Kanban;
-- `technician.one@example.com` не ограничен постоянным Location User Permission;
-- Git не содержит рабочих ToDo/Comments/Tags.
+- `ToDo Closed ≠ Service Request Closed`;
+- Tags;
+- Kanban `Service Request Status Board` с колонкой `Accepted`;
+- одинаковую permission-модель List/Form/Kanban;
+- отсутствие постоянного Location User Permission у основного Technician;
+- отсутствие неожиданных DocShare как нормального механизма назначения;
+- чистый Git.
 
-Ученик без подсказки объясняет:
-
-1. почему не нужно поле `Assigned Technician`;
-2. чем ToDo отличается от Service Request;
-3. почему закрытие ToDo не закрывает заявку;
-4. чем Tag отличается от Select/Link;
-5. почему Kanban не является отдельной базой задач.
-
-После L6 переходим к **L7 — Workflow**. Kanban пока оставляем для сравнения, а в L7 после проверки удалим, чтобы процесс управлялся одним понятным способом — Workflow Actions.
+После L6 переходим к **L7 — Workflow**. Kanban пока оставляем только для сравнения, затем удаляем.
