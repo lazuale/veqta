@@ -32,14 +32,14 @@
 | `bench new-app` | P0 | Основное | создать настоящий app |
 | `install-app` / `list-apps` | P0 | Основное | связать app и site |
 | Developer Mode | P0 | Основное | создавать стандартные объекты app |
-| default Module | P0 | Основное | понять организацию объектов внутри app |
+| модуль, созданный вместе с app | P0 | Основное | понять организацию объектов внутри app |
 | структура app | P0 | Основное | видеть связь Desk и файлов |
 | `hooks.py` | P0/P2 | Основное | понять штатную конфигурацию; в P2 добавить fixtures |
 | Git diff / commit | P0 | Основное | видеть, что реально попало в app |
 | Desk v16 / Workspace Sidebar | P0 | Основное | освоить актуальную навигацию |
 | Awesomebar / command palette | P0 | Основное | быстро находить объекты и команды |
 | scheduler / workers | P0 | Основное | проверить среду для будущей автоматизации |
-| PDF generation | P0 | Основное | заранее проверить зависимость будущей печати |
+| PDF generation | P0 | Основное | заранее проверить будущую печать |
 | Apps Page / `add_to_apps_screen` | P0/P2 | Доп. | показать место app в интерфейсе и hook при необходимости |
 
 ## Модель данных
@@ -81,7 +81,7 @@
 | Section / Column / Tab Break | P1 | Основное |
 | Text Editor / Markdown Editor | P1 | Доп. |
 | Table MultiSelect | P1 | Доп. |
-| Dynamic Link | P1/P8 | Доп. | 
+| Dynamic Link | P1/P8 | Доп. |
 | Attachment Gallery | P1/P5 | Доп. |
 | Barcode / Signature / Geolocation | P1/P5 | Доп. |
 
@@ -128,18 +128,21 @@ Dynamic Link становится обязательным только если
 | Guest / All / Administrator / Desk User | P3 | Основное |
 | Role | P3 | Основное |
 | Role Permission Manager | P3 | Основное |
+| Select | P3 | Основное |
 | Read / Write / Create / Delete | P3 | Основное |
 | Submit / Cancel / Amend | P3/P4 | Основное |
 | Report / Export / Import | P3 | Основное |
-| Set User Permissions | P3 | Доп. |
 | Share / Print / Email | P3 | Основное |
 | If Owner | P3 | Основное |
 | Permission Level | P3 | Основное |
 | User Permission | P3 | Основное |
+| Mask / Data Masking | P3 | Доп. |
 | ограничения Page / Report / Workspace | P3/P5 | Доп. |
 | Assign To | P3 | Основное |
 | ToDo | P3 | Основное |
 | Due Date / Priority | P3 | Основное |
+
+`Mask` присутствует в `DocPerm` v16.32.0. Data Masking рассматривается только как дополнительная тема, потому что официальная документация помечает её как экспериментальную.
 
 ## Жизненный цикл и Workflow
 
@@ -211,6 +214,8 @@ Dynamic Link становится обязательным только если
 | Standard Web Form | P7 | Основное |
 | файлы Standard Web Form в app | P7 | Основное |
 
+`Allow editing after submit` здесь — название настройки Web Form. Это не `Allow on Submit` свойства DocField из P4.
+
 ## За пределами базовой программы
 
 | Механизм | Статус |
@@ -219,6 +224,7 @@ Dynamic Link становится обязательным только если
 | собственная логика в hooks | Позже |
 | JavaScript / Client Script | Позже |
 | Server Script | Позже |
+| Custom Permission Types | Позже |
 | REST API / Webhooks | Позже |
 | Query Report / Script Report | Позже |
 | собственные Jinja-шаблоны | Позже |
