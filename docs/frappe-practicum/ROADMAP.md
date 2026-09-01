@@ -38,50 +38,15 @@ L0 платформа
 → L11 portability
 ```
 
-Критерий:
-
 ```text
 OUTPUT(Ln) ⊇ PRECONDITIONS(Ln+1)
 ```
 
 ---
 
-# Глобальные инварианты
+# Финальная security model
 
-Service Request Mandatory:
-
-```text
-Subject
-Location
-Description
-Priority
-```
-
-Status:
-
-```text
-New
-Accepted
-In Progress
-Resolved
-Closed
-```
-
-```text
-Accepted ≠ Assigned To
-Permission ≠ Assignment ≠ Workflow
-```
-
-Location semantics:
-
-```text
-Service Request.location = historical event location
-Equipment.location       = current equipment location
-```
-
-## Финальная Desk security model
-
-Permission Level 0 управляет document-level operations:
+## Level 0 — Document
 
 ```text
 Requester   → Create + Read own; Write/Delete No
@@ -89,7 +54,9 @@ Technician  → Read/Write; Create/Delete No
 Supervisor  → Read/Write/Create; Delete No; Report/Export
 ```
 
-Содержательные поля `Service Request` находятся на Permission Level 1:
+## Level 1 — Business content
+
+Fields:
 
 ```text
 subject
@@ -101,7 +68,7 @@ target_date
 attachment
 ```
 
-Level 1:
+Permissions:
 
 ```text
 Requester   → Read/Write
@@ -109,69 +76,84 @@ Technician  → Read only
 Supervisor  → Read/Write
 ```
 
-`status` остаётся Level 0.
+## Level 2 — Process state
 
-Итоговая модель:
-
-```text
-Level 0 Role Permission
-→ право создать/читать/save/delete Document
-
-Level 1 Permission
-→ право читать/изменять business content
-
-Workflow
-→ право менять process state
-```
-
-Requester Level 1 Write нужен для заполнения нового Document; после insert Level 0 `Write = No` запрещает повторный save.
-
-Technician Level 0 Write нужен для Workflow; Level 1 `Write = No` не даёт штатным permission-aware save переписывать исходные реквизиты заявки.
-
-## Финальный Web Form
+Field:
 
 ```text
-Published = Yes
-Login Required = Yes
-Allow Edit = No
-Show List = Yes
-Apply Document Permissions = No
+status
 ```
 
-Критическая граница:
+Permissions:
 
 ```text
-Desk Create
-= Role Permission path
-
-Web Form create
-= separate Web Form intake path
-= new doc insert with ignore_permissions
+Requester   → Read only
+Technician  → Read/Write
+Supervisor  → Read/Write
 ```
 
-Поэтому финальный запрет Web Form update обязателен: `ignore_permissions=True` не должен оставаться параллельным редактором рабочего Document.
+## После L7
+
+```text
+Workflow Allowed Role / Condition
+→ дополнительный server transition gate
+```
+
+Итог:
+
+```text
+Level 0 = document authority
+Level 1 = business-content authority
+Level 2 = process-state field authority
+Workflow = concrete transition authority
+Assignment = responsibility only
+```
+
+---
+
+# Общие data invariants
+
+Mandatory:
+
+```text
+Subject
+Location
+Description
+Priority
+```
+
+Status values:
+
+```text
+New
+Accepted
+In Progress
+Resolved
+Closed
+```
+
+```text
+Accepted ≠ Assigned To
+```
+
+Location:
+
+```text
+Service Request.location = historical event location
+Equipment.location       = current location
+```
 
 ---
 
 # L0. Основа
 
-Bench, site, app, Module, Developer Mode, Desk, Git.
+Bench, app, site, Module, Developer Mode, Desk, Git.
 
 ---
 
 # L1. Facility Location
 
-Tree:
-
-```text
-Main Site
-├── Building A
-│   ├── Floor 1
-│   │   ├── Room 101
-│   │   └── Room 102
-│   └── Floor 2
-└── Warehouse
-```
+Tree структуры мест.
 
 ---
 
@@ -194,8 +176,6 @@ Out of Service
 Retired
 ```
 
-Naming `field:equipment_code`.
-
 ---
 
 # L3. Data operations
@@ -210,13 +190,7 @@ Filters, Sorting, Saved Filters, Data Import, negative import, Export, Bulk Edit
 
 Создать третий core DocType.
 
-```text
-New
-Accepted
-In Progress
-Resolved
-Closed
-```
+До L5 fields ещё на baseline metadata permission level; permission architecture вводится следующим уроком.
 
 До L7 Status — обычный Select.
 
@@ -226,42 +200,43 @@ Closed
 
 Создать роли и основных Users.
 
-Построить двухуровневую permission model:
+Перестроить `Service Request`:
 
 ```text
-Level 0
-→ document authority
-
-Level 1
-→ Service Request content authority
+business fields → Permission Level 1
+status          → Permission Level 2
 ```
 
-Финальный output:
+Создать exact Level 0/1/2 Role Permission rows.
+
+Ключевые proofs:
 
 ```text
 Requester
-→ create/read-own
-→ no post-create save
+→ заполняет новый Level1 content
+→ Status видит как New, но не выбирает произвольный Level2 state
+→ после insert не save existing Document
 
 Technician
-→ document Write для Workflow
-→ business content read-only
+→ Level0 document Write
+→ Level1 content read-only
+→ Level2 status Write
 
 Supervisor
-→ business content write
-→ no Service Request Delete
+→ Level1 + Level2 Write
+→ no Delete
 ```
 
-Temporary experiments:
+Temporary:
 
 ```text
-Supervisor Delete = Yes → test → No
+Supervisor Delete Yes → test → No
 Restricted Technician
 User Permission
 Share
 ```
 
-Все временные ограничения очищаются до L6.
+Все откатываются до L6.
 
 ---
 
@@ -276,9 +251,19 @@ Tags
 Kanban
 ```
 
-Assignment = responsibility, not authorization.
+До Workflow:
 
-L6 не ослабляет Level 1 protection Service Request content.
+```text
+Technician/Supervisor
+→ могут менять Level2 Status как обычный Select
+
+Requester
+→ Level2 Write не имеет
+```
+
+Так доказательство `Select ≠ state machine` не требует давать Requester state authority.
+
+Assignment не меняет Level 1/2 permissions.
 
 ---
 
@@ -291,6 +276,18 @@ In Progress --Resolve/Technician--> Resolved
 Resolved --Close/Supervisor--> Closed
 ```
 
+`status` остаётся Level 2 и становится Read Only в Desk.
+
+Теперь для смены state нужны одновременно:
+
+```text
+Level 0 Write
+Level 2 Write
+valid Workflow transition
+```
+
+Technician при этом Level 1 Write не получает.
+
 Desk edit roles:
 
 ```text
@@ -300,19 +297,6 @@ In Progress → Technician
 Resolved    → Supervisor
 Closed      → Supervisor
 ```
-
-Requester Create сохраняется для local new doc; после Save server Level 0 `Write = No`.
-
-Критический proof для Technician:
-
-```text
-Start Work / Resolve проходят
-но
-Description / Priority / Target Date
-не становятся Technician-writeable
-```
-
-То есть Workflow не требует отдавать Technician право переписывать business content.
 
 Kanban после сравнения удалить.
 
@@ -329,7 +313,7 @@ Service Requests by Status
 Facility Operations Control
 ```
 
-Reports/Cards/Chart читают существующие Documents и не создают новую permission model.
+Analytics не создаёт permission exceptions.
 
 ---
 
@@ -351,9 +335,9 @@ Round Robin
 Technician One / Technician Two
 ```
 
-Assignment не меняет Status и не расширяет Level 1 permissions.
+Automation не расширяет Level 1/2 authority.
 
-Target Date — conditional automation input.
+Target Date = Level 1 conditional input.
 
 Assignment Rule site-specific.
 
@@ -361,33 +345,26 @@ Assignment Rule site-specific.
 
 # L10. Web Form
 
-```text
-Report a Facility Issue
-```
-
-Изучить Guest временно, затем final authenticated mode.
-
-Два create proof:
-
-```text
-Requester via Desk
-→ доказательство Role Permission Create + Level 1 intake fields
-
-Website User via Web Form
-→ доказательство отдельной Web Form intake capability
-```
-
-`Login Required` = authentication, не role gate.
-
-`Apply Document Permissions` проверяется как existing-document permission behavior; create authorization им не доказывается.
+`Report a Facility Issue`.
 
 Final:
 
 ```text
+Published = Yes
+Login Required = Yes
+Anonymous = No
+Show List = Yes
 Allow Edit = No
+Apply Document Permissions = No
 ```
 
-Это также не позволяет Web Form `ignore_permissions` update обходить Level 1 content protection.
+Desk create и Web Form insert — разные paths.
+
+Web Form new insert использует `ignore_permissions=True`, поэтому не является proof Level 0/1/2 permissions.
+
+`Status` в Web Form отсутствует; новый Document получает default `New`.
+
+Final `Allow Edit = No` закрывает bypass update path поверх Level 1/2 protection.
 
 ---
 
@@ -397,29 +374,29 @@ Allow Edit = No
 
 ```text
 Standard source
-Roles
-Workflow States/Actions/Workflow
-Custom DocPerm Level 0 + Level 1
+→ field permlevels 1/2
+
+fixtures
+→ Roles + Workflow
+
+exported Custom DocPerm
+→ Level 0 + Level 1 + Level 2
 ```
 
-Не поставляются universal fixtures:
+Clean-site proofs:
 
 ```text
-Users
-User Permission
-Share
-Assignment Rule tied to users
-working data
-```
+Requester Desk
+→ Level0 Create + Level1 input + Level2 New/read-only + no post-save Write
 
-Clean-site acceptance отдельно доказывает:
+Technician
+→ Level1 read-only + Level2 Write + Workflow works
 
-```text
-Requester Desk create + no post-create Write
-Technician Workflow + no Level 1 content Write
-Supervisor content Write + no Delete
-Workflow
-Web Form separate intake
+Supervisor
+→ Level1/2 Write + no Delete
+
+Website User
+→ separate Web Form intake
 ```
 
 После проверки:
@@ -432,16 +409,16 @@ bench use facility-ops.localhost
 
 # Labs A–F
 
+Labs не должны ослаблять:
+
 ```text
-A Child Table
-B DocStatus
-C Auto Repeat
-D Customize Form
-E Print/PDF
-F special fields/views
+Level 0 matrix
+Level 1 matrix
+Level 2 matrix
+Workflow
 ```
 
-Labs не расширяют core domain и не ослабляют финальную permission model без явного temporary mutation/rollback.
+Временный business-content field/table получает явный Permission Level и rollback.
 
 ---
 
@@ -449,25 +426,25 @@ Labs не расширяют core domain и не ослабляют финаль
 
 ```text
 L5
-→ Level 0 + Level 1 permissions не ослаблены позже
+→ exact Level0/1/2 model
+
+L6
+→ assignment не меняет authority
+→ Requester не получает Status Write
 
 L7
-→ Technician может вести state machine
-→ Technician не получает content write
-→ UI guard не выдаётся за ACL
+→ Level2 field authority + Workflow transition authority разделены
+→ Technician state transitions работают без Level1 content Write
 
 L9
-→ assignment не выдаётся за authorization
+→ automation не повышает permissions
 
 L10
-→ Web Form create отделён от Role Create
-→ final edit disabled
-→ ignore_permissions update path закрыт
+→ Web Form bypass create отделён от Desk permissions
+→ final update Off
 
 L11
-→ Level 0/1 Custom DocPerm восстановлены на clean site
-→ Desk и Web Form create-path проверены отдельно
-→ portable core отделён от site policy
+→ Level0/1/2 metadata + Custom DocPerm восстановлены на clean site
 ```
 
-После design-consistency выполняется execution-аудит на чистом `v16.32.0`.
+После design consistency выполняется execution-аудит на фактическом `v16.32.0` стенде.
