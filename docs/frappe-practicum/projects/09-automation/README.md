@@ -565,7 +565,52 @@ Assignment Rule с конкретными Users
 
 ---
 
-# 22. Commit Standard Notifications
+# 22. Optional: сравнить Load Balancing
+
+Эта часть не обязательна для приёмки Core, но нужна для покрытия второго штатного алгоритма Assignment Rule.
+
+Перед тестом посмотреть, сколько открытых `ToDo` типа `Service Request` сейчас есть у:
+
+```text
+technician.one@example.com
+technician.two@example.com
+```
+
+Временно изменить правило:
+
+```text
+Rule = Load Balancing
+```
+
+Users оставить теми же.
+
+Создать корректно заполненную заявку:
+
+```text
+Subject:     Load balancing check
+Location:    Warehouse
+Description: Самостоятельная проверка Load Balancing
+Priority:    Medium
+Target Date: будущая дата
+```
+
+Проверить, что Frappe выбрал пользователя с меньшим числом открытых `ToDo` для `Service Request`.
+
+Если счёт одинаковый, заранее закрыть/открыть тестовые assignments так, чтобы разница была очевидна, а не угадывать результат.
+
+После проверки **обязательно вернуть**:
+
+```text
+Rule = Round Robin
+```
+
+и сохранить Assignment Rule.
+
+Финальная конфигурация курса остаётся Round Robin.
+
+---
+
+# 23. Commit Standard Notifications
 
 Проверить diff и добавить только source Standard Notifications:
 
@@ -595,7 +640,7 @@ Assignment Rule database record
 
 ---
 
-# 23. Приёмка L9
+# 24. Приёмка L9
 
 L9 принят, если:
 
@@ -609,6 +654,7 @@ L9 принят, если:
 - автоматическое назначение не меняет Workflow State;
 - Closed Service Request закрывает Assignment Rule ToDo;
 - ручной и автоматический assignment используют штатный ToDo;
+- optional Load Balancing либо проверен и возвращён в Round Robin, либо сознательно пропущен как Optional;
 - Assignment Rule остаётся site-specific и не попадает в universal fixtures;
 - Git содержит Standard Notifications, но не рабочие данные.
 
