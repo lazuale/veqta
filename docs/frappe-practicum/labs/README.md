@@ -3,7 +3,7 @@
 Лаборатории изучают штатные механизмы Frappe, которым не нужно постоянное место в основной модели `facility_ops`.
 
 - [Lab A — Child Table](a-child-table/README.md)
-- Lab B — Draft / Submit / Cancel / Amend / DocStatus
+- [Lab B — Draft / Submit / Cancel / Amend / DocStatus](b-docstatus/README.md)
 - Lab C — Auto Repeat
 - Lab D — Customize Form / Export Customizations
 - Lab E — Print / PDF
