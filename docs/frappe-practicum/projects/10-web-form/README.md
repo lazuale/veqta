@@ -28,52 +28,76 @@ Assignment Rule / Desk Workflow
 
 ---
 
-# 1. Два разных create-path
+# 1. Preconditions: Desk security уже построена
 
-После L10 в приложении существуют два штатных способа создать `Service Request`.
+После L5/L7 обычный Desk path защищён так:
+
+```text
+Level 0
+Requester   → Create + Read own; Write/Delete No
+Technician  → Read/Write; Create/Delete No
+Supervisor  → Read/Write/Create; Delete No
+
+Level 1 business content
+Requester   → Read/Write
+Technician  → Read only
+Supervisor  → Read/Write
+
+status      → Level 0 + Workflow
+```
+
+На Level 1 находятся:
+
+```text
+subject
+location
+equipment
+description
+priority
+target_date
+attachment
+```
+
+L10 не имеет права незаметно разрушить эту модель.
+
+---
+
+# 2. Два разных create-path
 
 ## Desk create
 
 ```text
 requester.one@example.com
-→ Role Permission Create = Yes
-→ обычный Document insert
+→ Level 0 Create = Yes
+→ Level 1 Write позволяет заполнить content
+→ ordinary Document insert
 ```
 
-Здесь `Create` контролируется Role Permission.
+Здесь Role Permission и Permission Level являются частью enforcement.
 
 ## Web Form create
 
-В exact `v16.32.0` новый Web Form Document вставляется так:
+В exact `v16.32.0` новый target Document Web Form вставляется так:
 
 ```text
 doc.insert(ignore_permissions=True, ...)
 ```
 
-То есть Web Form insert **не является доказательством DocType Create permission**.
-
-Его admission boundary задают настройки самой Web Form, в частности:
+Поэтому:
 
 ```text
-Published
-Login Required
-Web Form route
+Web Form submit
+≠ proof Role Permission Create
+≠ proof Permission Level enforcement
 ```
 
-Это фундаментальная академическая граница L10:
-
-```text
-Desk Create permission
-≠ Web Form submission permission
-```
-
-`Apply Document Permissions` не превращает новый Web Form insert в обычный Role Permission `Create` check.
+`Apply Document Permissions` не превращает новый Web Form insert в обычный Desk create-path.
 
 ---
 
-# 2. Threat model финального intake
+# 3. Threat model финального intake
 
-Финальная форма курса:
+Финальная форма:
 
 ```text
 Published = Yes
@@ -87,40 +111,40 @@ Anonymous Responses = No
 Guest submit запрещён
 ```
 
-но это **не отдельный role gate** вида:
+но это не отдельный role gate вида:
 
 ```text
 только Facility Requester может submit
 ```
 
-В базовом Web Form курса такого утверждения нет.
-
-Поэтому deployment policy:
+Deployment policy курса:
 
 ```text
-аккаунты, которым разрешён authenticated website access,
+authenticated website accounts,
+которым доступна эта опубликованная форма,
 считаются доверенными внутренними заявителями
 ```
 
-Если нужен отдельный список ролей/групп, которым разрешено именно создание через внешний канал, это требует иной специально спроектированной portal/permission архитектуры и относится к Later.
+Role-restricted/public-untrusted intake — Later.
 
 ---
 
-# 3. Почему final Allow Edit выключен
+# 4. Почему final Allow Edit обязательно выключен
 
-В `v16.32.0` Web Form при owner-based доступе и:
-
-```text
-Apply Document Permissions = No
-```
-
-может сохранить разрешённый update через:
+В `v16.32.0` разрешённый Web Form update может сохраняться через:
 
 ```text
 doc.save(ignore_permissions=True)
 ```
 
-Поэтому Web Form нельзя оставлять параллельным редактором рабочего Workflow Document.
+Это принципиально сильнее обычного Desk path:
+
+```text
+ignore_permissions=True
+→ нельзя считать Level 0/Level 1 Role Permission enforcement
+```
+
+Поэтому Web Form нельзя оставлять parallel editor рабочего `Service Request`.
 
 Финал:
 
@@ -128,11 +152,11 @@ doc.save(ignore_permissions=True)
 Allow Editing After Submit = No
 ```
 
-`Only Allow Edit For` Workflow не используется как оправдание: это Desk guard, не универсальная server ACL такого update path.
+Это защищает не только Workflow semantics, но и Level 1 content boundary.
 
 ---
 
-# 4. Проверить стенд
+# 5. Проверить стенд
 
 ```bash
 cd ~/frappe/facility-ops-bench
@@ -149,22 +173,12 @@ git status
 ```text
 Service Request Workflow
 Service Request Auto Assignment
-New Service Request Notification
-```
-
-Workflow states:
-
-```text
-New
-Accepted
-In Progress
-Resolved
-Closed
+New Service Request
 ```
 
 ---
 
-# 5. Web Form не создаёт второй бизнес-процесс
+# 6. Web Form не создаёт второй бизнес-процесс
 
 Работаем с тем же:
 
@@ -172,20 +186,13 @@ Closed
 Service Request
 ```
 
-Не создаём:
+Не создаём `Public Request`, `Portal Ticket` и другие дубли.
 
-```text
-Public Request
-External Request
-Portal Ticket
-Website Request
-```
-
-Web Form — новый **канал создания**, а не новая бизнес-сущность.
+Web Form — канал создания, а не новая бизнес-сущность.
 
 ---
 
-# 6. Создать Standard Web Form
+# 7. Создать Standard Web Form
 
 ```text
 Title:          Report a Facility Issue
@@ -195,13 +202,11 @@ Module:         Facility Operations
 Is Standard:    Yes
 ```
 
-Standard Web Form экспортируется в app source.
-
 Generated `.json/.js/.py` boilerplate не редактируем.
 
 ---
 
-# 7. Поля Web Form
+# 8. Поля Web Form
 
 | Field | Настройка |
 |---|---|
@@ -222,11 +227,11 @@ Modified
 Assigned To
 ```
 
-Web Form должна создавать Document, совместимый с H-01 L4.
+Web Form обязана создавать Document, совместимый с H-01 L4, даже несмотря на `ignore_permissions=True` create path.
 
 ---
 
-# 8. Базовый вид
+# 9. Базовый вид
 
 ```text
 Introduction:
@@ -249,7 +254,7 @@ Max attachment size:
 
 ---
 
-# 9. Временный Guest experiment
+# 10. Временный Guest experiment
 
 Только для изучения механизма временно:
 
@@ -281,7 +286,7 @@ Default:   Main Site
 
 ---
 
-# 10. Guest submission
+# 11. Guest submission
 
 Незалогиненным открыть:
 
@@ -299,7 +304,7 @@ Target Date: будущая дата или пусто
 Attachment:  небольшой тестовый файл
 ```
 
-Проверить в Desk:
+Проверить:
 
 ```text
 Location = Main Site
@@ -307,13 +312,13 @@ Status = New
 Description заполнен
 ```
 
-Важно понять: этот тест специально демонстрирует, что опубликованная Web Form может быть самостоятельным create-channel, даже когда Guest не имеет обычной Desk Role Permission на `Service Request`.
+Этот тест показывает отдельную capability Web Form, а не Guest Role Permission.
 
-После теста Guest mode обязательно выключаем.
+После теста Guest mode обязательно выключить.
 
 ---
 
-# 11. Mandatory tests
+# 12. Mandatory tests
 
 Получить отказ минимум:
 
@@ -326,7 +331,7 @@ Description заполнен
 
 ---
 
-# 12. Перейти к authenticated mode
+# 13. Перейти к authenticated mode
 
 Вернуть:
 
@@ -336,13 +341,12 @@ Login required:      Yes
 Allow multiple:      Yes
 Show list:           Yes
 Show attachments:    Yes
+Allow Edit:          No
 ```
-
-`Allow Edit` пока остаётся `No`.
 
 ---
 
-# 13. Вернуть Location и Equipment
+# 14. Вернуть Location и Equipment
 
 ## Location
 
@@ -361,31 +365,23 @@ Mandatory: No
 Allow Read On All Link Options: Yes
 ```
 
-Description:
-
-```text
-Mandatory = Yes
-```
+`Description` остаётся Mandatory.
 
 ---
 
-# 14. Link options и trust boundary
+# 15. Link options и trust boundary
 
-При login-required Web Form без `Allow Read On All Link Options` exact source по умолчанию фильтрует Link options по:
+Без `Allow Read On All Link Options` login-required Web Form по exact source по умолчанию owner-фильтрует Link options.
 
-```text
-owner = current user
-```
-
-Для общих `Facility Location` / `Equipment` это неудобно, поэтому включаем:
+Для общих Location/Equipment включаем:
 
 ```text
 Allow Read On All Link Options = Yes
 ```
 
-Тем самым сознательно раскрываем authenticated Website Users названия этих справочников.
+Это сознательно раскрывает authenticated Website Users названия этих справочников.
 
-Это допустимо только в принятом threat model:
+Допустимо только в threat model:
 
 ```text
 trusted internal reporter
@@ -393,7 +389,7 @@ trusted internal reporter
 
 ---
 
-# 15. Создать Website User
+# 16. Создать Website User
 
 ```text
 Email:              web.requester@example.com
@@ -403,32 +399,26 @@ Enabled:            Yes
 Send Welcome Email: No
 ```
 
-Не выдавать ему `Facility Requester` только ради Web Form.
+Не выдавать `Facility Requester` только ради Web Form.
 
-Именно это позволяет доказать:
+Это позволяет доказать:
 
 ```text
 Web Form submission
-≠ Role Permission Create
+≠ Desk Role Permission Create
 ```
 
 ---
 
-# 16. Проверить Login Required
+# 17. Проверить Login Required
 
-Guest больше не должен получать возможность submit authenticated final form.
+Guest больше не должен submit final form.
 
-Войти:
-
-```text
-web.requester@example.com
-```
-
-Форма должна открыться.
+Войти `web.requester@example.com` — форма должна открыться.
 
 ---
 
-# 17. Создать authenticated заявку
+# 18. Создать authenticated заявку
 
 ```text
 Subject:     Website user request
@@ -440,20 +430,20 @@ Target Date: будущая дата или пусто
 Attachment:  тестовый файл
 ```
 
-Проверить в Desk:
+Проверить:
 
 ```text
 Owner = web.requester@example.com
 Status = New
 ```
 
-Website User не имеет `Facility Requester`, но insert проходит через Web Form intake path. Это ожидаемое, а не обходное поведение.
+Website User не имеет `Facility Requester`, но insert проходит через Web Form capability. Это ожидаемое штатное поведение.
 
-Assignment Rule может создать ToDo, но Status остаётся `New`.
+Assignment Rule может создать ToDo, но Status остаётся New.
 
 ---
 
-# 18. Show List как read-path
+# 19. Show List как read-path
 
 Под Website User открыть список responses.
 
@@ -466,11 +456,11 @@ Status
 Target Date
 ```
 
-Show List не даёт право edit сам по себе.
+Show List сам по себе не даёт edit.
 
 ---
 
-# 19. Временно изучить Allow Edit
+# 20. Временно изучить Allow Edit
 
 На отдельной новой заявке временно:
 
@@ -490,13 +480,16 @@ Description
 Фиксируем:
 
 ```text
-Web Form owner permission
-может разрешать update отдельно от Desk Role Permission
+Web Form update
+может идти отдельно от Desk Role Permission
+и Level 1 field protection
 ```
+
+Это именно причина не оставлять его включённым.
 
 ---
 
-# 20. Обязательный rollback Allow Edit
+# 21. Обязательный rollback Allow Edit
 
 Сразу вернуть:
 
@@ -504,27 +497,7 @@ Web Form owner permission
 Allow editing after submit = No
 ```
 
-Причина:
-
-```text
-Web Form
-не должен оставаться вторым editor path
-после Accept / Start Work / Resolve
-```
-
----
-
-# 21. Проверить final update rejection
-
-Под Website User открыть собственный response.
-
-Read может работать через Show List/view route, но update после:
-
-```text
-Allow editing after submit = No
-```
-
-должен быть запрещён.
+После этого owner может иметь read-path, но Web Form update должен быть запрещён.
 
 ---
 
@@ -532,11 +505,11 @@ Allow editing after submit = No
 
 Website User не должен получить чужой response только потому, что знает `name`.
 
-Проверить попытку открыть Document другого owner через Web Form route.
+Проверить другой owner через Web Form route.
 
 ---
 
-# 23. Что реально делает Apply Document Permissions
+# 23. Apply Document Permissions
 
 Временно включить:
 
@@ -544,19 +517,19 @@ Website User не должен получить чужой response только
 Apply document permissions = Yes
 ```
 
-Проверять нужно **доступ к уже существующему Document**, а не создание нового.
-
-У `web.requester@example.com` нет Desk Role Permission на `Service Request`, поэтому owner-based Web Form read convenience при этом меняется на обычную document permission model.
+Проверять нужно **existing-document access**, не creation.
 
 Фиксируем:
 
 ```text
-Apply Document Permissions
-→ влияет на existing-document permission path
+OFF
+→ Web Form owner/website permission model
 
-Apply Document Permissions
-≠ включить Role Permission Create для Web Form insert
+ON
+→ ordinary document permission model для existing doc
 ```
+
+Но new insert всё равно не становится ordinary Role Permission Create.
 
 После теста вернуть:
 
@@ -569,13 +542,7 @@ Allow editing after submit = No
 
 # 24. Сравнить System User Desk Create и Web Form Create
 
-Под:
-
-```text
-requester.one@example.com
-```
-
-сделать два разных теста.
+Под `requester.one@example.com` сделать два теста.
 
 ## A. Desk
 
@@ -584,24 +551,27 @@ requester.one@example.com
 Это proof:
 
 ```text
-Facility Requester Create = Yes
+Level 0 Create = Yes
+Level 1 Write позволяет заполнить content
 ```
 
-После Save Requester не должен иметь Write по L5.
+После Save:
+
+```text
+Level 0 Write = No
+```
 
 ## B. Web Form
 
-Создать вторую корректную заявку через `/facility-request`.
+Создать вторую заявку через `/facility-request`.
 
-Это proof:
+Это proof только:
 
 ```text
 authenticated Web Form intake работает
 ```
 
-Но **не** повторное доказательство Role Permission Create, потому что Web Form insert использует собственный permission-bypassing create path.
-
-Не смешивать эти два результата.
+Не смешивать два результата.
 
 ---
 
@@ -628,8 +598,6 @@ Supervisor → Close
 ---
 
 # 26. Final configuration
-
-Оставить:
 
 ```text
 Title:        Report a Facility Issue
@@ -666,41 +634,25 @@ Attachment  Optional
 
 # 27. Enforcement map L10
 
-## Hard
-
 ```text
-Published required for live Web Form API/page
-Login Required blocks Guest in final mode
-Mandatory validation
-Allow Edit = No rejects update
+Role Permission Level 0/1
+→ ordinary Desk path
+
+Web Form Published/Login Required
+→ Web Form admission boundary
+
+Web Form new insert
+→ ignore_permissions=True
+→ separate capability
+
+Allow Edit = No
+→ closes Web Form update path
+
+Workflow
+→ process after creation
 ```
 
-## Separate intake capability
-
-```text
-new Web Form insert
-→ doc.insert(ignore_permissions=True)
-→ не является Role Permission Create check
-```
-
-## Existing-document permission path
-
-```text
-Apply Document Permissions = Off
-→ Web Form owner/website permission model
-
-Apply Document Permissions = On
-→ ordinary document permission model
-```
-
-## Deployment policy
-
-```text
-authenticated website accounts with access to this published form
-= trusted internal intake population
-```
-
-Не называть authentication role-based authorization.
+Нельзя выдавать Web Form authentication за role authorization или Web Form insert за proof Permission Level enforcement.
 
 ---
 
@@ -710,11 +662,7 @@ authenticated website accounts with access to this published form
 cd ~/frappe/facility-ops-bench/apps/facility_ops
 
 git status --short
-
-find facility_ops/facility_operations \
-  -type f \
-  | sort \
-  | grep -i 'web_form\|facility_request'
+find facility_ops/facility_operations -type f | sort | grep -i 'web_form\|facility_request'
 ```
 
 Standard Web Form входит в app source.
@@ -728,7 +676,7 @@ Runtime Users/Requests/Files — нет.
 ## Preconditions
 
 ```text
-L5 hardened Role Permission model
+L5 Level 0 + Level 1 permission model
 L7 Workflow Accepted/Accept
 L9 Assignment Rule active on main site
 ```
@@ -750,20 +698,13 @@ Allow Edit = No
 Apply Document Permissions = No
 ```
 
-## Persistent
-
-```text
-Standard Web Form
-Website User site record
-trusted-internal intake policy
-```
-
 ## Output
 
 ```text
-Desk Requester create remains Role Permission path
+Desk security model remains intact
 Web Form create is separate authenticated intake path
 final Web Form is create/read-only
+no persistent ignore_permissions update path
 ```
 
 ---
@@ -773,18 +714,17 @@ final Web Form is create/read-only
 L10 принят, если:
 
 - ученик различает Desk Create и Web Form insert;
-- доказано, что Website User без `Facility Requester` создаёт Service Request через Web Form;
-- это не называется доказательством Role Permission Create;
+- Website User без `Facility Requester` создаёт Service Request через Web Form;
+- это не называется доказательством Role Permission или Permission Level;
 - Guest experiment выполнен и выключен;
 - final `Login Required = Yes`;
 - Login Required не трактуется как role-specific authorization;
-- Website User понимается как trusted internal reporter;
 - Mandatory L4 сохранены;
 - Link catalog disclosure объяснено;
 - Show List работает как read-path;
 - `Allow Edit` изучен и возвращён в `No`;
-- `Apply Document Permissions` проверен на existing-document access и возвращён в `No`;
-- `Apply Document Permissions` не приписывается к create authorization;
+- объяснено, что `ignore_permissions=True` Web Form update обходил бы обычную Level 1 protection;
+- `Apply Document Permissions` проверен только как existing-document mechanism и возвращён в `No`;
 - `Status` не управляется из Web Form;
 - процесс использует `Accept`;
 - Git содержит Standard Web Form, но не runtime data.
