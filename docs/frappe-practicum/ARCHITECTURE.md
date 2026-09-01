@@ -248,16 +248,17 @@ Supervisor
 → выполняет управляющие Workflow transitions
 ```
 
-Ключевой архитектурный выбор после consistency-аудита:
+Основные Technician **не имеют постоянного User Permission по Location**.
+
+`User Permission` и `Share` изучаются в L5 на временном:
 
 ```text
-основные Technician
-не имеют постоянного User Permission по Location
+technician.restricted@example.com
 ```
 
-`User Permission` и `Share` изучаются в L5 на временном `technician.restricted@example.com`, затем Share/User Permission удаляются, пользователь отключается.
+После проверки Share/User Permission удаляются, пользователь отключается.
 
-Почему:
+Причина:
 
 ```text
 глобальный Assignment Rule
@@ -350,12 +351,22 @@ Kanban field update
 L8 читает те же `Service Request`, не создавая аналитических таблиц:
 
 ```text
-Service Requests Overview  → Report Builder
-Open Requests              → Number Card
-High Priority Requests     → Number Card
-Closed Requests            → Number Card
-Service Requests by Status → Dashboard Chart
-Facility Operations        → Workspace
+Service Requests Overview    → Report Builder
+Open Requests                → Number Card
+High Priority Requests       → Number Card
+Closed Requests              → Number Card
+Service Requests by Status   → Dashboard Chart
+Facility Operations Control  → Workspace
+```
+
+Важно различать:
+
+```text
+Facility Operations
+= Module приложения
+
+Facility Operations Control
+= Workspace контроля
 ```
 
 ```text
@@ -378,14 +389,21 @@ Service Request
 → Notification Log
 ```
 
-Используются System Notification и date-based Notification.
+Standard Notifications курса:
 
-`Overdue Service Request` в курсе означает точный test case:
+```text
+New Service Request
+Service Request One Day Overdue
+```
+
+Вторая Notification имеет точную семантику:
 
 ```text
 Days After = 1
 → один день после Target Date
 ```
+
+Это не «все просроченные документы навсегда», а конкретная date-based точка срабатывания.
 
 ## Assignment Rule
 
@@ -438,7 +456,7 @@ Browser
 → Desk
 ```
 
-Web Form должен сохранять инварианты underlying DocType:
+Web Form сохраняет инварианты underlying DocType:
 
 ```text
 Subject     Mandatory
@@ -480,13 +498,16 @@ Status не выводится как editable поле Web Form.
 ## Standard source
 
 ```text
-3 core DocType
-Report
-Number Cards
-Dashboard Chart
-Workspace
-Notifications
-Web Form
+Facility Location / Equipment / Service Request DocType
+Service Requests Overview
+Open Requests
+High Priority Requests
+Closed Requests
+Service Requests by Status
+Facility Operations Control
+New Service Request
+Service Request One Day Overdue
+Report a Facility Issue
 ```
 
 ## Fixtures
@@ -529,7 +550,7 @@ Logs
 
 Последующий `migrate` в L11 проверяет обычный update/convergence путь уже установленного app.
 
-Clean-site тестовые данные обязаны соблюдать ту же модель:
+Clean-site данные обязаны соблюдать ту же модель:
 
 ```text
 Equipment Category = Other
@@ -587,7 +608,7 @@ Facility Location
 
 Service Request data
       ↓
-Report / Cards / Chart / Workspace
+Report / Cards / Chart / Facility Operations Control
 ```
 
 Переносимое приложение состоит из source + universal configuration. Конкретный site добавляет своих Users, локальное распределение работы и рабочие Documents.
