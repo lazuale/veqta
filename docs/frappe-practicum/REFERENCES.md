@@ -21,6 +21,8 @@
 - Apps Page: https://docs.frappe.io/framework/user/en/apps-page
 - Hooks: https://docs.frappe.io/framework/user/en/python-api/hooks
 
+Официальный Create an App показывает модуль, создаваемый `bench new-app`, как `Default Module bootstrapped with app`; отдельно создавать первый Module после `new-app` не требуется.
+
 ## DocType и данные
 
 - DocType basics: https://docs.frappe.io/framework/user/en/basics/doctypes
@@ -31,7 +33,7 @@
 - DocType Layout: https://docs.frappe.io/framework/doctypes/doctype-layout
 - Allow on Submit: https://docs.frappe.io/framework/doctypes/allow-on-submit
 
-Ключевой исходник DocType v16.32.0:
+Ключевые исходники DocType v16.32.0:
 
 - https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/doctype/doctype.json
 - https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/doctype/doctype.py
@@ -51,9 +53,33 @@
 ## Пользователи и права
 
 - Users and Permissions: https://docs.frappe.io/framework/user/en/basics/users-and-permissions
-- Permission Types v16: https://docs.frappe.io/framework/permission-types
+- Data Masking: https://docs.frappe.io/framework/data-masking
+- Custom Permission Types v16: https://docs.frappe.io/framework/permission-types
+- `DocPerm` v16.32.0: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/docperm/docperm.json
 
-Базовая программа изучает штатные permission flags. Custom Permission Types требуют программной проверки прав в коде и поэтому остаются за пределами обязательного уровня.
+Для курса набор permission-флагов сверяется прежде всего с `DocPerm` тега v16.32.0. В нём есть:
+
+- Select;
+- Read;
+- Write;
+- Create;
+- Delete;
+- Submit;
+- Cancel;
+- Amend;
+- Mask;
+- Report;
+- Export;
+- Import;
+- Share;
+- Print;
+- Email.
+
+На момент проверки страница Users and Permissions всё ещё перечисляет `Set User Permissions` как permission-флаг, однако в `DocPerm` v16.32.0 такого поля нет. Поэтому курс не выдаёт его за отдельную галку Role Permission Manager. User Permission при этом остаётся отдельным обязательным механизмом ограничения данных.
+
+Data Masking присутствует в v16.32.0 через поле `Mask`, но официальная документация помечает саму функцию как экспериментальную, поэтому она остаётся дополнительным упражнением.
+
+Custom Permission Types требуют проверки нового permission type в собственном коде. Они относятся к следующему уровню курса.
 
 ## Assignment и ToDo
 
