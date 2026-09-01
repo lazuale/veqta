@@ -16,10 +16,8 @@
 - Release: https://github.com/frappe/frappe/releases/tag/v16.32.0
 - Tag: https://github.com/frappe/frappe/tree/v16.32.0
 - Installation: https://docs.frappe.io/framework/user/en/installation
-- Python requirements: https://github.com/frappe/frappe/blob/v16.32.0/pyproject.toml
-- Node requirements: https://github.com/frappe/frappe/blob/v16.32.0/package.json
-
-Exact version:
+- Python: https://github.com/frappe/frappe/blob/v16.32.0/pyproject.toml
+- Node: https://github.com/frappe/frappe/blob/v16.32.0/package.json
 
 ```text
 Python >=3.14,<3.15
@@ -37,9 +35,8 @@ Node >=24
 - Single: https://docs.frappe.io/framework/user/en/basics/doctypes/single-doctype
 - DocType source: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/doctype/doctype.json
 - DocField: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/docfield/docfield.json
-- Document lifecycle: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py
+- Document: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py
 - BaseDocument: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/base_document.py
-- model standard/optional fields: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/__init__.py
 
 `_assign` — штатное optional field Frappe, не business field `facility_ops`.
 
@@ -53,29 +50,25 @@ Node >=24
 
 ---
 
-# 4. Permissions
+# 4. Permissions — exact basis hardened architecture
 
 - Users and Permissions: https://docs.frappe.io/framework/user/en/basics/users-and-permissions
 - Permission Types: https://docs.frappe.io/framework/permission-types
 - DocPerm: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/docperm/docperm.json
 - Custom DocPerm: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/custom_docperm/custom_docperm.json
-- permission engine: https://github.com/frappe/frappe/blob/v16.32.0/frappe/permissions.py
+- server permissions: https://github.com/frappe/frappe/blob/v16.32.0/frappe/permissions.py
 - metadata permission helpers: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/meta.py
 - Document permission enforcement: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py
-- BaseDocument high-permlevel reset: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/base_document.py
+- high-permlevel reset: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/base_document.py
 - client permission model: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/model/perm.js
-- Form action permission checks: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/form/form.js
+- Form permission/actions: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/form/form.js
 - Permission Manager: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/page/permission_manager/permission_manager.js
 
 ## If Owner / Create
 
-Exact `get_role_permissions()` owner-only folding исключает:
+Owner-only folding server-side не применяется к `create`.
 
-```text
-ptype == "create"
-```
-
-Поэтому работает Desk policy:
+Поэтому Level 0:
 
 ```text
 Requester
@@ -85,13 +78,13 @@ Write = No
 If Owner = Yes
 ```
 
-Новый Document создать можно, owner read остаётся, post-create document Write не выдаётся.
+совместим с созданием нового Document и запретом последующего save.
 
-## Local Desk form + Permission Level
+## Local form + permlevel
 
-Client `frappe.perm.get_perm(doctype, doc)` для `doc.__islocal` использует doctype role permissions без existing-document owner filtering.
+Client `frappe.perm.get_perm()` для local doc использует doctype role permissions.
 
-`get_field_display_status()` смотрит permission row именно поля:
+`get_field_display_status()` вычисляет field access через:
 
 ```text
 df.permlevel
@@ -99,89 +92,77 @@ df.permlevel
 → p.write / p.read
 ```
 
-Следовательно новый Requester Document может иметь одновременно:
+Это exact основание трёхуровневой модели.
+
+### Level 1
 
 ```text
-Level 0 Write = No
-Level 0 Create = Yes
-Level 1 Write = Yes
+subject/location/equipment/description/priority/target_date/attachment
 ```
 
-и при этом:
+Requester имеет Level 1 Write, поэтому может заполнить эти поля нового Document.
+
+### Level 2
 
 ```text
-Level 1 intake fields → editable
-status Level 0        → не является свободно writable field
+status
 ```
 
-Server `Document.insert()` затем выполняет:
+Requester имеет Level 2 Read, но не Write, поэтому Status не является его writable intake field.
+
+Technician/Supervisor имеют Level 2 Write.
+
+## Server insert/save
+
+`Document.insert()` выполняет:
 
 ```text
 check_permission("create")
+validate_higher_perm_levels()
 ```
 
-а не требует document-level `write` для первоначального insert.
+`Document._save()` выполняет:
 
-Это exact-source основание модели:
+```text
+check_permission("write")
+validate_higher_perm_levels()
+```
+
+`validate_higher_perm_levels()` для high-permlevel fields без write access вызывает reset к original/default values.
+
+Отсюда:
 
 ```text
 Requester
-→ Create new request
-→ fill Level 1 business content
-→ после insert не save existing request
-```
-
-## Permission Level — server enforcement
-
-Критический exact-source факт:
-
-```text
-Document.insert()
-→ validate_higher_perm_levels()
-
-Document._save()
-→ validate_higher_perm_levels()
-```
-
-`validate_higher_perm_levels()` вычисляет разрешённые пользователю write-permlevels и для high-permlevel fields без write access вызывает:
-
-```text
-reset_values_if_no_permlevel_access(...)
-```
-
-то есть недопустимые изменения возвращаются к исходным/default values перед DB write.
-
-Поэтому финальная Service Request модель:
-
-```text
-Level 0
-Requester   → Create + Read own; Write No
-Technician  → Read/Write
-Supervisor  → Read/Write/Create
-
-Level 1 content
-Requester   → Read/Write
-Technician  → Read only
-Supervisor  → Read/Write
-```
-
-сохраняет две независимые гарантии:
-
-```text
-Requester
-→ может заполнить новый high-permlevel Document
-→ после insert не может save существующий Document
+→ Level0 Create
+→ Level1 Write
+→ Level2 Write No
+→ new content accepted
+→ status stays permitted default New
+→ after insert Level0 Write No
 
 Technician
-→ может save Level 0 Workflow state
-→ не получает ordinary permission-aware write Level 1 content
+→ Level0 Write
+→ Level1 Write No
+→ Level2 Write
+→ document/state save possible
+→ content change not ordinary permission authority
 ```
 
-Важно: explicit `ignore_permissions=True` обходит эту permission validation. Именно поэтому Web Form update нельзя оставлять включённым как рабочий editor.
+Explicit `ignore_permissions=True` bypasses этот слой.
 
-## Delete
+## Почему status Level 2 лучше Level 0
 
-Delete — обычный DocPerm permission type. В финале `Service Request Delete = No` у всех рабочих ролей; L5 включает его Supervisor только временно.
+Если `status` оставить Level 0, `Create=Yes` сам по себе не является field-level state restriction на insert до Workflow.
+
+Перенос `status` на Level 2 даёт штатную field authority уже с L5:
+
+```text
+Requester → state read-only
+Technician/Supervisor → state write
+```
+
+После L7 Workflow накладывает transition validation поверх Level 2.
 
 ---
 
@@ -192,64 +173,52 @@ Delete — обычный DocPerm permission type. В финале `Service Requ
 - ToDo JSON: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/todo/todo.json
 - ToDo controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/todo/todo.py
 
-`assign_to._add()` создаёт ToDo и проверяет access assignee. При недостаточном access штатный механизм может создать DocShare; при disabled sharing возможен Missing Permission.
-
-Поэтому:
+`assign_to._add()` создаёт ToDo и проверяет access assignee. При недостаточном access возможен DocShare или Missing Permission.
 
 ```text
 Assignment ≠ authorization
+Assignment ≠ Level1/Level2 escalation
 ```
-
-Assignment также не выдаёт Technician Level 1 content write.
 
 ---
 
 # 6. Workflow
 
-- docs: https://docs.frappe.io/erpnext/workflows
+- Workflow docs: https://docs.frappe.io/erpnext/workflows
 - Workflow Actions: https://docs.frappe.io/erpnext/workflow-actions
 - engine: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/workflow.py
-- client model: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/model/workflow.js
+- client workflow: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/model/workflow.js
 - Workflow source: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow
 - Workflow State: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_state
-- Workflow Action: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_action
 - Transition: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_transition
 
-Server transition проверяет state/role/condition.
+`validate_workflow()` проверяет допустимость state transition.
+
+`get_transitions()` учитывает current state, Allowed role и Condition.
+
+Никакого требования `workflow_state_field.permlevel == 0` в exact engine нет.
+
+Поэтому `status` может оставаться Level 2 при условии, что роли, выполняющие transitions, имеют Level 2 Write.
+
+Client `is_read_only()` возвращает false для `doc.__islocal`; Workflow edit role не блокирует форму нового Document.
+
+После L7:
 
 ```text
-Allowed Role / Condition
-= server transition gate
+Level2 Write
++ valid Workflow transition
 ```
 
-Client `is_read_only()` использует state `allow_edit`:
-
-```text
-Only Allow Edit For
-= Desk guard
-```
-
-Критический exact-source факт:
-
-```text
-if (doc.__islocal) return false
-```
-
-поэтому New state с edit role Supervisor не мешает Requester работать с новым local Document.
-
-После insert Role Permission `Write = No` становится Requester boundary.
-
-Workflow state `status` намеренно остаётся Permission Level 0, поэтому Technician может выполнить разрешённый transition, не получая Level 1 Write на business content.
+нужны для process-state change.
 
 ---
 
 # 7. Kanban
 
-- Kanban Board: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/kanban_board/kanban_board.py
-- `frappe.set_value`: https://github.com/frappe/frappe/blob/v16.32.0/frappe/__init__.py
+- Kanban: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/kanban_board/kanban_board.py
 - client set_value: https://github.com/frappe/frappe/blob/v16.32.0/frappe/client.py
 
-Kanban update идёт через обычный save, но не является `apply_workflow(Action)` lifecycle.
+Kanban update приходит к ordinary save и Workflow validation, но не является `apply_workflow(Action)` lifecycle.
 
 ---
 
@@ -266,15 +235,16 @@ Kanban update идёт через обычный save, но не являетс�
 # 9. Notification / Assignment Rule
 
 - Notification: https://docs.frappe.io/framework/notifications
-- Notification source: https://github.com/frappe/frappe/blob/v16.32.0/frappe/email/doctype/notification/notification.py
-- Assignment Rule JSON: https://github.com/frappe/frappe/blob/v16.32.0/frappe/automation/doctype/assignment_rule/assignment_rule.json
-- Assignment Rule controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/automation/doctype/assignment_rule/assignment_rule.py
+- Notification controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/email/doctype/notification/notification.py
+- Assignment Rule: https://github.com/frappe/frappe/blob/v16.32.0/frappe/automation/doctype/assignment_rule/assignment_rule.py
 
-`do_assignment()` использует штатный Assign To.
+Assignment Rule использует штатный Assign To.
 
-Close Condition Rule-owned ToDo — behavior конкретного Assignment Rule, не универсальное свойство Workflow.
+Target Date = Level 1 input.
 
-Target Date Optional, поэтому due/overdue behavior conditional.
+Rule не расширяет Level 1/2 permissions.
+
+Close Condition Rule-owned ToDo — site policy, не universal Workflow behavior.
 
 ---
 
@@ -284,89 +254,49 @@ Target Date Optional, поэтому due/overdue behavior conditional.
 - source: https://github.com/frappe/frappe/tree/v16.32.0/frappe/automation/doctype/auto_repeat
 - `make_repeatable`: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/doctype/doctype.py
 
+Auto Repeat assignment не меняет Level 1/2 role authority.
+
 ---
 
-# 11. Web Form — ключевая permission граница
+# 11. Web Form
 
-Документация:
-
-- https://docs.frappe.io/framework/user/en/web-form
-- https://docs.frappe.io/framework/user/en/web-form/settings
-- https://docs.frappe.io/framework/user/en/web-form/customization
-
-Exact source:
-
-- Web Form JSON: https://github.com/frappe/frappe/blob/v16.32.0/frappe/website/doctype/web_form/web_form.json
-- Web Form controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/website/doctype/web_form/web_form.py
-
-## Published
-
-`raise_if_unpublished()` блокирует direct API use непубликованной формы.
-
-## Login Required
-
-`accept()` блокирует Guest при `login_required = true`.
-
-Это authentication boundary, не role-specific authorization.
+- docs: https://docs.frappe.io/framework/user/en/web-form
+- settings: https://docs.frappe.io/framework/user/en/web-form/settings
+- JSON: https://github.com/frappe/frappe/blob/v16.32.0/frappe/website/doctype/web_form/web_form.json
+- controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/website/doctype/web_form/web_form.py
 
 ## New insert
 
-Критический exact-source факт:
+Exact:
 
 ```text
 new target Document
 → doc.insert(ignore_permissions=True, ...)
 ```
 
-Следовательно:
+Поэтому Web Form insert не доказывает Level 0/1/2 permissions.
 
-```text
-Web Form submit
-≠ Role Permission Create check
-≠ Permission Level proof
-```
+`Status` не включается в Web Form fields; default `New` остаётся structural intake rule.
 
-`Apply Document Permissions` не меняет это поведение нового insert.
+## Existing update
 
-Поэтому L10/L11 разделяют:
-
-```text
-Desk Requester create
-→ proof Role Permission + Level 1 intake
-
-Website User Web Form create
-→ proof Web Form intake capability
-```
-
-## Existing document
-
-Для existing Document:
-
-```text
-Apply Document Permissions = Off
-→ owner / website permission model
-
-Apply Document Permissions = On
-→ ordinary document permission model
-```
-
-При разрешённом owner edit update может сохраняться через:
+Разрешённый owner update может использовать:
 
 ```text
 doc.save(ignore_permissions=True)
 ```
 
-поэтому final:
+Поэтому final:
 
 ```text
 Allow Editing After Submit = No
 ```
 
-Это закрывает обходной update path поверх Workflow и Level 1 protected content.
+Это закрывает bypass update path поверх Level 1/2 authority.
 
-## Link options
+`Apply Document Permissions` относится к existing-document behavior и не превращает new insert в ordinary Create.
 
-Login-required Link options без `Allow Read On All Link Options` получают owner filter. Включение этой настройки сознательно раскрывает authenticated reporters общий каталог имён.
+`Login Required` = authentication boundary, не role-specific authorization.
 
 ---
 
@@ -374,14 +304,14 @@ Login-required Link options без `Allow Read On All Link Options` получа
 
 - Hooks/fixtures: https://docs.frappe.io/framework/user/en/python-api/hooks
 - Export Customizations: https://docs.frappe.io/framework/user/en/guides/app-development/exporting-customizations
-- fixtures implementation: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/fixtures.py
+- fixtures: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/fixtures.py
 - customization sync: https://github.com/frappe/frappe/blob/v16.32.0/frappe/modules/utils.py
 - installer: https://github.com/frappe/frappe/blob/v16.32.0/frappe/installer.py
 - source sync: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/sync.py
 
-`install_app()` выполняет initial source/fixtures/customizations/dashboard sync. Последующий migrate в L11 — convergence test.
+`install_app()` выполняет initial sync.
 
-Exported `Custom DocPerm` должен содержать как Level 0, так и Level 1 rows финальной permission model.
+L11 exported `Custom DocPerm` должен содержать exact Level 0/1/2 rows.
 
 ---
 
@@ -404,7 +334,7 @@ Exported `Custom DocPerm` должен содержать как Level 0, так
 
 ---
 
-# 15. Special fields / Calendar / Gantt
+# 15. Special fields / views
 
 - Table MultiSelect: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/form/controls/table_multiselect.js
 - Barcode: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/form/controls/barcode.js
@@ -429,5 +359,3 @@ custom Client Script / JS
 arbitrary multi-app integration audit
 production hardening
 ```
-
-Именно поэтому `INVARIANTS.md` разделяет hard guarantees, structure, UI guards, conditional behavior и deployment policies.
