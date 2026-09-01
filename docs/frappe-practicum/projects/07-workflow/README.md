@@ -36,32 +36,47 @@ Service Request.status
 
 # 1. Enforcement model
 
-Различать:
+После L5 уже существуют два permission layer:
 
 ```text
-Role Permission
-= server access permission
+Permission Level 0
+= document-level authority
 
+Permission Level 1
+= business-content authority
+```
+
+L7 добавляет третий слой:
+
+```text
 Workflow Allowed Role + Condition
-= server transition permission
+= server transition authority
+```
+
+И отдельно остаётся UI guard:
+
+```text
+Only Allow Edit For
+= state-dependent Desk behavior
+```
+
+Итоговая схема:
+
+```text
+Level 0 Role Permission
+→ можно ли save/create/delete Document
+
+Level 1 Permission
+→ какие business fields можно менять
+
+Workflow
+→ какой state transition разрешён
 
 Only Allow Edit For
-= state-dependent Desk UI guard
+→ как Desk ведёт себя в текущем state
 ```
 
 `Only Allow Edit For` не является самостоятельной ACL.
-
-От L5 уже действует hard permission:
-
-```text
-Requester
-→ Create = Yes
-→ Read own = Yes
-→ Write = No после insert
-→ Delete = No
-```
-
-Workflow не должен подменять эту server boundary.
 
 ---
 
@@ -84,13 +99,43 @@ facility_ops установлен
 working tree clean
 ```
 
-Проверить L5 output:
+Проверить L5 output.
+
+## Level 0
 
 ```text
-Requester saved Service Request → Read own, Write No
-Technician → Read/Write, no Create/Delete
-Supervisor → Read/Write/Create, Delete No
+Requester
+→ Create + Read own
+→ Write/Delete No
+
+Technician
+→ Read/Write
+→ Create/Delete No
+
+Supervisor
+→ Read/Write/Create
+→ Delete No
 ```
+
+## Level 1 Service Request content
+
+```text
+subject
+location
+equipment
+description
+priority
+target_date
+attachment
+```
+
+```text
+Requester   → Read/Write
+Technician  → Read only
+Supervisor  → Read/Write
+```
+
+`status` остаётся Level 0.
 
 Основной Technician не имеет постоянного Location User Permission.
 
@@ -100,7 +145,7 @@ Kanban L6 `Service Request Status Board` пока существует.
 
 # 3. Ещё раз доказать проблему обычного Select
 
-До Workflow под пользователем с Write вручную выполнить на тестовой заявке:
+До Workflow под Supervisor вручную выполнить на тестовой заявке:
 
 ```text
 New → Closed
@@ -116,7 +161,7 @@ Select
 ≠ допустимые переходы
 ```
 
-Requester для этого теста не использовать: после L5 у него уже нет Write сохранённого Document.
+Requester для этого теста не использовать: после L5 у него уже нет document Write сохранённого Document.
 
 ---
 
@@ -146,6 +191,8 @@ request_state
 workflow_status
 ```
 
+`status` остаётся Permission Level 0 именно потому, что Workflow должен менять его независимо от Level 1 business content.
+
 ---
 
 # 5. Сделать Status Read Only
@@ -155,9 +202,12 @@ workflow_status
 ```text
 Read Only = Yes
 Default = New
+Permission Level = 0
 ```
 
-Read Only — UI guard. Server допустимость state change обеспечивает Workflow validation.
+Read Only — UI guard.
+
+Server допустимость state change обеспечивает Workflow validation.
 
 Проверить diff Standard metadata.
 
@@ -217,15 +267,15 @@ Is Active:            No
 | Resolved | 0 | Facility Supervisor |
 | Closed | 0 | Facility Supervisor |
 
-Почему `New` теперь Supervisor:
+Почему `New` принадлежит Supervisor в Desk:
 
 ```text
 Requester
-→ только подаёт новую заявку
-→ после insert server Write = No
+→ подаёт новую заявку
+→ после insert Level 0 Write = No
 
 Supervisor
-→ принимает и при необходимости корректирует New перед запуском процесса
+→ принимает и при необходимости корректирует New
 ```
 
 ## Почему это не ломает Requester Create
@@ -237,19 +287,18 @@ is_read_only()
 → для doc.__islocal возвращает false
 ```
 
-То есть новый локальный документ не блокируется state edit role.
+Server insert первой state не является переходом между двумя сохранёнными states.
 
-Server `validate_workflow()` при insert первой state не рассматривает это как переход между двумя states.
+Requester при этом имеет Level 1 Write, поэтому high-permlevel Mandatory content нового Document не сбрасывается.
 
-Поэтому совместимы одновременно:
+Совместимы одновременно:
 
 ```text
-Requester Create = Yes
+Requester Level 0 Create = Yes
+Requester Level 1 Write = Yes
 New.only_allow_edit_for = Facility Supervisor
-Requester post-create Write = No
+Requester post-create Level 0 Write = No
 ```
-
-Это важный negative/positive compatibility test L7.
 
 ---
 
@@ -333,7 +382,7 @@ requester.one@example.com
 ```text
 Subject:     Workflow requester create test
 Location:    Room 102
-Description: Проверка Create при New state owned Supervisor
+Description: Проверка Create при Level 1 content и New state Supervisor
 Priority:    Medium
 ```
 
@@ -350,25 +399,52 @@ Owner = requester.one@example.com
 
 После Save попытаться изменить `Description`.
 
-Ожидается:
+Ожидается отказ на document save:
 
 ```text
-Write запрещён Role Permission
+Level 0 Write = No
 ```
 
 Главный вывод:
 
 ```text
-Requester Create
-совместим с
-post-create immutable-for-requester intake
-```
+Requester Level 1 Write
+нужен для создания
 
-Не приписывать этот hard запрет `Only Allow Edit For`: его обеспечивает L5 Role Permission.
+но
+
+Requester Level 0 Write No
+делает intake append-only после insert
+```
 
 ---
 
-# 15. Назначить ответственность отдельно
+# 15. Supervisor может корректировать New content
+
+Под Supervisor открыть созданную Requester заявку.
+
+Проверить, что Supervisor может изменить, например:
+
+```text
+Priority
+Target Date
+```
+
+и сохранить.
+
+Это ожидаемо:
+
+```text
+Supervisor Level 0 Write = Yes
+Supervisor Level 1 Write = Yes
+New Desk edit role = Supervisor
+```
+
+После проверки оставить логичные значения.
+
+---
+
+# 16. Назначить ответственность отдельно
 
 Под Supervisor:
 
@@ -388,7 +464,7 @@ Status = New
 
 ---
 
-# 16. Supervisor принимает заявку
+# 17. Supervisor принимает заявку
 
 Выполнить:
 
@@ -402,27 +478,100 @@ Accept
 Status = Accepted
 ```
 
-`Accepted` не является доказательством ToDo. Мы соблюдаем рекомендуемый порядок `Assign To → Accept`, но это не hard coupling Frappe.
+`Accepted` не является доказательством ToDo.
+
+Мы соблюдаем рекомендуемый порядок `Assign To → Accept`, но это не hard coupling Frappe.
 
 ---
 
-# 17. Technician выполняет процесс
+# 18. Критический тест Technician: Workflow без content Write
 
-Под `technician.one@example.com`:
+Войти:
+
+```text
+technician.one@example.com
+```
+
+Открыть Accepted заявку.
+
+Проверить Level 1 поля:
+
+```text
+Description
+Priority
+Target Date
+Location
+Equipment
+```
+
+Technician должен их видеть, но не иметь штатного field Write.
+
+Теперь выполнить:
 
 ```text
 Start Work
-→ Status = In Progress
-
-Resolve
-→ Status = Resolved
 ```
 
-Technician не должен иметь Workflow Action `Close`.
+Получить:
+
+```text
+Status = In Progress
+```
+
+Затем:
+
+```text
+Resolve
+```
+
+Получить:
+
+```text
+Status = Resolved
+```
+
+Это главный compatibility proof L7:
+
+```text
+Technician Level 0 Write
++
+status Level 0
+→ Workflow transitions работают
+
+Technician Level 1 Write = No
+→ business content не становится редактируемым
+```
 
 ---
 
-# 18. Supervisor закрывает
+# 19. Server negative test high Permission Level
+
+Если Desk уже делает Level 1 поля read-only, этого недостаточно как единственного доказательства.
+
+На отдельной тестовой заявке выполнить permission-aware save path, который пытается передать изменённый Level 1 field под Technician, и затем перечитать Document.
+
+Проверяем факт exact `v16.32.0`:
+
+```text
+validate_higher_perm_levels()
+→ недопустимое Level 1 изменение сбрасывается к исходному значению
+```
+
+Не использовать для этого:
+
+```text
+ignore_permissions=True
+frappe.db.set_value
+raw SQL
+```
+
+потому что лаборатория проверяет именно ordinary Document permission path.
+
+Если на конкретном стенде штатный UI не позволяет удобно сформировать такой запрос, достаточно зафиксировать серверный source behavior и обязательный Desk negative test; собственный тестовый Python-код ради курса не пишем.
+
+---
+
+# 20. Supervisor закрывает
 
 Под Supervisor:
 
@@ -439,18 +588,19 @@ Close
 
 ---
 
-# 19. Запрещённые переходы
+# 21. Запрещённые переходы и записи
 
 Проверить:
 
 ```text
 Requester / New
 → Accept недоступен
-→ post-create Write запрещён Role Permission
+→ post-create save запрещён Level 0 Role Permission
 
 Technician / Accepted
 → Start Work доступен
 → Resolve напрямую недоступен
+→ Level 1 content write отсутствует
 
 Supervisor / Resolved
 → Close доступен
@@ -459,7 +609,7 @@ Supervisor / Resolved
 
 ---
 
-# 20. Временная Condition
+# 22. Временная Condition
 
 У:
 
@@ -479,7 +629,7 @@ Condition — server transition predicate, но не permanent бизнес-пр
 
 ---
 
-# 21. Kanban после Workflow
+# 23. Kanban после Workflow
 
 L6 Kanban использует те же state values.
 
@@ -500,7 +650,7 @@ Service Request Status Board
 
 ---
 
-# 22. Timeline и audit
+# 24. Timeline и audit
 
 Сравнить:
 
@@ -515,25 +665,28 @@ Workflow comment/action
 
 ---
 
-# 23. Классифицировать enforcement
+# 25. Классифицировать enforcement
 
 | Механизм | Роль |
 |---|---|
-| Role Permission | server access boundary |
+| Level 0 Role Permission | server document access/save boundary |
+| Level 1 Permission | server business-field write/read boundary on ordinary Document path |
 | Allowed Role | server transition boundary |
 | Workflow Condition | server transition predicate |
 | Status Read Only | UI guard |
 | Only Allow Edit For | Desk state guard |
 | Track Changes | audit, не запрет |
+| Assignment | responsibility, не ACL |
 
 ---
 
-# 24. Metadata и configuration
+# 26. Metadata и configuration
 
 App metadata:
 
 ```text
-Service Request.status → Read Only
+Service Request.status → Read Only + permlevel 0
+Service Request business content → permlevel 1
 ```
 
 Site configuration до L11:
@@ -557,7 +710,7 @@ New.allow_edit = Facility Supervisor
 
 ---
 
-# 25. Commit metadata
+# 27. Commit metadata
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
@@ -577,12 +730,12 @@ Workflow records попадут в portable configuration только в L11.
 
 ---
 
-# 26. State contract L7
+# 28. State contract L7
 
 ## Preconditions
 
 ```text
-L5 final permission matrix действует
+L5 Level 0 + Level 1 permission matrix действует
 L6 assignment/collaboration изучены
 Kanban существует
 ```
@@ -596,7 +749,8 @@ Workflow Condition priority == High
 ## Persistent
 
 ```text
-status Read Only
+status Read Only + Level 0
+Service Request content remains Level 1
 Service Request Workflow active
 New edit role = Supervisor
 Accepted/In Progress edit role = Technician
@@ -613,25 +767,34 @@ Kanban removed
 ## Output
 
 ```text
-Requester Create still works
+Requester Create works
 Requester saved Document Write = No
+Technician Workflow transitions work
+Technician Level 1 content Write = No
+Supervisor content Write works
 Workflow transitions role-gated
 Assignment remains separate
 ```
 
 ---
 
-# 27. Приёмка L7
+# 29. Приёмка L7
 
 L7 принят, если:
 
 - `status` — единственный Workflow State Field;
 - states `New / Accepted / In Progress / Resolved / Closed`;
 - actions `Accept / Start Work / Resolve / Close`;
+- `status` остаётся Permission Level 0;
+- business content остаётся Permission Level 1;
 - `New.only_allow_edit_for = Facility Supervisor`;
 - Requester после включения Workflow реально создаёт новую заявку;
-- после Save тот же Requester не может её переписать;
-- hard запрет post-create edit объясняется Role Permission, а не `Only Allow Edit For`;
+- после Save Requester не может её переписать;
+- Supervisor может корректировать Level 1 content;
+- Technician выполняет `Start Work / Resolve`;
+- Technician не получает Level 1 content Write;
+- hard post-create Requester restriction объясняется Role Permission, а не `Only Allow Edit For`;
+- field protection объясняется Permission Level, а не только read-only UI;
 - Allowed Role реально ограничивает transitions;
 - temporary Condition удалена;
 - `Accepted` не трактуется как наличие assignee;
