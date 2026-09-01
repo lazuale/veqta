@@ -2,8 +2,6 @@
 
 P0 нужен для одного: разобраться, **из чего реально состоит Frappe-приложение**, как связаны Bench, app, site, Module, Desk, база данных и файлы в Git.
 
-Это отдельный учебный практикум. Он не использует VEQTA, её app, site, модель данных или Git-историю.
-
 Базовая версия: **Frappe Framework v16.32.0**.
 
 ## Что должно получиться
@@ -29,7 +27,8 @@ Module: Frappe Practicum
 - первый стандартный DocType;
 - файлы этого DocType в app;
 - обычный Document в базе site;
-- разницу между изменением metadata приложения и созданием рабочих данных.
+- разницу между изменением metadata приложения и созданием рабочих данных;
+- штатное удаление стандартного DocType и соответствующее удаление его файлов из app.
 
 PDF в P0 не проверяем. Он впервые понадобится в P5.
 
@@ -421,7 +420,7 @@ Desk → Save DocType → файл app → Git diff
 
 ---
 
-# 11. Зафиксировать результат P0 в локальном Git
+# 11. Зафиксировать создание DocType в локальном Git
 
 Проверить изменения:
 
@@ -477,7 +476,7 @@ git status
 
 # 13. Приёмка P0
 
-P0 принят, если ученик может без подсказки выполнить и объяснить:
+До удаления учебного DocType ученик должен без подсказки выполнить и объяснить:
 
 ```bash
 cd ~/frappe/frappe-practicum-bench
@@ -503,5 +502,48 @@ cat frappe_practicum/modules.txt
 - обычную запись `Lab Note` в Desk;
 - объяснение, почему metadata DocType попадает в Git, а Document — в базу site;
 - разницу между Bench, app, site и Module.
+
+---
+
+# 14. Удалить учебный DocType и оставить чистый app
+
+`Lab Note` нужен только для P0. Перед P1 его удаляем штатно и заодно смотрим обратную сторону lifecycle metadata.
+
+Сначала удалить созданную запись `Lab Note` через обычный List/Form View.
+
+Затем под `Administrator` открыть сам `DocType: Lab Note` и выполнить стандартное действие `Delete`.
+
+Для стандартного DocType это разрешено в Developer Mode. Frappe v16.32.0 при таком удалении удаляет каталог controller/metadata этого DocType из Module приложения.
+
+Проверить:
+
+```bash
+cd ~/frappe/frappe-practicum-bench/apps/frappe_practicum
+
+git status --short
+find frappe_practicum/frappe_practicum/doctype/lab_note \
+  -maxdepth 1 -type f -printf '%f\n' 2>/dev/null || true
+```
+
+Каталога `lab_note` в app больше быть не должно, а Git должен показывать удаление ранее закоммиченных файлов.
+
+Зафиксировать cleanup:
+
+```bash
+git add -A
+git diff --cached
+git commit -m "Remove Lab Note training doctype"
+git status
+```
+
+Финальное состояние перед P1:
+
+- учебный app установлен и работает;
+- Developer Mode включён;
+- scheduler/workers проверены;
+- устройство standard DocType и Document понятно;
+- цикл `create → change → delete` standard metadata пройден;
+- одноразового `Lab Note` в app больше нет;
+- Git working tree чистый.
 
 После этого можно переходить к P1.
