@@ -1,16 +1,14 @@
 # Границы базового практикума
 
-## Цель
+Базовая версия — **Frappe Framework v16.32.0**.
 
-Базовый курс показывает **Frappe Framework 16 как платформу приложений через практику**.
-
-Весь маршрут развивается вокруг одного app:
+Практикум показывает Frappe как платформу приложений через один app:
 
 ```text
 facility_ops
 ```
 
-и одной минимальной модели:
+и одну минимальную модель:
 
 ```text
 Facility Location (Tree)
@@ -20,24 +18,31 @@ Facility Location (Tree)
         └─────────────────┴────────────► Service Request
 ```
 
-Собственная бизнес-логика на Python или JavaScript в базовом курсе не требуется.
+Собственную бизнес-логику на Python или JavaScript в базовом курсе не пишем.
 
-Это не запрет на штатные expression-поля, `hooks.py`, fixtures и generated files Frappe. Запрет относится к собственной бизнес-логике, которую пришлось бы программировать вместо штатного механизма платформы.
+Это не запрет на:
+
+```text
+штатные expression-поля
+hooks.py для fixtures/config
+Frappe-generated files
+exported customizations
+```
+
+Запрет относится к собственной логике, которая дублировала бы штатный механизм платформы.
 
 ---
 
-# Проверенная версия
+# Проверенная версия и источники
 
-Основная версия — **Frappe Framework v16.32.0**.
+Приоритет:
 
-Приоритет проверки:
-
-1. фактический учебный стенд `v16.32.0`;
-2. исходники exact tag `v16.32.0`;
+1. фактический стенд `v16.32.0`;
+2. exact source tag `v16.32.0`;
 3. официальная документация Frappe;
-4. `version-16` только для отслеживания будущих изменений.
+4. moving `version-16` только для будущих изменений.
 
-Если документация и exact source расходятся, курс не подгоняется под общую формулировку документации.
+Если общая документация расходится с exact source, базовый курс следует exact source.
 
 ---
 
@@ -50,13 +55,17 @@ Site:   facility-ops.localhost
 Module: Facility Operations
 ```
 
-Базовый стек фиксируется в `projects/00-lab/SETUP_WSL2.md`.
+Стек стенда фиксируется в:
+
+```text
+projects/00-lab/SETUP_WSL2.md
+```
 
 ---
 
-# Ядро приложения
+# Постоянное ядро
 
-Только три обязательных предметных DocType:
+Только:
 
 ```text
 Facility Location
@@ -64,9 +73,7 @@ Equipment
 Service Request
 ```
 
-Новая бизнес-сущность не создаётся только ради демонстрации возможности Frappe.
-
-В частности, в базовом ядре нет отдельных:
+В базовом ядре нет отдельных:
 
 ```text
 Equipment Type
@@ -75,21 +82,79 @@ Inspection
 Maintenance Work
 Department
 Team
-Technician
-Requester
-Status
-Priority
+Technician business entity
+Requester business entity
+Status reference
+Priority reference
 ```
 
-Если специальному механизму нужен временный объект, он создаётся в лаборатории и после упражнения может быть удалён.
+Специальному механизму разрешён временный объект в Lab, но это не делает его частью итоговой модели.
 
 ---
 
-# Что входит в основной маршрут L0–L11
+# Инварианты модели
 
-## Среда и приложение
+## Equipment
 
-- WSL2 / Debian учебный стенд;
+Category:
+
+```text
+HVAC
+Electrical
+IT
+Other
+```
+
+Status:
+
+```text
+Active
+Out of Service
+Retired
+```
+
+`Equipment.notes` после L5 имеет Permission Level 1.
+
+## Service Request
+
+Mandatory:
+
+```text
+Subject
+Location
+Description
+Priority
+```
+
+Optional:
+
+```text
+Equipment
+Target Date
+Attachment
+```
+
+Status:
+
+```text
+New
+Assigned
+In Progress
+Resolved
+Closed
+```
+
+До L7 это Select, после L7 — то же поле `status` как Workflow State Field.
+
+Любой канал создания `Service Request`, включая Web Form и automation test data, обязан соблюдать Mandatory-модель.
+
+---
+
+# Что входит в Core L0–L11
+
+## Платформа
+
+- WSL2 / Debian стенд;
 - Bench;
 - Site;
 - App;
@@ -102,17 +167,18 @@ Priority
 - Desk;
 - Awesomebar;
 - scheduler / workers;
+- `install-app`;
 - `bench migrate`;
 - второй clean site.
 
+`install-app` и `migrate` не считаются двумя обязательными половинами первоначальной установки. В `v16.32.0` install flow уже синхронизирует app source, fixtures/customizations; L11 использует последующий migrate как проверку штатной повторной синхронизации.
+
 ## Модель данных
 
-- DocType;
-- DocField;
-- Document;
+- DocType / DocField / Document;
 - `name`;
-- Standard DocType;
-- Tree DocType;
+- Standard DocType своего app;
+- Tree;
 - основные Field Types;
 - Link;
 - Naming;
@@ -120,14 +186,14 @@ Priority
 - Search Fields;
 - Quick Entry;
 - Track Changes;
-- Form / List / Tree View;
+- Form / List / Tree;
 - Allow Import;
 - Data Import / Export.
 
 ## Работа с данными
 
 - Filters;
-- Sorting List View;
+- Sorting текущего List View;
 - Saved Filters;
 - Search;
 - Data Import template;
@@ -137,7 +203,7 @@ Priority
 - Attachments;
 - Timeline.
 
-Курс не утверждает, что отдельная настройка metadata `Default Sort` изучена: L3 проверяет обычную сортировку текущего списка.
+Отдельная metadata-настройка `Default Sort` не считается изученной.
 
 ## Пользователи и права
 
@@ -148,13 +214,24 @@ Priority
 - Role;
 - Role Permission Manager;
 - Read / Write / Create / Delete;
-- Report / Export / Import там, где они используются;
+- Report / Export / Import;
 - If Owner / Only If Creator;
 - Permission Level;
 - User Permission;
 - Share.
 
-Права проверяются отдельным входом под обычными учебными пользователями, а не под Administrator.
+`User Permission` и `Share` входят в Core как **временный изолированный эксперимент L5**. Они не остаются ограничением основных Technician после завершения урока.
+
+Постоянные основные пользователи после L5:
+
+```text
+requester.one@example.com
+requester.two@example.com
+technician.one@example.com
+supervisor.one@example.com
+```
+
+`technician.two@example.com` создаётся только в L9.
 
 ## Совместная работа
 
@@ -166,17 +243,17 @@ Priority
 - Tags;
 - Kanban.
 
-Главное различие:
+Ключевое различие:
 
 ```text
-Permission = что пользователь может делать
-Assignment = какая конкретная работа назначена
-Status     = состояние рабочего документа
+Permission = доступ
+Assignment = конкретная работа
+Status     = состояние документа
 ```
 
 ## Workflow
 
-- обычный Status до Workflow;
+- обычный Status до L7;
 - Workflow;
 - Workflow State;
 - Workflow Action Master;
@@ -184,14 +261,14 @@ Status     = состояние рабочего документа
 - Allowed Role;
 - Only Allow Edit For;
 - Workflow Action;
-- простая transition Condition;
-- использование существующего `Service Request.status` как Workflow State Field.
+- простая Condition;
+- существующий `Service Request.status` как state field.
 
-Workflow появляется только после того, как ученик увидел свободное ручное изменение Status.
+Workflow не назначает человека.
 
-## Контроль работы
+## Контроль
 
-- один рабочий Report Builder;
+- один Report Builder;
 - Filters;
 - Group By;
 - Count;
@@ -202,24 +279,28 @@ Workflow появляется только после того, как учен�
 - Quick List;
 - role-based access к Workspace/Chart.
 
-`Sum / Average` в базовом маршруте не изучаются и не считаются покрытыми.
+`Sum / Average` не считаются покрытыми Core.
 
-## Автоматизация
+## Automation
 
 - Standard Notification;
 - System Notification;
 - Notification Filters;
 - date-based Notification;
-- Preview / Alerts for Today;
+- Preview / Get Alerts for Today;
 - Assignment Rule;
 - Round Robin;
 - Due Date Based On;
 - Close Condition;
-- штатные expression-поля механизма;
+- штатные expression-поля;
 - scheduler/background jobs;
-- ручной запуск штатного scheduler job для теста.
+- manual execution штатного scheduler handler.
 
-Load Balancing проверяется как самостоятельное упражнение, а не как второй обязательный алгоритм.
+Load Balancing — Optional внутри L9. После проверки Assignment Rule возвращается в Round Robin.
+
+Глобальный Assignment Rule L9 допустим только потому, что оба основных Technician не имеют постоянного Location User Permission.
+
+Assignment Rule с конкретными Users остаётся site-specific configuration.
 
 ## Web
 
@@ -236,11 +317,17 @@ Load Balancing проверяется как самостоятельное уп
 - Allow Read On All Link Options;
 - attachments.
 
-Web Form работает поверх существующего `Service Request`, а не создаёт второй процесс заявок.
+Web Form работает поверх `Service Request` и сохраняет его Mandatory-модель. В частности:
 
-## Поставка приложения
+```text
+Description = Mandatory
+```
 
-- Standard metadata;
+Status не редактируется как поле внешней формы.
+
+## Поставка
+
+- Standard source;
 - app configuration;
 - site-specific configuration;
 - working data;
@@ -254,13 +341,17 @@ Web Form работает поверх существующего `Service Reque
 - clean site;
 - повторная проверка migrate.
 
-Главный результат L11: ученик понимает, что app source, конфигурация site и рабочие Documents — разные слои.
+После L11 активным site снова становится:
+
+```text
+facility-ops.localhost
+```
+
+Clean site остаётся только контрольным стендом.
 
 ---
 
-# Что изучается лабораториями
-
-Лаборатории не расширяют постоянное ядро приложения.
+# Что входит в Labs
 
 ## Lab A — Child Table
 
@@ -268,12 +359,9 @@ Web Form работает поверх существующего `Service Reque
 - Table;
 - Float;
 - Currency;
-- `parent`;
-- `parenttype`;
-- `parentfield`;
-- `idx`.
+- `parent` / `parenttype` / `parentfield` / `idx`.
 
-Временный `Work Log` после практики удаляется.
+Временный `Work Log` удаляется.
 
 ## Lab B — DocStatus
 
@@ -286,7 +374,7 @@ Web Form работает поверх существующего `Service Reque
 - Allow on Submit;
 - Audit Trail.
 
-Используется отдельный временный `Service Report`, чтобы не ломать lifecycle Service Request.
+Используется временный `Service Report`; `Service Request` не делаем Submittable.
 
 ## Lab C — Auto Repeat
 
@@ -295,7 +383,9 @@ Web Form работает поверх существующего `Service Reque
 - Assignee;
 - scheduler;
 - generated Document;
-- cleanup служебного `auto_repeat` Custom Field.
+- cleanup `auto_repeat` Custom Field.
+
+L9 Assignment Rule временно отключается для чистого теста и возвращается после лаборатории.
 
 ## Lab D — Customize Form
 
@@ -305,9 +395,9 @@ Web Form работает поверх существующего `Service Reque
 - Module for Export;
 - Export Customizations;
 - Sync on Migrate;
-- точечная очистка кастомизации.
+- точечный rollback.
 
-Lab D **не** создаёт Custom DocType и **не** изучает DocType Layout.
+Lab D не создаёт Custom DocType и не изучает DocType Layout.
 
 ## Lab E — Print / PDF
 
@@ -318,18 +408,15 @@ Lab D **не** создаёт Custom DocType и **не** изучает DocType 
 - Letter Head;
 - Print Settings;
 - browser Print;
-- PDF;
-- Chrome PDF generator;
-- Print permission как граница пользовательского доступа.
+- PDF через chrome.
 
-Полезный Print Format остаётся в приложении; учебный Letter Head удаляется.
+Standard Print Format остаётся app-owned, временный Letter Head удаляется.
 
 ## Lab F — специальные возможности
 
-- Single DocType;
+- Single;
 - Dynamic Link;
 - Table MultiSelect;
-- Check;
 - Percent;
 - Time;
 - Duration;
@@ -339,141 +426,43 @@ Lab D **не** создаёт Custom DocType и **не** изучает DocType 
 - Attachment Gallery;
 - Markdown Editor;
 - Data Masking;
-- Calendar;
-- Gantt.
+- Calendar/Gantt на штатном Event.
 
-Calendar/Gantt проверяются на штатном `Event`. Для собственного DocType в `v16.32.0` нужна calendar JavaScript-конфигурация, поэтому собственный Calendar/Gantt остаётся на следующем уровне.
+Собственная Calendar/Gantt JS config — Later.
 
 ---
 
-# Что остаётся на следующем уровне
+# Что сознательно Later
 
-- Custom DocType как отдельная практика;
+- Custom DocType как пользовательская runtime-сущность;
 - DocType Layout;
-- изменение default sort metadata как отдельная практика;
-- Sum / Average и более сложная аналитика;
-- Email permission как отдельная проверка;
-- собственные Python controllers с бизнес-логикой;
-- собственные server-side hooks с бизнес-логикой;
-- JavaScript / Client Script;
-- собственный calendar JS;
-- Server Script;
-- whitelisted methods;
-- REST API / Webhooks;
-- Query Report / Script Report;
-- ручные Jinja templates;
-- собственные Website / Portal Pages;
-- Web Form Request/key internals;
 - Virtual DocType;
-- сторонние библиотеки и apps;
-- Custom Permission Types, требующие собственного кода.
+- Query Report;
+- Script Report;
+- собственные Python controllers/hooks business logic;
+- собственный Client Script / JS business logic;
+- custom HTML/Jinja Print Format как обязательная практика;
+- собственный Calendar/Gantt JS config;
+- Sum/Average analytics;
+- Email permission;
+- Custom Permission Types;
+- внешние интеграции/API как отдельный блок;
+- полноценный portal/frontend;
+- production deployment/hardening.
 
 ---
 
-# Что считается частью app
+# Критерий выхода из базового курса
 
-## Standard metadata / Standard source object
-
-Создано в Developer Mode внутри Module приложения и хранится в source `facility_ops`.
-
-Примеры курса:
+Ученик должен уметь объяснить и показать на живом стенде:
 
 ```text
-DocType
-Standard Report
-Standard Number Card
-Standard Dashboard Chart
-Standard Workspace
-Standard Notification
-Standard Web Form
-Standard Print Format
+DocType / Document / metadata
+app source / site config / working data
+permissions / assignment / workflow
+Desk / Web Form
+reports / automation
+fixtures / customizations / clean site
 ```
 
-## App configuration
-
-Configuration Documents, которые должны существовать на любом развёртывании приложения, но не являются Standard source-объектами.
-
-В L11 через fixtures поставляются:
-
-```text
-Facility Requester
-Facility Technician
-Facility Supervisor
-Workflow State
-Workflow Action Master
-Service Request Workflow
-```
-
-## Site-specific configuration
-
-Зависит от конкретного развёртывания и не должна автоматически ехать на каждый site.
-
-Примеры курса:
-
-```text
-Users
-User Permission
-Share
-Assignment Rule с конкретными Users
-Letter Head конкретной организации
-```
-
-`Service Request Auto Assignment` из L9 намеренно не входит в универсальные fixtures L11.
-
-## Exported customization
-
-Custom Field, Property Setter и Custom Permissions могут быть экспортированы штатным `Export Customizations`.
-
-Экспортированный JSON — механизм синхронизации выбранной кастомизации, а не универсальная команда удаления старых Custom Field/Property Setter на других site.
-
-## Working data
-
-Конкретные:
-
-```text
-Facility Location
-Equipment
-Service Request
-ToDo
-Comments
-Files
-Notification Log
-```
-
-— рабочие Documents текущего site.
-
-Они не превращаются в fixtures только ради переноса учебного содержимого.
-
----
-
-# Проверка переносимости
-
-Финальный основной урок создаёт новый чистый site:
-
-```text
-clean Frappe site
-+ facility_ops
-+ install-app
-+ migrate
-= рабочая конфигурация приложения
-```
-
-На новом site должна восстановиться переносимая конфигурация приложения, но не тестовые рабочие данные и не локальное распределение исполнителей.
-
----
-
-# Правило отбора тем
-
-Тема входит в основной маршрут, если одновременно:
-
-1. это штатная возможность Frappe `v16.32.0`;
-2. она нужна трём основным DocType или основному процессу;
-3. её можно воспроизвести руками и проверить;
-4. ради неё не приходится создавать лишнюю бизнес-сущность;
-5. упражнение действительно присутствует в уроке.
-
-Если хотя бы один пункт не выполняется, тема идёт в Lab или Later.
-
-Матрица не является поводом раздувать приложение.
-
-Список источников находится в [REFERENCES.md](REFERENCES.md).
+и пройти L0 → L11 без ручного исправления противоречий между уроками.
