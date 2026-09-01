@@ -1,201 +1,172 @@
 # P0. Учебное приложение
 
-P0 нужен не для изучения бизнес-модели. Здесь мы разбираемся, **из чего реально состоит Frappe-приложение**, как связаны Bench, app, site, Module, Desk и файлы в Git.
+P0 нужен для одного: разобраться, **из чего реально состоит Frappe-приложение**, как связаны Bench, app, site, Module, Desk, база данных и файлы в Git.
 
-После P0 должно исчезнуть главное непонимание новичка: «я что-то накликал в браузере — а где это вообще живёт?»
+Это отдельный учебный практикум. Он не использует VEQTA, её app, site, модель данных или Git-историю.
 
-Базовая версия практикума: **Frappe Framework v16.32.0**.
+Базовая версия: **Frappe Framework v16.32.0**.
 
 ## Что должно получиться
 
-К концу P0 у вас есть:
+К концу P0 есть отдельный учебный стенд:
 
-- рабочий Bench с Frappe v16.32.0;
-- app `veqta`;
-- site `veqta.localhost`;
-- app установлен на site;
-- включён Developer Mode;
-- понятна структура app и его default Module;
-- открыт и пройден основной интерфейс Desk v16;
-- scheduler не отключён;
-- background workers запускаются вместе с dev-стендом;
-- создан первый стандартный DocType приложения;
-- видно, какие файлы Frappe создал в app;
-- создан обычный Document этого DocType;
-- понятно, почему запись Document не появляется в Git, а изменение DocType появляется.
+```text
+Bench: frappe-practicum-bench
+App:   frappe_practicum
+Site:  frappe-practicum.localhost
+Module: Frappe Practicum
+```
 
-PDF в P0 не проверяем. Печатный сценарий начинается в P5.
+И ученик может показать:
+
+- точную версию Frappe;
+- app, установленный на site;
+- включённый Developer Mode;
+- default Module, созданный вместе с app;
+- структуру app и основные файлы;
+- работающий Desk v16;
+- scheduler и workers;
+- первый стандартный DocType;
+- файлы этого DocType в app;
+- обычный Document в базе site;
+- разницу между изменением metadata приложения и созданием рабочих данных.
+
+PDF в P0 не проверяем. Он впервые понадобится в P5.
 
 ---
 
-# 1. Поднять учебный стенд
+# 1. Поднять отдельный стенд
 
-Если стенд ещё не развёрнут, пройти инструкцию:
+Если учебного стенда ещё нет, пройти:
 
-[START_HERE_WSL2.md](../../../START_HERE_WSL2.md)
+[SETUP_WSL2.md](SETUP_WSL2.md)
 
-Она должна закончиться рабочим состоянием:
+После установки ожидается:
 
 ```text
-~/frappe/veqta-bench/
+~/frappe/frappe-practicum-bench/
 ├── apps/
 │   ├── frappe/
-│   └── veqta/
+│   └── frappe_practicum/
 └── sites/
-    └── veqta.localhost/
+    └── frappe-practicum.localhost/
 ```
 
-В `apps/frappe` должен быть точный Frappe `v16.32.0`, а `apps/veqta` должен быть Git-репозиторием VEQTA.
-
-Если стенд уже был развёрнут раньше, установку повторять не нужно. Сразу переходите к проверке.
-
-## Проверка
-
-В Debian/WSL:
+Проверить:
 
 ```bash
-cd ~/frappe/veqta-bench
+cd ~/frappe/frappe-practicum-bench
 
 bench version
-bench --site veqta.localhost list-apps
+bench --site frappe-practicum.localhost list-apps
 
 cd apps/frappe
 git describe --tags --exact-match
 cd ../..
 ```
 
-Нужно увидеть:
-
-```text
-frappe 16.32.0 ...
-```
-
-В списке приложений site должны быть минимум:
-
-```text
-frappe
-veqta
-```
-
-А `git describe` для `apps/frappe` должен вернуть:
+Нужно увидеть Frappe `16.32.0`, приложения `frappe` и `frappe_practicum`, а `git describe` должен вернуть:
 
 ```text
 v16.32.0
 ```
 
-Если tag другой — практикум пока не начинать. Сначала привести стенд к базовой версии курса.
+Если версия другая — P0 не начинаем.
 
 ---
 
-# 2. Разделить в голове Bench, app и site
+# 2. Bench, app и site — это разные вещи
 
-Откройте корень Bench:
+Открыть корень Bench:
 
 ```bash
-cd ~/frappe/veqta-bench
+cd ~/frappe/frappe-practicum-bench
 ls -la
 ```
 
-Посмотрите только три каталога:
+Для начала достаточно трёх каталогов:
 
 ```text
-apps/
-sites/
-logs/
+apps/    код приложений
+sites/   отдельные экземпляры Frappe и их данные
+logs/    журналы процессов Bench
 ```
 
-Для P0 достаточно понимать их так:
-
-```text
-Bench
-├── apps/      код установленных приложений
-├── sites/     отдельные экземпляры Frappe и их данные/настройки
-└── logs/      журналы процессов Bench
-```
-
-Теперь:
+Посмотреть:
 
 ```bash
 ls -la apps
 ls -la sites
 ```
 
-Главная мысль:
+Зафиксировать главное:
 
 ```text
-app != site
+frappe_practicum
+= app
+
+frappe-practicum.localhost
+= site, на который app установлен
 ```
 
-`veqta` — приложение.
-
-`veqta.localhost` — конкретный site, на который это приложение установлено.
-
-Один app в дальнейшем можно поставить на другой site. Именно это мы отдельно докажем в P2.
+Один app можно устанавливать на разные sites. Это будет отдельно проверено в P2.
 
 ---
 
-# 3. Посмотреть структуру app
-
-Перейдите в репозиторий приложения:
+# 3. Посмотреть структуру учебного app
 
 ```bash
-cd ~/frappe/veqta-bench/apps/veqta
+cd ~/frappe/frappe-practicum-bench/apps/frappe_practicum
 pwd
 git status
-```
-
-Посмотрите верхний уровень:
-
-```bash
 find . -maxdepth 2 -type f | sort
 ```
 
-Нас сейчас интересуют:
+Найти:
 
 ```text
 pyproject.toml
-veqta/hooks.py
-veqta/modules.txt
-veqta/patches.txt
+frappe_practicum/hooks.py
+frappe_practicum/modules.txt
+frappe_practicum/patches.txt
 ```
 
-Посмотрите `modules.txt`:
+Проверить Module:
 
 ```bash
-cat veqta/modules.txt
+cat frappe_practicum/modules.txt
 ```
 
-Там должен быть default Module, который Frappe создал вместе с app.
+Ожидается:
 
-Отдельно создавать первый Module после `bench new-app` не нужно.
+```text
+Frappe Practicum
+```
 
-Посмотрите начало `hooks.py`:
+Этот Module уже создал `bench new-app`. Второй раз создавать его не нужно.
+
+Посмотреть начало `hooks.py`:
 
 ```bash
-sed -n '1,120p' veqta/hooks.py
+sed -n '1,120p' frappe_practicum/hooks.py
 ```
 
-Пока ничего в нём не меняем.
+Пока ничего не менять.
 
-На этом этапе нужно только понять:
+На этом этапе достаточно понимать:
 
-- `pyproject.toml` описывает Python package приложения;
-- `hooks.py` — штатная точка конфигурации app;
+- `pyproject.toml` описывает Python package app;
+- `hooks.py` — штатная точка конфигурации приложения;
 - `modules.txt` перечисляет Module приложения;
-- `patches.txt` понадобится для миграций, когда появятся patches;
-- Module — это не отдельное приложение, а логическая часть app.
+- `patches.txt` используется для patches/migrations;
+- Module — логическая часть app, а не отдельное приложение.
 
 ---
 
 # 4. Проверить Developer Mode
 
-В P0 и следующих проектах мы создаём **стандартные объекты своего app**, поэтому Developer Mode должен быть включён.
-
-Проверить текущую конфигурацию:
-
 ```bash
-cd ~/frappe/veqta-bench
-
+cd ~/frappe/frappe-practicum-bench
 grep '"developer_mode"' sites/common_site_config.json
 ```
 
@@ -205,119 +176,97 @@ grep '"developer_mode"' sites/common_site_config.json
 "developer_mode": 1
 ```
 
-Если строки нет или значение не `1`:
+Если Developer Mode выключен:
 
 ```bash
 bench set-config -g developer_mode 1
-bench --site veqta.localhost clear-cache
+bench --site frappe-practicum.localhost clear-cache
 ```
 
-Почему это важно: в Developer Mode Frappe при сохранении стандартного DocType создаёт его boilerplate и metadata-файлы в app, чтобы их можно было хранить в Git.
+В Developer Mode стандартные объекты своего app могут сохраняться как файлы приложения и попадать в Git.
 
 ---
 
-# 5. Запустить Desk
+# 5. Запустить Desk и пройти базовую навигацию v16
 
 В первом терминале:
 
 ```bash
-cd ~/frappe/veqta-bench
+cd ~/frappe/frappe-practicum-bench
 bench start
 ```
 
-Этот терминал пока не закрывайте.
-
-В браузере Windows откройте:
+В браузере открыть:
 
 ```text
-http://veqta.localhost:8000
+http://frappe-practicum.localhost:8000
 ```
 
-Войдите как `Administrator`.
+Войти как `Administrator`.
 
-## Что нужно найти в Desk v16
-
-Не настраивайте ничего. Просто пройдите интерфейс и найдите:
+Найти в интерфейсе:
 
 - Apps Page;
 - Workspace Sidebar;
 - Public Workspaces;
 - My Workspaces;
 - Awesomebar / command palette;
-- обычный List View;
-- обычный Form View;
+- List View;
+- Form View;
 - меню пользователя и Settings.
 
-Важно: установка app на site **не обязана автоматически создавать красивую плитку VEQTA на Apps Page**. Это отдельная настройка приложения и сейчас нам не нужна.
-
-Цель шага — понять, как искать сущности Frappe, а не собирать рабочий Workspace. Workspace полноценно появится в P5.
+Ничего специально не настраивать. P0 нужен только для ориентации в Desk.
 
 ---
 
 # 6. Проверить scheduler и workers
 
-Оставьте `bench start` работающим.
+Оставить `bench start` работающим.
 
-Откройте второй терминал Debian/WSL:
-
-```bash
-cd ~/frappe/veqta-bench
-```
-
-Проверьте scheduler:
+Во втором терминале:
 
 ```bash
-bench --site veqta.localhost scheduler status
+cd ~/frappe/frappe-practicum-bench
+bench --site frappe-practicum.localhost scheduler status
 ```
 
-Нормальное состояние:
-
-```text
-Scheduler is enabled for site veqta.localhost
-```
-
-Затем:
+Если scheduler выключен:
 
 ```bash
-bench --site veqta.localhost doctor
+bench --site frappe-practicum.localhost scheduler enable
 ```
 
-`doctor` показывает состояние scheduler, workers и очередей. Точное количество workers не фиксируем: оно зависит от конфигурации Bench. Здесь важно, чтобы команда выполнялась без ошибки соединения с Redis/queues и не показывала, что scheduler отключён.
-
-Посмотреть очередь можно отдельно:
+Повторить проверку:
 
 ```bash
-bench --site veqta.localhost show-pending-jobs
+bench --site frappe-practicum.localhost scheduler status
+bench --site frappe-practicum.localhost doctor
+bench --site frappe-practicum.localhost show-pending-jobs
 ```
 
-Пустая очередь на новом стенде — нормальное состояние.
+Пустая очередь на новом стенде нормальна.
 
-В P6 мы вернёмся к scheduler уже как к рабочему механизму автоматизации. Сейчас достаточно доказать, что инфраструктура для фоновых задач жива.
+Точное количество workers не фиксируем. Важно, чтобы команды выполнялись без ошибок Redis/queues и scheduler был enabled.
 
 ---
 
 # 7. Создать первый стандартный DocType
 
-Теперь делаем первое изменение, которое должно попасть из Desk в файлы app.
-
-В Desk откройте Awesomebar и найдите:
+В Desk через Awesomebar открыть:
 
 ```text
 DocType
 ```
 
-Откройте список DocType и нажмите `New`.
-
-Создайте:
+Создать новый DocType:
 
 ```text
-Name:   P0 Lab Note
-Module: VEQTA
+Name:   Lab Note
+Module: Frappe Practicum
+Custom: выключено
 ```
 
-Не включайте `Custom?`.
-
-Добавьте только три поля:
+Добавить три поля:
 
 | Label | Type | Mandatory | Default |
 |---|---|---:|---|
@@ -325,158 +274,146 @@ Module: VEQTA
 | Note | Small Text | No | |
 | Is Active | Check | No | 1 |
 
-Ничего больше пока не настраиваем. Naming, Title Field, Search Fields, permissions и остальные свойства DocType будут разбираться в следующих проектах.
+Никакие другие свойства пока не настраивать.
 
-Нажмите `Save`.
+Naming, Title Field, Search Fields, permissions и расширенная модель данных начинаются в следующих проектах.
 
-Frappe должен сохранить стандартный DocType в Module приложения.
+Сохранить DocType.
 
 ---
 
-# 8. Найти файлы, которые создал Frappe
+# 8. Найти созданные файлы
 
-Вернитесь во второй терминал:
-
-```bash
-cd ~/frappe/veqta-bench/apps/veqta
-```
-
-Посмотрите состояние Git:
+В терминале:
 
 ```bash
+cd ~/frappe/frappe-practicum-bench/apps/frappe_practicum
 git status --short
 ```
 
-Теперь найдите каталог DocType:
+Найти каталог DocType:
 
 ```bash
-find veqta/veqta/doctype/p0_lab_note -maxdepth 1 -type f -printf '%f\n' | sort
+find frappe_practicum/frappe_practicum/doctype/lab_note \
+  -maxdepth 1 -type f -printf '%f\n' | sort
 ```
 
-Для стандартного DocType Frappe создаёт boilerplate. В каталоге должны появиться файлы вроде:
+Ожидается boilerplate примерно такого состава:
 
 ```text
 __init__.py
-p0_lab_note.js
-p0_lab_note.json
-p0_lab_note.py
-test_p0_lab_note.py
+lab_note.js
+lab_note.json
+lab_note.py
+test_lab_note.py
 ```
 
-Самый важный сейчас файл:
+Главный файл сейчас:
 
 ```text
-p0_lab_note.json
+lab_note.json
 ```
 
-Посмотрите его:
+Посмотреть:
 
 ```bash
-sed -n '1,240p' veqta/veqta/doctype/p0_lab_note/p0_lab_note.json
+sed -n '1,240p' \
+  frappe_practicum/frappe_practicum/doctype/lab_note/lab_note.json
 ```
 
-Найдите в JSON:
+Найти в JSON:
 
 - `name`;
 - `module`;
 - `fields`;
-- созданные `fieldname`;
+- `fieldname`;
 - типы полей;
-- обязательность `Title`;
+- mandatory для `Title`;
 - default для `Is Active`.
 
-Не редактируйте JSON вручную.
+JSON вручную не редактировать.
 
-Сейчас задача — увидеть связь:
+Сейчас нужно увидеть цепочку:
 
 ```text
 DocType в Desk
-        ↓ Save
+    ↓ Save
 metadata
-        ↓
+    ↓
 JSON + boilerplate в app
-        ↓
+    ↓
 Git
 ```
 
-Наличие `.py` и `.js` рядом с DocType **не означает, что мы уже начали программировать**. Это штатный boilerplate стандартного DocType. В базовом практикуме эти файлы пока не редактируем.
+`.py` и `.js` рядом с DocType — штатный boilerplate. В P0 их не редактируем.
 
 ---
 
 # 9. Создать обычный Document
 
-В Desk после сохранения DocType перейдите в список `P0 Lab Note`.
-
-Если кнопка перехода не появилась, найдите `P0 Lab Note` через Awesomebar.
-
-Создайте запись:
+Открыть список `Lab Note` и создать запись:
 
 ```text
-Title:     Первая запись P0
-Note:      Это обычный Document, а не новый DocType
+Title:     Первая запись
+Note:      Это обычный Document
 Is Active: включено
 ```
 
-Сохраните.
+Сохранить.
 
-Теперь снова выполните:
+Снова выполнить:
 
 ```bash
-cd ~/frappe/veqta-bench/apps/veqta
+cd ~/frappe/frappe-practicum-bench/apps/frappe_practicum
 git status --short
 ```
 
-Создание ещё одного Document **не должно создавать новый каталог в app**.
+Создание ещё одной записи `Lab Note` не должно создавать новый исходный файл app.
 
-Это ключевое различие P0:
+Главная разница:
 
 ```text
 DocType
 = описание типа документов
-= metadata приложения
-= для стандартного объекта хранится в app
+= metadata
+= стандартный DocType своего app хранится в файлах app
 
 Document
-= конкретная запись этого типа
-= хранится в базе site
-= сам по себе не является исходным кодом app
+= конкретная запись DocType
+= данные конкретного site
+= хранится в базе данных
 ```
 
-На этом примере также видно, почему Git не является резервной копией рабочих данных site.
+Git не является резервной копией рабочих данных site.
 
 ---
 
-# 10. Сделать одно изменение DocType и увидеть diff
+# 10. Увидеть реальный Git diff
 
-Вернитесь в сам `DocType: P0 Lab Note`.
+Вернуться в `DocType: Lab Note`.
 
-Измените label поля:
-
-```text
-Note
-```
-
-на:
+Изменить label поля:
 
 ```text
-Comment
+Note → Comment
 ```
 
-Сохраните DocType.
+Сохранить.
 
 В терминале:
 
 ```bash
-cd ~/frappe/veqta-bench/apps/veqta
+cd ~/frappe/frappe-practicum-bench/apps/frappe_practicum
 
-git diff -- veqta/veqta/doctype/p0_lab_note/p0_lab_note.json
+git diff -- \
+  frappe_practicum/frappe_practicum/doctype/lab_note/lab_note.json
 ```
 
-Нужно увидеть изменение metadata в JSON.
+Убедиться, что metadata изменилась в JSON.
 
-Верните label обратно в `Note`, снова сохраните и ещё раз выполните `git diff`.
+Вернуть label обратно в `Note`, снова сохранить и повторить `git diff`.
 
-Смысл упражнения не в самом label. Нужно руками увидеть цикл:
+Нужно руками увидеть цикл:
 
 ```text
 Desk → Save DocType → файл app → Git diff
@@ -484,145 +421,87 @@ Desk → Save DocType → файл app → Git diff
 
 ---
 
-# 11. Понять, что мы пока сознательно не делаем
+# 11. Зафиксировать результат P0 в локальном Git
 
-На P0 не нужно:
-
-- писать Python controller;
-- редактировать `p0_lab_note.py`;
-- писать JavaScript;
-- добавлять Client Script или Server Script;
-- настраивать Workflow;
-- создавать роли и permissions;
-- делать Workspace VEQTA;
-- настраивать fixtures;
-- делать Export Customizations;
-- подключать REST API;
-- ставить PDF-зависимость.
-
-Не потому, что Frappe этого «не позволяет», а потому что эти механизмы пока не нужны задаче P0.
-
----
-
-# 12. Контрольная проверка P0
-
-В терминале:
+Проверить изменения:
 
 ```bash
-cd ~/frappe/veqta-bench
+cd ~/frappe/frappe-practicum-bench/apps/frappe_practicum
 
-echo '=== VERSION ==='
-bench version
-
-echo '=== APPS ON SITE ==='
-bench --site veqta.localhost list-apps
-
-echo '=== SCHEDULER ==='
-bench --site veqta.localhost scheduler status
-
-echo '=== FRAPPE TAG ==='
-cd apps/frappe
-git describe --tags --exact-match
-cd ../..
-
-echo '=== VEQTA MODULES ==='
-cat apps/veqta/veqta/modules.txt
-
-echo '=== P0 DOCTYPE FILES ==='
-find apps/veqta/veqta/veqta/doctype/p0_lab_note -maxdepth 1 -type f -printf '%f\n' | sort
-
-echo '=== GIT ==='
-cd apps/veqta
-git status --short
+git status
+git diff
 ```
 
-После этого в Desk проверьте руками:
+Затем:
 
-1. `P0 Lab Note` существует как DocType.
-2. В его Module указано `VEQTA`.
-3. В списке `P0 Lab Note` есть созданная запись.
-4. Запись открывается как обычный Form.
-5. Awesomebar находит DocType и список документов.
+```bash
+git add .
+git diff --cached
+git commit -m "Add Lab Note doctype"
+```
 
----
+Проверить:
 
-# 13. Что нужно уметь объяснить перед P1
+```bash
+git status
+```
 
-Не переходите дальше, пока своими словами не можете ответить на вопросы.
+Ожидается чистое рабочее дерево.
 
-### Что такое Bench?
-
-Рабочее окружение, в котором находятся приложения, sites и процессы Frappe.
-
-### Что такое app?
-
-Устанавливаемый пакет функциональности. Для нас сейчас это `veqta`.
-
-### Что такое site?
-
-Конкретный экземпляр Frappe со своей базой данных и конфигурацией. Сейчас это `veqta.localhost`.
-
-### Что такое Module?
-
-Логическая группа объектов внутри app. Это не второй app и не второй site.
-
-### Зачем Developer Mode?
-
-Чтобы стандартные объекты приложения создавались как version-controlled metadata/boilerplate внутри app.
-
-### Чем DocType отличается от Document?
-
-DocType описывает структуру и поведение типа документов. Document — конкретная запись этого типа.
-
-### Что после создания `P0 Lab Note` появилось в Git?
-
-Metadata и boilerplate стандартного DocType.
-
-### Что после создания записи «Первая запись P0» появилось в Git?
-
-Ничего нового. Сама запись находится в базе данных site.
-
-### Почему наличие `.py` и `.js` рядом с DocType ещё не означает, что мы пишем собственную бизнес-логику?
-
-Потому что Frappe создаёт эти файлы как стандартный boilerplate DocType. Мы пока их не редактируем.
+Удалённый GitHub-репозиторий для P0 не требуется. Здесь важно понять локальную version-control модель Frappe app.
 
 ---
 
-# 14. Результат P0
+# 12. Что сознательно не входит в P0
 
-P0 принят, если одновременно выполняется всё:
+Пока не нужно:
 
-- Frappe — `v16.32.0`;
-- `veqta` установлен на `veqta.localhost`;
-- Developer Mode включён;
-- default Module приложения найден в `modules.txt`;
-- Desk v16 открыт и базовая навигация понятна;
-- scheduler включён;
-- `bench doctor` выполняется без инфраструктурной ошибки;
-- создан стандартный `P0 Lab Note`;
-- его JSON и boilerplate найдены в `apps/veqta`;
-- Git показывает изменения DocType;
-- создан обычный Document `P0 Lab Note`;
-- понятно, почему его данные не появились в Git.
+- писать Python controller;
+- писать JavaScript;
+- Client Script;
+- Server Script;
+- Workflow;
+- роли и permissions;
+- Customize Form;
+- Export Customizations;
+- fixtures;
+- Reports;
+- Workspace;
+- Web Form;
+- REST API;
+- PDF.
 
-`P0 Lab Note` пока оставляем как диагностический учебный объект. В начале P1 он больше не нужен для объяснения устройства платформы; перед созданием реальной модели P1 его можно удалить штатным способом после проверки фактического поведения удаления на стенде.
-
-Следующий проект: **P1 — Реестр оборудования**.
+Эти вещи не запрещены. Просто у каждой будет свой практический сценарий дальше.
 
 ---
 
-# Источники проверки
+# 13. Приёмка P0
 
-Общий список источников курса: [REFERENCES.md](../../REFERENCES.md).
+P0 принят, если ученик может без подсказки выполнить и объяснить:
 
-Для P0 особенно важны официальные разделы:
+```bash
+cd ~/frappe/frappe-practicum-bench
+bench version
+bench --site frappe-practicum.localhost list-apps
+bench --site frappe-practicum.localhost scheduler status
+bench --site frappe-practicum.localhost doctor
 
-- Create an App;
-- Create a Site;
-- Create a DocType;
+cd apps/frappe_practicum
+git status
+cat frappe_practicum/modules.txt
+```
+
+И показать:
+
+- Frappe `v16.32.0`;
+- app `frappe_practicum`;
+- site `frappe-practicum.localhost`;
+- Module `Frappe Practicum`;
 - Developer Mode;
-- Apps;
-- Diagnosing The Scheduler;
-- исходники тега `v16.32.0`.
+- каталог `Lab Note` в app;
+- `lab_note.json`;
+- обычную запись `Lab Note` в Desk;
+- объяснение, почему metadata DocType попадает в Git, а Document — в базу site;
+- разницу между Bench, app, site и Module.
 
-Если фактический стенд v16.32.0 ведёт себя не так, как описано здесь, не обходите проблему костылём: зафиксируйте расхождение и исправьте практикум.
+После этого можно переходить к P1.
