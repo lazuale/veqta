@@ -1,15 +1,13 @@
 # Матрица покрытия Frappe
 
-Матрица фиксирует реально выполняемую практику на **Frappe Framework v16.32.0**.
-
-Статусы:
+Базовая версия: **Frappe Framework v16.32.0**.
 
 - **Core** — L0–L11;
 - **Lab** — A–F;
 - **Optional** — самостоятельная проверка;
 - **Later** — следующий уровень.
 
-Формальная сила: [INVARIANTS.md](INVARIANTS.md).
+Формальные гарантии: [INVARIANTS.md](INVARIANTS.md).
 
 ---
 
@@ -22,13 +20,13 @@
 | L2 | оборудование | Equipment |
 | L3 | данные | filters, import, export, bulk edit |
 | L4 | документ | Service Request + data invariants |
-| L5 | доступ | Level 0 document authority + Level 1 field authority |
+| L5 | доступ | Level 0 document + Level 1 content + Level 2 state authority |
 | L6 | collaboration | Assign To, ToDo, Comments, Tags, Kanban |
-| L7 | процесс | Workflow + permission/transition separation |
+| L7 | процесс | Workflow поверх Level 2 state field |
 | L8 | контроль | Report, Cards, Chart, Workspace |
 | L9 | automation | Notification, Assignment Rule, scheduler |
 | L10 | web intake | separate Web Form capability; final update Off |
-| L11 | поставка | clean-site portability + permission acceptance |
+| L11 | поставка | clean-site portability + Level 0/1/2 acceptance |
 
 ---
 
@@ -39,8 +37,7 @@
 | Standard DocType | L1/L2/L4 | Core |
 | Tree | L1 | Core |
 | Link | L2/L4 | Core |
-| Naming by field | L1/L2 | Core |
-| naming series/expression | L4 | Core |
+| Naming | L1/L2/L4 | Core |
 | Title/Search Fields | L2/L4 | Core |
 | Quick Entry | L2 | Core |
 | Track Changes | L2/L4 | Core |
@@ -49,7 +46,6 @@
 | Single | Lab F | Lab |
 | Dynamic Link | Lab F | Lab |
 | Table MultiSelect | Lab F | Lab |
-| Custom DocType | — | Later |
 | Virtual DocType | — | Later |
 
 Status:
@@ -61,25 +57,6 @@ In Progress
 Resolved
 Closed
 ```
-
-`Accepted ≠ Assigned To`.
-
----
-
-# Views / data operations
-
-| Механизм | Где | Статус |
-|---|---|---|
-| Form / List / Tree | L1+ | Core |
-| Filters / Sorting / Saved Filters | L3 | Core |
-| Data Import / template / negative test | L3 | Core |
-| Export / Bulk Edit | L3 | Core |
-| Attachments | L2/L4/L10 | Core |
-| Timeline | L6/L7 | Core |
-| Tags | L6 | Core |
-| Kanban | L6/L7 | Core |
-| Calendar / Gantt | Lab F | Lab |
-| own Calendar JS mapping | — | Later |
 
 ---
 
@@ -95,13 +72,14 @@ Closed
 | Delete | L5 | Core, temporary for Service Request; final Off |
 | Report / Export / Import | L5 | Core |
 | If Owner | L5 | Core |
-| Permission Level | L5 | Core, server-enforced high-level field protection |
+| Permission Level 1 | L5 | Core, business content authority |
+| Permission Level 2 | L5 | Core, process-state authority |
 | User Permission | L5 | Core, temporary |
 | Share | L5 | Core, temporary |
 | Mask | Lab F | Lab |
 | custom permission hooks | — | Later |
 
-## Final Level 0 outcome
+## Level 0
 
 ```text
 Requester   → Create + Read own; Write/Delete No
@@ -109,9 +87,7 @@ Technician  → Read/Write; Create/Delete No
 Supervisor  → Read/Write/Create; Delete No; Report/Export
 ```
 
-## Final Level 1 outcome for Service Request content
-
-Fields:
+## Level 1 content
 
 ```text
 subject
@@ -123,24 +99,31 @@ target_date
 attachment
 ```
 
-Permissions:
-
 ```text
 Requester   → Read/Write
 Technician  → Read only
 Supervisor  → Read/Write
 ```
 
-`status` remains Level 0.
+## Level 2 process state
+
+```text
+status
+```
+
+```text
+Requester   → Read only
+Technician  → Read/Write
+Supervisor  → Read/Write
+```
 
 Ключевой proof:
 
 ```text
 Technician document Write
-≠ Technician write every field
+≠ content Write
+≠ unrestricted state transition
 ```
-
-Exact `Document.validate_higher_perm_levels()` participates in ordinary insert/save.
 
 ---
 
@@ -151,14 +134,10 @@ Exact `Document.validate_higher_perm_levels()` participates in ordinary insert/s
 | Assign To | L6 | Core |
 | ToDo | L6 | Core |
 | Due Date | L6/L9 | Core |
-| duplicate assignment behavior | L6 | Core |
 | Comments / Timeline / Tags | L6 | Core |
+| Kanban | L6/L7 | Core |
 
-```text
-Assignment = responsibility, not authorization
-```
-
-Assignment не выдаёт Level 1 content write.
+Assignment не расширяет Level 1/2 permissions.
 
 ---
 
@@ -166,39 +145,25 @@ Assignment не выдаёт Level 1 content write.
 
 | Механизм | Где | Статус |
 |---|---|---|
-| обычный Status | L4–L6 | Core |
+| обычный Status до Workflow | L4–L6 | Core |
+| Status Permission Level 2 | L5+ | Core |
 | Workflow / State / Action Master | L7 | Core |
 | Transition | L7 | Core |
-| Allowed Role | L7 | Core, server gate |
+| Allowed Role | L7 | Core, server transition gate |
 | Condition | L7 | Core, server predicate |
 | Only Allow Edit For | L7 | Core, Desk guard |
-| existing `status` as state field | L7 | Core |
 | Read Only status | L7 | Core, UI guard |
-| Technician transition without Level 1 content write | L7 | Core |
 | Is Submittable / DocStatus | Lab B | Lab |
 
-Final Desk states:
+После L7 state change требует:
 
 ```text
-New         → Supervisor
-Accepted    → Technician
-In Progress → Technician
-Resolved    → Supervisor
-Closed      → Supervisor
+Level 0 Write
++ Level 2 Write
++ valid Workflow transition
 ```
 
-Security layers:
-
-```text
-Level 0 Role Permission
-→ save/access
-
-Level 1 Permission
-→ business fields
-
-Workflow Allowed Role/Condition
-→ state transitions
-```
+Requester Level 2 Write отсутствует уже с L5.
 
 ---
 
@@ -212,7 +177,6 @@ Workflow Allowed Role/Condition
 | Dashboard Chart | L8 | Core |
 | Workspace | L8 | Core |
 | Shortcut / Quick List | L8 | Core |
-| role access | L8 | Core |
 | Query / Script Report | — | Later |
 
 ---
@@ -232,7 +196,7 @@ Workflow Allowed Role/Condition
 | scheduler/background jobs | L9 | Core |
 | Auto Repeat | Lab C | Lab |
 
-Automation не расширяет Technician Level 1 permission.
+Automation не расширяет Level 1/2 authority.
 
 ---
 
@@ -241,35 +205,27 @@ Automation не расширяет Technician Level 1 permission.
 | Механизм | Где | Статус |
 |---|---|---|
 | Standard Web Form | L10 | Core |
-| Route / Published | L10 | Core |
+| Published / Route | L10 | Core |
 | Guest submission | L10 | Core, temporary |
 | Login Required | L10 | Core, final On; authentication only |
 | Website User | L10 | Core |
-| Web Form new insert | L10 | Core, separate intake capability |
+| Web Form new insert | L10 | Core, separate capability |
 | Allow Edit | L10 | Core, temporary; final Off |
 | Show List | L10 | Core, final On |
 | Apply Document Permissions | L10 | Core, existing-doc experiment; final Off |
 | Allow Read On All Link Options | L10 | Core, trusted-internal policy |
-| attachment | L10 | Core |
-| role-restricted portal admission | — | Later |
-| public-untrusted catalog | — | Later |
-
-Ключевая классификация:
+| role-restricted/public portal | — | Later |
 
 ```text
 Desk Requester Create
-→ Role Permission + Permission Level mechanism
+→ Level 0/1/2 permission path
 
 Web Form new insert
-→ Web Form capability
-→ insert(ignore_permissions=True)
-
-Apply Document Permissions
-→ existing-document permission behavior
-→ не create authorization
+→ ignore_permissions=True
+→ separate intake capability
 ```
 
-Именно поэтому final Web Form update выключен: active `ignore_permissions` update path нельзя считать защищённым Level 1 permission model.
+`Status` не входит в Web Form fields.
 
 ---
 
@@ -280,27 +236,23 @@ Apply Document Permissions
 | Export Customizations | L11/Lab D | Core |
 | Custom Permissions Level 0 | L11 | Core |
 | Custom Permissions Level 1 | L11 | Core |
+| Custom Permissions Level 2 | L11 | Core |
 | fixtures / fixture_auto_order | L11 | Core |
 | export-fixtures | L11 | Core |
 | install-app / migrate | L11 | Core |
 | clean-site portability | L11 | Core |
-| Desk/Web Form dual create acceptance | L11 | Core |
-| Technician Workflow + content protection acceptance | L11 | Core |
+| Desk/Web Form separate acceptance | L11 | Core |
 | arbitrary multi-app compatibility | — | Later |
 
 ---
 
-# Print / special labs
+# Labs
 
-| Механизм | Где | Статус |
-|---|---|---|
-| Print View / Builder | Lab E | Lab |
-| Standard Print Format | Lab E | Lab, persistent presentation config |
-| Letter Head | Lab E | Lab, temporary |
-| browser Print / Chrome PDF | Lab E | Lab |
-| Percent / Time / Duration | Lab F | Lab |
-| Barcode / Signature / Geolocation | Lab F | Lab |
-| Attachment Gallery / Markdown | Lab F | Lab |
+Labs, затрагивающие `Service Request`, обязаны вернуть Level 0/1/2 baseline.
+
+Lab A temporary `work_logs` = Permission Level 1.
+
+Lab C Auto Repeat не меняет permission authority.
 
 ---
 
@@ -312,8 +264,7 @@ custom controller / validation
 custom permission logic
 assignee-only authorization
 absolute Closed immutability
-role-restricted Web Form/portal admission
-public-untrusted external intake
+role-restricted/public-untrusted portal intake
 Client Script / custom JS
 Query/Script Report
 production hardening
@@ -323,11 +274,11 @@ production hardening
 
 # Правило матрицы
 
-Механизм может быть Core и при этом финально выключаться, если он реально изучен и rollback является частью lesson contract.
+Coverage не подменяет architecture quality.
 
 ```text
-Service Request Delete → studied → final Off
-Web Form Allow Edit     → studied → final Off
+Service Request Delete → изучен → final Off
+Web Form Allow Edit     → изучен → final Off
 ```
 
-Coverage не подменяет architecture quality, а document-level `Write` не подменяет field-level authority.
+И `Write` на Document не означает ни write любого field, ни право на любой process transition.
