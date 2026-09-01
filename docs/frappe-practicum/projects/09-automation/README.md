@@ -1,31 +1,34 @@
 # L9. Автоматизация
 
-L9 автоматизирует уже работающий процесс `Service Request` штатными механизмами Frappe.
+L9 автоматизирует уже работающий `Service Request`, не меняя его архитектурных границ.
 
 Новых предметных DocType нет.
 
-Цель:
+Базовая версия: **Frappe Framework v16.32.0**.
+
+## Цепочка
 
 ```text
 новая заявка
 → System Notification Supervisor
-→ автоматическое назначение Technician
-→ ToDo с Due Date из Target Date
-→ Workflow остаётся отдельным
-→ Closed закрывает ToDo
-→ date-based Notification проверяет просрочку
+→ Assignment Rule создаёт ToDo
+→ Status остаётся New
+→ Supervisor Accept
+→ Technician Start Work / Resolve
+→ Supervisor Close
 ```
 
-Базовая версия: **Frappe Framework v16.32.0**.
-
-Все тестовые `Service Request` в этом уроке заполняются согласно metadata L4. Обязательные поля не сокращаем ради примера:
+Ключевые правила:
 
 ```text
-Subject
-Location
-Description
-Priority
-Status получает default New
+Assignment
+≠ Workflow
+
+Assignment
+≠ authorization
+
+Target Date
+= optional
 ```
 
 ---
@@ -53,38 +56,49 @@ workers доступны
 working tree clean
 ```
 
-Во время практики `bench start` работает в отдельном терминале.
+Workflow L7 использует:
 
-После L5–L7 основной `technician.one@example.com` не имеет постоянного User Permission по Location.
+```text
+New
+Accepted
+In Progress
+Resolved
+Closed
+```
+
+и действия:
+
+```text
+Accept
+Start Work
+Resolve
+Close
+```
 
 ---
 
-# 2. Зафиксировать границу автоматизации
+# 2. Все тестовые Documents соблюдают L4
 
-До L9 процесс уже работает вручную:
-
-```text
-создать Service Request
-→ Assign To
-→ Workflow Action
-→ ToDo
-→ Close
-```
-
-Теперь автоматизируем повторяемые операции, не создавая:
+Каждая создаваемая в L9 заявка содержит:
 
 ```text
-Automation Log
-Request Dispatcher
-Notification Queue
-Auto Assignment Record
+Subject
+Location
+Description
+Priority
 ```
+
+`Status` получает default `New`.
+
+`Target Date` заполняем только в тестах, где нужна due/date-based automation.
+
+Не сокращать примеры так, чтобы они нарушали Mandatory metadata.
 
 ---
 
 # 3. Создать второго Technician
 
-Только теперь создаём второго постоянного исполнителя:
+Только теперь создаём:
 
 ```text
 Email:              technician.two@example.com
@@ -95,17 +109,52 @@ Send Welcome Email: No
 Role:               Facility Technician
 ```
 
-Задать учебный пароль.
+Не выдавать:
 
-Не выдавать `System Manager` или `Administrator`.
+```text
+System Manager
+Administrator
+```
 
-Проверить, что ни у `technician.one@example.com`, ни у `technician.two@example.com` нет постоянного User Permission, ограничивающего `Service Request` одной Location.
+Проверить у обоих:
 
-Это необходимо для глобального Round Robin: назначенный Technician должен иметь возможность открыть назначенную ему заявку.
+```text
+technician.one@example.com
+technician.two@example.com
+```
+
+отсутствие постоянного Location User Permission.
 
 ---
 
-# 4. Notification на новую заявку
+# 4. Почему это важно для Assignment Rule
+
+В `v16.32.0` штатный `Assign To` после создания ToDo проверяет, может ли assignee открыть reference document.
+
+Если доступа нет:
+
+```text
+document sharing включён
+→ Frappe может автоматически создать DocShare Read
+
+document sharing отключён
+→ операция может завершиться Missing Permission
+```
+
+Поэтому основной deployment курса устроен так:
+
+```text
+оба Facility Technician
+→ имеют одинаковый базовый Role Permission на Service Request
+```
+
+Assignment не должен незаметно превращаться в механизм выдачи permission exceptions.
+
+Это более точная причина cleanup User Permission в L5.
+
+---
+
+# 5. Notification на новую заявку
 
 Создать Standard Notification:
 
@@ -122,37 +171,32 @@ Notification Title:   New service request {{ doc.name }}
 Notification Message: {{ doc.subject }}
 ```
 
-Recipients:
+Recipient:
 
 ```text
 Receiver By Role = Facility Supervisor
 ```
 
-Email Account не нужен: используется `System Notification`.
-
 ---
 
-# 5. Проверить New Notification
+# 6. Проверить New Notification
 
-Войти как `requester.one@example.com` и создать:
+Под Requester создать:
 
 ```text
 Subject:     Automation notification test
 Location:    Room 101
 Description: Проверка System Notification на создание заявки
 Priority:    Medium
-Target Date: любая будущая дата
 ```
 
-Сохранить.
+`Target Date` можно оставить пустым: для Notification Event `New` он не нужен.
 
-Под `supervisor.one@example.com` проверить верхние уведомления и `Notification Log`.
-
-Если уведомления нет, сначала проверить scheduler/workers, а не писать скрипт.
+Под Supervisor проверить верхнее уведомление и `Notification Log`.
 
 ---
 
-# 6. Date-based Notification
+# 7. Date-based Notification
 
 Создать:
 
@@ -189,56 +233,56 @@ Recipient:
 Facility Supervisor
 ```
 
-Название теперь точно соответствует семантике:
+Точная семантика:
 
 ```text
 Target Date = вчера
 +
 Days After = 1
-→ уведомление подходит сегодня
+→ подходит сегодня
 ```
 
-Это **одноразовый сценарий через один день после Target Date**, а не запрос «все документы, просроченные когда-либо».
+Это не «все документы, которые когда-либо просрочены».
 
 ---
 
-# 7. Preview date-based Notification
+# 8. Target Date — условный инвариант
 
-На форме:
+`Target Date` остаётся Optional.
 
-```text
-Service Request One Day Overdue
-```
+Поэтому нельзя обещать каждой заявке Due Date.
 
-использовать:
+Правильная модель:
 
 ```text
-Preview
-Meets Condition?
-Get Alerts for Today
-```
+Target Date заполнен
+→ ToDo Assignment Rule может получить эту Due Date
+→ date-based Notification может быть рассчитана
 
-Для подходящей незакрытой заявки ожидать `Meets Condition? = Yes`, для Closed — `No`.
+Target Date пуст
+→ Due Date не обещается
+→ One Day Overdue к такой записи неприменима
+```
 
 ---
 
-# 8. Подготовить просроченную заявку
+# 9. Проверить date-based Notification
 
-Под Requester создать:
+Создать:
 
 ```text
 Subject:     Overdue automation test
 Location:    Room 102
 Description: Проверка уведомления через один день после Target Date
 Priority:    High
-Target Date: вчерашняя дата
+Target Date: вчера
 ```
 
-Оставить заявку незакрытой.
+Оставить незакрытой.
 
----
+Использовать Preview / Meets Condition / Get Alerts for Today.
 
-# 9. Запустить daily handler вручную
+Затем выполнить:
 
 ```bash
 cd ~/frappe/facility-ops-bench
@@ -247,31 +291,19 @@ bench --site facility-ops.localhost execute \
   frappe.email.doctype.notification.notification.trigger_daily_alerts
 ```
 
-Под Supervisor проверить `Notification Log`.
-
-Различать:
-
-```text
-bench execute trigger_daily_alerts
-= немедленный тест конкретного handler
-
-scheduler status / doctor
-= здоровье scheduler и workers
-```
+Проверить `Notification Log`.
 
 ---
 
 # 10. Создать Assignment Rule
 
-Создать:
-
 ```text
-Name:               Service Request Auto Assignment
-Document Type:      Service Request
-Due Date Based On:  Target Date
-Priority:           10
-Disabled:           No
-Description:        {{ subject }}
+Name:              Service Request Auto Assignment
+Document Type:     Service Request
+Due Date Based On: Target Date
+Priority:          10
+Disabled:          No
+Description:       {{ subject }}
 ```
 
 Assign Condition:
@@ -286,33 +318,29 @@ Close Condition:
 status == "Closed"
 ```
 
-Unassign Condition оставить пустым.
+Unassign Condition:
 
-В Assignment Rule `v16.32.0` expression получает поля документа непосредственно в context, поэтому `status == "New"` — штатная корректная форма для этого механизма.
+```text
+пусто
+```
 
----
-
-# 11. Assignment Days
-
-Нажать:
+Assignment Days:
 
 ```text
 All Days
 ```
 
-Проверить Monday–Sunday. Учебное правило должно работать независимо от дня прохождения курса.
+В `Assignment Rule v16.32.0` поля документа передаются непосредственно в expression context, поэтому форма `status == "New"` корректна именно для этого механизма.
 
 ---
 
-# 12. Round Robin
-
-Выбрать:
+# 11. Round Robin
 
 ```text
 Rule = Round Robin
 ```
 
-Users в порядке:
+Users:
 
 ```text
 technician.one@example.com
@@ -321,13 +349,13 @@ technician.two@example.com
 
 Сохранить.
 
-Frappe хранит `Last User` в самом Assignment Rule.
+`Last User` хранится в Assignment Rule.
 
 ---
 
-# 13. Первая автоматическая заявка
+# 12. Первая автоматическая заявка
 
-Под Requester создать:
+Создать:
 
 ```text
 Subject:     Auto assignment A
@@ -337,8 +365,6 @@ Priority:    Medium
 Target Date: будущая дата
 ```
 
-Не использовать Assign To вручную.
-
 Проверить:
 
 ```text
@@ -346,93 +372,125 @@ Status = New
 Assigned To = technician.one@example.com
 ```
 
-В ToDo:
+ToDo:
 
 ```text
-Reference Type   = Service Request
-Reference Name   = номер заявки
-Allocated To     = technician.one@example.com
-Due Date         = Target Date заявки
-Assignment Rule  = Service Request Auto Assignment
+Allocated To    = technician.one@example.com
+Reference Type  = Service Request
+Reference Name  = номер заявки
+Due Date        = Target Date заявки
+Assignment Rule = Service Request Auto Assignment
 ```
 
-Assignment Rule назначил человека, но Workflow ещё не двигался.
+Главный вывод:
+
+```text
+Assignment Rule создал ответственность
+но не выполнил Workflow transition
+```
 
 ---
 
-# 14. Вторая и третья заявки
+# 13. Вторая и третья заявки
 
-Создать вторую:
+Вторая:
 
 ```text
 Subject:     Auto assignment B
 Location:    Warehouse
-Description: Вторая заявка для проверки Round Robin
+Description: Вторая заявка Round Robin
 Priority:    Medium
 Target Date: будущая дата
 ```
 
-Ожидается:
+Ожидается Technician Two.
 
-```text
-Assigned To = technician.two@example.com
-```
-
-Создать третью:
+Третья:
 
 ```text
 Subject:     Auto assignment C
 Location:    Room 102
-Description: Третья заявка для проверки возврата Round Robin
+Description: Третья заявка Round Robin
 Priority:    Low
 Target Date: будущая дата
 ```
 
-Ожидается:
+Ожидается Technician One.
+
+Последовательность:
 
 ```text
-Assigned To = technician.one@example.com
+One → Two → One
 ```
 
-Проверить `Last User`.
-
-Важная проверка консистентности: оба Technician должны открывать свои автоматически назначенные заявки независимо от Location.
+Проверить, что оба Technician открывают свои assigned Documents без автоматических DocShare exceptions.
 
 ---
 
-# 15. Due Date synchronization
+# 14. Assignment не является authorization
 
-Выбрать автоматически назначенную заявку и под пользователем, которому разрешено её редактировать в текущем Workflow state, изменить:
+После появления второго Technician доказать отдельно:
 
 ```text
-Target Date
+ToDo назначен Technician One
 ```
 
-Открыть соответствующий ToDo.
+не означает:
 
-Due Date должен обновиться вслед за `Service Request.target_date`.
+```text
+Technician Two автоматически лишён Role Permission на этот Service Request
+```
+
+В базовой архитектуре:
+
+```text
+Role = полномочие
+ToDo = ответственность
+```
+
+Это сознательная модель, а не недостаток, который маскируем учебным текстом.
+
+Если будущему продукту понадобится `assignee-only write`, потребуется отдельная server-side permission architecture следующего уровня.
 
 ---
 
-# 16. Провести заявку через Workflow
+# 15. Провести заявку через Workflow
 
-На одной автоматически назначенной заявке:
+На автоматически назначенной заявке:
 
 ```text
-Supervisor → Mark Assigned
+Supervisor → Accept
 Technician → Start Work
 Technician → Resolve
 Supervisor → Close
 ```
 
-Проверить:
+Получить:
 
 ```text
-Service Request.status = Closed
-ToDo.status = Closed
+Status = Closed
 ```
 
-ToDo закрывается по `Close Condition` Assignment Rule.
+Assignment Rule Close Condition должен закрыть связанный ToDo.
+
+На основном site это deployment behavior L9.
+
+Это **не универсальное свойство Workflow** и не будет автоматически существовать на clean site L11 без Assignment Rule.
+
+---
+
+# 16. Due Date synchronization
+
+На заявке с заполненным `Target Date` изменить его под пользователем, которому разрешено изменение документа в текущем сценарии.
+
+Проверить соответствующий открытый ToDo:
+
+```text
+ToDo.date
+→ новое Target Date
+```
+
+Не распространять этот вывод на заявки с пустым Target Date.
 
 ---
 
@@ -451,10 +509,9 @@ Subject:     Manual assignment comparison
 Location:    Floor 1
 Description: Сравнение ручного Assign To и Assignment Rule
 Priority:    Medium
-Target Date: будущая дата
 ```
 
-Проверить отсутствие автоматического ToDo.
+Проверить отсутствие auto ToDo.
 
 Под Supervisor:
 
@@ -464,29 +521,22 @@ Assign To → technician.one@example.com
 
 Сравнить ручной и автоматический ToDo.
 
-В обоих случаях рабочая сущность назначения:
-
-```text
-ToDo
-```
-
-После теста снова включить Assignment Rule.
+После теста снова включить Rule.
 
 ---
 
-# 18. Доказать, что Assignment Rule не двигает Workflow
+# 18. Доказать ортогональность Workflow
 
-Создать ещё одну корректно заполненную заявку:
+Создать:
 
 ```text
 Subject:     Assignment without workflow transition
 Location:    Floor 2
 Description: Проверка разделения Assignment и Workflow
 Priority:    High
-Target Date: будущая дата
 ```
 
-Сразу после сохранения:
+Сразу после insert:
 
 ```text
 Assigned To = один из Technician
@@ -496,40 +546,93 @@ Status = New
 Только Supervisor выполняет:
 
 ```text
-Mark Assigned
+Accept
 ```
 
-Фиксируем:
+После него:
 
 ```text
-Assignment
-= кто выполняет
+Status = Accepted
+```
 
-Workflow
-= состояние процесса
+`Accepted` специально не называется `Assigned`.
+
+---
+
+# 19. Optional: Load Balancing
+
+Перед тестом посмотреть открытые ToDo `Service Request` обоих Technician.
+
+Временно:
+
+```text
+Rule = Load Balancing
+```
+
+Создать:
+
+```text
+Subject:     Load balancing check
+Location:    Warehouse
+Description: Проверка второго штатного алгоритма
+Priority:    Medium
+```
+
+Проверить выбор пользователя с меньшим количеством открытых ToDo.
+
+Если counts одинаковы, подготовить очевидную разницу.
+
+После проверки обязательно:
+
+```text
+Rule = Round Robin
 ```
 
 ---
 
-# 19. Посмотреть служебные Documents
+# 20. Посмотреть служебные Documents
 
 Открыть:
 
 ```text
-Notification Log
-ToDo
-Assignment Rule
 Notification
+Notification Log
+Assignment Rule
+ToDo
 ```
 
-Не должно появиться наших служебных DocType.
+Не создавать своих automation log/dispatcher DocType.
 
 ---
 
-# 20. Проверить Standard Notifications в Git
+# 21. Что переносится, а что нет
+
+Standard app-owned:
+
+```text
+New Service Request
+Service Request One Day Overdue
+```
+
+Site-specific:
+
+```text
+Service Request Auto Assignment
+```
+
+потому что Rule содержит конкретных Users.
+
+Эта граница будет проверена в L11.
+
+---
+
+# 22. Git
+
+Проверить Standard Notification files:
 
 ```bash
 cd ~/frappe/facility-ops-bench/apps/facility_ops
+
 git status --short
 
 find facility_ops/facility_operations \
@@ -538,135 +641,39 @@ find facility_ops/facility_operations \
   | grep -i notification
 ```
 
-Standard app-owned Notifications:
+Закоммитить app-owned Notification source.
+
+Не добавлять:
 
 ```text
-New Service Request
-Service Request One Day Overdue
-```
-
-Не редактировать экспортированные JSON/boilerplate вручную.
-
----
-
-# 21. Почему Assignment Rule не входит в app source
-
-`Service Request Auto Assignment` содержит конкретных Users текущего site:
-
-```text
-technician.one@example.com
-technician.two@example.com
-```
-
-Поэтому это site-specific deployment configuration.
-
-В L11 он **намеренно не будет включён в универсальные fixtures** приложения.
-
-Разделение:
-
-```text
-Workflow
-→ универсальный процесс
-→ переносимая app configuration
-
-Assignment Rule с конкретными Users
-→ локальное распределение работы
-→ site-specific configuration
-```
-
----
-
-# 22. Optional: сравнить Load Balancing
-
-Эта часть не обязательна для приёмки Core, но нужна для покрытия второго штатного алгоритма Assignment Rule.
-
-Перед тестом посмотреть, сколько открытых `ToDo` типа `Service Request` сейчас есть у:
-
-```text
-technician.one@example.com
-technician.two@example.com
-```
-
-Временно изменить правило:
-
-```text
-Rule = Load Balancing
-```
-
-Users оставить теми же.
-
-Создать корректно заполненную заявку:
-
-```text
-Subject:     Load balancing check
-Location:    Warehouse
-Description: Самостоятельная проверка Load Balancing
-Priority:    Medium
-Target Date: будущая дата
-```
-
-Проверить, что Frappe выбрал пользователя с меньшим числом открытых `ToDo` для `Service Request`.
-
-Если счёт одинаковый, заранее закрыть/открыть тестовые assignments так, чтобы разница была очевидна, а не угадывать результат.
-
-После проверки **обязательно вернуть**:
-
-```text
-Rule = Round Robin
-```
-
-и сохранить Assignment Rule.
-
-Финальная конфигурация курса остаётся Round Robin.
-
----
-
-# 23. Commit Standard Notifications
-
-Проверить diff и добавить только source Standard Notifications:
-
-```bash
-cd ~/frappe/facility-ops-bench/apps/facility_ops
-
-git status
-git diff
-```
-
-Закоммитить app-owned Notification files с понятным сообщением, например:
-
-```bash
-git commit -m "Add service request notifications"
-```
-
-Не добавлять в Git:
-
-```text
-User records
+Users
 ToDo
 Notification Log
 Assignment Rule database record
-рабочие Service Request
-пароли
+Service Request working data
 ```
 
 ---
 
-# 24. Приёмка L9
+# 23. Приёмка L9
 
 L9 принят, если:
 
-- создан `technician.two@example.com` и это первый урок, где он появляется;
-- оба Technician имеют одинаковую базовую область доступа к Service Request;
-- все тестовые заявки проходят Mandatory validation L4;
-- `New Service Request` приходит Supervisor;
-- `Service Request One Day Overdue` проверена как `1 day after Target Date`;
-- Round Robin даёт последовательность One → Two → One;
-- Due Date ToDo следует за Target Date;
-- автоматическое назначение не меняет Workflow State;
-- Closed Service Request закрывает Assignment Rule ToDo;
-- ручной и автоматический assignment используют штатный ToDo;
-- optional Load Balancing либо проверен и возвращён в Round Robin, либо сознательно пропущен как Optional;
-- Assignment Rule остаётся site-specific и не попадает в universal fixtures;
-- Git содержит Standard Notifications, но не рабочие данные.
+- `technician.two@example.com` впервые создан здесь;
+- оба Technician имеют одинаковую базовую Service Request permission-area;
+- ученик объясняет automatic Share boundary `Assign To`;
+- все тестовые Documents соблюдают Mandatory L4;
+- New Notification работает;
+- `Service Request One Day Overdue` понимается как точка `+1 day`;
+- Target Date понимается как Optional/conditional automation input;
+- Round Robin даёт One → Two → One;
+- Assignment Rule не меняет `Status = New`;
+- Supervisor выполняет `Accept`, не `Mark Assigned`;
+- `Accepted` не означает наличие конкретного assignee;
+- Assignment не трактуется как authorization;
+- Closed закрывает Rule-owned ToDo только как site policy L9;
+- optional Load Balancing возвращён в Round Robin;
+- Assignment Rule остаётся site-specific;
+- Git содержит Notifications, но не runtime data.
 
 После L9 переходим к **L10 — Web Form**.
