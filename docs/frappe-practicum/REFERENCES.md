@@ -40,8 +40,11 @@
 - Developer Mode / создание DocType: https://docs.frappe.io/framework/user/en/tutorial/create-a-doctype
 - Apps Page: https://docs.frappe.io/framework/user/en/apps-page
 - Hooks: https://docs.frappe.io/framework/user/en/python-api/hooks
+- `get_app_branch()` v16.32.0: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/change_log.py
 
 Официальный Create an App показывает модуль, создаваемый `bench new-app`, как `Default Module bootstrapped with app`; отдельно создавать первый Module после `new-app` не требуется.
+
+`bench new-app` берёт default `Branch Name` через `get_app_branch("frappe")`. В v16.32.0 эта функция выполняет `git rev-parse --abbrev-ref HEAD`. Поэтому на Bench, созданном непосредственно на tag `v16.32.0`, Frappe находится в detached HEAD и default может быть `HEAD`; P0 требует явно ввести `main` для учебного app.
 
 ## DocType и данные
 
