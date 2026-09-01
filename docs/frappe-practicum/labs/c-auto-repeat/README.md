@@ -1,70 +1,72 @@
 # Lab C. Auto Repeat
 
-Lab C — отдельная лаборатория по штатному созданию повторяющихся Documents.
+Lab C изучает штатное повторное создание Documents без изменения постоянной доменной модели.
 
-Новых постоянных предметных DocType не создаём.
-
-Для эксперимента используем уже существующий:
+Используем существующий:
 
 ```text
 Service Request
 ```
 
-и временно разрешаем для него штатный механизм:
+и временно включаем:
 
 ```text
 Allow Auto Repeat
 ```
 
-После лаборатории Auto Repeat удаляется, настройка отключается, служебный Custom Field очищается, а ядро приложения снова остаётся прежним.
-
 Базовая версия: **Frappe Framework v16.32.0**.
+
+После лаборатории Auto Repeat и служебный Custom Field удаляются, Assignment Rule L9 возвращается в исходное состояние.
 
 ---
 
 # 1. Что изучаем
-
-В лаборатории нужны только штатные механизмы Frappe:
 
 ```text
 Allow Auto Repeat
 Auto Repeat
 Reference Document
 Frequency
-Start Date
-End Date
+Start / End Date
 Next Schedule Date
 Assignee
 Assign To / ToDo
 scheduler
-background job
+background queue
 ```
 
-Главная идея:
+Архитектура:
 
 ```text
-исходный Document
-      ↓
-Auto Repeat
-      ↓
+Reference Service Request
+        ↓
+Auto Repeat schedule
+        ↓
 scheduler
-      ↓
-новый Document-копия
-      ↓
-Assign To / ToDo
+        ↓
+новый Service Request
+        ↓
+optional Auto Repeat Assignee
+        ↓
+ToDo
 ```
 
 Auto Repeat не является Workflow и не является Assignment Rule.
 
 ---
 
-# 2. Проверить стенд
+# 2. Preconditions
 
-В терминале:
+После L11 active site снова:
+
+```text
+facility-ops.localhost
+```
+
+Проверить:
 
 ```bash
 cd ~/frappe/facility-ops-bench
-
 bench version
 bench --site facility-ops.localhost list-apps
 bench --site facility-ops.localhost scheduler status
@@ -74,66 +76,34 @@ cd apps/facility_ops
 git status
 ```
 
-Нужно подтвердить:
-
-```text
-Frappe 16.32.0
-facility_ops установлен
-scheduler активен
-workers доступны
-```
-
-Во время практики `bench start` должен быть запущен в отдельном терминале.
-
----
-
-# 3. Зафиксировать границу механизма
-
-Auto Repeat нужен, когда новый Document должен появляться по расписанию на основе существующего Document.
-
-Например:
-
-```text
-ежедневный осмотр
-еженедельная проверка
-ежемесячное обслуживание
-```
-
-Для лаборатории используем сценарий:
-
-```text
-Periodic inspection
-→ новый Service Request каждый день
-```
-
-Не создаём:
-
-```text
-Maintenance Schedule
-Recurring Request
-Inspection Plan
-Schedule Item
-```
-
-Сейчас задача — изучить именно штатный `Auto Repeat`.
-
----
-
-# 4. Временно отключить Assignment Rule L9
-
-На основном учебном site уже может работать:
+На основном site L9 должен существовать:
 
 ```text
 Service Request Auto Assignment
 ```
 
-Для чистого эксперимента временно открыть `Assignment Rule` и установить:
+Workflow states:
 
 ```text
+New
+Accepted
+In Progress
+Resolved
+Closed
+```
+
+---
+
+# 3. Temporary mutation: отключить Assignment Rule
+
+Временно:
+
+```text
+Service Request Auto Assignment
 Disabled = Yes
 ```
 
-Почему:
+Причина:
 
 ```text
 Auto Repeat Assignee
@@ -141,123 +111,80 @@ Auto Repeat Assignee
 Assignment Rule
 ```
 
-оба могут создавать назначения.
+оба используют штатный assignment/ToDo механизм.
 
-В этой лаборатории нужно увидеть действие только Auto Repeat.
-
-После лаборатории Assignment Rule вернём обратно.
+Для чистого эксперимента оставляем один источник назначения.
 
 ---
 
-# 5. Разрешить Auto Repeat для Service Request
+# 4. Разрешить Auto Repeat
 
-Войти как:
-
-```text
-Administrator
-```
-
-Developer Mode должен быть включён.
-
-Через Awesomebar открыть:
+Под Administrator:
 
 ```text
-DocType
-→ Service Request
-```
-
-Включить:
-
-```text
+DocType → Service Request
 Allow Auto Repeat = Yes
 ```
 
-Сохранить DocType.
+Сохранить.
 
-Frappe автоматически добавляет служебное поле:
+Frappe создаёт служебный Custom Field:
 
 ```text
 auto_repeat
 ```
 
-Это Link на `Auto Repeat`, который связывает исходный Document с его расписанием.
-
-Не создаём такое поле вручную.
+Его не создаём вручную.
 
 ---
 
-# 6. Найти автоматически созданный Custom Field
+# 5. Проверить Custom Field
 
-Через Awesomebar открыть:
-
-```text
-Custom Field
-```
-
-Отфильтровать:
+Через `Custom Field` найти:
 
 ```text
 Document Type = Service Request
 Fieldname     = auto_repeat
 ```
 
-Должен существовать служебный Custom Field.
-
-Зафиксировать:
+Фиксируем:
 
 ```text
 Allow Auto Repeat
-→ не просто флаг интерфейса
-→ Frappe добавляет техническую связь с Auto Repeat
-```
+= metadata capability
 
-Не менять этот Custom Field вручную.
+auto_repeat
+= служебная связь Document → Auto Repeat
+```
 
 ---
 
-# 7. Создать исходную Service Request
-
-Создать отдельную заявку-шаблон эксперимента:
+# 6. Создать reference Service Request
 
 ```text
 Subject:     Periodic inspection template
 Location:    Room 101
-Equipment:   <любое Equipment из Room 101 или пусто>
+Equipment:   логично подходящий Equipment или пусто
 Description: Template for Auto Repeat laboratory
 Priority:    Medium
-Target Date: <пусто>
-Status:      New
+Target Date: пусто
 ```
 
-Сохранить.
-
-Запомнить номер, например:
+Получить:
 
 ```text
-SR-00042
+Status = New
 ```
 
-`Target Date` оставляем пустым намеренно.
-
-В текущей модели это необязательное Date-поле, а Auto Repeat автоматически переносит `Next Schedule Date` только в обязательные Date-поля повторяемого DocType.
-
-Не ожидаем, что необязательный `Target Date` станет датой расписания сам по себе.
+`Target Date` оставляем пустым специально: он Optional и не должен магически становиться датой расписания.
 
 ---
 
-# 8. Создать Auto Repeat
-
-Через Awesomebar открыть:
-
-```text
-Auto Repeat
-```
-
-Создать:
+# 7. Создать Auto Repeat
 
 ```text
 Reference Document Type: Service Request
-Reference Document:      <номер Periodic inspection template>
+Reference Document:      <reference SR>
 Start Date:              сегодня
 Frequency:               Daily
 Disabled:                No
@@ -265,107 +192,66 @@ Submit on Creation:      No
 Notify by Email:         No
 ```
 
-End Date пока оставить пустым.
-
-Сохранить.
-
-Имя будет штатным, примерно:
-
-```text
-AUT-AR-00001
-```
+End Date пока пусто.
 
 ---
 
-# 9. Проверить связь с исходной заявкой
+# 8. Проверить единственность связи
 
-Вернуться в исходный `Service Request`.
+Reference `Service Request.auto_repeat` должен ссылаться на созданный Auto Repeat.
 
-Поле `auto_repeat` должно ссылаться на созданный Auto Repeat.
+Попытаться создать второй Auto Repeat на ту же reference заявку.
 
-Получаем:
-
-```text
-Service Request SR-...
-        │
-        └── auto_repeat → AUT-AR-00001
-```
-
-Один Reference Document не должен одновременно иметь два разных Auto Repeat.
-
-Попробовать создать второй Auto Repeat на ту же исходную заявку.
-
-Frappe должен запретить это.
-
-После проверки второй документ не сохранять.
+Frappe должен запретить дублирующую активную связь.
 
 ---
 
-# 10. Посмотреть рассчитанную дату
+# 9. Next Schedule Date
 
-Открыть созданный `Auto Repeat`.
-
-Проверить:
+Проверить рассчитанный:
 
 ```text
-Status             = Active
-Frequency          = Daily
-Next Schedule Date = завтра
+Next Schedule Date
 ```
 
-При Daily расписании первая новая копия создаётся на следующую рассчитанную дату.
+Не вводить его вручную.
 
-`Next Schedule Date` — read-only результат расчёта Frappe.
-
-Не вводим его вручную.
+Для немедленной лабораторной проверки позже сдвинем Start Date так, чтобы schedule подошёл на сегодня.
 
 ---
 
-# 11. Добавить Assignee
-
-В секции Assignee добавить:
+# 10. Добавить Assignee
 
 ```text
+Assignee:
 technician.one@example.com
-```
 
-Оставить:
-
-```text
 Generate Separate Documents For Each Assignee = No
 ```
 
-Сохранить.
-
-При создании повторного Document Frappe после insert использует штатный Assign To-механизм.
-
-То есть результат будет:
+При generated Document Frappe использует штатный assignment mechanism:
 
 ```text
-новый Service Request
-        ↓
-Assign To
-        ↓
-ToDo
+new Service Request
+→ Assign To
+→ ToDo
 ```
 
-Отдельного поля `Assigned Technician` по-прежнему не нужно.
+Это не создаёт field `Assigned Technician`.
 
 ---
 
-# 12. Негативный тест Submit on Creation
+# 11. Submit on Creation — отрицательный тест
 
-На Auto Repeat временно попробовать включить:
+Попробовать:
 
 ```text
 Submit on Creation = Yes
 ```
 
-Сохранить.
+`Service Request` не Submittable.
 
-`Service Request` в нашем приложении не является Submittable DocType.
-
-Frappe должен запретить такую настройку.
+Frappe должен отклонить несовместимую настройку.
 
 Вернуть:
 
@@ -373,44 +259,23 @@ Frappe должен запретить такую настройку.
 Submit on Creation = No
 ```
 
-Главный вывод:
-
-```text
-Auto Repeat может автоматически Submit-ить
-только submittable DocType
-```
-
-`Service Request` ради этой функции submittable не делаем.
-
 ---
 
-# 13. Подготовить немедленную проверку scheduler
+# 12. Подготовить запуск на сегодня
 
-Ждать календарные сутки для лаборатории не нужно.
-
-Открыть существующий Auto Repeat и изменить:
-
-```text
-Start Date = вчера
-```
-
-Сохранить.
-
-Это уже не первоначальный insert Auto Repeat, поэтому Frappe пересчитает расписание от указанной даты.
-
-Проверить:
+Изменить schedule так, чтобы:
 
 ```text
 Next Schedule Date = сегодня
 ```
 
-Теперь запись подходит для текущего запуска Auto Repeat scheduler-job.
+Например после уже созданного Auto Repeat сдвинуть Start Date на вчера и проверить пересчёт.
+
+Не править `Next Schedule Date` напрямую.
 
 ---
 
-# 14. Запустить штатный Auto Repeat job вручную
-
-В терминале:
+# 13. Запустить штатный scheduler method
 
 ```bash
 cd ~/frappe/facility-ops-bench
@@ -419,68 +284,24 @@ bench --site facility-ops.localhost execute \
   frappe.automation.doctype.auto_repeat.auto_repeat.make_auto_repeat_entry
 ```
 
-Это тот же штатный метод, который Frappe запускает через scheduler.
-
-Он не содержит нашей бизнес-логики.
-
-Метод находит Auto Repeat, у которых:
-
-```text
-Next Schedule Date <= сегодня
-Status = Active
-Disabled = No
-```
-
-и ставит создание Documents в long queue.
-
----
-
-# 15. Проверить background job
-
-Сразу проверить:
+Проверить:
 
 ```bash
 bench --site facility-ops.localhost show-pending-jobs
 bench --site facility-ops.localhost doctor
 ```
 
-В `bench start` должны быть доступны workers, включая long queue.
-
-Не писать собственный scheduler event.
-
-Frappe уже регистрирует Auto Repeat как штатную daily maintenance задачу.
+Auto Repeat использует штатную background queue.
 
 ---
 
-# 16. Проверить новую Service Request
+# 14. Проверить generated Service Request
 
-В Desk открыть:
+Найти новую заявку с тем же Subject.
 
-```text
-Service Request
-```
+У неё должен быть новый `name`.
 
-Найти новую заявку с Subject:
-
-```text
-Periodic inspection template
-```
-
-Она должна иметь **другой `name`**, чем исходная заявка.
-
-Сравнить:
-
-```text
-Reference Document
-SR-00042
-
-Generated Document
-SR-00043
-```
-
-Номера примерные.
-
-Проверить скопированные значения:
+Проверить копируемые значения:
 
 ```text
 Subject
@@ -491,124 +312,84 @@ Priority
 Status = New
 ```
 
-Это новый обычный `Service Request`, а не строка внутри Auto Repeat.
+Это новый обычный Document.
 
 ---
 
-# 17. Проверить назначение
-
-Открыть созданную повтором заявку.
-
-Проверить:
+# 15. Проверить assignment generated Document
 
 ```text
 Assigned To = technician.one@example.com
 ```
 
-Открыть связанный `ToDo`.
-
-Проверить:
+Связанный ToDo:
 
 ```text
 Reference Type = Service Request
-Reference Name = новый номер заявки
+Reference Name = generated SR
 Allocated To   = technician.one@example.com
 ```
 
-Assignment Rule сейчас отключён.
-
-Следовательно это назначение создал именно:
-
-```text
-Auto Repeat Assignee
-→ Assign To
-→ ToDo
-```
+Assignment Rule L9 сейчас Disabled, поэтому assignment пришёл именно из Auto Repeat.
 
 ---
 
-# 18. Проверить Workflow отдельно
+# 16. Assignment остаётся отдельным от Workflow
 
-Новая повторная заявка должна оставаться:
+Generated request после назначения остаётся:
 
 ```text
 Status = New
 ```
 
-Сам Auto Repeat не выполняет:
+Под Supervisor выполнить:
 
 ```text
-New → Assigned
+Accept
 ```
 
-Под Supervisor отдельно выполнить Workflow Action:
+Получить:
 
 ```text
-Mark Assigned
-```
-
-После этого:
-
-```text
-Status = Assigned
+Status = Accepted
 ```
 
 Фиксируем:
 
 ```text
 Auto Repeat
-= когда создать новый Document
+= когда создать Document
 
 Assignment
-= кому его назначить
+= кому поручить
 
 Workflow
-= в каком состоянии находится процесс
+= состояние процесса
 ```
+
+`Accepted` не означает «назначен», а assignment не является authorization.
 
 ---
 
-# 19. Проверить Next Schedule Date после запуска
+# 17. Next Schedule Date после обработки
 
-Открыть Auto Repeat снова.
+После успешного запуска проверить переход Next Schedule Date на следующую рассчитанную дату.
 
-После успешной обработки сегодняшнего расписания `Next Schedule Date` должна перейти на следующую дату.
-
-Для Daily:
-
-```text
-сегодня
-→ создан новый Document
-→ Next Schedule Date = завтра
-```
-
-То есть Auto Repeat хранит состояние собственного расписания.
-
-Не создаём свой счётчик повторов.
+Для Daily ожидается следующий день.
 
 ---
 
-# 20. Проверить End Date
+# 18. End Date
 
-На Auto Repeat задать будущую `End Date`, например через несколько дней.
+Задать будущую End Date и посмотреть schedule.
 
-Сохранить.
+Попробовать некорректный вариант по правилам Auto Repeat и получить штатную validation error.
 
-Проверить рассчитанное расписание штатным просмотром Auto Repeat, если кнопка Schedule доступна на стенде.
-
-Затем попробовать некорректное значение:
-
-```text
-End Date = Start Date
-```
-
-Frappe должен отклонить его.
-
-После теста вернуть корректную будущую End Date или очистить её.
+После теста вернуть корректное значение или очистить End Date.
 
 ---
 
-# 21. Проверить Disabled
+# 19. Disabled
 
 Установить:
 
@@ -616,244 +397,130 @@ Frappe должен отклонить его.
 Disabled = Yes
 ```
 
-Сохранить.
+Проверить inactive/disabled состояние и отсутствие следующего активного запуска.
 
-Проверить:
-
-```text
-Status             = Disabled
-Next Schedule Date = пусто
-```
-
-Исходный `Service Request` больше не должен считаться активным участником расписания.
-
-Вернуть:
-
-```text
-Disabled = No
-```
-
-только если нужен следующий тест.
+Если нужен следующий тест — временно вернуть No.
 
 ---
 
-# 22. Что реально хранится где
-
-После лаборатории различать:
+# 20. Где что хранится
 
 ```text
-Service Request template
-→ обычный working Document
+Reference Service Request
+→ working data
 
 Auto Repeat
-→ configuration Document с расписанием
+→ schedule configuration Document
 
 Generated Service Request
-→ новый working Document
+→ working data
 
 ToDo
-→ assignment Document
+→ assignment data
 
 Allow Auto Repeat
-→ metadata DocType
+→ DocType metadata
 
 auto_repeat
-→ служебный Custom Field / ссылка
+→ служебный Custom Field
 ```
-
-Auto Repeat не является копией данных «на будущее».
-
-Он хранит правило, по которому Frappe создаёт новые Documents.
 
 ---
 
-# 23. Проверить Git во время эксперимента
+# 21. Git во время эксперимента
 
-В терминале:
+`Allow Auto Repeat = Yes` меняет Standard metadata `Service Request`, поэтому source diff возможен.
 
-```bash
-cd ~/frappe/facility-ops-bench/apps/facility_ops
-
-git status --short
-```
-
-Изменение:
-
-```text
-Allow Auto Repeat = Yes
-```
-
-относится к Standard metadata `Service Request`, поэтому изменение DocType должно быть видно в source app.
-
-Рабочие записи:
+Runtime:
 
 ```text
 Auto Repeat
-Service Request template
-Generated Service Request
+reference/generated Service Request
 ToDo
 ```
 
-сами по себе в Git не попадают.
+не являются app source.
 
-Служебный `auto_repeat` создан как Custom Field текущего site и отдельно в source app автоматически не превращается.
-
----
-
-# 24. Зафиксировать эксперимент
-
-Проверить diff:
-
-```bash
-git diff
-```
-
-Можно сделать учебный commit состояния лаборатории:
-
-```bash
-git add .
-git commit -m "Lab C: enable Service Request auto repeat"
-```
-
-Это не означает, что Auto Repeat должен остаться в финальном приложении.
-
-Следующий шаг — штатная очистка.
+При желании сделать отдельный experiment commit, чтобы потом увидеть rollback.
 
 ---
 
-# 25. Удалить Auto Repeat
+# 22. Rollback: удалить Auto Repeat
 
-Сначала открыть созданный:
+Удалить созданный `Auto Repeat` штатно.
 
-```text
-AUT-AR-xxxxx
-```
-
-и удалить его штатным `Delete`.
-
-Удаление Auto Repeat очищает ссылку `auto_repeat` у Reference Document.
-
-Проверить исходный `Service Request`:
+Проверить reference document:
 
 ```text
 auto_repeat = пусто
 ```
 
-Тестовые Service Request, созданные во время лаборатории, можно удалить отдельно, если они больше не нужны.
+Тестовые generated Documents можно удалить отдельно, если они больше не нужны.
 
 ---
 
-# 26. Отключить Allow Auto Repeat
-
-Открыть:
-
-```text
-DocType → Service Request
-```
+# 23. Rollback: Allow Auto Repeat
 
 Вернуть:
 
 ```text
+DocType → Service Request
 Allow Auto Repeat = No
 ```
 
 Сохранить.
 
-Важно:
-
-выключение флага само по себе не является гарантией удаления уже созданного служебного Custom Field.
-
-Поэтому проверяем его отдельно.
-
 ---
 
-# 27. Удалить оставшийся Custom Field
+# 24. Rollback: служебный Custom Field
 
-Открыть:
+Проверить:
 
 ```text
 Custom Field
-```
-
-Найти:
-
-```text
 Document Type = Service Request
-Fieldname     = auto_repeat
+Fieldname = auto_repeat
 ```
 
-Если запись осталась — удалить её штатно.
+Если запись осталась — удалить штатно.
 
-После этого выполнить:
+Затем:
 
 ```bash
-cd ~/frappe/facility-ops-bench
 bench --site facility-ops.localhost clear-cache
 ```
 
-Открыть `Service Request` заново и проверить, что служебного поля Auto Repeat больше нет.
-
 ---
 
-# 28. Вернуть Assignment Rule
-
-Открыть:
+# 25. Rollback: вернуть Assignment Rule
 
 ```text
 Service Request Auto Assignment
-```
-
-Вернуть:
-
-```text
 Disabled = No
+Rule = Round Robin
 ```
 
 Сохранить.
 
-Основной процесс L9 снова работает как до лаборатории.
+После Lab C основной site снова имеет operating policy L9.
 
 ---
 
-# 29. Проверить финальный Git
+# 26. Final state
 
-В терминале:
-
-```bash
-cd ~/frappe/facility-ops-bench/apps/facility_ops
-
-git status --short
-git diff
-```
-
-После возврата `Allow Auto Repeat = No` предметная модель должна снова соответствовать основной архитектуре.
-
-Если во время сохранения Standard DocType изменился только технический `modified` timestamp, это видно в diff и должно быть осознанно зафиксировано или возвращено через Git после проверки.
-
-Не использовать `git restore` вслепую, если в том же файле есть реальные изменения курса.
-
-Если эксперимент был отдельным commit, сделать второй commit очистки:
-
-```bash
-git add .
-git commit -m "Lab C: remove auto repeat experiment"
-```
-
----
-
-# 30. Финальное состояние
-
-После Lab C должно остаться:
+После Lab C:
 
 ```text
 Service Request.allow_auto_repeat = No
-нет активного Auto Repeat лаборатории
-нет Custom Field Service Request.auto_repeat
-Assignment Rule снова включён
-основные Workflow / Permissions не изменены
+нет Auto Repeat лаборатории
+нет Service Request.auto_repeat Custom Field
+Assignment Rule включён
+Rule = Round Robin
+Workflow states не изменены
+Status list = New / Accepted / In Progress / Resolved / Closed
 ```
 
-Постоянное ядро:
+Core domain снова:
 
 ```text
 Facility Location
@@ -863,59 +530,32 @@ Service Request
 
 ---
 
-# 31. Что нужно уметь объяснить
+# 27. Приёмка
 
-После лаборатории ученик должен своими словами объяснить:
-
-1. Зачем DocType должен разрешить `Allow Auto Repeat`.
-2. Что хранит `Auto Repeat`.
-3. Чем Reference Document отличается от generated Document.
-4. Что означает `Next Schedule Date`.
-5. Что делает scheduler.
-6. Зачем Auto Repeat использует background queue.
-7. Как Assignee превращается в обычный `ToDo`.
-8. Почему Auto Repeat не заменяет Workflow.
-9. Почему `Submit on Creation` неприменим к нашему `Service Request`.
-10. Почему необязательный `Target Date` не обязан автоматически стать датой расписания.
-11. Чем metadata `Allow Auto Repeat` отличается от configuration Document `Auto Repeat`.
-12. Как полностью убрать эксперимент после лаборатории.
-
----
-
-# 32. Приёмка Lab C
-
-Лаборатория пройдена, если ученик без подсказки может выполнить цепочку:
+Лаборатория принята, если ученик может выполнить:
 
 ```text
-включить Allow Auto Repeat
-→ увидеть служебный auto_repeat
-→ создать reference Service Request
-→ создать Auto Repeat
-→ настроить Daily
-→ добавить Assignee
-→ получить Next Schedule Date
-→ подготовить запуск на сегодня
-→ запустить штатный scheduler method
-→ получить новый Service Request
-→ увидеть ToDo назначенного Technician
-→ доказать, что Workflow остался отдельным
-→ удалить Auto Repeat
-→ отключить Allow Auto Repeat
-→ удалить служебный Custom Field
-→ вернуть Assignment Rule
+disable L9 Assignment Rule
+→ enable Allow Auto Repeat
+→ create reference request
+→ create Daily Auto Repeat
+→ add Assignee
+→ schedule today
+→ run native scheduler method
+→ receive new Service Request
+→ see ToDo
+→ prove Status remains New
+→ Supervisor Accept
+→ delete Auto Repeat
+→ disable Allow Auto Repeat
+→ remove technical Custom Field
+→ restore Round Robin Assignment Rule
 ```
 
-И объяснить итоговую архитектуру:
+И объяснить:
 
 ```text
-Auto Repeat
-= расписание создания Documents
-
-Assign To / ToDo
-= назначение созданной работы
-
-Workflow
-= управление состоянием работы
+Auto Repeat ≠ Assignment Rule
+Assignment ≠ Workflow
+Accepted ≠ Assigned To
 ```
-
-После очистки лаборатория не оставляет нового постоянного предметного DocType.
