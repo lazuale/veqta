@@ -27,8 +27,8 @@
 | Механизм | Впервые | Статус | Зачем |
 |---|---:|---|---|
 | Bench | P0 | Основное | понять рабочее окружение |
-| Site | P0 | Основное | понять отдельный экземпляр Frappe |
 | App | P0 | Основное | основная единица поставки функциональности |
+| Site | P0 | Основное | понять отдельный экземпляр Frappe |
 | `bench new-app` | P0 | Основное | создать настоящий app |
 | `install-app` / `list-apps` | P0 | Основное | связать app и site |
 | Developer Mode | P0 | Основное | создавать стандартные объекты app |
@@ -39,7 +39,6 @@
 | Desk v16 / Workspace Sidebar | P0 | Основное | освоить актуальную навигацию |
 | Awesomebar / command palette | P0 | Основное | быстро находить объекты и команды |
 | scheduler / workers | P0 | Основное | проверить среду для будущей автоматизации |
-| PDF generation | P0 | Основное | заранее проверить будущую печать |
 | Apps Page / `add_to_apps_screen` | P0/P2 | Доп. | показать место app в интерфейсе и hook при необходимости |
 
 ## Модель данных
@@ -73,8 +72,10 @@
 |---|---:|---|
 | Data / Small Text / Text | P1 | Основное |
 | Select / Check | P1 | Основное |
-| Int / Float / Currency / Percent | P1 | Основное |
-| Date / Datetime / Time / Duration | P1 | Основное |
+| Int / Float / Currency | P1 | Основное |
+| Percent | P1 | Доп. |
+| Date / Datetime | P1 | Основное |
+| Time / Duration | P1 | Доп. |
 | Link | P1 | Основное |
 | Table | P1 | Основное |
 | Attach / Attach Image | P1 | Основное |
@@ -109,8 +110,8 @@ Dynamic Link становится обязательным только если
 | Form View | P1 | Основное |
 | List View | P1 | Основное |
 | Filters / Sorting | P1 | Основное |
-| Saved Filters | P2 | Основное |
-| Mass actions | P1 | Основное |
+| Saved Filters | P2 | Доп. |
+| Mass actions | P1 | Доп. |
 | Data Import | P1 | Основное |
 | Export | P1 | Основное |
 | Comments / Timeline | P3 | Основное |
@@ -170,13 +171,15 @@ Dynamic Link становится обязательным только если
 | Count / Sum / Average | P5 | Основное |
 | Number Card | P5 | Основное |
 | Dashboard Chart | P5 | Основное |
-| Workspace | P2/P5 | Основное |
-| Shortcut / Quick List | P2 | Основное |
+| Workspace | P5 | Основное |
+| Shortcut / Quick List | P5 | Основное |
 | Workspace roles/access | P5 | Основное |
 | Print View | P5 | Основное |
 | Print Format Builder | P5 | Основное |
 | Letter Head | P5 | Основное |
-| PDF | P0/P5 | Основное |
+| PDF | P5 | Основное |
+
+PDF впервые требуется в P5. P0 проверяет Frappe, app, Desk и фоновые процессы, но не требует установки PDF-зависимости заранее.
 
 ## Автоматизация
 
