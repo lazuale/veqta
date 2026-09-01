@@ -8,7 +8,7 @@
 facility_ops
 ```
 
-Постоянное ядро:
+Core domain:
 
 ```text
 Facility Location
@@ -16,70 +16,34 @@ Equipment
 Service Request
 ```
 
-Формальные гарантии и enforcement level: **[INVARIANTS.md](INVARIANTS.md)**.
+Формальные гарантии: [INVARIANTS.md](INVARIANTS.md).
 
 ---
 
-# 1. Базовое правило курса
+# 1. Базовое правило
 
 Собственную Python/JavaScript business logic в основном маршруте не пишем.
 
-Допустимы штатные:
+Допустимы штатные expression fields, Workflow/Assignment Rule Conditions, fixtures/hooks configuration, generated files и exported customizations.
 
-```text
-expression fields
-Workflow Conditions
-Assignment Rule Conditions
-hooks.py для fixtures/config
-Frappe-generated files
-exported customizations
-```
+Server Script, custom controller, custom permission hooks и Client Script — Later.
 
-Server Script, custom controller, custom permission hooks и Client Script остаются Later.
-
-Поэтому курс не обещает гарантий, которые без отдельного server-side слоя невозможно честно обеспечить.
+Поэтому base course не обещает гарантий, которые без отдельного server layer нельзя честно обеспечить.
 
 ---
 
-# 2. Источники истины
+# 2. Source of truth
 
 1. фактический стенд `v16.32.0`;
-2. exact source tag `v16.32.0`;
+2. exact tag `v16.32.0`;
 3. официальная документация;
-4. moving `version-16` только для будущих изменений.
+4. moving `version-16` только для future changes.
 
 ---
 
-# 3. Core domain
+# 3. Core data
 
-## Facility Location
-
-Tree структуры мест.
-
-## Equipment
-
-Category:
-
-```text
-HVAC
-Electrical
-IT
-Other
-```
-
-Status:
-
-```text
-Active
-Out of Service
-Retired
-```
-
-`Equipment.location` — текущее размещение.
-
-## Service Request
-
-Mandatory:
+Service Request Mandatory:
 
 ```text
 Subject
@@ -106,15 +70,13 @@ Resolved
 Closed
 ```
 
-`Service Request.location` — историческое место события.
+`Service Request.location` = historical event location.
 
-Вечное hard equality с текущим `Equipment.location` не вводится.
+`Equipment.location` = current location.
 
 ---
 
-# 4. Что не входит в core domain
-
-Нет обязательных:
+# 4. Не входит в core domain
 
 ```text
 Equipment Type
@@ -125,18 +87,15 @@ Department
 Team
 Technician business entity
 Requester business entity
-Status reference
-Priority reference
+Status/Priority references
 Assigned Technician field
 ```
-
-Assignment использует штатный ToDo.
 
 ---
 
 # 5. Permission scope
 
-Core включает:
+Core изучает:
 
 ```text
 User
@@ -145,22 +104,20 @@ Website User
 Guest
 Role
 Role Permission Manager
-Read / Write / Create / Delete
-Report / Export / Import
+Read/Write/Create/Delete
+Report/Export/Import
 If Owner
 Permission Level
 User Permission
 Share
 ```
 
-Финальная `Service Request` policy:
+Final Desk Service Request policy:
 
 ```text
 Requester
-→ Create
-→ Read own
-→ Write No после insert
-→ Delete No
+→ Create + Read own
+→ Write/Delete No
 
 Technician
 → Read/Write
@@ -172,30 +129,11 @@ Supervisor
 → Report/Export
 ```
 
-Requester intake — append-only после создания.
-
-Delete permission входит в Core как **временный L5 experiment**, но не остаётся финальной working policy.
-
-Академическая граница:
-
-```text
-Role Permission
-= server access boundary
-
-User Permission / Share
-= дополнительные access mechanisms
-
-Assignment
-= не access mechanism
-```
-
-User Permission/Share L5 временные и не остаются ограничением основных Technician.
+Delete, User Permission и Share частично изучаются temporary и откатываются к безопасному baseline.
 
 ---
 
 # 6. Collaboration scope
-
-Core:
 
 ```text
 Assign To
@@ -208,9 +146,9 @@ Kanban
 ```
 
 ```text
-Permission = доступ
-Assignment = ответственность
-Status = процесс
+Permission = access
+Assignment = responsibility
+Status = process
 ```
 
 Assignee-only authorization — Later.
@@ -219,61 +157,34 @@ Assignee-only authorization — Later.
 
 # 7. Workflow scope
 
-Core:
-
 ```text
-Status before Workflow
 Workflow
 Workflow State
 Workflow Action Master
 Transition
 Allowed Role
 Only Allow Edit For
-Workflow Action
 Condition
-existing status as Workflow State Field
+existing status state field
 ```
 
-Процесс:
+Process:
 
 ```text
-New
-→ Accept
-→ Accepted
-→ Start Work
-→ In Progress
-→ Resolve
-→ Resolved
-→ Close
-→ Closed
+New → Accepted → In Progress → Resolved → Closed
 ```
 
-Desk edit roles:
+Enforcement:
 
 ```text
-New         → Facility Supervisor
-Accepted    → Facility Technician
-In Progress → Facility Technician
-Resolved    → Facility Supervisor
-Closed      → Facility Supervisor
+Allowed Role / Condition = server transition gate
+Only Allow Edit For      = Desk guard
+Status Read Only          = UI guard
 ```
 
-Requester может создать новый `__islocal` Document, но после insert server `Write = No` запрещает дальнейшее редактирование.
+Requester can create local New doc; after insert Role Permission `Write = No` is the hard boundary.
 
-Разделение enforcement:
-
-```text
-Allowed Role / Condition
-= server transition enforcement
-
-Only Allow Edit For
-= state-dependent Desk guard
-
-Status Read Only
-= UI guard
-```
-
-Closed — terminal workflow state, но абсолютная API immutability не заявляется.
+Closed terminal, but absolute API immutability — Later.
 
 ---
 
@@ -294,14 +205,7 @@ Quick List
 role access
 ```
 
-Не Core:
-
-```text
-Query Report
-Script Report
-Sum/Average как отдельная практика
-BI layer
-```
+Query/Script Reports and separate BI layer — Later.
 
 ---
 
@@ -312,28 +216,19 @@ Core:
 ```text
 Notification
 System Notification
-Notification Filters
 Days After
-Preview / Alerts for Today
 Assignment Rule
 Round Robin
 Due Date Based On
 Close Condition
-scheduler/background jobs
-manual scheduler handler test
+scheduler
 ```
 
-Optional:
+Load Balancing — Optional.
 
-```text
-Load Balancing
-```
+Target Date Optional, поэтому due/overdue behavior conditional.
 
-Target Date остаётся Optional, поэтому Due Date/overdue behavior — conditional invariant.
-
-Main-site Assignment Rule содержит concrete Users и остаётся site-specific.
-
-Основные Technician имеют одинаковый base permission, чтобы Assign To не создавал неожиданные DocShare exceptions.
+Assignment Rule с concrete Users остаётся site-specific.
 
 ---
 
@@ -343,9 +238,9 @@ Core изучает:
 
 ```text
 Standard Web Form
-Route
 Published
-Guest creation experiment
+Route
+Guest experiment
 Login Required
 Website User
 Allow Edit
@@ -355,9 +250,10 @@ Allow Read On All Link Options
 attachments
 ```
 
-Финал:
+## Final mode
 
 ```text
+Published = Yes
 Login Required = Yes
 Anonymous = No
 Show List = Yes
@@ -365,21 +261,47 @@ Allow Edit = No
 Apply Document Permissions = No
 ```
 
-`Allow Edit` изучается временно и выключается.
+## Критическая граница create
 
-Threat model:
+Desk:
 
 ```text
-Website User = trusted internal reporter
+System User
+→ ordinary Role Permission Create
 ```
 
-Public untrusted internet intake — Later.
+Web Form:
+
+```text
+new target Document
+→ insert(ignore_permissions=True)
+```
+
+Поэтому:
+
+```text
+Web Form Create
+≠ Role Permission Create
+```
+
+`Apply Document Permissions` относится к existing-document access и не превращает new insert в ordinary Create check.
+
+`Login Required` — authentication boundary, не role-specific authorization.
+
+Final threat model:
+
+```text
+published authenticated Web Form
+→ trusted internal website population
+```
+
+Role-restricted/public-untrusted portal intake — Later.
 
 ---
 
 # 11. Packaging scope
 
-Core включает:
+Core:
 
 ```text
 Standard source
@@ -404,8 +326,6 @@ Reports/Cards/Chart/Workspace
 Notifications
 Web Form
 Roles
-Workflow States
-Workflow Actions
 Workflow
 Custom DocPerm
 ```
@@ -419,55 +339,37 @@ Share
 Assignment Rule tied to local Users
 ```
 
-L11 clean-site acceptance обязана проверить восстановление финальной permission matrix, включая:
+L11 must test separately:
 
 ```text
-Requester post-create Write = No
-все рабочие роли Service Request Delete = No
+Desk Requester create/no-write
+Web Form Website User create
 ```
 
-L11 доказывает clean-site portability, не arbitrary co-installation compatibility.
+These are different permission/capability paths.
 
 ---
 
-# 12. Main site и clean site
+# 12. Main vs clean site
 
-Main site после L9:
+Main site may have Assignment Rule Close Condition.
 
-```text
-Assignment Rule Close Condition
-→ Rule-managed ToDo может закрываться при Status Closed
-```
-
-Clean site L11:
-
-```text
-Assignment Rule отсутствует
-→ manual ToDo lifecycle остаётся отдельным
-```
-
-Это deployment difference, а не inconsistency core.
+Clean site intentionally has no Assignment Rule during portability acceptance; manual ToDo lifecycle remains separate.
 
 ---
 
 # 13. Labs
 
 ```text
-Lab A → Child Table
-Lab B → Submittable / DocStatus
-Lab C → Auto Repeat
-Lab D → Customize Form
-Lab E → Print / PDF
-Lab F → special field types / Event views
+A Child Table
+B DocStatus
+C Auto Repeat
+D Customize Form
+E Print/PDF
+F special fields/views
 ```
 
-Правило:
-
-```text
-не оставлять новую domain entity без осознанного решения
-```
-
-Presentation configuration вроде Standard Print Format может остаться.
+Domain rollback is mandatory; presentation configuration may remain consciously.
 
 ---
 
@@ -476,32 +378,36 @@ Presentation configuration вроде Standard Print Format может оста�
 ```text
 Server Script
 custom Python controller
-permission_query_conditions / custom has_permission
-server-side state immutability validation
+custom has_permission / permission query
 assignee-only authorization
+hard state immutability
+role-restricted Web Form/portal admission
+public-untrusted catalog architecture
 Client Script / custom JS
-REST/Webhooks отдельным блоком
+REST/Webhooks separate block
 Query/Script Reports
-custom Portal/Website Pages
-public external catalog architecture
-custom Calendar/Gantt JS
-Virtual DocType
 arbitrary multi-app integration audit
 production hardening
 ```
 
 ---
 
-# 15. Критерий выхода
+# 15. Exit criterion
 
-Ученик должен уметь назвать настоящий enforcement layer:
+Ученик должен уметь назвать для каждого механизма:
 
 ```text
-что сервер гарантирует
-что гарантирует metadata
-что является UI guard
-что является site policy
-что держится обязательным rollback
+server guarantee
+structural rule
+UI guard
+conditional behavior
+deployment policy
 ```
 
-Базовый курс корректен только если UI/policy договорённость не выдаётся за hard security invariant.
+Особенно он не должен путать:
+
+```text
+Desk Role Create
+с
+Web Form intake capability
+```
