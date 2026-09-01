@@ -157,7 +157,7 @@ Target Date: любая будущая дата
 Создать:
 
 ```text
-Name:                 Overdue Service Request
+Name:                 Service Request One Day Overdue
 Enabled:              Yes
 Is Standard:          Yes
 Module:               Facility Operations
@@ -189,7 +189,7 @@ Recipient:
 Facility Supervisor
 ```
 
-Точная семантика:
+Название теперь точно соответствует семантике:
 
 ```text
 Target Date = вчера
@@ -204,7 +204,13 @@ Days After = 1
 
 # 7. Preview date-based Notification
 
-Использовать:
+На форме:
+
+```text
+Service Request One Day Overdue
+```
+
+использовать:
 
 ```text
 Preview
@@ -532,7 +538,12 @@ find facility_ops/facility_operations \
   | grep -i notification
 ```
 
-Две Notification являются Standard app-owned configuration.
+Standard app-owned Notifications:
+
+```text
+New Service Request
+Service Request One Day Overdue
+```
 
 Не редактировать экспортированные JSON/boilerplate вручную.
 
@@ -647,8 +658,8 @@ L9 принят, если:
 - создан `technician.two@example.com` и это первый урок, где он появляется;
 - оба Technician имеют одинаковую базовую область доступа к Service Request;
 - все тестовые заявки проходят Mandatory validation L4;
-- New Notification приходит Supervisor;
-- date-based Notification проверена как `1 day after Target Date`;
+- `New Service Request` приходит Supervisor;
+- `Service Request One Day Overdue` проверена как `1 day after Target Date`;
 - Round Robin даёт последовательность One → Two → One;
 - Due Date ToDo следует за Target Date;
 - автоматическое назначение не меняет Workflow State;
