@@ -1,28 +1,28 @@
-# P0 — отдельный учебный стенд WSL2
+# P0 — стенд Facility Operations в WSL2
 
-Эта инструкция поднимает **самостоятельный учебный стенд Frappe Framework 16** для практикумов.
+Эта инструкция поднимает самостоятельный учебный стенд Frappe Framework 16 для всего курса.
 
 Итоговая структура:
 
 ```text
 WSL2 / Debian 13
-└── ~/frappe/frappe-practicum-bench/
+└── ~/frappe/facility-ops-bench/
     ├── apps/
-    │   ├── frappe/                  # Frappe Framework v16.32.0
-    │   └── frappe_practicum/        # отдельный учебный app
+    │   ├── frappe/            # Frappe Framework v16.32.0
+    │   └── facility_ops/      # учебный app всего курса
     └── sites/
-        └── frappe-practicum.localhost/
+        └── facility-ops.localhost/
 ```
 
 Desk:
 
 ```text
-http://frappe-practicum.localhost:8000
+http://facility-ops.localhost:8000
 ```
 
 ## 0. Базовые версии
 
-Для воспроизводимости P0 используем проверенный стек курса:
+Для воспроизводимости используем проверенный стек курса:
 
 ```text
 Debian                  13 / Trixie
@@ -38,7 +38,7 @@ Frappe Framework        v16.32.0
 
 Системные пакеты Debian до patch-версий не фиксируются и получают обычные обновления безопасности.
 
-PDF-зависимость в P0 не ставится. Она понадобится только в P5.
+PDF-зависимость в P0 не ставится. Она впервые понадобится в P5.
 
 ---
 
@@ -70,7 +70,7 @@ wsl --set-version Debian 2
 
 После первого запуска Debian создать обычного пользователя.
 
-Проверить систему:
+Проверить:
 
 ```bash
 cd ~
@@ -246,7 +246,7 @@ python3.14 --version
 uv tool install --python 3.14.7 'frappe-bench==5.31.0'
 ```
 
-Если команда `bench` сразу не найдена:
+Если `bench` сразу не найден:
 
 ```bash
 uv tool update-shell
@@ -267,14 +267,14 @@ bench --version
 
 ---
 
-# 6. Создать отдельный Bench
+# 6. Создать Bench
 
 ```bash
 mkdir -p ~/frappe
 cd ~/frappe
 ```
 
-Каталога `frappe-practicum-bench` на чистом стенде ещё быть не должно.
+Каталога `facility-ops-bench` на чистом стенде ещё быть не должно.
 
 Создать Bench на точном tag Frappe:
 
@@ -282,13 +282,13 @@ cd ~/frappe
 bench init \
   --frappe-branch v16.32.0 \
   --python "$(command -v python3.14)" \
-  frappe-practicum-bench
+  facility-ops-bench
 ```
 
 После завершения:
 
 ```bash
-cd ~/frappe/frappe-practicum-bench
+cd ~/frappe/facility-ops-bench
 bench version
 ./env/bin/python --version
 
@@ -308,23 +308,21 @@ v16.32.0
 
 ---
 
-# 7. Создать учебный app
-
-Находясь в Bench:
+# 7. Создать app всего курса
 
 ```bash
-cd ~/frappe/frappe-practicum-bench
-bench new-app frappe_practicum
+cd ~/frappe/facility-ops-bench
+bench new-app facility_ops
 ```
 
-Ответы на вопросы:
+Ответы:
 
 ```text
-App Title [Frappe Practicum]:
-<Enter>
+App Title [Facility Ops]:
+Facility Operations
 
 App Description:
-Training app for Frappe Framework 16
+Training application for facility operations on Frappe Framework 16
 
 App Publisher:
 Student
@@ -342,34 +340,28 @@ Branch Name [HEAD]:
 main
 ```
 
-На Bench, созданном непосредственно на tag `v16.32.0`, репозиторий Frappe находится в detached HEAD. Поэтому `bench new-app` может предложить `HEAD` как default branch нового app. **Не принимайте этот default: введите `main` явно.** Если в конкретном окружении в скобках показано другое значение, всё равно введите `main`.
-
-`bench new-app` создаст отдельный Git-репозиторий приложения внутри:
-
-```text
-apps/frappe_practicum/
-```
+На Bench, созданном непосредственно на tag `v16.32.0`, репозиторий Frappe находится в detached HEAD, поэтому `bench new-app` может предложить `HEAD` как default branch. Ввести `main` явно.
 
 Проверить:
 
 ```bash
-cd ~/frappe/frappe-practicum-bench/apps/frappe_practicum
+cd ~/frappe/facility-ops-bench/apps/facility_ops
 
 git status
 git branch --show-current
-cat frappe_practicum/modules.txt
+cat facility_ops/modules.txt
 ```
 
-Ожидается branch:
+Ожидается:
 
 ```text
 main
 ```
 
-В `modules.txt` должен быть default Module:
+и default Module:
 
 ```text
-Frappe Practicum
+Facility Operations
 ```
 
 Отдельно создавать первый Module не нужно.
@@ -379,31 +371,31 @@ Frappe Practicum
 # 8. Создать учебный site
 
 ```bash
-cd ~/frappe/frappe-practicum-bench
+cd ~/frappe/facility-ops-bench
 
-bench new-site frappe-practicum.localhost \
+bench new-site facility-ops.localhost \
   --db-type mariadb \
   --db-root-username frappe_admin
 ```
 
 Bench попросит:
 
-1. пароль `frappe_admin` из шага 3;
+1. пароль `frappe_admin`;
 2. отдельный пароль пользователя Frappe `Administrator`.
 
 После создания:
 
 ```bash
-bench use frappe-practicum.localhost
-bench --site frappe-practicum.localhost install-app frappe_practicum
-bench --site frappe-practicum.localhost list-apps
+bench use facility-ops.localhost
+bench --site facility-ops.localhost install-app facility_ops
+bench --site facility-ops.localhost list-apps
 ```
 
 В списке должны быть:
 
 ```text
 frappe
-frappe_practicum
+facility_ops
 ```
 
 ---
@@ -411,9 +403,9 @@ frappe_practicum
 # 9. Включить Developer Mode
 
 ```bash
-cd ~/frappe/frappe-practicum-bench
+cd ~/frappe/facility-ops-bench
 bench set-config -g developer_mode 1
-bench --site frappe-practicum.localhost clear-cache
+bench --site facility-ops.localhost clear-cache
 ```
 
 Проверить:
@@ -433,14 +425,14 @@ grep '"developer_mode"' sites/common_site_config.json
 # 10. Первый запуск
 
 ```bash
-cd ~/frappe/frappe-practicum-bench
+cd ~/frappe/facility-ops-bench
 bench start
 ```
 
 В Windows открыть:
 
 ```text
-http://frappe-practicum.localhost:8000
+http://facility-ops.localhost:8000
 ```
 
 Войти:
@@ -461,58 +453,58 @@ Password: пароль из шага 8
 Во втором терминале:
 
 ```bash
-cd ~/frappe/frappe-practicum-bench
-bench --site frappe-practicum.localhost scheduler status
+cd ~/frappe/facility-ops-bench
+bench --site facility-ops.localhost scheduler status
 ```
 
-Если scheduler сообщает `disabled`, включить штатно:
+Если scheduler сообщает `disabled`:
 
 ```bash
-bench --site frappe-practicum.localhost scheduler enable
+bench --site facility-ops.localhost scheduler enable
 ```
 
 Повторить:
 
 ```bash
-bench --site frappe-practicum.localhost scheduler status
-bench --site frappe-practicum.localhost doctor
-bench --site frappe-practicum.localhost show-pending-jobs
+bench --site facility-ops.localhost scheduler status
+bench --site facility-ops.localhost doctor
+bench --site facility-ops.localhost show-pending-jobs
 ```
 
-На новом стенде пустая очередь нормальна. Важно, чтобы Redis, scheduler и workers были доступны без ошибок соединения.
+Пустая очередь на новом стенде нормальна. Важно, чтобы Redis, scheduler и workers были доступны без ошибок соединения.
 
 ---
 
 # 12. Финальная проверка стенда
 
 ```bash
-cd ~/frappe/frappe-practicum-bench
+cd ~/frappe/facility-ops-bench
 
 echo "=== BENCH ==="
 bench --version
 bench version
 
 echo "=== APPS ==="
-bench --site frappe-practicum.localhost list-apps
+bench --site facility-ops.localhost list-apps
 
 echo "=== SCHEDULER ==="
-bench --site frappe-practicum.localhost scheduler status
+bench --site facility-ops.localhost scheduler status
 
 echo "=== APP GIT ==="
-cd apps/frappe_practicum
+cd apps/facility_ops
 git status
 git branch --show-current
-cat frappe_practicum/modules.txt
+cat facility_ops/modules.txt
 ```
 
-P0 можно продолжать, если одновременно выполнено:
+P0 можно продолжать, если одновременно:
 
 - Frappe = `16.32.0`;
 - site открывается;
-- установлены `frappe` и `frappe_practicum`;
+- установлены `frappe` и `facility_ops`;
 - Developer Mode = `1`;
 - scheduler enabled;
 - `bench doctor` работает;
-- app `frappe_practicum` имеет собственный Git-репозиторий;
-- branch учебного app = `main`;
-- default Module `Frappe Practicum` существует.
+- `facility_ops` имеет собственный Git repository;
+- branch app = `main`;
+- default Module = `Facility Operations`.
