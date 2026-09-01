@@ -117,7 +117,7 @@ Facility Technician
 Facility Supervisor
 ```
 
-Final Desk policy:
+## Level 0 — document authority
 
 ```text
 Requester
@@ -134,12 +134,54 @@ Supervisor
 → Report/Export
 ```
 
+## Level 1 — business content authority
+
+На Permission Level 1 находятся:
+
+```text
+Subject
+Location
+Equipment
+Description
+Priority
+Target Date
+Attachment
+```
+
+Permissions:
+
+```text
+Requester   → Read/Write
+Technician  → Read only
+Supervisor  → Read/Write
+```
+
+`Status` остаётся Level 0.
+
+Зачем это нужно:
+
+```text
+Requester
+→ может заполнить новую заявку
+→ после insert не может сохранить её повторно
+
+Technician
+→ может участвовать в Workflow
+→ не получает право переписывать исходные реквизиты заявки
+
+Supervisor
+→ может корректировать содержание и управлять процессом
+```
+
+Exact `v16.32.0` проверяет high Permission Level при ordinary insert/save на сервере.
+
 Главное разделение:
 
 ```text
-Permission = access
-Assignment = responsibility
-Workflow   = process state
+Level 0 Permission = document authority
+Level 1 Permission = field authority
+Assignment         = responsibility
+Workflow           = process transition authority
 ```
 
 Assignment выполняется штатным `Assign To → ToDo` и не является authorization boundary.
@@ -155,7 +197,8 @@ Assignment выполняется штатным `Assign To → ToDo` и не я
 ```text
 Facility Requester
 → Role Permission Create
-→ после Save Write = No
+→ Level 1 позволяет заполнить business fields
+→ после Save Level 0 Write = No
 ```
 
 ## Web Form
@@ -174,7 +217,7 @@ Exact `v16.32.0` новый Web Form target Document создаётся чере
 Desk Create ≠ Web Form Create
 ```
 
-Web Form submission не является доказательством Role Permission Create.
+Web Form submission не является доказательством Role Permission или Permission Level enforcement.
 
 Final Web Form:
 
@@ -184,6 +227,8 @@ Login Required = Yes
 Show List = Yes
 Allow Editing After Submit = No
 ```
+
+Final `Allow Edit = No` принципиален ещё и потому, что Web Form update с `ignore_permissions=True` не должен оставаться обходным редактором Level 1 protected content.
 
 `Login Required` — authentication, не role-specific authorization.
 
@@ -198,13 +243,13 @@ Allow Editing After Submit = No
 | [L2](projects/02-equipment/README.md) | Equipment | Fields, Link, Form/List, Track Changes |
 | [L3](projects/03-data/README.md) | рабочие данные | Filters, Import, Export, Bulk Edit |
 | [L4](projects/04-service-request/README.md) | Service Request | data invariants, Status, Attachments |
-| [L5](projects/05-users-permissions/README.md) | hardened Desk access | Role Permission, If Owner, Permission Level, User Permission, Share |
+| [L5](projects/05-users-permissions/README.md) | hardened Desk access | Level 0/1 Permission, If Owner, User Permission, Share |
 | [L6](projects/06-collaboration/README.md) | ответственность | Assign To, ToDo, Comments, Tags, Kanban |
-| [L7](projects/07-workflow/README.md) | процесс | Workflow, Allowed Role, Condition, enforcement layers |
+| [L7](projects/07-workflow/README.md) | процесс | Workflow, Allowed Role, Level 1 content protection |
 | [L8](projects/08-control-workspace/README.md) | контроль | Report, Cards, Chart, Workspace |
 | [L9](projects/09-automation/README.md) | automation | Notification, Assignment Rule, scheduler |
-| [L10](projects/10-web-form/README.md) | authenticated intake | Web Form create/read-only; separate create capability |
-| [L11](projects/11-portability/README.md) | portability | fixtures, Custom DocPerm, clean-site dual acceptance |
+| [L10](projects/10-web-form/README.md) | authenticated intake | separate Web Form capability; final update disabled |
+| [L11](projects/11-portability/README.md) | portability | fixtures, Custom DocPerm Level 0/1, clean-site acceptance |
 
 ---
 
@@ -217,7 +262,9 @@ Allow Editing After Submit = No
 - [Lab E — Print / PDF](labs/e-print-pdf/README.md)
 - [Lab F — специальные возможности](labs/f-special-features/README.md)
 
-Lab не обязана оставлять новый domain object. Presentation configuration может остаться осознанно.
+Lab не обязана оставлять новый domain object и не должна незаметно ослаблять финальную permission model.
+
+Presentation configuration может остаться осознанно.
 
 ---
 
