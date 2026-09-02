@@ -31,7 +31,7 @@ P00  готовая среда Frappe v16
 P01  учебный App установлен на Site
 P02  Equipment как самостоятельный Document
 P03  Customer как самостоятельный Document
-P04  Rental + Rental Item + Link
+P04  Rental + Rental Item + Link + Table MultiSelect
 P05  предметный status Rental
 P06  рабочий сценарий через Form/List
 P07  серверные инварианты одного Rental
@@ -139,11 +139,15 @@ Rental
 └── Rental Item [Child DocType]
 
 Rental.customer       → Link → Customer
-Rental.items          → Table → Rental Item
+Rental.items          → Table MultiSelect → Rental Item
 Rental Item.equipment → Link → Equipment
 ```
 
-Здесь в одном сценарии естественно встречаются обычный DocType, Child DocType, Table и Link.
+`Rental Item.equipment` отмечен `In List View`, потому что Frappe определяет конечный Link Table MultiSelect через Link-поле Child DocType, отмеченное для list view.
+
+Почему не обычный `Table`: в текущем требовании строка содержит только ссылку на Equipment и не несёт собственных бизнес-атрибутов отношения. Если такие атрибуты появятся, выбор пересматривается.
+
+Здесь в одном сценарии естественно встречаются обычный DocType, Child DocType, Link и Table MultiSelect — не потому, что их нужно «пройти», а потому что они выражают разные части модели.
 
 ---
 
@@ -171,7 +175,7 @@ Returned
 
 **Зависит от:** `P04`.
 
-Проверяются `Form`, `List`, Link controls, Child Table UI и фильтры.
+Проверяются `Form`, `List`, Link controls, Table MultiSelect control и фильтры.
 
 Результат: основной сценарий работает без собственного frontend.
 
