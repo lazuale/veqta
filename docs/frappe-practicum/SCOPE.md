@@ -4,7 +4,7 @@
 
 Практикум изучает Frappe через `facility_ops`.
 
-Предметное ядро:
+Core domain:
 
 ```text
 Facility Location
@@ -12,89 +12,32 @@ Equipment
 Service Request
 ```
 
-Архитектурная основа: [../frappe-architecture-standard/README.md](../frappe-architecture-standard/README.md).
-
-Точные технические гарантии курса: [INVARIANTS.md](INVARIANTS.md).
+Формальные гарантии: [INVARIANTS.md](INVARIANTS.md).
 
 ---
 
-# 1. Главная граница Core
+# 1. Базовое правило
 
-Основной маршрут сначала изучает штатные возможности Frappe без собственной бизнес-логики на Python/JavaScript.
+Собственную Python/JavaScript business logic в основном маршруте не пишем.
 
-Допустимы:
+Допустимы штатные expressions, Workflow/Assignment Rule Conditions, fixtures/hooks configuration, generated files и exported customizations.
 
-```text
-metadata
-Role Permission
-Permission Level
-Workflow
-Assignment Rule
-Notification
-Web Form
-Report / Workspace
-fixtures
-Export Customizations
-штатные expressions/conditions
-```
-
-Это **педагогическое ограничение**, а не правило архитектуры Frappe.
-
-На следующем уровне совершенно допустимы:
-
-```text
-Controller
-hooks
-Server Script
-Client Script
-whitelisted methods
-service modules
-Background Jobs
-Realtime API
-custom API
-```
-
-если задача действительно требует программной ответственности.
+Server Script, custom controller, custom permission hooks и Client Script — Later.
 
 ---
 
-# 2. Как определяется scope механизма
-
-Механизм попадает в Core или Lab не потому, что «надо покрыть всё», а если ученик может увидеть его самостоятельный смысл на живом приложении.
-
-```text
-Core
-→ нужен для развития одного рабочего facility_ops
-
-Lab
-→ важный штатный механизм, но его постоянное добавление исказило бы предметную модель
-
-Later
-→ требует собственного программного слоя, более сложной интеграции, другой базовой версии или отдельного продвинутого курса
-```
-
----
-
-# 3. Источники и версия
-
-Для инструкций курса приоритет:
+# 2. Source of truth
 
 1. фактический стенд `v16.32.0`;
 2. exact tag `v16.32.0`;
 3. официальная документация;
-4. `version-16` — для будущих изменений курса.
-
-Практикум не переключается на новую patch-версию только потому, что она вышла. Version-sensitive сценарии сначала повторно проверяются.
-
-Механизм, появившийся в более новом коде v16, **не считается пройденным в этом курсе**, пока его нет в закреплённом `v16.32.0` и он не проверен на стенде.
+4. moving `version-16` только для future changes.
 
 ---
 
-# 4. Core data
+# 3. Core data
 
-`Service Request`:
-
-Обязательные:
+Service Request Mandatory:
 
 ```text
 Subject
@@ -103,7 +46,7 @@ Description
 Priority
 ```
 
-Необязательные:
+Optional:
 
 ```text
 Equipment
@@ -121,20 +64,13 @@ Resolved
 Closed
 ```
 
-Семантика:
+`Service Request.location` = historical event location.
 
-```text
-Service Request.location = место события
-Equipment.location       = текущее место оборудования
-```
-
-Поэтому вечного equality между ними нет.
+`Equipment.location` = current location.
 
 ---
 
-# 5. Что не входит в постоянное предметное ядро
-
-Без доказанной необходимости не создаём:
+# 4. Не входит в core domain
 
 ```text
 Equipment Type
@@ -145,19 +81,13 @@ Department
 Team
 Technician business entity
 Requester business entity
-Status reference
-Priority reference
+Status/Priority references
 Assigned Technician field
-Task Comment
-Task History
-Attachment Registry
 ```
-
-Часть этих задач уже выражается штатными механизмами Frappe. Остальные могут стать нормальными `DocType` в другом приложении, если получат самостоятельную ответственность.
 
 ---
 
-# 6. Permissions scope
+# 5. Permission scope
 
 Core изучает:
 
@@ -165,15 +95,16 @@ Core изучает:
 User / System User / Website User / Guest
 Role
 Role Permission Manager
-Read / Write / Create / Delete
-Report / Export / Import
+Read/Write/Create/Delete
+Report/Export/Import
 If Owner
-Permission Level
+Permission Level 1
+Permission Level 2
 User Permission
 Share
 ```
 
-## Level 0 — Document authority
+## Level 0 — document authority
 
 ```text
 Requester   → Create + Read own; Write/Delete No
@@ -181,7 +112,9 @@ Technician  → Read/Write; Create/Delete No
 Supervisor  → Read/Write/Create; Delete No; Report/Export
 ```
 
-## Permission Level 1 — business content
+## Level 1 — business content
+
+Fields:
 
 ```text
 subject
@@ -199,45 +132,27 @@ Technician  → Read only
 Supervisor  → Read/Write
 ```
 
-Это **case-specific решение facility_ops**. Оно выражает требование «Technician ведёт процесс, но не переписывает исходную заявку».
-
-## Status
-
-До L7:
+## Level 2 — process state
 
 ```text
-status → Permission Level 0
+status → Permission Level 2
 ```
-
-и является обычным `Select` для пользователей с `Document Write`.
-
-После L7:
 
 ```text
-status → тот же field
-Workflow → server transition authority
-Read Only → UI guard
+Requester   → Read only
+Technician  → Read/Write
+Supervisor  → Read/Write
 ```
 
-Отдельный Permission Level для состояния в Core не вводится.
+Это позволяет дать Technician process-state authority без content authority и не выдавать Requester state write на create path.
 
-## Что остаётся Later в permissions
+Exact `v16.32.0` high Permission Level validation участвует в ordinary insert/save; explicit `ignore_permissions=True` является bypass.
 
-```text
-Permission Types [v16+] для собственных действий
-custom has_permission
-permission_query_conditions
-assignee-only authorization
-сложная динамическая policy model
-```
-
-`Permission Type` штатный, но требует программного действия, которое курс Core пока не пишет.
+Delete, User Permission и Share частично изучаются temporary и откатываются.
 
 ---
 
-# 7. Collaboration scope
-
-Core:
+# 6. Collaboration scope
 
 ```text
 Assign To
@@ -247,39 +162,33 @@ Comments
 Timeline
 Tags
 Kanban
-Track Changes / Version
-Attachments
 ```
-
-Ключевая граница:
 
 ```text
 Assignment = responsibility
-Assignment ≠ authorization
-Assignment ≠ Workflow state
+не document/content/state authority
 ```
 
 Assignee-only authorization — Later.
 
 ---
 
-# 8. Workflow scope
+# 7. Workflow scope
 
 Core:
 
 ```text
-обычный Status до Workflow
 Workflow
 Workflow State
 Workflow Action Master
 Transition
 Allowed Role
-Condition
 Only Allow Edit For
-существующий status как Workflow State Field
+Condition
+existing status field
 ```
 
-Процесс:
+Process:
 
 ```text
 New → Accepted → In Progress → Resolved → Closed
@@ -288,19 +197,33 @@ New → Accepted → In Progress → Resolved → Closed
 После L7:
 
 ```text
-status = Read Only в стандартной Form
-Workflow = server transition gate
+status = Permission Level 2 + Read Only UI
 ```
 
-`Only Allow Edit For` остаётся Desk guard, а не отдельной ACL.
+Enforcement stack:
 
-`Closed` — terminal Workflow state, но абсолютная неизменяемость через любой возможный серверный путь — Later.
+```text
+Level 0 Role Permission
+→ document save/access
 
-`Is Submittable / DocStatus` не навязывается этой заявке и изучается отдельно в Lab B.
+Level 1 Permission
+→ business fields
+
+Level 2 Permission
+→ status field authority
+
+Allowed Role / Condition
+→ server transition gate
+
+Only Allow Edit For
+→ Desk guard
+```
+
+Closed terminal, но absolute API immutability — Later.
 
 ---
 
-# 9. Analytics scope
+# 8. Analytics scope
 
 Core:
 
@@ -314,22 +237,14 @@ Dashboard Chart
 Workspace
 Shortcut
 Quick List
-role access to presentation objects
+role access
 ```
 
-Курс не создаёт отдельную аналитическую предметную модель ради простого контроля.
-
-Later:
-
-```text
-Query Report
-Script Report
-внешний BI/OLAP слой
-```
+Query/Script Reports и BI layer — Later.
 
 ---
 
-# 10. Automation scope
+# 9. Automation scope
 
 Core:
 
@@ -341,32 +256,20 @@ Assignment Rule
 Round Robin
 Due Date Based On
 Close Condition
-scheduler-triggered standard automation
+scheduler
 ```
 
-Optional:
+Load Balancing — Optional.
 
-```text
-Load Balancing
-```
+Target Date = Level 1 Optional/conditional input.
 
-Core **не учит созданию собственной Background Job**.
+Automation не меняет Level 1/2 authority.
 
-Later:
-
-```text
-frappe.enqueue
-Background Jobs
-enqueue_after_commit
-собственные scheduled_events
-идемпотентность программных задач
-```
-
-Automation не выдаёт дополнительные права и не заменяет Workflow.
+Assignment Rule с concrete Users site-specific.
 
 ---
 
-# 11. Web scope
+# 10. Web scope
 
 Core:
 
@@ -374,7 +277,7 @@ Core:
 Standard Web Form
 Published
 Route
-временный Guest experiment
+Guest experiment
 Login Required
 Website User
 Allow Edit
@@ -384,7 +287,7 @@ Allow Read On All Link Options
 attachments
 ```
 
-Финал:
+Final:
 
 ```text
 Published = Yes
@@ -395,23 +298,31 @@ Allow Edit = No
 Apply Document Permissions = No
 ```
 
-Главные выводы:
+Desk:
 
 ```text
-Login Required
-= authentication boundary
-≠ role-specific business authorization
-
-Web Form create
-= отдельный intake path
-≠ доказательство Desk Role Permission
+Role Permission Level 0/1/2
 ```
 
-Role-restricted/public-untrusted portal architecture — Later.
+Web Form new insert:
+
+```text
+insert(ignore_permissions=True)
+```
+
+Поэтому Web Form Create не является Role Permission proof.
+
+`Status` не входит в Web Form allow-list.
+
+Final `Allow Edit = No` закрывает bypass update path, который иначе мог бы обходить Level 1/2 protections.
+
+Website User = trusted internal reporter.
+
+Role-restricted/public-untrusted admission — Later.
 
 ---
 
-# 12. Packaging scope
+# 11. Packaging scope
 
 Core:
 
@@ -430,17 +341,17 @@ migrate
 clean site
 ```
 
-Universal application state:
+Universal:
 
 ```text
 3 core DocType
-field permlevel 1
-Reports / Cards / Chart / Workspace
+field permlevels 1/2
+Reports/Cards/Chart/Workspace
 Notifications
 Web Form
 Roles
 Workflow
-Custom DocPerm Level 0/1
+Custom DocPerm Level 0/1/2
 ```
 
 Site-specific:
@@ -452,21 +363,11 @@ Share
 Assignment Rule tied to local Users
 ```
 
-Core заканчивается ручной clean-site acceptance.
-
-Later:
-
-```text
-FrappeTestCase
-bench run-tests
-automated lifecycle / permission / migration tests
-```
-
-Автоматизированные тесты появляются тогда, когда у приложения появляется собственная логика, которую действительно нужно защищать, а не ради повторного тестирования самого Framework.
+L11 отдельно проверяет Level 0/1/2 и Web Form capability.
 
 ---
 
-# 13. Labs
+# 12. Labs
 
 ```text
 A Child Table
@@ -477,64 +378,49 @@ E Print/PDF
 F special fields/views
 ```
 
-Lab, меняющая `Service Request`, обязана вернуть:
+Lab, меняющая `Service Request`, должна вернуть:
 
 ```text
-Level 0 document matrix
-Level 1 content matrix
+Level 0 matrix
+Level 1 matrix
+Level 2 matrix
 Workflow
 ```
 
-Лаборатория изучает механизм и затем убирает временную предметную сущность, если она не нужна приложению.
+Временный business-content field/table получает explicit Permission Level.
 
 ---
 
-# 14. Later
-
-Следующий уровень курса:
+# 13. Later
 
 ```text
 Server Script
-custom Python Controller
-Client Script / custom JS
-Permission Types [v16+] 
-custom has_permission / permission_query_conditions
+custom Python controller
+custom has_permission / permission query
 assignee-only authorization
 hard state immutability
-role-restricted/public-untrusted Web Form/Portal
-REST / whitelisted methods / Webhooks
-Background Jobs / enqueue_after_commit
-Realtime API
-Query / Script Reports
-Virtual DocType
-automated Frappe tests
-complex multi-app integration
+role-restricted Web Form/portal admission
+public-untrusted catalog architecture
+Client Script / custom JS
+REST/Webhooks separate block
+Query/Script Reports
+arbitrary multi-app integration audit
 production hardening
 ```
 
-Также сюда относится `DocType Layout`: актуальный код Frappe v16 уже содержит этот механизм, но в закреплённом для практикума `v16.32.0` его нет. Он войдёт в исполняемый курс только после осознанного обновления базовой версии и повторной проверки стенда.
-
-Эти темы не считаются «менее нативными». Они требуют программного, эксплуатационного или версионного контекста, которого в базовом маршруте ещё нет.
-
 ---
 
-# 15. Exit criterion
+# 14. Exit criterion
 
-Ученик должен уметь различить:
+Ученик должен различать:
 
 ```text
-Document
-Field / Link / Child
-Role Permission
-Permission Level
-Workflow
-Assignment / ToDo
-Web Form
-App-owned configuration
-Site-specific configuration
-working data
+Level 0 document authority
+Level 1 business-content authority
+Level 2 process-state authority
+Workflow transition authority
+Assignment responsibility
+Web Form intake capability
 ```
 
-И главное — на новом требовании отвечать не «какую таблицу или скрипт написать», а:
-
-> **какой штатный механизм Frappe уже владеет этой ответственностью и где проходит его граница?**
+Если это всё называется просто «права», практикум академически не принят.
