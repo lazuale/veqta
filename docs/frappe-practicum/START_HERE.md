@@ -38,11 +38,11 @@ Document, permissions, Workflow, Web Form и source/site boundary. Знать Py
 | 6 | [ACCEPTANCE.md](ACCEPTANCE.md), P2 | P2 принят на чистом site |
 | 7 | [P3](projects/03-service-intake/LABS.md) | внешний intake и внутренняя очередь |
 | 8 | [ACCEPTANCE.md](ACCEPTANCE.md), P3 | P3 принят на чистом site |
-| 9 | [Engineering Bridge](engineering/LABS.md) | Controller, semantic command, transactions, patch, tests |
-| 10 | [ACCEPTANCE.md](ACCEPTANCE.md), Engineering | проверены upgrade и clean install программного слоя |
+| 9 | [Engineering Bridge](engineering/LABS.md) | Controller lifecycle, semantic command, transactions, patch, tests |
+| 10 | [ACCEPTANCE.md](ACCEPTANCE.md), Engineering | проверены upgrade, отдельный test site и clean install |
 | 11 | [ROADMAP.md](ROADMAP.md), финальный аудит | ученик объясняет архитектурные решения без подсказки |
 
-После шага 8 закрыт **базовый metadata/configuration уровень**. После шага 10 закрыт
+После шага 8 закрыт базовый metadata/configuration уровень. После шага 10 закрыт
 полный инженерный маршрут этого практикума.
 
 [ARCHITECTURE.md](ARCHITECTURE.md), [SCOPE.md](SCOPE.md) и [MATRIX.md](MATRIX.md) —
@@ -58,11 +58,14 @@ Document, permissions, Workflow, Web Form и source/site boundary. Знать Py
 4. **Source check** — понятно, что попало в app, а что осталось в базе site.
 5. **Состояние после** — можно однозначно перейти дальше.
 
-В Engineering Bridge добавляется шестой вопрос:
+В Engineering Bridge добавляются два вопроса:
 
-> Почему эта ответственность не могла остаться в уже изученном metadata-механизме?
+```text
+Почему metadata недостаточно?
+Почему выбран именно этот extension point и эта lifecycle phase?
+```
 
-Если ответа нет, код добавлять нельзя.
+Если ответов нет, код добавлять нельзя.
 
 Не переходить дальше, если итоговое состояние не совпало. Сначала открыть
 [TROUBLESHOOTING.md](TROUBLESHOOTING.md), затем посмотреть последнее изменение через
@@ -118,6 +121,7 @@ Commit:
 ```text
 Почему metadata недостаточно:
 Почему выбран именно этот extension point:
+Почему выбрана эта lifecycle phase:
 ```
 
 Пароли, API keys, API secrets и SMTP credentials в протокол не записываются.
@@ -129,19 +133,22 @@ Commit:
 - повторить последнюю настройку;
 - удалить собственный тестовый Document;
 - исправить поле до следующей лабораторной;
-- пересоздать чистый acceptance site;
+- пересоздать clean acceptance site;
+- пересоздать отдельный test site;
 - откатить учебный Share/User Permission experiment;
 - удалить временный transaction probe сразу после проверки.
 
 Нельзя молча:
 
 - переустанавливать рабочий app;
-- копировать базу рабочего site на чистый site;
+- копировать базу рабочего site на чистый/test site;
 - создавать недостающий Workflow вручную после `install-app`;
 - выполнять permission acceptance только Administrator;
 - добавлять Python/JavaScript, чтобы обойти непонятную настройку;
 - использовать `ignore_permissions=True` в business command ради удобства;
 - добавлять `frappe.db.commit()` внутрь обычного request action без отдельной причины;
+- расширять permissions пользователя ради компенсации неправильно выбранного lifecycle hook;
+- запускать automated suite на рабочем `intake.localhost`;
 - создавать service/repository/queue только потому, что такой pattern знаком из другого стека.
 
 ## Критерий окончания
@@ -152,11 +159,12 @@ Commit:
 
 Полный маршрут закончен, когда `service_intake` дополнительно:
 
-- содержит минимальную server business logic в controller;
+- содержит минимальную server business logic в правильной controller lifecycle phase;
 - предоставляет semantic command вместо дублирующего CRUD endpoint;
 - использует штатную request transaction без manual commit;
 - обновляет старые данные через patch;
-- проходит integration tests;
+- проходит integration tests на отдельном `intake-test.localhost`;
+- сохраняет Agent/Intake permission boundary после программного расширения;
 - работает и как clean install, и как upgrade существующего site;
 - не содержит искусственного Background Job только ради coverage.
 
