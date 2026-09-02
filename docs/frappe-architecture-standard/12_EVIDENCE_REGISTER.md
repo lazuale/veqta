@@ -1,4 +1,4 @@
-# 12. Evidence Register — первичные источники и статус доказательств
+# 12. Реестр доказательств — первичные источники и статус утверждений
 
 Этот файл нужен, чтобы архитектурный стандарт не превращался в набор мнений.
 
@@ -6,7 +6,7 @@
 
 ---
 
-## 1. Philosophy / configuration over code
+## 1. Философия / configuration over code
 
 ### Источник
 
@@ -14,26 +14,26 @@ https://docs.frappe.io/framework/user/en/basics/why
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-- Frappe built to power ERPNext;
-- philosophy: write as less code as possible;
-- preference for configuration over code;
-- generic capabilities помещаются во Framework;
-- batteries included;
-- extensible architecture through Apps.
+- Frappe создавался как основа ERPNext;
+- философия: писать как можно меньше кода;
+- предпочтение configuration over code, то есть настройки вместо программирования там, где этого достаточно;
+- универсальные возможности помещаются во Framework;
+- основные возможности поставляются из коробки;
+- Apps являются штатным механизмом расширения.
 
 ### Что НЕ подтверждает
 
 - запрет Python;
-- запрет service layers;
+- запрет сервисных слоёв;
 - обязательную low-code разработку любого приложения.
 
 ---
 
-## 2. Metadata-driven / monolithic architecture
+## 2. Метаданные и монолитная архитектура
 
 ### Источник
 
@@ -41,22 +41,22 @@ https://docs.frappe.io/framework/user/en/introduction
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-- metadata treated as data;
-- full-stack/batteries-included model;
-- explicit belief in monolithic architecture;
-- Desk supplies forms, lists, permissions, files and navigation.
+- метаданные рассматриваются как данные;
+- полнофункциональную модель с возможностями из коробки;
+- прямо заявленную монолитную архитектуру;
+- Desk предоставляет формы, списки, права, файлы и навигацию.
 
 ### Архитектурное следствие
 
-**[ARCHITECTURAL INFERENCE]** Не дублировать integrated application concerns только ради привычного шаблона другого framework.
+**[АРХИТЕКТУРНЫЙ ВЫВОД]** Не дублировать согласованные прикладные механизмы только ради привычного шаблона другого фреймворка.
 
 ---
 
-## 3. Framework package description v16
+## 3. Описание пакета Framework v16
 
 ### Источник
 
@@ -64,17 +64,17 @@ https://github.com/frappe/frappe/blob/version-16/pyproject.toml
 
 ### Тип
 
-**[UPSTREAM]**
+**[ИСХОДНЫЙ КОД]**
 
 ### Что подтверждает
 
-Project description: metadata driven, full-stack low code web framework.
+Описание проекта: metadata driven, full-stack low code web framework.
 
-Также фиксирует version-specific Python dependency range ветки v16.
+Также фиксирует требования ветки v16 к версии Python.
 
 ---
 
-## 4. Current v16 release baseline
+## 4. Контрольная точка версии v16
 
 ### Источник
 
@@ -82,17 +82,17 @@ https://github.com/frappe/frappe/releases/tag/v16.33.0
 
 ### Тип
 
-**[UPSTREAM RELEASE]**
+**[РЕЛИЗ FRAPPE]**
 
 ### Что подтверждает
 
 Проверенная точка актуальности стандарта: v16.33.0, 1 сентября 2026 года.
 
-Стандарт не должен хардкодить этот номер как вечную «последнюю версию»; он только фиксирует baseline проверки.
+Стандарт не должен хранить этот номер как вечную «последнюю версию»; он только фиксирует базовую точку проверки.
 
 ---
 
-## 5. DocType as core building block
+## 5. DocType как основной строительный блок
 
 ### Источник
 
@@ -100,23 +100,23 @@ https://docs.frappe.io/framework/user/en/basics/doctypes
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-- DocType — core building block;
-- metadata описывает model/view;
-- обычные DocTypes связаны с database schema.
+- `DocType` — основной строительный блок;
+- метаданные описывают модель и представление;
+- обычные `DocType` связаны со схемой базы данных.
 
 ### Что НЕ подтверждает
 
 - «каждое существительное бизнеса обязано быть DocType».
 
-Выбор DocType vs Field/Child — design inference.
+Выбор `DocType` или поля/Child — архитектурный вывод.
 
 ---
 
-## 6. Field types / Link / Dynamic Link / Table MultiSelect
+## 6. Типы полей / Link / Dynamic Link / Table MultiSelect
 
 ### Источник
 
@@ -124,15 +124,15 @@ https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-Назначение standard field primitives.
+Назначение стандартных типов полей и связей.
 
 ### Архитектурное следствие
 
-Сначала выбирать primitive с соответствующей семантикой, а не создавать отдельный DocType автоматически.
+Сначала выбирать механизм с соответствующим смыслом, а не создавать отдельный `DocType` автоматически.
 
 ---
 
@@ -144,18 +144,18 @@ https://docs.frappe.io/framework/user/en/basics/doctypes/child-doctype
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-- Child attached to parent;
-- parent/parenttype/parentfield/idx semantics.
+- Child-запись прикреплена к родителю;
+- смысл `parent`/`parenttype`/`parentfield`/`idx`.
 
 ### Что НЕ подтверждает
 
-Любая one-to-many relation обязана быть Child Table.
+Любая связь one-to-many обязана быть Child Table.
 
-Отдельный business record может требовать обычный DocType.
+Самостоятельная бизнес-запись может требовать обычный `DocType`.
 
 ---
 
@@ -167,11 +167,11 @@ https://docs.frappe.io/framework/user/en/basics/doctypes/single-doctype
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-Single предназначен для singleton-like settings data.
+`Single` предназначен для данных, существующих в одном экземпляре, например настроек.
 
 ---
 
@@ -183,15 +183,15 @@ https://docs.frappe.io/framework/user/en/basics/doctypes/virtual-doctype
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-External/non-standard storage может быть представлен через Document abstraction.
+Данные во внешнем или нестандартном хранилище могут быть представлены через абстракцию `Document`.
 
 ### Что НЕ подтверждает
 
-Каждая интеграция с внешним API должна быть Virtual DocType.
+Каждая интеграция с внешним API должна быть `Virtual DocType`.
 
 ---
 
@@ -203,19 +203,19 @@ https://docs.frappe.io/framework/user/en/basics/doctypes/naming
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-`name` и standard naming strategies являются частью DocType model.
+`name` и стандартные стратегии именования являются частью модели `DocType`.
 
 ### Архитектурное следствие
 
-Identity нужно выбирать до накопления production references.
+Идентификатор нужно выбирать до накопления производственных ссылок.
 
 ---
 
-## 11. Document Controller / lifecycle
+## 11. Document Controller / жизненный цикл
 
 ### Источники
 
@@ -224,21 +224,21 @@ Identity нужно выбирать до накопления production refere
 
 ### Тип
 
-**[FRAPPE DOCS] + [UPSTREAM]**
+**[ДОКУМЕНТАЦИЯ FRAPPE] + [ИСХОДНЫЙ КОД]**
 
 ### Что подтверждает
 
-- Controllers inherit Document;
-- lifecycle hooks;
-- save/insert execute permission/validation/lifecycle paths.
+- Controllers наследуются от `Document`;
+- методы жизненного цикла;
+- `save`/`insert` выполняют проверки прав, данных и событий жизненного цикла.
 
 ### Архитектурное следствие
 
-Critical invariant должен жить в server-side path, а не только в UI.
+Критичный инвариант должен жить в серверном пути, а не только в интерфейсе.
 
 ---
 
-## 12. Client Script limitation
+## 12. Ограничение Client Script
 
 ### Источник
 
@@ -246,11 +246,11 @@ https://docs.frappe.io/framework/user/en/desk/scripting/client-script
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-Client Script applies in browser/standard form context; его validation не является универсальной server-side guarantee.
+`Client Script` работает в браузерном контексте стандартной формы; его проверка не является универсальной серверной гарантией.
 
 ---
 
@@ -262,17 +262,17 @@ https://docs.frappe.io/framework/user/en/desk/scripting/server-script
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-- Server Script supports Document Event/API;
-- disabled by default on shared benches starting v15;
-- public shared Frappe Cloud benches do not allow it.
+- `Server Script` поддерживает `Document Event` и API;
+- начиная с v15 отключён по умолчанию на shared benches;
+- публичные shared benches Frappe Cloud его не разрешают.
 
 ### Архитектурное следствие
 
-Server Script не является обязательной ступенью перед Python App code.
+`Server Script` не является обязательной ступенью перед Python-кодом App.
 
 ---
 
@@ -284,15 +284,15 @@ https://docs.frappe.io/framework/doctypes/docstatus
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-`Draft / Submitted / Cancelled` системная transaction semantics.
+`Draft / Submitted / Cancelled` — системная транзакционная семантика.
 
 ### Что НЕ подтверждает
 
-Business status должен совпадать с docstatus.
+Бизнес-статус должен совпадать с `docstatus`.
 
 ---
 
@@ -304,19 +304,19 @@ https://docs.frappe.io/erpnext/user/manual/en/workflows
 
 ### Тип
 
-**[FIRST-PARTY DOCS]**
+**[ОФИЦИАЛЬНАЯ ДОКУМЕНТАЦИЯ ЭКОСИСТЕМЫ]**
 
 ### Что подтверждает
 
-Workflow states/transitions/roles/conditions и approval semantics.
+Состояния, переходы, роли, условия и смысл согласований в `Workflow`.
 
 ### Примечание
 
-Workflow является framework/ERPNext ecosystem mechanism; путь документации может находиться в ERPNext manual, но сам механизм является частью Frappe stack.
+`Workflow` является механизмом Frappe/ERPNext; страница документации может находиться в руководстве ERPNext, но сам механизм входит в стек Frappe.
 
 ---
 
-## 16. Permissions overview
+## 16. Общая модель прав доступа
 
 ### Источник
 
@@ -324,15 +324,15 @@ https://docs.frappe.io/framework/user/en/basics/users-and-permissions
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-Role, DocType Permissions, If Owner, Permission Level, User Permissions и другие базовые механизмы.
+`Role`, `DocType Permissions`, `If Owner`, `Permission Level`, `User Permissions` и другие базовые механизмы.
 
 ---
 
-## 17. Permissions runtime
+## 17. Права доступа во время выполнения
 
 ### Источник
 
@@ -340,24 +340,24 @@ https://github.com/frappe/frappe/blob/version-16/frappe/permissions.py
 
 ### Тип
 
-**[UPSTREAM]**
+**[ИСХОДНЫЙ КОД]**
 
 ### Что подтверждает
 
-- role permission evaluation;
-- owner handling;
-- User Permission evaluation;
-- sharing path;
-- controller permission checks;
-- explicit comment: controller permissions can deny but cannot grant missing base permission.
+- вычисление прав ролей;
+- обработку владельца;
+- `User Permission`;
+- путь `Share`;
+- проверки Controller;
+- прямой комментарий: Controller может запретить право, но не выдать отсутствующее базовое право.
 
 ### Важно
 
-Наш design escalation не должен выдаваться за буквальный runtime order.
+Наш рекомендуемый порядок проектирования не должен выдаваться за буквальный порядок выполнения Framework.
 
 ---
 
-## 18. Permission query conditions
+## 18. permission_query_conditions
 
 ### Источник
 
@@ -365,22 +365,22 @@ https://docs.frappe.io/framework/user/en/python-api/hooks
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-- `permission_query_conditions` modifies list query;
-- applies to `frappe.db.get_list`;
-- not to `frappe.db.get_all`;
-- `has_permission` is a custom document permission hook.
+- `permission_query_conditions` изменяет запрос списка;
+- применяется к `frappe.db.get_list`;
+- не применяется к `frappe.db.get_all`;
+- `has_permission` — собственный hook проверки документа.
 
 ### Архитектурное следствие
 
-Custom row security должна учитывать и list/query, и direct Document access.
+Собственная политика доступа к строкам должна учитывать и список/запрос, и прямой доступ к `Document`.
 
 ---
 
-## 19. Permission-aware query and field security
+## 19. Запросы с учётом прав и права на поля
 
 ### Источник
 
@@ -388,15 +388,15 @@ https://docs.frappe.io/framework/get_query
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-Permission-aware query includes user permissions, sharing, owner constraints, permission query conditions и field-level security.
+Запрос с учётом прав включает `User Permission`, sharing, ограничения владельца, `permission_query_conditions` и права на поля.
 
 ---
 
-## 20. Database transaction model
+## 20. Модель транзакций базы данных
 
 ### Источник
 
@@ -404,24 +404,24 @@ https://docs.frappe.io/framework/user/en/api/database
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-- implicit commit/rollback rules;
-- background/scheduled jobs transactions;
-- patches transaction model;
-- direct DB APIs;
-- `set_value` bypasses ORM triggers;
-- transaction callbacks.
+- неявные правила `commit`/`rollback`;
+- транзакции фоновых и плановых задач;
+- модель транзакций patches;
+- прямой Database API;
+- `set_value` обходит ORM-события;
+- callbacks транзакций.
 
 ### Архитектурное следствие
 
-Manual commit и direct DB lifecycle bypass должны быть осознанными исключениями.
+Ручной `commit` и прямой обход жизненного цикла БД должны быть осознанными исключениями.
 
 ---
 
-## 21. Background jobs
+## 21. Background Jobs
 
 ### Источники
 
@@ -430,11 +430,11 @@ Manual commit и direct DB lifecycle bypass должны быть осознан
 
 ### Тип
 
-**[FRAPPE DOCS] + [UPSTREAM]**
+**[ДОКУМЕНТАЦИЯ FRAPPE] + [ИСХОДНЫЙ КОД]**
 
 ### Что подтверждает
 
-Queues, `frappe.enqueue`, scheduler events, `enqueue_after_commit`, callbacks, job IDs/deduplication в v16 implementation.
+Очереди, `frappe.enqueue`, `scheduler_events`, `enqueue_after_commit`, callbacks, идентификаторы задач и дедупликацию в реализации v16.
 
 ---
 
@@ -448,22 +448,22 @@ Queues, `frappe.enqueue`, scheduler events, `enqueue_after_commit`, callbacks, j
 
 ### Тип
 
-**[FRAPPE DOCS] + [UPSTREAM]**
+**[ДОКУМЕНТАЦИЯ FRAPPE] + [ИСХОДНЫЙ КОД]**
 
 ### Что подтверждает
 
-- generic DocType resource API;
-- create/read/update/delete;
-- document methods;
-- permission-aware read/update paths.
+- стандартный ресурсный API `DocType`;
+- создание, чтение, изменение и удаление;
+- методы `Document`;
+- учёт прав при чтении и обновлении.
 
 ### Что НЕ подтверждает
 
-Любой внешний product API обязан использовать generic Document resource contract.
+Любой внешний продуктовый API обязан использовать стандартный контракт `Document`.
 
 ---
 
-## 23. Internal REST implementation warning
+## 23. Предупреждение о внутренней реализации REST
 
 ### Источник
 
@@ -471,11 +471,11 @@ https://github.com/frappe/frappe/blob/version-16/frappe/api/v2.py
 
 ### Тип
 
-**[UPSTREAM]**
+**[ИСХОДНЫЙ КОД]**
 
 ### Что подтверждает
 
-Функции internal route implementation не должны считаться стабильным Python API для application code.
+Функции внутренней реализации маршрутов не должны считаться стабильным Python API для кода приложения.
 
 ---
 
@@ -487,19 +487,19 @@ https://docs.frappe.io/framework/user/en/guides/integration/webhooks
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-Document Event + condition → HTTP callback, включая optional HMAC signature.
+`Document Event` + условие → HTTP-вызов, включая необязательную HMAC-подпись.
 
 ### Что НЕ подтверждает
 
-Webhook является guaranteed exactly-once event bus.
+`Webhook` является гарантированной шиной событий с exactly-once доставкой.
 
 ---
 
-## 25. Hooks / extension points
+## 25. Hooks / точки расширения
 
 ### Источник
 
@@ -507,15 +507,15 @@ https://docs.frappe.io/framework/user/en/python-api/hooks
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-Hooks существуют для extension/override; включают `doc_events`, `extend_doctype_class`, `override_doctype_class`, scheduler events, fixtures, permission hooks и другие seams.
+Hooks существуют для расширения и переопределения; включают `doc_events`, `extend_doctype_class`, `override_doctype_class`, `scheduler_events`, fixtures, permission hooks и другие точки.
 
 ---
 
-## 26. `extend_doctype_class` v16+
+## 26. extend_doctype_class v16+
 
 ### Источник
 
@@ -523,15 +523,15 @@ https://docs.frappe.io/framework/user/en/python-api/hooks#extend-doctype-class
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-В v16 extension class рекомендуется для добавления behaviour вместо полного override там, где extension достаточен.
+В v16 расширение класса рекомендуется для добавления поведения вместо полного override там, где расширения достаточно.
 
 ---
 
-## 27. App structure
+## 27. Структура App
 
 ### Источники
 
@@ -540,11 +540,11 @@ https://docs.frappe.io/framework/user/en/python-api/hooks#extend-doctype-class
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-Python package, hooks.py, modules.txt, patches.txt, templates/public/source structure.
+Python-пакет, `hooks.py`, `modules.txt`, `patches.txt`, templates/public и другие части структуры приложения.
 
 ---
 
@@ -556,11 +556,11 @@ https://docs.frappe.io/framework/user/en/guides/deployment/packages
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-Packages are lightweight app-like bundles for custom Module Defs, available since v14.
+`Packages` — облегчённые пакеты для пользовательских `Module Def`, доступные с v14.
 
 ---
 
@@ -572,15 +572,15 @@ https://docs.frappe.io/framework/user/en/python-api/hooks#fixtures
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-Database records can be exported/synced through fixtures.
+Записи базы данных можно экспортировать и синхронизировать через fixtures.
 
 ### Архитектурное следствие
 
-Use for app-owned configuration, not ordinary transactional data.
+Использовать для конфигурации, принадлежащей App, а не для обычных транзакционных данных.
 
 ---
 
@@ -592,17 +592,17 @@ https://docs.frappe.io/framework/user/en/guides/app-development/exporting-custom
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-- Custom Fields/Property Setters can be exported;
-- synced on update/migrate;
-- warning about replacing Property Setters and Custom Permissions.
+- `Custom Fields`/`Property Setters` можно экспортировать;
+- они синхронизируются при обновлении или `migrate`;
+- есть предупреждение о замене `Property Setters` и `Custom Permissions`.
 
 ---
 
-## 31. Migrations and patches
+## 31. Миграции и patches
 
 ### Источники
 
@@ -611,15 +611,15 @@ https://docs.frappe.io/framework/user/en/guides/app-development/exporting-custom
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-DocType JSON schema sync, patches, fixtures and migrate lifecycle; reverse schema migrations unsupported.
+Синхронизацию схемы из JSON `DocType`, patches, fixtures и жизненный цикл `migrate`; обратные миграции схемы не поддерживаются.
 
 ---
 
-## 32. Testing
+## 32. Тестирование
 
 ### Источники
 
@@ -628,15 +628,15 @@ DocType JSON schema sync, patches, fixtures and migrate lifecycle; reverse schem
 
 ### Тип
 
-**[FRAPPE DOCS]**
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
 
 ### Что подтверждает
 
-Frappe test runner, `FrappeTestCase`, test sites, test records, `bench run-tests`.
+Test runner Frappe, `FrappeTestCase`, тестовые сайты, тестовые записи и `bench run-tests`.
 
 ---
 
-## 33. First-party Service example
+## 33. Пример Service из официального приложения
 
 ### Источник
 
@@ -644,15 +644,15 @@ https://github.com/frappe/erpnext/blob/develop/erpnext/stock/services/stock_ledg
 
 ### Тип
 
-**[FIRST-PARTY IMPLEMENTATION]**
+**[ОФИЦИАЛЬНАЯ РЕАЛИЗАЦИЯ]**
 
 ### Что подтверждает
 
-Service classes are not inherently alien to Frappe ecosystem. Complex logic can be extracted from Controllers into dedicated services.
+Классы `Service` не являются чуждыми экосистеме Frappe. Сложную логику можно выносить из Controllers в отдельные сервисы.
 
 ### Что НЕ подтверждает
 
-Every DocType should have a Service class.
+Каждый `DocType` должен иметь свой `Service`.
 
 ---
 
@@ -661,7 +661,7 @@ Every DocType should have a Service class.
 Если новый нормативный тезис нельзя привязать к одному из источников выше, он должен:
 
 1. получить новый первичный источник;
-2. либо явно маркироваться **[ARCHITECTURAL INFERENCE]**;
+2. либо явно маркироваться **[АРХИТЕКТУРНЫЙ ВЫВОД]**;
 3. иметь описанную цепочку рассуждения и исключения.
 
 Формулировка «так принято во Frappe» без проверяемого источника в стандарте не допускается.
