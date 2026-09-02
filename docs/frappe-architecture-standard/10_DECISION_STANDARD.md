@@ -1,10 +1,10 @@
-# 10. Decision Standard — обязательный архитектурный review любого Frappe-решения
+# 10. Стандарт принятия решений — обязательная архитектурная проверка любого Frappe-решения
 
 ## 1. Зачем нужен этот файл
 
 Предыдущие разделы объясняют устройство Framework. Этот файл превращает исследование в повторяемую процедуру.
 
-Его цель — не заставить все приложения выглядеть одинаково, а заставить каждое отклонение от native primitive иметь понятную причину.
+Его цель — не заставить все приложения выглядеть одинаково, а заставить каждое отклонение от штатного механизма иметь понятную причину.
 
 Главный вопрос:
 
@@ -14,140 +14,140 @@
 
 ## 2. Матрица ответственности
 
-| Responsibility | Native owner Frappe | First extension choice | Red flag |
+| Ответственность | Штатный владелец во Frappe | Первое расширение для проверки | Тревожный признак |
 |---|---|---|---|
 | Структурированная модель | DocType / Meta | Custom Field, Child, Virtual | параллельная entity model без новой ответственности |
-| Свойство Document | DocField | computed/server logic | отдельный DocType ради одного значения |
-| Ссылка на master | Link | Dynamic Link | копия текста вместо живой связи без snapshot-смысла |
-| Состав Document | Child DocType | отдельный relation DocType | самостоятельный CRUD для обычных строк |
-| Один набор settings | Single DocType | — | обычный DocType + ручной запрет второй записи |
-| Persistence/lifecycle | Document | Controller/service | raw SQL/direct DB для обычного business CRUD |
-| Invariants | server-side Document path | service/domain validation | только Client Script |
-| Business state | field/domain model | Workflow | docstatus как Kanban status |
-| Approval transitions | Workflow | domain service | десятки role/status `if` на клиенте |
-| Transaction finality | docstatus / submit | Workflow + docstatus | custom `Approved` + ручная блокировка всех полей |
-| Access | permission engine | permission hooks | отдельный ACL до проверки штатных primitives |
-| Field access | permlevel | custom response shaping | скрытие только в UI |
-| Work assignment | Assignment / ToDo | domain field при другой семантике | дублирование assignee в нескольких источниках истины |
-| User notification | Notification | custom notification service | собственный notification engine для одного письма |
-| Outgoing Document HTTP event | Webhook | integration job/service | custom polling без причины |
-| Async execution | Background Jobs | custom worker configuration | отдельный daemon для обычной site job |
-| Periodic site task | Scheduler events | external orchestrator при иной ответственности | `while True` внутри App |
-| Generic CRUD API | Document REST API | dedicated API contract | четыре endpoints, просто дублирующие CRUD |
-| Document command | document method | service method | изменение state только клиентской кнопкой |
-| App command | whitelisted method/service | dedicated API | generic CRUD, скрытый под «service endpoint» |
-| Extension чужого DocType | Custom Field / hooks | `extend_doctype_class` | patch installed source |
-| Full controller replacement | `override_doctype_class` | fork при осознанной стратегии | override без анализа совместимости |
-| Simple admin UI | Desk Form/List | custom JS | отдельный SPA ради обычного CRUD |
-| Simple report | Report Builder | Query/Script Report | отдельная BI-система ради простого списка |
-| Public/simple web input | Web Form | Portal/custom frontend | отдельный frontend ради одной формы |
-| Schema delivery | DocType JSON / migrate | patches | ручные изменения production DB |
-| Config delivery | fixtures / exported customization | install hooks | ручное накликивание после каждой установки |
-| Critical custom behaviour | Frappe tests | integration/e2e | «проверили руками один раз» |
+| Свойство Document | DocField | вычисление/серверная логика | отдельный DocType ради одного значения |
+| Ссылка на справочник | Link | Dynamic Link | копия текста вместо живой связи без смысла снимка |
+| Состав Document | Child DocType | отдельный DocType связи | самостоятельный CRUD для обычных строк |
+| Один набор настроек | Single DocType | — | обычный DocType + ручной запрет второй записи |
+| Хранение и жизненный цикл | Document | Controller/service | raw SQL/direct DB для обычного бизнес-CRUD |
+| Инварианты | серверный путь Document | service/domain validation | только Client Script |
+| Бизнес-состояние | поле предметной модели | Workflow | docstatus как статус Kanban |
+| Переходы согласования | Workflow | предметный сервис | десятки role/status `if` на клиенте |
+| Транзакционная фиксация | docstatus / submit | Workflow + docstatus | собственный `Approved` + ручная блокировка всех полей |
+| Доступ | движок permissions | permission hooks | отдельный ACL до проверки штатных механизмов |
+| Доступ к полям | permlevel | собственное формирование ответа | скрытие только в UI |
+| Рабочее назначение | Assignment / ToDo | предметное поле при другом смысле | дублирование исполнителя в нескольких источниках истины |
+| Уведомление пользователя | Notification | собственный сервис уведомлений | собственный движок ради одного письма |
+| Исходящее HTTP-событие Document | Webhook | сервис/задача интеграции | собственный polling без причины |
+| Асинхронное выполнение | Background Jobs | настройка worker | отдельный daemon для обычной задачи Site |
+| Периодическая задача Site | Scheduler events | внешний оркестратор при иной ответственности | `while True` внутри App |
+| Обычный CRUD API | Document REST API | отдельный API-контракт | четыре endpoint, просто дублирующие CRUD |
+| Команда одного Document | метод Document | метод сервиса | изменение состояния только клиентской кнопкой |
+| Команда приложения | whitelisted method/service | отдельный API | обычный CRUD, скрытый под «service endpoint» |
+| Расширение чужого DocType | Custom Field / hooks | `extend_doctype_class` | правка установленного исходного кода |
+| Полная замена Controller | `override_doctype_class` | fork при осознанной стратегии | override без анализа совместимости |
+| Простой административный UI | Desk Form/List | собственный JS | отдельный SPA ради обычного CRUD |
+| Простой отчёт | Report Builder | Query/Script Report | отдельная BI-система ради простого списка |
+| Простая публичная веб-форма | Web Form | Portal/собственный фронтенд | отдельный фронтенд ради одной формы |
+| Доставка схемы | DocType JSON / migrate | patches | ручные изменения production DB |
+| Доставка конфигурации | fixtures / exported customization | install hooks | ручное накликивание после каждой установки |
+| Критичное собственное поведение | Frappe tests | integration/e2e | «проверили руками один раз» |
 
 Матрица не означает, что первый механизм всегда выигрывает. Она определяет **первую точку проверки**.
 
 ---
 
-## 3. Decision track A — ownership
+## 3. Направление A — владелец ответственности
 
 ```text
 Кому принадлежит изменяемый объект?
 
 Нашему App
-  → меняем Standard DocType/Controller в нашем source
+  → меняем Standard DocType/Controller в нашем исходном коде
 
 Другому App
-  → ищем extension/customization seam
+  → ищем штатную точку расширения или настройки
 
 Конкретному Site
-  → runtime customization допустима
+  → локальная настройка допустима
 
 Внешней системе
-  → проектируем integration boundary
+  → проектируем границу интеграции
 ```
 
-### PASS
+### ПРОЙДЕНО
 
-Owner явно назван.
+Владелец явно назван.
 
-### FAIL
+### НЕ ПРОЙДЕНО
 
 «Просто изменим Customer в базе, потом разберёмся».
 
 ---
 
-## 4. Decision track B — data model
+## 4. Направление B — модель данных
 
 ```text
 Это самостоятельная запись?
   ├─ нет → Field
   └─ да
       ↓
-Это состав одного parent Document?
+Это состав одного родительского Document?
   ├─ да → Child DocType
   └─ нет → обычный DocType
 
 Нужна ссылка на существующий Document?
   → Link
 
-Тип target определяется динамически?
+Тип цели определяется динамически?
   → Dynamic Link
 
-Нужен ровно один settings record?
+Нужна ровно одна запись настроек?
   → Single
 
-External data должны вести себя как Documents?
+Внешние данные должны вести себя как Documents?
   → рассмотреть Virtual DocType
 ```
 
 ### Дополнительный вопрос
 
-Link хранит **текущую связь** или бизнесу нужен **исторический snapshot**?
+`Link` хранит **текущую связь** или бизнесу нужен **исторический снимок значения**?
 
 ---
 
-## 5. Decision track C — state/lifecycle
+## 5. Направление C — состояние и жизненный цикл
 
 ```text
 Нужно просто хранить рабочее состояние?
-  → business status field
+  → поле бизнес-статуса
 
-Нужно контролировать переходы по ролям/условиям?
-  → Workflow candidate
+Нужно контролировать переходы по ролям и условиям?
+  → кандидат на Workflow
 
 Нужно транзакционно зафиксировать Document?
-  → Is Submittable / docstatus candidate
+  → кандидат на Is Submittable / docstatus
 ```
 
 Нельзя использовать `docstatus` только потому, что status имеет финальное значение.
 
 ---
 
-## 6. Decision track D — logic placement
+## 6. Направление D — размещение логики
 
 ```text
-Это только UX формы?
-  → Client Script / client JS
+Это только удобство формы?
+  → Client Script / клиентский JS
 
 Это инвариант данных?
-  → server-side Document/service path
+  → серверный путь Document/service
 
-Это lifecycle собственного DocType?
+Это жизненный цикл собственного DocType?
   → Controller
 
-Это реакция на lifecycle чужого DocType?
-  → doc_events / extension hook
+Это реакция на жизненный цикл чужого DocType?
+  → doc_events / hook расширения
 
 Это сложная ответственность нескольких Documents?
-  → service/domain module candidate
+  → кандидат на service / предметный модуль
 ```
 
 ---
 
-## 7. Decision track E — permissions
+## 7. Направление E — права доступа
 
-Это **design escalation**, а не runtime order:
+Это **порядок проектирования**, а не реальный порядок выполнения:
 
 ```text
 Role + DocPerm
@@ -156,66 +156,66 @@ permlevel / If Owner
    ↓
 User Permission
    ↓
-Share для ad-hoc grants
+Share для точечных прав
    ↓
 permission_query_conditions + has_permission
    ↓
-complex policy abstraction
+сложная собственная политика
 ```
 
-При custom row policy обязательно проверять и query/list, и direct Document access.
+При собственной политике доступа к строкам обязательно проверять и список/запрос, и прямой доступ к `Document`.
 
 ---
 
-## 8. Decision track F — transaction/async
+## 8. Направление F — транзакции и фоновые задачи
 
 ```text
 Операция быстрая и атомарная?
-  → обычный request transaction
+  → обычная транзакция запроса
 
 Есть тяжёлая работа?
-  → Background Job candidate
+  → кандидат на Background Job
 
-Job должна стартовать только после успешного save/submit?
+Задача должна стартовать только после успешного save/submit?
   → enqueue_after_commit
 
-Есть periodic site task?
+Есть периодическая задача Site?
   → scheduler_events
 
-Есть external side effect?
-  → определить commit boundary + idempotency/retry
+Есть внешний эффект?
+  → определить границу commit + идемпотентность/повторы
 ```
 
 ---
 
-## 9. Decision track G — API/integration
+## 9. Направление G — API и интеграции
 
 ```text
-Обычный CRUD Frappe-aware клиента?
+Обычный CRUD внутреннего клиента Frappe?
   → Document REST API
 
-Command одного Document?
-  → document method
+Команда одного Document?
+  → метод Document
 
-Command приложения?
-  → whitelisted service/module method
+Команда приложения?
+  → whitelisted-метод сервиса/модуля
 
-Outgoing HTTP callback по Document Event?
+Исходящий HTTP-вызов по событию Document?
   → Webhook
 
-Нужен stable/versioned external contract?
-  → dedicated API
+Нужен стабильный версионируемый внешний контракт?
+  → отдельный API
 
-Нужны retries/reconciliation/mapping?
-  → integration service + jobs
+Нужны повторы, сверка, преобразование и сложная авторизация?
+  → сервис интеграции + фоновые задачи
 ```
 
 ---
 
-## 10. Decision track H — customization/extension
+## 10. Направление H — настройка и расширение
 
 ```text
-Добавляем field/property чужому DocType?
+Добавляем поле/свойство чужому DocType?
   → Custom Field / Property Setter
 
 Нужно переносить изменение вместе с App?
@@ -224,18 +224,18 @@ Outgoing HTTP callback по Document Event?
 Реагируем на событие чужого Document?
   → doc_events
 
-Добавляем class behaviour? [v16+]
+Добавляем поведение class? [v16+]
   → extend_doctype_class
 
-Полностью заменяем controller?
+Полностью заменяем Controller?
   → override_doctype_class + отдельное обоснование
 ```
 
-Patch core/fork рассматривается только как осознанная стратегия с upgrade cost.
+Правка core или fork рассматривается только как осознанная стратегия с принятой стоимостью обновлений.
 
 ---
 
-## 11. Decision track I — UI/reporting
+## 11. Направление I — интерфейс и отчётность
 
 ```text
 Обычная карточка?
@@ -244,45 +244,45 @@ Patch core/fork рассматривается только как осозна�
 Реестр?
   → List
 
-Status/category board?
+Доска по статусу/категории?
   → Kanban
 
-Простой operational report?
+Простой рабочий отчёт?
   → Report Builder
 
-SQL dataset?
+Набор данных через SQL?
   → Query Report
 
-Programmatic report?
+Программный отчёт?
   → Script Report
 
 Простая внешняя форма?
   → Web Form
 
 Специализированный UX?
-  → custom frontend candidate
+  → кандидат на собственный фронтенд
 ```
 
-Presentation не должна подменять server-side rules.
+Представление не должно подменять серверные правила.
 
 ---
 
-## 12. Decision track J — delivery
+## 12. Направление J — доставка изменений
 
 ```text
-Standard schema?
+Стандартная схема?
   → DocType JSON
 
-Обязательные configuration records?
-  → fixtures/export customization
+Обязательные записи конфигурации?
+  → fixtures / export customization
 
-Existing data нужно преобразовать?
+Существующие данные нужно преобразовать?
   → patch
 
 Site обновляется?
   → bench migrate
 
-Критическая custom logic?
+Критичная собственная логика?
   → tests
 ```
 
@@ -293,38 +293,38 @@ Site обновляется?
 Для любого нетривиального решения заполняется короткий блок:
 
 ```text
-REQUIREMENT
+ТРЕБОВАНИЕ
 Что нужно бизнесу?
 
-OWNERSHIP
-Framework / наше App / другое App / Site / external system?
+ВЛАДЕЛЕЦ
+Framework / наше App / другое App / Site / внешняя система?
 
-NATIVE PRIMITIVE
-Какой Frappe mechanism ближе всего по смыслу?
+ШТАТНЫЙ МЕХАНИЗМ
+Какой механизм Frappe ближе всего по смыслу?
 
-PROOF
-Ссылка на docs/upstream.
+ПРУФ
+Ссылка на документацию или исходный код.
 
-SEMANTIC GAP
+РАСХОЖДЕНИЕ ПО СМЫСЛУ
 Что именно штатный механизм не умеет или почему его смысл не совпадает?
 
-DECISION
+РЕШЕНИЕ
 Что делаем?
 
-COST
-Coupling, security, migration, testing, upgrade consequences.
+ЦЕНА
+Связанность, безопасность, миграции, тестирование, последствия обновления.
 
-EXCEPTION / EXIT
+УСЛОВИЕ ПЕРЕСМОТРА
 При каком условии решение нужно пересмотреть?
 ```
 
-Если `SEMANTIC GAP` пуст — custom mechanism не считается обоснованным.
+Если блок «РАСХОЖДЕНИЕ ПО СМЫСЛУ» пуст — собственный механизм не считается обоснованным.
 
 ---
 
 ## 14. Классы риска
 
-### R0 — обычная native configuration
+### R0 — обычная штатная настройка
 
 Примеры:
 
@@ -336,9 +336,9 @@ Role permission
 List/Report
 ```
 
-Требует обычного review.
+Требует обычной проверки.
 
-### R1 — native programmable extension
+### R1 — штатное программное расширение
 
 ```text
 Controller
@@ -349,9 +349,9 @@ background job
 Webhook
 ```
 
-Проверяются tests/security/transactions.
+Проверяются тесты, безопасность и транзакции.
 
-### R2 — extension чужого App
+### R2 — расширение чужого App
 
 ```text
 Custom Field
@@ -360,9 +360,9 @@ doc_events
 extend_doctype_class
 ```
 
-Дополнительно проверяется upgrade/dependency ownership.
+Дополнительно проверяются обновления, зависимости и владелец ответственности.
 
-### R3 — strong override/bypass
+### R3 — сильное переопределение или обход
 
 ```text
 override_doctype_class
@@ -374,7 +374,7 @@ manual commit
 
 Требуется письменное обоснование и тесты.
 
-### R4 — platform divergence
+### R4 — расхождение с платформой
 
 ```text
 fork core
@@ -383,13 +383,13 @@ parallel lifecycle engine
 own persistence layer over ordinary DocTypes
 ```
 
-Не запрещено, но требует доказательства, что Framework semantics принципиально недостаточны и стоимость divergence принята сознательно.
+Не запрещено, но требует доказательства, что семантики Framework принципиально недостаточно и стоимость расхождения принята сознательно.
 
 ---
 
-## 15. Красные флаги design review
+## 15. Тревожные формулировки на архитектурной проверке
 
-Следующие фразы не означают автоматический отказ, но требуют остановить review и получить доказательство:
+Следующие фразы не означают автоматический отказ, но требуют остановиться и получить доказательство:
 
 ```text
 «Так принято в Clean Architecture».
@@ -417,20 +417,20 @@ own persistence layer over ordinary DocTypes
 
 ---
 
-## 16. Что не является красным флагом само по себе
+## 16. Что не является тревожным признаком само по себе
 
 Не следует демонизировать:
 
 ```text
 Service
 Repository
-custom API
-custom frontend
+собственный API
+собственный фронтенд
 SQL
-background job
-custom permission hook
+фоновую задачу
+собственный permission hook
 Virtual DocType
-external scheduler
+внешний scheduler
 fork
 ```
 
@@ -438,48 +438,48 @@ fork
 
 Критерий:
 
-> решает ли он новую ответственность или просто строит второй экземпляр уже существующей Frappe responsibility?
+> решает ли он новую ответственность или просто строит второй экземпляр уже существующей ответственности Frappe?
 
 ---
 
-## 17. Definition of Frappe-native
+## 17. Определение Frappe-native решения
 
-Решение можно считать Frappe-native, если одновременно выполняется следующее:
+Решение можно считать штатным для архитектуры Frappe, если одновременно выполняется следующее:
 
 ```text
-1. Семантика выбранного primitive совпадает с требованием.
-2. Framework responsibility не дублируется без причины.
-3. Custom behaviour подключено через public/official seam, если он существует.
-4. Security не держится только на UI.
-5. Document lifecycle не обходится случайно.
-6. Transaction boundary понятна.
-7. Обязательное состояние воспроизводимо на новом site.
-8. Upgrade/dependency ownership понятен.
+1. Смысл выбранного механизма совпадает с требованием.
+2. Ответственность Framework не дублируется без причины.
+3. Собственное поведение подключено через публичную/официальную точку расширения, если она существует.
+4. Безопасность не держится только на UI.
+5. Жизненный цикл Document не обходится случайно.
+6. Граница транзакции понятна.
+7. Обязательное состояние воспроизводимо на новом Site.
+8. Владение зависимостями и последствия обновления понятны.
 9. Критичные собственные правила тестируются.
 10. Исключения документированы как исключения, а не превращены в скрытую платформу.
 ```
 
 ---
 
-## 18. Минимальный финальный review перед merge
+## 18. Минимальная финальная проверка перед merge
 
 ```text
-[ ] Ownership определён.
-[ ] Data model прошла проверку DocType/Field/Child/Link.
+[ ] Владелец ответственности определён.
+[ ] Модель данных прошла проверку DocType/Field/Child/Link.
 [ ] Naming выбран осознанно.
-[ ] Business status / Workflow / docstatus не смешаны.
-[ ] Инварианты server-side.
-[ ] Permissions проверены не только визуально.
-[ ] Bypass permissions отсутствует или обоснован.
-[ ] Transaction/rollback semantics понятны.
-[ ] External side effects согласованы с commit.
-[ ] Async jobs имеют retry/idempotency reasoning.
-[ ] API не дублирует generic CRUD без причины.
-[ ] Чужой App расширяется официальным seam.
-[ ] Нет ручной обязательной post-install настройки.
-[ ] Schema/data migration предусмотрена.
-[ ] Critical custom logic покрыта tests.
-[ ] Version-specific assumptions зафиксированы.
+[ ] Бизнес-статус / Workflow / docstatus не смешаны.
+[ ] Инварианты проверяются на сервере.
+[ ] Права проверены не только визуально.
+[ ] Обход прав отсутствует или обоснован.
+[ ] Семантика транзакции и rollback понятна.
+[ ] Внешние эффекты согласованы с commit.
+[ ] Для фоновых задач продуманы повторы и идемпотентность.
+[ ] API не дублирует обычный CRUD без причины.
+[ ] Чужое App расширяется официальной точкой.
+[ ] Нет обязательной ручной настройки после установки.
+[ ] Миграция схемы и данных предусмотрена.
+[ ] Критичная собственная логика покрыта тестами.
+[ ] Зависимости от версии зафиксированы.
 ```
 
-Если хотя бы один критичный пункт неизвестен, решение считается **не готовым к архитектурному утверждению**, даже если prototype технически работает.
+Если хотя бы один критичный пункт неизвестен, решение считается **не готовым к архитектурному утверждению**, даже если прототип технически работает.
