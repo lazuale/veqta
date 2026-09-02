@@ -517,6 +517,8 @@ Client Script не является единственной гарантией.
 
 `Table MultiSelect` является подходящим UI/control для выбора набора, но серверный инвариант не делегируется клиентскому поведению.
 
+Оба локальных правила S05C должны быть доказаны не только через Desk Form, но и через обычный серверный `Document.insert()` без Client Script. Это подтверждает, что правило действительно принадлежит Document path.
+
 Отдельный Rule Engine не создаётся.
 
 ## V03. Нет пересекающихся Active Rentals
@@ -709,11 +711,10 @@ Form вообще существует
 ### ГОТОВО
 
 - Rental соответствует разделу 9;
-- Rental Item — минимальный Child DocType;
-- Customer реализован через `Link`;
-- набор Equipment реализован через `Table MultiSelect → Rental Item → Link → Equipment`;
-- один Rental содержит минимум два Equipment;
-- ученик объясняет, почему обычный `Table` пока не нужен.
+- Rental Item — Child DocType;
+- связи реализованы Link;
+- набор Equipment реализован Table MultiSelect;
+- один Rental содержит минимум два Equipment.
 
 ---
 
@@ -739,7 +740,10 @@ Equipment → Customer → Rental полностью проходит станд
 
 ### ГОТОВО
 
-Rental C и D отвергаются сервером, корректные Documents сохраняются.
+- Rental C и D отвергаются серверным `Document` path;
+- корректные Documents сохраняются;
+- V01 и V02 проверены через обычный `Document.insert()` без зависимости от Form/Client Script;
+- Controller не выполняет ручной `commit`.
 
 ---
 
@@ -862,7 +866,7 @@ custom frontend
 1. Поля минимальны и имеют предметный смысл?
 2. Не осталось ли поля, семантика которого нигде не используется?
 3. Naming отделён от изменяемого title?
-4. Child DocType действительно является составом Rental, а Table MultiSelect соответствует текущей семантике набора ссылок?
+4. Child DocType действительно является составом Rental?
 5. status не перепутан с Workflow/docstatus?
 6. Три собственных инварианта имеют серверного владельца?
 7. Permission model остаётся штатной и минимальной?
