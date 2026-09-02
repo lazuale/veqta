@@ -96,7 +96,11 @@ CHECK: New → In Progress → Review → Done
 
 ## Практикум Frappe Framework
 
-**`docs/frappe-practicum/README.md`** — самостоятельный инженерный практикум по **Frappe Framework 16**. Он хранится отдельно от документации продукта и строит три независимых учебных app со своими site, Git-историей и clean-site приёмкой.
+**`docs/frappe-practicum/README.md`** — самостоятельный инженерный практикум по **Frappe Framework 16**. Он отделён от предметной модели VEQTA: три независимых учебных app сначала проходят metadata/configuration маршрут, затем `service_intake` продолжается в Engineering Bridge с Controller lifecycle, транзакциями, patches и tests.
+
+## Универсальный архитектурный стандарт Frappe
+
+**`docs/frappe-architecture-standard/README.md`** — отдельное исследование и архитектурный стандарт по Frappe Framework 16: как выбирать штатные механизмы, где проходит граница собственного кода, как проектировать права доступа, жизненный цикл, транзакции, интеграции, расширения, миграции и тесты. Документ не описывает VEQTA и не является частью её предметной модели.
 
 ## Термины
 
