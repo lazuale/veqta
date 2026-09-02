@@ -2,82 +2,108 @@
 
 ## Цель
 
-Научить новичка проектировать, собирать и переносить небольшие приложения на Frappe Framework штатными средствами платформы.
+Научить новичка проектировать, собирать, расширять и переносить небольшие приложения на
+Frappe Framework, используя **минимальный механизм, чья семантика совпадает с задачей**.
 
-Практикум не готовит администратора, который запомнил расположение кнопок. Он формирует базовую инженерную привычку:
+Базовая привычка курса:
 
 ```text
-сначала смысл документа и гарантия
-→ затем механизм Frappe
-→ затем проверка, где эта гарантия реально обеспечивается
+сначала смысл и требуемая гарантия
+→ затем владелец ответственности
+→ затем штатный primitive / extension point Frappe
+→ затем проверка реального enforcement layer
 ```
 
 ## Версия и источник истины
 
-Основная версия — `Frappe Framework v16.32.0`.
+Основная версия — **Frappe Framework v16.32.0**.
 
-При конфликте сведений действует следующий порядок:
+При конфликте сведений:
 
-1. поведение на стенде `v16.32.0`;
-2. исходный код tag `v16.32.0`;
-3. официальная документация Frappe;
-4. ветка `version-16` только как информация о последующих изменениях.
+1. фактическое поведение на стенде `v16.32.0`;
+2. exact source tag `v16.32.0`;
+3. официальная документация;
+4. moving `version-16` только как информация для будущего обновления курса.
 
-Moving branch не используется для доказательства поведения зафиксированного практикума.
+Moving branch не доказывает поведение закреплённой версии.
 
-## Допустимые средства
+---
 
-Основной маршрут реально применяет и проверяет:
+# 1. Два уровня
 
-- Bench, site, app и Module;
-- Developer Mode;
-- Standard DocType и стандартные типы полей;
-- naming, Link, Child Table, Tree и submittable documents;
-- Role Permission, Permission Level, If Owner, User Permission и Share;
-- Workflow, Workflow State и Workflow Action;
-- Assign To, ToDo и Timeline;
-- List, Form, Report Builder, Calendar, Kanban и Workspace;
-- Number Card и Dashboard Chart;
-- Data Import и Data Export там, где они нужны сценарию;
+## Уровень A — Metadata & Configuration
+
+P1–P3 выполняются без собственной Python/JavaScript business logic.
+
+Практически применяются:
+
+- Bench, site, app, Module, Developer Mode;
+- Standard DocType и стандартные Field Types;
+- naming, Link, Child Table, Tree, submittable document;
+- Role Permission, Permission Level, If Owner, User Permission, Share;
+- Workflow / Workflow State / Workflow Action;
+- Assign To / ToDo / Timeline;
+- Form, List, Kanban, Calendar, Report Builder, Workspace;
+- Number Card, Dashboard Chart;
+- Data Import / Export там, где они нужны продукту;
 - Notification;
-- Print Format и PDF;
-- Web Form, Website User и Guest;
-- стандартный REST API DocType;
-- Standard metadata, fixtures, `migrate` и `install-app`;
-- Git для каждого учебного app.
+- Print Format / PDF;
+- Web Form, Website User, Guest;
+- built-in Document REST API;
+- Standard metadata, fixtures, `migrate`, `install-app`;
+- Git и clean-site acceptance.
 
-Role Permission Manager, Assignment Rule, Comments, Tags, Saved Filter, exported
-customizations и другие штатные механизмы могут использоваться для наблюдения или
-сравнения, но не объявляются освоенными без отдельного практического сценария. Точный
-статус каждого механизма указан в [MATRIX.md](MATRIX.md).
+`hooks.py` для fixtures/Apps Page здесь считается конфигурацией app, а не собственной
+business logic.
 
-Штатные Python expressions в Conditions и конфигурация `hooks.py` для fixtures считаются конфигурацией платформы, а не собственной business logic.
+## Уровень B — Engineering Bridge
 
-Для DocType, принадлежащих учебному app, финальные permissions задаются в таблице
-Permissions самого Standard DocType и хранятся в его JSON. Role Permission Manager
-используется для просмотра эффективной матрицы и знакомства с инструментом, но не
-создаёт второй слой Custom DocPerm для собственных DocType.
+После принятого P3 разрешён минимальный Python, потому что появляется ответственность,
+которую metadata уже не выражает.
 
-## Что не используется в основном маршруте
+Практически применяются:
 
-- ERPNext, CRM, HRMS, Helpdesk и другие Frappe apps;
-- custom Python controller;
-- Client Script и собственный JavaScript;
-- Server Script;
-- `has_permission`, `permission_query_conditions` и другие permission hooks;
-- custom REST endpoint;
-- Query Report и Script Report;
-- Jinja-логика сложнее простого Print Format;
-- сторонняя интеграция, требующая отдельного сервиса;
-- production deployment, reverse proxy, TLS, backups и observability.
+- собственный DocType Controller;
+- `validate` как server invariant;
+- permission-aware `Document` API;
+- `@frappe.whitelist(methods=["POST"])` на Document method;
+- REST API v2 для semantic document method;
+- request transaction и rollback;
+- отсутствие manual `frappe.db.commit()` в обычной команде;
+- schema evolution через Standard metadata;
+- `patches.txt`, post-model-sync patch, `bench migrate`;
+- deliberate direct DB update внутри one-off data migration;
+- `IntegrationTestCase` и `bench run-tests`;
+- `enqueue_after_commit`, Background Jobs и Webhook как decision boundary.
 
-Эти темы не объявляются плохими или запрещёнными. Они начинаются после того, как штатная конфигурация перестаёт выражать нужную гарантию. Практикум обязан показать эту границу, но не маскировать код под «ещё одну настройку».
+Background Job **не добавляется** в `service_intake`, пока в продукте нет реальной долгой
+или внешней операции. Курс учит и применять механизм, и не применять его без задачи.
 
-## Предметные границы проектов
+---
 
-### Проект 1: реестр оборудования
+# 2. Что не делаем автоматически
 
-Постоянная модель:
+Даже на Engineering level не вводятся по умолчанию:
+
+- Repository, дублирующий `frappe.get_doc` / `doc.save()`;
+- Service class без самостоятельной ответственности;
+- собственный transaction manager;
+- собственная queue/daemon;
+- duplicate CRUD API;
+- raw SQL для обычного business CRUD;
+- `ignore_permissions=True` как shortcut;
+- Client Script как единственная server/business гарантия;
+- core patch/fork;
+- custom frontend без отдельной UX-причины.
+
+Service/domain module, custom API, Background Job, hooks или custom frontend могут быть
+полностью Frappe-native, когда появляется соответствующая ответственность.
+
+---
+
+# 3. Предметные границы проектов
+
+## P1 — `equipment_register`
 
 ```text
 Equipment Location (Tree)
@@ -86,11 +112,12 @@ Equipment
 Equipment Identifier (Child)
 ```
 
-В проекте нет заявок, согласований, ремонтов и движения оборудования. Это реестр текущего состояния, а не учёт всех событий жизни объекта.
+Это реестр текущего состояния. В нём нет заявок, согласований, ремонтов и event ledger.
 
-### Проект 2: заявки на закупку
+`status` остаётся обычным Select: процесс согласования отсутствует, поэтому Workflow не
+нужен.
 
-Постоянная модель:
+## P2 — `purchase_requests`
 
 ```text
 Purchase Department
@@ -98,64 +125,138 @@ Purchase Request
 Purchase Request Item (Child)
 ```
 
-Заявка проходит Workflow и становится submittable document. Проект не заменяет закупочный модуль ERP: нет поставщиков, заказов, складского учёта, бухгалтерских проводок и оплаты.
+`Purchase Request` — submittable document с Workflow. Проект не заменяет ERP purchasing:
+нет Supplier, Purchase Order, warehouse/accounting/payment logic.
 
-### Проект 3: внешняя приёмная
-
-Постоянная модель:
+## P3 — `service_intake`
 
 ```text
-Service Intake     ← внешний недоверенный ввод
-Service Case       ← внутренний рабочий документ
+Service Intake   ← внешний недоверенный ввод
+Service Case     ← внутренний рабочий документ
 Service Category
 ```
 
-Web Form не создаёт внутренний `Service Case` напрямую. Передача из intake в case выполняется сотрудником после проверки. Автоматическое преобразование потребовало бы отдельной business logic и сознательно остаётся за границей базового маршрута.
+Web Form не создаёт внутренний Case напрямую. P3 заканчивается ручной конвертацией после
+триажа — это сознательная граница no-code уровня.
 
-## Что переносится между site
+## Engineering Bridge
 
-Переносимые слои:
+Тот же `service_intake` получает новое требование:
+
+```text
+Accepted Intake
+→ permission-aware semantic command
+→ exactly one Case
+→ converted_at
+→ one request transaction
+```
+
+Здесь код появляется не ради «продвинутого уровня», а потому что только metadata уже не
+выражает cross-document invariant и атомарное business action.
+
+---
+
+# 4. Ownership основных механизмов
+
+| Ответственность | Владелец в курсе |
+|---|---|
+| структура Document | DocType metadata |
+| ссылка на самостоятельный объект | Link |
+| зависимые строки без своего lifecycle | Child Table |
+| hierarchy | Tree DocType |
+| простое значение состояния | Select |
+| допустимые process transitions | Workflow |
+| transaction finality | docstatus / submit-cancel, когда семантика подходит |
+| базовый доступ к DocType | Role/DocPerm |
+| доступ к полям | Permission Level |
+| ограничение по linked values | User Permission |
+| ad-hoc document grant | Share |
+| конкретный исполнитель | Assign To / ToDo |
+| внешний простой intake | Web Form |
+| generic CRUD integration | built-in REST |
+| server invariant собственного Document | Controller lifecycle |
+| предметное действие одного Document | whitelisted Document method |
+| request atomicity | Framework transaction boundary |
+| эволюция существующих данных | patch |
+| собственное поведение app | integration tests |
+| тяжёлая post-commit работа | Background Job, только при реальной необходимости |
+| простой outbound HTTP event | Webhook сначала |
+
+---
+
+# 5. Поставка app
+
+Различаются четыре слоя:
 
 | Слой | Примеры | Способ |
 |---|---|---|
-| стандартные метаданные | DocType, Report, Workspace, Web Form, Notification | исходники app |
-| конфигурационные записи | Role, Workflow и связанные записи | fixtures или другой явно проверенный штатный экспорт |
-| exported customizations | Custom Field, Property Setter, Custom DocPerm | только при расширении DocType другого app |
+| Standard source | DocType, controller, Workspace, standard Report, Web Form, Notification | app source |
+| переносимая конфигурация | Role, Workflow, общие view-records | fixtures/штатный export |
+| local site configuration | Users, User Permission, Assignment Rule с Users, SMTP, API keys | site only |
+| working data | Equipment, Requests, Intake, Case, Files | database/site |
 
-Не переносятся как часть универсального app:
+Для DocType, принадлежащих учебному app, permissions задаются в Standard DocType JSON.
+Export Customizations не используется как второй permission layer для своих DocType.
 
-- Users и пароли;
-- API keys и secrets;
-- SMTP и site config;
-- Assignment Rule, если он ссылается на конкретных локальных Users;
-- User Permission и Share, созданные для конкретных пользователей;
-- рабочие Equipment, Purchase Request, Service Intake и Service Case;
-- тестовые записи и файлы-вложения.
+Engineering Bridge добавляет ещё одну ось поставки:
 
-## Обязательные границы безопасности
+```text
+fresh install
+≠ upgrade existing site
+```
 
-1. Assignment показывает ответственность, но сам по себе не выдаёт право читать или менять документ.
-2. Workflow ограничивает переходы, но не заменяет Role Permission.
-3. Read Only и `Only Allow Edit For` — элементы формы и процесса, а не универсальная ACL.
-4. Permission Level ограничивает поля, а не строки документов.
-5. User Permission сужает доступ по Link-значениям, но не заменяет базовые права DocType.
-6. Web Form — отдельный канал доступа. Создание нового target document в `v16.32.0` выполняется с `ignore_permissions=True`.
-7. Публичная Web Form не должна принимать внутреннее состояние, исполнителя, закрытые Link-каталоги или другие служебные поля.
-8. API user получает отдельную роль и минимальные права; ключи не попадают в Git.
-9. Поле Check семантически подходит для булевого согласия, но обязательность Check сама
-   по себе не гарантирует значение true. В P3 обязательный Select с одной непустой
-   option используется только как осознанный no-code компромисс; при наличии собственной
-   business logic такое требование должно проверяться на серверной стороне.
+Schema JSON отвечает за структуру, patch — за одноразовую миграцию существующих данных.
 
-## Критерий завершения программы
+---
 
-Программа завершена, когда все три app:
+# 6. Обязательные security boundaries
 
-- работают на исходном site;
-- имеют понятную модель и ограниченный scope;
-- проходят положительные и отрицательные проверки прав;
-- не содержат собственной Python/JavaScript business logic;
-- имеют чистую Git-историю;
-- устанавливаются на новый site;
-- воспроизводят заявленный сценарий после `install-app` и `migrate`;
-- явно отделяют переносимые метаданные от локальных пользователей и рабочих данных.
+1. Assignment = responsibility, не authorization.
+2. Workflow = transition policy, не замена Role Permission.
+3. Read Only / Only Allow Edit For = UI/process guards, не универсальная ACL.
+4. Permission Level ограничивает fields, не rows.
+5. User Permission сужает linked values, но не выдаёт базовый DocType access.
+6. Web Form — отдельный access path; в `v16.32.0` new target insert использует `ignore_permissions=True`.
+7. Public Web Form не принимает internal state, assignee, internal notes и закрытые catalogs.
+8. API user получает отдельную минимальную роль; secrets не попадают в Git.
+9. `case.insert()` в semantic command остаётся permission-aware; custom command не получает `ignore_permissions=True`.
+10. Uncaught exception в write request должна приводить к rollback; manual commit не дробит business operation.
+
+---
+
+# 7. Что остаётся после практикума
+
+Следующий отдельный уровень, не маскируемый под базовый курс:
+
+- Client Script и полноценный Form UX scripting;
+- Server Script как site/runtime customization;
+- `doc_events`, `extend_doctype_class`, override mechanics для чужих DocType;
+- complex service/domain modules;
+- custom permission hooks и Permission Types;
+- Query / Script Reports;
+- Virtual DocType;
+- Realtime;
+- сложная внешняя интеграция и custom protocol/API versioning;
+- production deployment, TLS, backup, monitoring/observability;
+- performance engineering и масштабирование.
+
+Эти механизмы не считаются «менее нативными». Они требуют отдельной задачи и контекста.
+
+---
+
+# 8. Критерий завершения
+
+После P3 ученик должен уметь построить небольшой metadata-driven Frappe app без
+искусственных сущностей и обходов Framework.
+
+После Engineering Bridge он дополнительно должен уметь ответить:
+
+```text
+почему metadata перестало хватать?
+какой lifecycle/extension point владеет новой гарантией?
+где проходит transaction boundary?
+как существующий site получает новую модель данных?
+что именно должно быть покрыто tests?
+```
+
+Если ответ сводится к «так принято писать код», инженерный уровень не принят.
