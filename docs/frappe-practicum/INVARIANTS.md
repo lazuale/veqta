@@ -2,46 +2,42 @@
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
-Этот файл — **технический контракт курса для автора, методиста и аудита**. Новичку не нужно читать его перед практикой.
-
 Главное правило:
 
 ```text
 каждая заявленная гарантия
-должна иметь названный реальный механизм Frappe
+должна иметь названный enforcement layer
 ```
-
-Курс не должен обещать более сильную гарантию, чем реально даёт выбранный механизм.
 
 ---
 
-# 1. Уровни силы утверждений
+# 1. Уровни силы
 
 ## H — hard / server-enforced
 
-Сервер Frappe проверяет операцию штатным permissions, validation или Workflow.
+Сервер Frappe проверяет или нормализует операцию штатным permissions/validation/workflow.
 
 ## S — structural
 
-Следует из metadata/source и структуры модели.
+Следует из metadata/source и модели.
 
 ## U — UI/process guard
 
-Ограничивает или направляет стандартный интерфейс, но не является самостоятельной серверной ACL.
+Помогает стандартному UX, но не является отдельной server ACL.
 
 ## P — deployment/process policy
 
-Зависит от конфигурации Site, обязательного cleanup/rollback или принятой политики курса.
+Зависит от конфигурации site или обязательного rollback.
 
 ## C — conditional
 
-Гарантия действует только при названном предусловии.
+Действует только при выполнении предусловия.
 
 ---
 
 # 2. Core structure
 
-## S-01. Постоянное предметное ядро
+## S-01. Domain core
 
 ```text
 Facility Location
@@ -49,38 +45,35 @@ Equipment
 Service Request
 ```
 
-## S-02. Один process-state field
+## S-02. Единственный process state
 
 ```text
 Service Request.status
 ```
 
-После L7 это же поле используется как `Workflow State Field`.
+После L7 это же поле — Workflow State Field.
 
 Параллельный `workflow_state` не создаётся.
 
-## S-03. Assignment не дублируется полем
+## S-03. Assignment не дублируется business field
 
 ```text
 Service Request → Assign To → ToDo → User
 ```
 
-Отдельный `assigned_technician` в Core отсутствует.
-
 ## S-04. Assignment ≠ authorization
 
-```text
-ToDo = responsibility
-permissions = authority
-```
+ToDo = responsibility.
 
-Assignee-only authorization не обещается в Core.
+Permissions = authority.
+
+Assignee-only authorization — Later.
 
 ---
 
 # 3. Data invariants
 
-## H-01. Mandatory fields
+## H-01. Mandatory
 
 ```text
 Subject
@@ -89,11 +82,11 @@ Description
 Priority
 ```
 
-## H-02. Equipment optional
+## H-02. Equipment Optional
 
 `equipment` не Mandatory.
 
-## H-03. Priority values
+## H-03. Priority
 
 ```text
 Low
@@ -111,47 +104,57 @@ Resolved
 Closed
 ```
 
-## S-05. Accepted ≠ Assigned To
-
-`Accepted` означает принятие заявки в процесс и не доказывает наличие конкретного `ToDo`.
-
-## S-06. Location semantics
-
 ```text
-Service Request.location = место события, зафиксированное заявкой
-Equipment.location       = текущее место оборудования
+Accepted ≠ Assigned To
 ```
 
-Вечного equality между ними нет.
+## H-05. Equipment Category
+
+```text
+HVAC
+Electrical
+IT
+Other
+```
+
+## S-05. Location semantics
+
+```text
+Service Request.location = historical event location
+Equipment.location       = current equipment location
+```
+
+Вечного equality нет.
 
 ---
 
-# 4. Permission architecture курса
+# 4. Трёхуровневая permission architecture
 
-После L5 `Service Request` использует **два**, а не три слоя permissions:
+После L5 `Service Request` разделён на три permission layer.
 
 ```text
-Role Permission / Level 0
+Permission Level 0
 → document authority
 
 Permission Level 1
-→ business-content field authority
+→ business content authority
+
+Permission Level 2
+→ process-state field authority
 ```
 
-После L7 добавляется независимая ответственность:
+Workflow после L7 добавляет четвёртый слой:
 
 ```text
-Workflow
+Workflow Allowed Role / Condition
 → transition authority
 ```
-
-Это важно: Workflow не называется «Permission Level 2», а Permission Level не выдаётся за state machine.
 
 ---
 
 # 5. Level 0 — document authority
 
-## H-05. Final Service Request matrix
+## H-06. Final Level 0 matrix
 
 ```text
 Requester
@@ -170,35 +173,21 @@ Supervisor
 → Report/Export Yes
 ```
 
-Requester Desk intake после insert является append-only по обычному Role Permission path.
+Requester Desk intake = append-only after insert.
 
-## H-05A. If Owner не блокирует Create
+## H-06A. If Owner не блокирует Create
 
-На закреплённой версии `v16.32.0` owner-only folding не применяется к `create`, поэтому сочетание:
+Exact `v16.32.0` owner-only folding не применяется к `create`.
 
-```text
-Create = Yes
-Read = Yes + If Owner
-Write = No
-```
+## H-06B. Working roles no-delete
 
-совместимо с созданием нового Document и последующим запретом обычного save.
-
-## H-05B. Working roles no-delete
-
-После временного эксперимента L5:
-
-```text
-Service Request Delete = No
-```
-
-для всех трёх рабочих ролей.
+`Service Request Delete = No` у всех трёх рабочих ролей после temporary L5 experiment.
 
 ---
 
-# 6. Permission Level 1 — business content authority
+# 6. Level 1 — business content authority
 
-## S/H-06. Content fields = Permission Level 1
+## S/H-07. Business content = Permission Level 1
 
 ```text
 subject
@@ -210,7 +199,13 @@ target_date
 attachment
 ```
 
-## H-06A. Level 1 matrix
+имеют:
+
+```text
+Permission Level = 1
+```
+
+## H-07A. Level 1 matrix
 
 ```text
 Requester
@@ -223,16 +218,17 @@ Supervisor
 → Read Yes / Write Yes
 ```
 
-## H-06B. Почему Requester Level 1 Write не означает post-create Write
+## H-07B. Почему Requester Level 1 Write безопасен
 
-На новом Document Requester имеет:
+Client `perm.js` для local Document проверяет `write` именно на `df.permlevel`.
+
+Поэтому Requester может заполнить Level 1 intake fields нового Document.
+
+Server insert при этом проверяет:
 
 ```text
-Level 0 Create = Yes
-Level 1 Write = Yes
+Create
 ```
-
-поэтому может заполнить содержательные поля.
 
 После insert:
 
@@ -240,65 +236,173 @@ Level 1 Write = Yes
 Level 0 Write = No
 ```
 
-и обычный повторный save запрещён целиком.
+блокирует повторный ordinary save целиком.
 
-## H-06C. Technician Document Write ≠ content Write
+## H-07C. Technician document Write ≠ content Write
 
-На обычном permission-aware `Document` path Frappe проверяет high-permlevel fields.
-
-Следовательно модель:
+Exact `Document.insert()` / `_save()` вызывают:
 
 ```text
-Technician Level 0 Write = Yes
-Technician Level 1 Write = No
+validate_higher_perm_levels()
 ```
 
-не даёт штатного права переписывать содержательные Level 1 поля.
+Если у пользователя нет write конкретного high Permission Level, Frappe сбрасывает такие значения к разрешённым original/default перед DB write.
 
-Гарантия **не распространяется** на доверенный server code, который сознательно использует `ignore_permissions=True`, прямой DB API или иной bypass.
+Следовательно ordinary permission-aware save Technician не должен сохранять изменения Level 1 content.
 
 ---
 
-# 7. Status до Workflow
+# 7. Level 2 — process-state authority
 
-## S/H-07. Status остаётся Level 0
+## S/H-08. Status = Permission Level 2
 
-В L4–L6:
+После L5:
 
 ```text
 Service Request.status
-→ Permission Level 0
-→ обычный Select
+→ Permission Level = 2
 ```
 
-Requester после сохранения не может менять его из-за отсутствия Document Write.
-
-Technician и Supervisor имеют Document Write и могут менять `status` как обычное поле.
-
-## H/S-07A. До L7 переходы не защищены state machine
-
-До включения Workflow пользователь с Write может, например, сохранить:
+Level 2 matrix:
 
 ```text
-New → Closed
+Requester
+→ Read Yes / Write No
+
+Technician
+→ Read Yes / Write Yes
+
+Supervisor
+→ Read Yes / Write Yes
 ```
 
-если значение входит в Select options.
+Это разделяет:
 
-Это **намеренный отрицательный результат курса**:
+```text
+business content
+≠ process state
+```
+
+## H-08A. Requester не задаёт произвольный state на insert
+
+Requester не имеет Level 2 Write.
+
+На ordinary permission-aware insert high-permlevel validation нормализует недоступное Level 2 field к разрешённому default/original значению.
+
+Для нового `Service Request`:
+
+```text
+status default = New
+```
+
+Поэтому даже **до L7** Requester не получает штатного права выбрать `Accepted / In Progress / Resolved / Closed`.
+
+Это сильнее модели, где `status` оставался Level 0.
+
+## H-08B. Technician/Supervisor могут менять state до Workflow
+
+В L5–L6 Technician и Supervisor имеют Level 2 Write, поэтому до Workflow `status` остаётся обычным Select для этих ролей.
+
+Это позволяет доказать:
 
 ```text
 Select values
-≠ transition model
+≠ state machine
 ```
 
-Не называем это дефектом permissions и не строим отдельный Level 2 только для сокрытия этого учебного факта.
+не раздавая state write Requester.
+
+## H-08C. Workflow совместим с Level 2
+
+После L7 Technician/Supervisor сохраняют Level 2 Write, необходимый для своих state changes.
+
+Но теперь допустимость перехода дополнительно проверяет Workflow.
+
+```text
+Level 2 Write
+= право изменять process-state field
+
+Workflow transition
+= право выполнить конкретный переход
+```
+
+Оба условия нужны одновременно.
 
 ---
 
-# 8. Workflow invariants после L7
+# 8. Ограничение Permission Level
 
-## H-08. Workflow state machine
+`ignore_permissions=True` отключает high-permlevel enforcement.
+
+Поэтому Level 1/2 guarantees формулируются для:
+
+```text
+permission-aware Document insert/save
+```
+
+а не для доверенного server code, который сознательно bypass permissions.
+
+Это одна из причин, почему final Web Form update выключен.
+
+---
+
+# 9. Temporary permission experiments
+
+## P-01. L5 cleanup
+
+До выхода из L5:
+
+```text
+Supervisor Delete = No
+Share removed
+User Permission removed
+technician.restricted disabled
+```
+
+## H/P-02. Assignment не раздаёт скрытые permissions
+
+Основные Technician имеют совместимый Role-based document access, чтобы Assign To не создавал неожиданные DocShare exceptions.
+
+Assignment не меняет Level 1/2 matrices.
+
+---
+
+# 10. UI guards
+
+## U-01. Only Allow Edit For ≠ ACL
+
+```text
+Level 0 Role Permission
+= document authority
+
+Permission Level 1
+= business-content authority
+
+Permission Level 2
+= process-state field authority
+
+Workflow Allowed Role / Condition
+= transition authority
+
+Only Allow Edit For
+= Desk state editability
+```
+
+## U-02. Status Read Only после L7
+
+После Workflow:
+
+```text
+status → Read Only = Yes
+```
+
+Это UI guard. Server state validity проверяет Workflow.
+
+---
+
+# 11. Workflow invariants
+
+## H-09. State machine
 
 ```text
 New
@@ -312,179 +416,110 @@ Resolved
 Closed
 ```
 
-Все состояния:
+Все states `docstatus = 0`.
+
+## U-03. Desk edit roles
 
 ```text
-docstatus = 0
+New         → Supervisor
+Accepted    → Technician
+In Progress → Technician
+Resolved    → Supervisor
+Closed      → Supervisor
 ```
 
-## H-08A. Первое состояние
+Requester local create остаётся возможным, потому что intake fields находятся на Level 1, а status получает default New на Level 2.
 
-При активном Workflow новый Document получает первое состояние Workflow, если state field не установлен.
+## H-09A. Allowed Role / Condition
 
-Прямая попытка создать новый Document сразу в другом состоянии не считается допустимым сохранённым переходом Workflow.
+Workflow state change должен соответствовать допустимому transition текущего пользователя.
 
-## H-08B. Saved transition validation
+## S-06. Accepted не доказывает assignment
 
-Для сохранённого Document изменение workflow state должно соответствовать доступному transition текущего пользователя.
+`Assign To → Accept` — рекомендуемый порядок, не hard coupling.
 
-Allowed transition зависит от:
+## S-07. Technician role ≠ конкретный assignee
 
-```text
-current state
-Allowed Role
-Condition
-```
+Workflow transition разрешается роли, а не ToDo assignee.
 
-## H-08C. Workflow использует тот же status
+## S-08. Closed terminal, не absolute immutable
 
-```text
-Workflow State Field = status
-```
+Нет исходящего transition; working roles no-delete.
 
-Второе поле состояния не требуется.
-
-## U-01. Status Read Only
-
-После L7:
-
-```text
-status → Read Only = Yes
-```
-
-Это UI guard. Серверную допустимость перехода обеспечивает Workflow.
-
-## U-02. Only Allow Edit For
-
-```text
-Only Allow Edit For
-= Desk state editability
-≠ самостоятельная ACL
-```
-
-## S-07. Closed terminal, не absolute immutable
-
-У `Closed` нет исходящего transition, рабочие роли не имеют Delete.
-
-Но Core не обещает абсолютную неизменяемость через любой возможный server/bypass path.
+Absolute API immutability — Later.
 
 ---
 
-# 9. Assignment / collaboration invariants
-
-## H/S-09. Assignment не меняет status
-
-После назначения:
-
-```text
-ToDo exists
-Status remains current value
-```
-
-## H/S-09A. Assignment не повышает Permission Level 1
-
-Назначение Technician не выдаёт ему право менять:
-
-```text
-Description
-Priority
-Target Date
-Location
-Equipment
-```
-
-если такого права не было у роли.
-
-## S-08. ToDo Closed ≠ Service Request Closed
-
-Закрытие поручения и завершение предметного процесса — разные состояния разных Documents.
-
-## P-01. Auto-Share не является нормальной моделью Core
-
-Основные Technician имеют совместимый Role-based document access, чтобы Assignment не строил скрытую архитектуру на случайных `DocShare`.
-
----
-
-# 10. Temporary permission experiments
-
-## P-02. L5 cleanup
-
-До выхода из L5:
-
-```text
-Supervisor Delete = No
-Share removed
-User Permission removed
-technician.restricted disabled
-```
-
-Временный эксперимент считается законченным только после восстановления финальной модели.
-
----
-
-# 11. Automation invariants
+# 12. Automation invariants
 
 ## P-03. Assignment Rule site-specific
 
-Rule с конкретными Users не является универсальной fixture приложения.
+Rule с concrete Users не universal fixture.
 
-## H/S-10. Assignment Rule не меняет Workflow state
+## H-10. Assignment Rule не меняет Workflow state
 
 ```text
 Assigned To = Technician
 Status = New
 ```
 
-до отдельного Workflow Action.
-
 ## H/S-10A. Automation не расширяет authority
 
-Assignment Rule и Auto Repeat Assignee не выдают Technician Permission Level 1 Write.
+Assignment Rule, Auto Repeat Assignee и ToDo не выдают Technician:
+
+```text
+Level 1 Write
+или дополнительные Level 2 transitions
+```
+
+`Target Date` остаётся Level 1 content; его меняет Supervisor, а Assignment Rule синхронизирует Due Date ToDo.
 
 ## C-01. Target Date
 
-Date-based поведение существует только при заполненном `Target Date`.
+Due/overdue behavior существует только при заполненном Target Date.
 
 ## P-04. Load Balancing rollback
 
-Финальный L9 возвращается в:
+Финал L9:
 
 ```text
 Round Robin
 ```
 
-## S-09. Core не обещает собственную Background Job
-
-L9 использует стандартные механизмы `Notification` и `Assignment Rule`, работающие с scheduler infrastructure.
-
-Курс не утверждает, что ученик уже освоил `frappe.enqueue`, retries или `enqueue_after_commit`.
-
 ---
 
-# 12. Web Form invariants
+# 13. Web Form invariants
 
 ## H-11. Login Required = authentication boundary
 
-Финал:
+Final:
 
 ```text
 Login Required = Yes
 Anonymous = No
 ```
 
-Guest submit запрещён.
-
-Это не означает role-specific business authorization.
+Guest submit запрещён, но role-specific authorization не обещается.
 
 ## H/S-11A. Web Form new insert = separate capability
 
-На exact `v16.32.0` Web Form создаёт новый target Document отдельным путём с `ignore_permissions=True`.
+Exact target insert:
 
-Следовательно Web Form insert **не является доказательством** обычного Role Permission / Permission Level path Desk.
+```text
+doc.insert(ignore_permissions=True, ...)
+```
 
-## S-10. Status не входит в Web Form fields
+Следовательно Web Form insert не доказывает Level 0/1/2 Role Permission enforcement.
 
-Новая заявка использует начальное значение процесса, а пользователь Web Form не получает отдельное поле управления Workflow.
+Web Form field allow-list **не содержит Status**.
+
+Новый Request получает:
+
+```text
+Status = New
+```
+
+из metadata default.
 
 ## H-12. Final Web Form update disabled
 
@@ -492,47 +527,48 @@ Guest submit запрещён.
 Allow Editing After Submit = No
 ```
 
-Курс не оставляет Web Form как параллельный редактор рабочего `Service Request`.
+Owner update иначе способен использовать `save(ignore_permissions=True)` и обходить Level 1/2 protection.
 
-## H/S-13. Apply Document Permissions
+## H/S-13. Apply Document Permissions = existing-document behavior
 
-Эксперимент относится к existing-document behavior и не превращает Web Form create в обычный Desk Create.
+Не является create authorization.
 
-## P-05. Trust policy
+## P-05. Web Form population trust policy
 
-Authenticated Website Users финальной формы считаются trusted internal reporters в рамках учебной модели.
+Authenticated website accounts с доступом к published form считаются trusted internal reporters.
 
-Безопасный public-untrusted intake и role-restricted portal — Later.
+Role-restricted/public-untrusted intake — Later.
+
+## P-06. Link catalog disclosure
+
+`Allow Read On All Link Options = Yes` — осознанная disclosure policy для trusted reporters.
 
 ---
 
-# 13. Packaging invariants
+# 14. Packaging invariants
 
-## S-11. Четыре слоя
+## S-09. Layers
 
 ```text
 Standard source
-universal app configuration
-site-specific configuration
+universal config
+site-specific config
 working data
 ```
 
-## S-12. Universal delivery
-
-На чистый Site приложение должно доставлять:
+## S-10. Universal delivery
 
 ```text
 core DocTypes
-field permlevel metadata
-Standard reports/cards/chart/workspace
+UI/analytics Standard objects
 Notifications
 Web Form
 Roles
 Workflow
-Custom DocPerm Level 0/1
+Custom DocPerm Level 0 + Level 1 + Level 2
 ```
 
-## P-06. Site-specific state
+## P-07. Site-specific
 
 ```text
 Users
@@ -541,30 +577,27 @@ Share
 Assignment Rule tied to Users
 ```
 
-не объявляется универсальным состоянием App.
+## H-15. install-app
 
-## H/P-14. Clean-site acceptance
+Initial app install синхронизирует source/fixtures/customizations/dashboards; migrate — convergence test.
 
-L11 вручную проверяет на новом Site:
+## S-11. Portability scope
+
+Clean-site portability, не arbitrary multi-app compatibility.
+
+## P-08. Active site restore
+
+После L11:
 
 ```text
-Requester Desk create/read-own/no-write
-Technician Level 1 content protection + Workflow
-Supervisor content/process authority + no Delete
-Website User Web Form intake
+bench use facility-ops.localhost
 ```
-
-## S-13. Core testing boundary
-
-Clean-site acceptance — обязательная проверка Core.
-
-Автоматизированные `FrappeTestCase` / `bench run-tests` не объявляются пройденными до появления собственного программного поведения, которое действительно должно иметь тестовый контракт.
 
 ---
 
-# 14. Lab invariants
+# 15. Lab invariants
 
-## P-07. Каждая Lab имеет rollback contract
+## P-09. Каждая Lab имеет rollback contract
 
 ```text
 PRECONDITIONS
@@ -575,9 +608,20 @@ FINAL STATE
 GIT STATE
 ```
 
-## H/S/P-07A. Service Request baseline переживает Labs
+Domain rollback обязателен; presentation config может остаться только когда это прямо заявлено.
 
-После Lab, затрагивающей `Service Request`, сохраняются:
+## H/S/P-09A. Service Request security baseline переживает Labs
+
+После Lab, затрагивающей `Service Request`, обязаны сохраниться:
+
+```text
+Level 0 document matrix
+Level 1 business-content matrix
+Level 2 status matrix
+Workflow
+```
+
+Точная baseline:
 
 ```text
 Level 0
@@ -585,48 +629,58 @@ Requester   → Create + Read own; Write/Delete No
 Technician  → Read/Write; Create/Delete No
 Supervisor  → Read/Write/Create; Delete No
 
-Permission Level 1
+Level 1
 Requester   → Read/Write
 Technician  → Read only
 Supervisor  → Read/Write
 
-Workflow
-New → Accepted → In Progress → Resolved → Closed
+Level 2
+Requester   → Read only
+Technician  → Read/Write
+Supervisor  → Read/Write
 ```
 
-## P-07B. Временный content field/table получает Permission Level 1
+Лаборатория не принята, если functional cleanup выполнен, но permission baseline ослаблен.
 
-Если временное поле Lab имеет тот же смысл, что и бизнес-содержание заявки, оно получает Level 1, чтобы лаборатория не создала случайный обход существующей модели.
+## P-09B. Временный business-content field/table получает explicit Permission Level
 
-## S-14. Domain rollback ≠ byte-identical source rollback
+Например Lab A:
 
-Лаборатория может оставить явно заявленный presentation artifact, если это часть результата Lab и не меняет предметную/security model.
+```text
+work_logs → Permission Level 1
+```
+
+После rollback временное поле удаляется полностью.
+
+## S-12. Domain rollback ≠ byte-identical source rollback
+
+Lab E может оставить Standard Print Format, не меняя domain/security model.
 
 ---
 
-# 15. Compatibility matrix
+# 16. Compatibility matrix
 
 | Механизмы | Вердикт |
 |---|---|
 | Requester Create + Level0 Write No | совместимы |
-| Requester Level1 Write + Level0 Write No | new content yes, later ordinary save no |
-| Technician Level0 Write + Level1 Write No | workflow/document save yes, content protected |
-| Status Level0 до L7 | обычный Select, transitions ещё не защищены |
-| Status + Workflow после L7 | transition validation принадлежит Workflow |
-| Permission Level + ignore_permissions | не enforcement при сознательном bypass |
+| Requester Level1 Write + Level0 Write No | new content yes, later save no |
+| Requester Level2 Write No + status default New | state spoof через ordinary insert не является разрешённой моделью |
+| Technician Level0 Write + Level1 Write No | document/workflow yes, content protected |
+| Technician Level2 Write + Workflow | field authority + transition gate |
+| Permission Level + ignore_permissions | не enforcement при bypass |
 | Desk Create + Web Form Create | разные admission paths |
 | Assignment + authorization | не эквивалентны |
-| Assignment + content authority | не эквивалентны |
+| Assignment + Level1/2 authority | не эквивалентны |
 | Workflow + Only Allow Edit For | server transition vs Desk guard |
-| Workflow + Web Form edit | финально edit Off |
-| Main Assignment Rule + clean site | intentionally different site-specific state |
-| Labs + permissions | compatible only with explicit rollback |
+| Workflow + Web Form edit | unsafe; final edit Off |
+| Main Assignment Rule + clean site | intentionally different |
+| Labs + hardened permissions | compatible only with explicit permlevel + rollback |
 
 ---
 
-# 16. Execution contract
+# 17. Execution contract
 
-Каждый Core-урок фиксирует:
+Каждый урок:
 
 ```text
 PRECONDITIONS
@@ -645,26 +699,20 @@ OUTPUT(Ln) ⊇ PRECONDITIONS(Ln+1)
 
 ```text
 FINAL_SECURITY(Lab)
-= Level 0 + Permission Level 1 + Workflow baseline
+= Level 0 + Level 1 + Level 2 hardened baseline
 ```
 
 ---
 
-# 17. Что Core не обещает
+# 18. Не обещаем в Core
 
 ```text
 assignee-only authorization
 absolute Closed immutability
 role-specific Web Form admission
 safe public-untrusted portal
-protection from explicit trusted ignore_permissions code
-custom Permission Types behavior
-custom Background Job reliability
-Realtime integration
-automated tests for custom business code
+protection from explicit ignore_permissions code paths
 arbitrary multi-app compatibility
 ```
 
-Финальный критерий технической честности курса:
-
-> **максимум реальных штатных гарантий без присваивания механизму ответственности, которой Frappe ему не даёт.**
+Steel architecture = **максимум реальных штатных гарантий без выдумывания тех, которых платформа не даёт**.
