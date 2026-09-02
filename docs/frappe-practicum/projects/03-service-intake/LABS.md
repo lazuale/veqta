@@ -106,15 +106,16 @@ validation logic, а обязательность Check сама по себе �
 | Label | Fieldname | Type | Настройки |
 |---|---|---|---|
 | Case Title | `case_title` | Data | Mandatory, In List View |
-| Source Intake | `source_intake` | Link | Mandatory, Unique, Options `Service Intake` |
+| Source Intake | `source_intake` | Link | Mandatory, Unique, Set Only Once, Options `Service Intake` |
 | Case Description | `case_description` | Text | Mandatory |
 | Category | `category` | Link | Mandatory, Options `Service Category` |
 | Priority | `priority` | Select | `Low`, `Normal`, `High`, `Urgent`; Default `Normal` |
 | Status | `status` | Select | `Open`, `In Progress`, `Resolved`, `Closed`; Read Only |
 | Resolution | `resolution` | Text | без дополнительных флагов |
 
-Unique у `source_intake` нужен: это поле не является системным `name`, а запрещает два
-Case для одного Intake.
+`Unique` у `source_intake` запрещает два Case для одного Intake. `Set Only Once`
+запрещает перепривязать уже созданный Case к другому Intake и тем самым сохраняет
+происхождение документа без отдельного controller.
 
 ### Permissions
 
@@ -276,6 +277,7 @@ http://intake.localhost:8000/report-service-issue
 
 - Case доступен;
 - исходный Intake недоступен;
+- `source_intake` нельзя заменить на другой Intake после создания Case;
 - Start Work переводит Case в In Progress;
 - Resolve без Resolution запрещён condition;
 - после заполнения Resolution переход работает.
