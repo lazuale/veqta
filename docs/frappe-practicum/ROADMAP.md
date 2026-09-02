@@ -504,7 +504,7 @@ B → DocStatus
 C → Auto Repeat
 D → Customize Form / Custom Field / Property Setter
 E → Print / PDF
-F → special fields/views + DocType Layout [v16+]
+F → special fields/views, доступные в v16.32.0
 ```
 
 Если Lab меняет `Service Request`, после rollback сохраняются:
@@ -514,6 +514,8 @@ Level 0 matrix
 Permission Level 1 matrix
 Workflow
 ```
+
+`DocType Layout` не включён в Lab F: механизм присутствует в более новом коде Frappe v16, но отсутствует в exact `v16.32.0`, на котором исполняется этот курс.
 
 ---
 
@@ -534,7 +536,9 @@ Virtual DocType
 automated Frappe tests
 ```
 
-Эти механизмы не являются «нештатными». Они просто требуют ответственности, которой в базовом no-code приложении ещё нет.
+К version-dependent Later также относится `DocType Layout`: его нужно добавить в практику только после обновления базовой версии и повторной проверки стенда.
+
+Эти механизмы не являются «нештатными». Они просто требуют ответственности или версии, которой в базовом приложении ещё нет.
 
 ---
 
