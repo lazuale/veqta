@@ -212,7 +212,9 @@ Web Form new document
 Изменение должно быть заблокировано `Set Only Once`; иначе трассируемость источника не
 считается доказанной.
 
-Автоматической кнопки «Преобразовать» нет. Она потребовала бы custom Client/Python logic. В базовом app ручной шаг является честной границей возможностей конфигурации.
+Автоматической кнопки «Преобразовать» нет. Она потребовала бы custom Client/Python logic.
+В Metadata & Configuration level ручной шаг является честной границей возможностей
+декларативной конфигурации.
 
 Agent работает с `case_description` и не получает Read на исходный Intake с контактными данными. Link на источник сохраняет трассируемость для Triage/Manager, но не используется как способ расширить доступ Agent.
 
@@ -290,9 +292,16 @@ bench --site intake-clean.localhost clear-cache
 - почему Login Required не равен role authorization;
 - почему `Apply Document Permissions` не превращает new Web Form insert в обычный Desk Create;
 - почему закрытые Link options не публикуются;
-- почему автоматическое преобразование не вошло в базовый маршрут без кода;
+- почему автоматическое преобразование не вошло в Metadata Track без программной ответственности;
 - почему API keys относятся к site secrets, а не к app source.
 
-После этого выполнить финальный аудит из [ROADMAP.md](../../ROADMAP.md).
+После принятого P3 базовый Metadata & Configuration level завершён. Его не нужно
+ретроспективно переделывать под Python.
 
-Пошаговое выполнение: [LABS.md](LABS.md).
+Следующий шаг — [Engineering Bridge](../../engineering/LABS.md). Там тот же
+`service_intake` получает новое требование и показывает, когда Controller, transaction,
+patch и tests становятся нативным продолжением приложения.
+
+Финальный аудит [ROADMAP.md](../../ROADMAP.md) выполняется после Engineering Bridge.
+
+Пошаговое выполнение P3: [LABS.md](LABS.md).
