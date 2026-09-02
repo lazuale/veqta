@@ -1,33 +1,21 @@
 # Engineering Track: нативный программный слой Frappe
 
-Перед началом P3 должен быть полностью принят на рабочем и чистом site.
-
-Рабочий app:
+Перед началом P3 должен быть принят на рабочем и чистом site.
 
 ```text
-service_intake
+App:    service_intake
+Site:   intake.localhost
+Frappe: v16.32.0
 ```
 
-Рабочий site:
-
-```text
-intake.localhost
-```
-
-Базовая версия:
-
-```text
-Frappe Framework v16.32.0
-```
-
-Этот блок впервые добавляет собственный Python. Перед каждой правкой сначала называется
+Здесь впервые появляется собственный Python. Перед каждой правкой сначала назвать
 ответственность, которой не хватило в metadata.
 
 ---
 
-# E1. Добавить creation invariant в Controller
+# E1. Creation invariant в Controller
 
-## Задача
+## Требование
 
 В P3 `Service Case.source_intake` уже имеет:
 
@@ -38,22 +26,16 @@ Set Only Once
 Link → Service Intake
 ```
 
-Этого достаточно, чтобы ссылка существовала, не дублировалась и не менялась после
-создания. Но metadata не выражает правило:
+Но metadata не выражает правило:
 
 > `Service Case` можно создать только из `Service Intake` со статусом `Accepted`.
 
-Это правило относится именно к **созданию Case**. После создания Agent должен иметь
-возможность работать с Case, хотя по модели P3 он не имеет Read на исходный Intake с
-контактными данными.
+Это правило **создания**, а не любого последующего save. Agent после создания Case должен
+работать с ним без Read на исходный Intake.
 
-Поэтому правило нельзя бездумно повесить на `validate()`: `validate()` запускается и при
-последующих save существующего Case. Такой вариант незаметно связал бы право Agent
-редактировать Case с правом читать Intake.
+Поэтому owner — `before_insert`, а не общий `validate()`.
 
-Нужен lifecycle event, совпадающий по смыслу с гарантией: `before_insert`.
-
-## Проверить исходное состояние
+## Исходное состояние
 
 ```bash
 cd ~/frappe/frappe-practicum-bench/apps/service_intake
@@ -63,17 +45,13 @@ git log --oneline -1
 
 Working tree должен быть чистым после P3.
 
-Открыть controller:
+Открыть:
 
 ```text
 service_intake/service_intake/doctype/service_case/service_case.py
 ```
 
-Он должен содержать класс `ServiceCase(Document)`.
-
-## Добавить `before_insert`
-
-Привести controller к виду:
+и привести controller к виду:
 
 ```python
 import frappe
@@ -92,62 +70,51 @@ class ServiceCase(Document):
 			frappe.throw("Service Case can only be created from an accepted Service Intake.")
 ```
 
-Почему `before_insert`, а не Client Script:
+`before_insert` действует для server-side Document insert независимо от того, пришёл он
+из Desk, REST или другого Python-кода.
 
-```text
-Desk create
-REST create
-server-side Document insert
-→ один и тот же creation invariant
-```
+`intake.check_permission("read")` нужен только на create path: пользователь, который
+создаёт Case из Intake, должен иметь право видеть источник.
 
-Почему здесь остаётся `intake.check_permission("read")`: пользователь, который создаёт
-внутренний Case из Intake, должен иметь право видеть источник. Но эта проверка не должна
-выполняться на каждом последующем save Case.
-
-## Проверить
+## Проверка
 
 Под `Service Triage`:
 
-1. создать `Service Intake` со статусом `New`;
-2. попытаться создать Case со ссылкой на него;
-3. получить ошибку `before_insert`;
-4. изменить Intake на `Accepted`;
-5. повторить создание Case — сохранение должно пройти;
-6. назначить Case `agent@example.com`;
-7. под Agent изменить разрешённое рабочее поле Case и сохранить Document.
+1. создать Intake со статусом `New`;
+2. попытаться создать связанный Case — получить ошибку;
+3. изменить Intake на `Accepted`;
+4. создать Case — сохранение проходит;
+5. назначить Case `agent@example.com`;
+6. под Agent изменить разрешённое поле Case и сохранить.
 
-Последний шаг обязателен. Он доказывает, что creation invariant не превратился в скрытое
-требование дать Agent Read на Intake.
+Последний шаг доказывает, что creation invariant не превратился в скрытое требование
+выдать Agent Read на Intake.
 
-После проверки удалить созданный Case, чтобы Intake можно было использовать дальше.
+После проверки удалить созданный Case.
 
-## Что доказано
+## Граница
 
 ```text
 Link
-→ target существует
+→ source существует
 
 Unique
-→ один Case на один Intake
+→ один Case на Intake
 
 Set Only Once
 → source нельзя перепривязать
 
-Controller.before_insert
+before_insert
 → при создании source обязан быть Accepted
 ```
 
-Это четыре разные гарантии. Не переписывать первые три на Python.
+Первые три гарантии не переписывать на Python.
 
 ---
 
-# E2. Эволюция модели: фиксировать момент конвертации
+# E2. Эволюция модели
 
-## Новое требование
-
-После создания внутреннего Case нужно автоматически хранить момент, когда Intake был
-конвертирован.
+После создания Case нужно хранить момент конвертации Intake.
 
 В `Service Intake` добавить Standard field:
 
@@ -157,34 +124,28 @@ Controller.before_insert
 
 Поле не добавлять в Web Form.
 
-Проверить изменение JSON:
+Проверить JSON:
 
 ```bash
 cd ~/frappe/frappe-practicum-bench/apps/service_intake
 git diff -- service_intake/service_intake/doctype/service_intake/service_intake.json
 ```
 
-Поле Standard, потому что оно принадлежит модели приложения и должно существовать на
-любом site с этой версией app.
-
-`Read Only` не является серверной автоматизацией. Это свойство интерфейса; значение
-должен выставлять серверный код приложения.
+`Read Only` — UI property. Автоматическое заполнение должен делать серверный код.
 
 ---
 
-# E3. Сделать семантическую команду `create_case`
+# E3. Семантическая команда `create_case`
 
-## Почему не новый CRUD endpoint
-
-Frappe уже предоставляет CRUD API для Document. Нам нужен не второй способ сделать
-`INSERT Service Case`, а предметное действие:
+Frappe уже даёт generic CRUD для Document. Нужен не второй CRUD endpoint, а предметное
+действие:
 
 ```text
 Accepted Intake
 → проверить права и состояние
 → создать связанный Case
-→ зафиксировать converted_at
-→ оставить запись в Timeline
+→ записать converted_at
+→ оставить Timeline comment
 ```
 
 Открыть:
@@ -234,16 +195,16 @@ class ServiceIntake(Document):
 		return {"case": case.name}
 ```
 
-## Почему команда живёт в controller Intake
+## Почему controller Intake
 
-Команда относится к одному конкретному `Service Intake` и использует его state. Отдельный
+Команда относится к одному конкретному Intake и использует его state. Отдельный
 `CaseCreationService`, который только переименует `frappe.new_doc()`, `insert()` и
-`save()`, самостоятельной ответственности не добавит.
+`save()`, новой ответственности не создаёт.
 
-Если позже операция начнёт координировать несколько подсистем, reusable algorithm или
-внешний protocol, отдельный module/service можно будет ввести по фактической сложности.
+Service/module имеет смысл позже, если появится реальная cross-document orchestration,
+reusable algorithm или внешний protocol.
 
-## Permission model
+## Permissions
 
 В business command нет:
 
@@ -251,30 +212,23 @@ class ServiceIntake(Document):
 ignore_permissions=True
 ```
 
-`self.check_permission("write")` проверяет право на Intake.
+- `self.check_permission("write")` проверяет Intake;
+- `case.insert()` проверяет Create на Case;
+- `ServiceCase.before_insert()` проверяет Read на source Intake и Accepted-state.
 
-`case.insert()` идёт обычным permission-aware Document path и проверяет Create на
-`Service Case`.
-
-`ServiceCase.before_insert()` дополнительно требует Read на source Intake и проверяет его
-Accepted-state.
-
-Поэтому Role matrix не копируется вручную в Python.
+Role matrix не копируется в Python.
 
 ---
 
 # E4. Вызвать Document method через REST API v2
 
-Frappe v16.32.0 имеет route для whitelisted document method:
+Exact `v16.32.0` имеет route:
 
 ```text
 POST /api/v2/document/<doctype>/<name>/method/<method>/
 ```
 
-Для проверки создать временный API Key/Secret у `triage@example.com`. Значения не
-записывать в файлы и Git.
-
-В shell:
+Создать временный API Key/Secret у `triage@example.com`.
 
 ```bash
 read -r -p "API key: " TRIAGE_API_KEY
@@ -282,14 +236,8 @@ read -r -s -p "API secret: " TRIAGE_API_SECRET
 echo
 ```
 
-Создать новый Intake через Desk и перевести его в `Accepted`. Запомнить фактический
-`name`, например:
-
-```text
-INT-2026-00003
-```
-
-Вызвать команду:
+Через Desk создать новый Accepted Intake и запомнить его фактический `name`, например
+`INT-2026-00003`.
 
 ```bash
 curl -sS -X POST \
@@ -304,68 +252,61 @@ curl -sS -X POST \
   "http://intake.localhost:8000/api/v2/document/Service%20Intake/INT-2026-00003/method/create_case/"
 ```
 
-Подставить фактический `name` Intake.
+Подставить реальный `name`.
 
-Проверить в Desk:
+Проверить:
 
-- создан ровно один `Service Case`;
+- создан ровно один Case;
 - `source_intake` заполнен;
 - `converted_at` заполнен;
 - в Timeline Intake появился Info comment.
 
-Повторить тот же POST. Должна прийти ошибка, а второй Case не должен появиться.
-
-Затем создать Intake `New` и вызвать команду для него. Должна прийти ошибка состояния.
-
-После проверки:
+Повторить POST — второй Case не появляется. Затем вызвать команду для Intake `New` —
+получить ошибку состояния.
 
 ```bash
 unset TRIAGE_API_KEY TRIAGE_API_SECRET
 ```
 
-## Что отличать
+Различать:
 
 ```text
 /api/resource или /api/v2/document
 → generic Document CRUD
 
-/create_case document method
+/create_case
 → semantic command приложения
 ```
 
 Не создавать `/create_service_case`, `/update_service_case`, `/delete_service_case`, если
-они только повторяют штатный CRUD.
+они лишь повторяют штатный CRUD.
 
 ---
 
-# E5. Увидеть transaction boundary
+# E5. Transaction boundary
 
-## Что Frappe делает сам
+Успешный write HTTP request Frappe завершает commit. Uncaught exception приводит к
+rollback.
 
-Успешный write HTTP request Frappe завершает commit. Необработанное исключение приводит
-к rollback.
-
-Поэтому внутри `create_case` не добавлять:
+Поэтому в `create_case` не добавлять:
 
 ```python
 frappe.db.commit()
 ```
 
-Все изменения:
+Одна business operation:
 
 ```text
-Service Case insert
-Service Intake converted_at update
+Case insert
+Intake converted_at update
 Timeline Comment
 ```
 
-должны принадлежать одной request transaction.
+## Rollback probe
 
-## Практический rollback probe
+Создать новый Accepted Intake без Case.
 
-Создать новый Accepted Intake, для которого Case ещё нет.
-
-Временно вставить в `create_case` сразу после:
+Временно вставить сразу после:
 
 ```python
 case.insert()
@@ -377,24 +318,19 @@ case.insert()
 frappe.throw("Transaction rollback probe")
 ```
 
-Вызвать REST-команду. Она должна завершиться ошибкой.
+Вызвать REST-команду. Ожидается ошибка.
 
 Проверить:
 
 ```text
-Service Case with source_intake = этот Intake
+Case with this source_intake
 → отсутствует
 
 converted_at
 → пусто
 ```
 
-Case успел пройти `insert()` внутри Python-вызова, но request не завершился успешно, и
-Framework откатил транзакцию.
-
-Сразу удалить временный `frappe.throw` и повторить вызов. Теперь Case должен создаться.
-
-Проверить diff:
+Удалить probe и повторить вызов — Case создаётся.
 
 ```bash
 cd ~/frappe/frappe-practicum-bench/apps/service_intake
@@ -406,15 +342,10 @@ grep -R "Transaction rollback probe" -n service_intake || true
 
 ---
 
-# E6. Добавить patch для уже существующих данных
+# E6. Patch для существующих данных
 
-## Почему нужен patch
-
-На site после P3 уже существует минимум один Case, созданный вручную до появления
-`converted_at`.
-
-Новая схема создаст поле, но сама по себе не заполнит исторические записи. Это data
-migration, а не lifecycle текущей бизнес-операции.
+После P3 уже есть минимум один Case, созданный вручную до появления `converted_at`.
+Schema добавит field, но не заполнит исторические записи.
 
 Создать:
 
@@ -447,7 +378,7 @@ def execute():
 			)
 ```
 
-В `service_intake/patches.txt` использовать post-model-sync section:
+В `service_intake/patches.txt`:
 
 ```text
 [pre_model_sync]
@@ -456,47 +387,31 @@ def execute():
 service_intake.patches.v1_0.backfill_converted_at
 ```
 
-Patch зависит от нового поля `converted_at`, поэтому schema должна быть синхронизирована
-раньше.
+Patch зависит от нового field, поэтому идёт после model sync.
 
-`frappe.db.set_value` здесь допустим как deliberate one-off data migration bypass. Это не
-образец обычного business CRUD.
+`frappe.db.set_value` здесь — deliberate one-off migration bypass, а не образец business
+CRUD.
 
-## Проверить upgrade
+## Upgrade proof
 
-До migrate найти старый Intake из P3, у которого уже есть Case. `converted_at` должен
-быть пустым.
-
-Выполнить:
+До migrate у старого Intake из P3 `converted_at` пустой.
 
 ```bash
 cd ~/frappe/frappe-practicum-bench
 bench --site intake.localhost migrate
 ```
 
-После migrate старый Intake должен получить `converted_at` из `Service Case.creation`.
+После migrate поле получает `Service Case.creation`.
 
-Повторить:
-
-```bash
-bench --site intake.localhost migrate
-```
-
-Значение не должно измениться. В `Patch Log` тот же patch не должен выполняться как новая
-одноразовая миграция второй раз.
+Повторить migrate. Значение не меняется, тот же patch не выполняется как новая
+одноразовая миграция.
 
 ---
 
-# E7. Добавить integration tests собственного поведения
+# E7. Integration tests собственного поведения
 
-Тестируем то, что добавило наше приложение, а не то, что Link или Mandatory вообще
-работают во Frappe.
-
-## Почему нужен отдельный test site
-
-Не запускать automated suite на рабочем `intake.localhost`. Test runner v16 подготавливает
-окружение и может создавать/commit-ить test dependencies. Рабочий учебный site не должен
-становиться test database.
+Не запускать suite на рабочем `intake.localhost`. Test runner подготавливает test
+dependencies; рабочий учебный site не должен становиться test database.
 
 Создать отдельный site:
 
@@ -507,9 +422,7 @@ bench --site intake-test.localhost install-app service_intake
 bench --site intake-test.localhost migrate
 ```
 
-Working data P3 на этот site не копировать.
-
-## Создать полный test module
+Working data P3 не копировать.
 
 Открыть или создать:
 
@@ -623,13 +536,11 @@ class TestServiceCase(IntegrationTestCase):
 			frappe.set_user("Administrator")
 ```
 
-Третий test защищает важную архитектурную границу: Agent может менять существующий Case
-без Read на Intake. Если creation-rule снова случайно перенести в общий `validate()`, этот
-test должен упасть.
+Третий test защищает архитектурную границу: Agent может менять существующий Case без Read
+на Intake. Если creation-rule вернуть в общий `validate()`, test должен упасть.
 
 `ignore_permissions=True` используется только в helpers для подготовки test data. Это не
-доказательство security. Permission-aware command отдельно проверен через реального
-Triage API user в E4.
+security acceptance. Permission-aware command проверен реальным Triage API user в E4.
 
 Запустить:
 
@@ -642,14 +553,14 @@ bench --site intake-test.localhost run-tests --app service_intake
 
 ---
 
-# E8. Background Jobs, `after_commit` и Webhook: выбрать, а не внедрить ради галочки
+# E8. Background Jobs, `after_commit` и Webhook
 
-В текущем `create_case` нет долгой операции и нет внешней системы. Поэтому custom
-Background Job продукту не нужен.
+В текущем `create_case` нет долгой операции и внешней системы. Custom Background Job
+продукту не нужен.
 
-## Exact v16.32 behavior Background Jobs
+## Background Jobs
 
-`frappe.enqueue` имеет параметры:
+Exact `v16.32.0` `frappe.enqueue` имеет:
 
 ```text
 enqueue_after_commit
@@ -657,13 +568,10 @@ job_id
 deduplicate
 ```
 
-При `enqueue_after_commit=True` постановка job регистрируется через
-`frappe.db.after_commit` и происходит только после успешного commit текущей транзакции.
+При `enqueue_after_commit=True` job ставится в очередь только после успешного commit.
+Worker commit-ит успешную job и rollback-ит ошибочную.
 
-Background worker commit-ит успешную job и rollback-ит ошибочную.
-
-Если после создания Case появится реальное требование выполнить тяжёлую внутреннюю
-обработку, возможен такой вариант:
+Если позже появится тяжёлая внутренняя обработка:
 
 ```python
 frappe.enqueue(
@@ -675,41 +583,39 @@ frappe.enqueue(
 )
 ```
 
-Этот код не добавлять в продукт, пока метода `process_case` и соответствующей
-ответственности нет.
+Этот код не добавлять, пока нет реального `process_case`.
 
-## Exact v16.32 behavior Webhook
+## Webhook
 
-Для обычных DocType events штатный Webhook сначала накапливается в transaction-local
-queue. Frappe регистрирует flush через `frappe.db.after_commit`, а после успешного commit
-ставит фактическую HTTP-отправку в Background Job выбранной очереди.
+Для ordinary DocType events exact v16.32 Webhook накапливается в transaction-local
+queue. Frappe регистрирует flush через `frappe.db.after_commit`; после успешного commit
+фактическая HTTP-отправка ставится в Background Job выбранной очереди.
 
-То есть простой configurable outbound callback уже имеет штатный post-commit path. Не
-надо оборачивать обычный Webhook во второй custom job только «для асинхронности».
+Поэтому простой outbound callback сначала выражается штатным Webhook, а не Webhook плюс
+ещё один custom job.
 
-Webhook подходит, когда достаточно настраиваемого DocType event, condition, headers,
-payload и подписи.
+Webhook подходит, когда достаточно настраиваемого event, condition, headers, payload и
+подписи.
 
-Если нужна сложная orchestration, собственная идемпотентность уровня бизнес-протокола,
-несколько систем или особый protocol, тогда появляется integration module/service и,
-возможно, отдельные jobs.
+Сложная orchestration, собственная protocol-level idempotency или несколько внешних
+систем могут потребовать integration module/service и jobs.
 
 ## Приёмка E8
 
-Для каждого требования выбрать первый естественный owner:
-
-| Требование | Ожидаемый выбор |
+| Требование | Первый кандидат |
 |---|---|
-| отправить простой HTTP callback при создании Case | Webhook |
-| после commit выполнить тяжёлую внутреннюю обработку | Background Job + `enqueue_after_commit` |
-| изменить/проверить Case синхронно как часть lifecycle | Controller lifecycle |
-| координировать сложный protocol нескольких систем | integration module/service |
+| простой HTTP callback при создании Case | Webhook |
+| тяжёлая внутренняя работа после commit | Background Job + `enqueue_after_commit` |
+| synchronous invariant/mutation Document | подходящий Controller lifecycle event |
+| сложный protocol нескольких систем | integration module/service |
 
-Здесь намеренно нет фальшивой job в исходниках app.
+Фальшивой job в app нет.
 
 ---
 
-# E9. Финальная поставка: upgrade, tests и clean install — разные проверки
+# E9. Финальная поставка
+
+Upgrade, automated tests и fresh install — три разные проверки.
 
 ## Source check
 
@@ -721,18 +627,15 @@ git diff --stat
 git diff
 ```
 
-В исходниках должны появиться только осознанные изменения:
+Ожидаемые изменения:
 
 ```text
 Service Intake JSON → converted_at
 Service Intake controller → create_case
 Service Case controller → before_insert
-a patches.txt + patch module
+patches.txt + patch module
 tests
 ```
-
-Если в diff буквально появилась строка `a patches.txt`, это опечатка: ожидается обычный
-`patches.txt`. Проверить фактические пути перед commit.
 
 Не должно быть:
 
@@ -762,15 +665,13 @@ bench --site intake.localhost migrate
 Проверить:
 
 - старый Case/Intake из P3 сохранился;
-- `converted_at` старого Intake backfill-нут patch;
+- `converted_at` старого Intake заполнен patch;
 - новый semantic command работает;
 - Agent по-прежнему работает с Case без Read на Intake.
 
-Automated suite здесь не запускать: рабочий site не используется как test database.
+Automated suite здесь не запускать.
 
 ## Test acceptance
-
-На отдельном `intake-test.localhost`:
 
 ```bash
 bench --site intake-test.localhost migrate
@@ -779,9 +680,7 @@ bench --site intake-test.localhost run-tests --app service_intake
 
 Suite должен быть зелёным.
 
-## Clean-install acceptance
-
-Создать новый site:
+## Fresh-install acceptance
 
 ```bash
 bench new-site intake-engineering-clean.localhost --db-root-username frappe_admin
@@ -789,33 +688,33 @@ bench --site intake-engineering-clean.localhost install-app service_intake
 bench --site intake-engineering-clean.localhost migrate
 ```
 
-До создания любых рабочих данных проверить:
+До создания рабочих данных проверить:
 
-- поле `converted_at` существует;
+- `converted_at` существует;
 - controllers загружаются;
 - fixtures P3 присутствуют;
-- patch безопасен при отсутствии historical Case data;
-- новых Intake/Case нет.
+- patch безопасен без historical Case data;
+- Intake/Case отсутствуют.
 
-Это проверка fresh install. Automated suite уже отдельно доказан на test site и не должен
-загрязнять критерий «после чистой установки нет working data».
+Automated suite уже доказан на test site и не загрязняет критерий «fresh install без
+working data».
 
 ## Финальный gate
 
-Ученик должен без подсказки объяснить:
+Ученик без подсказки объясняет:
 
 ```text
-1. Почему Accepted-source rule принадлежит before_insert, а не Client Script или общий validate.
+1. Почему Accepted-source rule принадлежит before_insert, а не Client Script или общему validate.
 2. Почему Link/Unique/Set Only Once не переписаны на Python.
 3. Почему create_case — semantic command, а не второй CRUD API.
 4. Где проверяются permissions команды.
 5. Почему внутри команды нет frappe.db.commit().
-6. Что именно доказал rollback probe.
+6. Что доказал rollback probe.
 7. Почему backfill сделан patch, а не lifecycle текущего Document.
-8. Почему direct DB update допустим в этом patch и не становится обычным CRUD pattern.
-9. Что tests проверяют в нашем app и почему для них выделен отдельный site.
-10. Почему Background Job не был добавлен без реальной долгой работы.
-11. Почему обычный Webhook не нужно вручную оборачивать во второй post-commit job.
+8. Почему direct DB update допустим в patch и не становится обычным CRUD pattern.
+9. Что tests проверяют в app и почему для них выделен отдельный site.
+10. Почему Background Job не добавлен без реальной долгой работы.
+11. Почему ordinary Webhook не нужно оборачивать во второй post-commit job.
 ```
 
 Engineering Track принят, если ученик умеет не только написать код, но и объяснить,
