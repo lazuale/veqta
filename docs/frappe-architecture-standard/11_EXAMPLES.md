@@ -1,667 +1,602 @@
-# 11. Практические примеры
+# 11. Практические примеры — правильные и неправильные решения
 
-## Как читать этот раздел
+Этот раздел написан для человека без технического бэкграунда.
 
-Каждый пример разбирается одинаково:
+Здесь не приводится выдуманная статистика «90% проектов». Выбраны наиболее повторяющиеся классы задач обычных business applications: карточки, строки документа, статусы, согласование, права, проверки, API, уведомления, фоновые задачи и расширение чужих DocType.
+
+Для каждого примера используется одна схема:
 
 ```text
-задача
-→ что новичок обычно делает
-→ почему это кажется логичным
-→ Frappe-native решение
-→ почему оно соответствует Framework
-→ когда исключение оправдано
+Задача
+Интуитивная ошибка
+Почему она кажется логичной
+Frappe-native решение
+Почему именно так
+Что ухудшится при обходе Framework
+Когда исключение оправдано
 ```
-
-Это не каталог «запрещённых решений». Цель — научиться распознавать ответственность.
 
 ---
 
-# Пример 1. Заявка с несколькими позициями
+# Правильный пример 1. Заявка с несколькими позициями
 
 ## Задача
 
-Нужно хранить заявку:
+Есть заявка на закупку:
 
 ```text
-Заявитель
-Дата
-Подразделение
+Заявитель: Иван
+Дата: 02.09.2026
 
 Позиции:
 - Бумага, 10 пачек
-- Ручки, 30 штук
-- Картридж, 2 штуки
+- Ручки, 50 шт.
+- Картридж, 2 шт.
 ```
 
-## Интуитивное решение новичка
+## Интуитивная ошибка
 
-Создать два обычных DocType:
+Создать две полностью самостоятельные системы карточек:
 
 ```text
 Purchase Request
 Purchase Request Item
 ```
 
-и вручную связывать их полем `request`.
+и потом программировать связь между ними вручную.
 
-## Почему это кажется логичным
+## Почему кажется логичной
 
-Если человек мыслит только таблицами базы данных, он видит две таблицы и делает две самостоятельные сущности.
+Если смотреть на обычную базу данных, видны две таблицы: заявка и строки.
 
-## Frappe-native решение
+## Frappe-native
 
 ```text
 Purchase Request
-    └── items → Child Table → Purchase Request Item
+  └─ items: Table → Purchase Request Item (Child DocType)
 ```
 
 ## Почему
 
-Строки являются составной частью одного Document. Child DocType специально имеет parent semantics и порядок строк.
+**[FRAPPE DOCS]** Child DocType специально предназначен для records, являющихся частью parent Document.
 
-## Что усложнит отдельный обычный DocType
+Пруф:
 
-Придётся отдельно думать о:
+- https://docs.frappe.io/framework/user/en/basics/doctypes/child-doctype
 
-- permissions;
-- удалении orphan rows;
-- связи с parent;
-- порядке;
-- UI;
-- lifecycle.
+Framework сам хранит parent, parenttype, parentfield и порядок `idx`.
 
-## Когда отдельный DocType правильнее
+## Что ухудшится при обходе
 
-Если строка получает собственный lifecycle, permissions, ссылки из других Documents или должна жить независимо от заявки.
+Придётся самостоятельно решать:
 
----
+- кому принадлежит строка;
+- как удалять её вместе с parent;
+- как хранить порядок;
+- как показывать её в форме;
+- как не оставить «осиротевшую» строку.
 
-# Пример 2. Автомобиль и его цвет
+## Когда исключение оправдано
 
-## Задача
-
-Есть карточка автомобиля.
-
-## Ошибка
-
-Создать:
-
-```text
-Vehicle
-Vehicle Color
-Vehicle Model Name
-Vehicle Registration Number
-```
-
-как отдельные DocTypes просто потому, что это отдельные понятия.
-
-## Frappe-native решение
-
-```text
-Vehicle
-    registration_number → Data
-    color               → Select/Data/Link по реальной семантике
-    model               → field или Link, если Model — самостоятельный master
-```
-
-## Почему
-
-DocType имеет стоимость и должен иметь самостоятельный смысл.
-
-## Исключение
-
-Если `Vehicle Model` — управляемый справочник с производителем, характеристиками, нормативами и множеством ссылок, отдельный DocType совершенно оправдан.
+Если «позиция» должна жить самостоятельно, иметь свои права, использоваться несколькими documents и открываться отдельно — это уже может быть обычный DocType.
 
 ---
 
-# Пример 3. Рабочий статус задачи
+# Правильный пример 2. Простая задача с четырьмя состояниями
 
 ## Задача
 
 ```text
-New
-In Progress
-Waiting
-Done
+New → In Progress → Waiting → Done
 ```
 
-## Ошибка
+Пользователь имеет право самостоятельно менять состояние.
 
-Сделать DocType `Is Submittable` и использовать `docstatus` как эти четыре состояния.
+## Интуитивная ошибка
 
-## Почему кажется логичным
+Сразу строить Workflow и пытаться использовать `docstatus`.
 
-Новичок видит слово status и предполагает, что системный `docstatus` предназначен для любых статусов.
+## Почему кажется логичной
 
-## Frappe-native решение
+Workflow и docstatus тоже связаны со «статусами», поэтому кажется, что это более серьёзный способ.
 
-Обычное business field:
+## Frappe-native
 
-```text
-status
-```
+Обычный business field `status`.
 
 ## Почему
 
-`docstatus` имеет другую системную semantics:
+`docstatus` имеет специальную transaction semantics:
 
 ```text
-Draft
-Submitted
-Cancelled
+Draft / Submitted / Cancelled
 ```
 
-Он описывает transaction state Document.
+**[FRAPPE DOCS]** Пруф:
 
-## Исключение
+- https://docs.frappe.io/framework/doctypes/docstatus
 
-Если документ после подтверждения должен действительно перейти в фиксированное transaction state, `Is Submittable` может быть именно тем, что нужно.
+Workflow нужен, когда важны контролируемые transitions/roles/conditions, а не просто список значений.
+
+## Что ухудшится при обходе
+
+Модель станет сложнее, а системный Submitted будет ошибочно означать обычное «Done».
+
+## Когда исключение оправдано
+
+Если переходы зависят от роли или approval — появляется основание для Workflow.
 
 ---
 
-# Пример 4. Согласование руководителем
+# Правильный пример 3. Заявку должен одобрить руководитель
 
 ## Задача
 
 ```text
 Draft
-  ↓ сотрудник отправляет
+  ↓ сотрудник
 Manager Review
-  ↓ руководитель утверждает
+  ↓ руководитель
 Approved
 ```
 
-## Ошибка
+## Интуитивная ошибка
 
-Обычный Select `status` плюс Client Script:
-
-```text
-если user имеет роль Manager
-покажи кнопку Approve
-```
-
-## Почему кажется логичным
-
-На форме всё работает, и процесс выглядит контролируемым.
-
-## Проблема
-
-Кнопка — только UI. Другой API path может изменить поле напрямую.
-
-## Frappe-native решение
-
-Сначала рассмотреть Workflow:
+Сделать Select `status`, а в Client Script написать:
 
 ```text
-states
-transitions
-roles
-conditions
+если пользователь manager — покажи Approve
+если employee — спрячь
 ```
 
-## Исключение
+## Почему кажется логичной
 
-Если согласование строится на сложной динамической матрице, которую Workflow выражает только огромными непрозрачными conditions, отдельная domain logic может быть лучше.
+На экране всё выглядит правильно: сотрудник не видит кнопку.
+
+## Frappe-native
+
+Рассмотреть Workflow.
+
+## Почему
+
+Workflow описывает states, transitions, roles и conditions — именно то, что требуется задаче.
+
+Пруф:
+
+- https://docs.frappe.io/erpnext/user/manual/en/workflows
+
+## Что ухудшится при обходе
+
+UI может скрывать кнопку, но другой API/client способен поменять status. Правила оказываются привязаны к форме, а не к процессу.
+
+## Когда исключение оправдано
+
+Если схема согласования динамическая и существенно сложнее штатных states/transitions/conditions, отдельная domain orchestration может быть лучше.
 
 ---
 
-# Пример 5. Проверка дат
+# Правильный пример 4. Нельзя сохранить неправильную дату
 
 ## Задача
 
-Дата окончания не может быть раньше даты начала.
+```text
+end_date >= start_date
+```
 
-## Ошибка
+## Интуитивная ошибка
 
 Проверить только Client Script.
 
-## Почему кажется достаточным
+## Почему кажется логичной
 
-Пользователь получает сообщение сразу на форме.
+Пользователь получает ошибку сразу, и при ручном тесте всё работает.
 
-## Проблема
+## Frappe-native
 
-Документ можно сохранить через API/background Python path без этой формы.
-
-## Frappe-native решение
-
-```text
-Client Script
-    → ранняя UX-подсказка
-
-Controller.validate
-    → server guarantee
-```
-
-## Исключение
-
-Если правило относится только к поведению конкретного UI и не является invariant данных, server validation может быть не нужна.
-
----
-
-# Пример 6. Права обычного сотрудника
-
-## Задача
-
-Сотрудник видит свои заявки, руководитель — заявки подразделения, директор — все.
-
-## Ошибка
-
-Сразу создать:
-
-```text
-Custom Access Rule
-Custom Department ACL
-Custom User Scope
-```
-
-и фильтровать SQL вручную.
-
-## Почему кажется логичным
-
-Организационная структура выглядит специфичной для компании.
-
-## Frappe-native начало
-
-Проверить:
-
-```text
-Role / DocPerm
-If Owner
-User Permission по Department
-```
-
-и только затем custom policy.
+Server-side validation в Document/controller path. Client Script можно оставить как дополнительную подсказку.
 
 ## Почему
 
-Framework уже централизует access model.
+**[FRAPPE DOCS]** Client Script validation работает только в standard browser form.
 
-## Исключение
+Пруфы:
 
-Сложная relational/attribute-based policy вполне может требовать permission hooks.
+- https://docs.frappe.io/framework/user/en/desk/scripting/client-script
+- https://docs.frappe.io/framework/user/en/basics/doctypes/controllers
 
----
+## Что ухудшится при обходе
 
-# Пример 7. Скрыли поле — значит защитили
+Неправильная запись может прийти через API/import/server process.
 
-## Задача
+## Когда исключение оправдано
 
-Обычный сотрудник не должен видеть зарплату.
-
-## Ошибка
-
-Скрыть поле JavaScript'ом.
-
-## Почему кажется логичным
-
-На экране поля нет.
-
-## Проблема
-
-UI visibility не равна server-side security.
-
-## Frappe-native решение
-
-Рассмотреть field Permission Level и server permission model.
-
-## Исключение
-
-UI hiding может дополнительно улучшать UX, но не заменяет access control.
+Если правило действительно только визуальное и неправильное значение на сервере допустимо — server validation не нужна.
 
 ---
 
-# Пример 8. Собственный CRUD API
+# Правильный пример 5. Сотрудник видит только свою Company
 
 ## Задача
 
-Мобильное приложение должно создавать и изменять `Request`.
+Пользователь работает только с `Company = ACME`.
 
-## Ошибка
+## Интуитивная ошибка
 
-Сразу написать:
+Сразу писать собственный SQL-фильтр во всех списках.
 
-```text
-/create_request
-/get_request
-/update_request
-/delete_request
-```
+## Frappe-native
 
-## Почему кажется логичным
-
-В обычной backend-разработке API проектируется вручную.
-
-## Frappe-native default
-
-Для внутреннего Frappe-aware клиента сначала проверить standard Document REST API.
+Сначала проверить Role/DocPerm + User Permission.
 
 ## Почему
 
-Он уже предоставляет CRUD и использует Document lifecycle/permissions.
+**[FRAPPE DOCS]** User Permission предназначен для ограничения пользователя по связанным records.
 
-## Когда custom API правильный
+Пруф:
 
-Если мобильному приложению обещан стабильный domain contract, который не должен зависеть от внутренней DocType schema.
+- https://docs.frappe.io/framework/user/en/basics/users-and-permissions
+
+## Что ухудшится при обходе
+
+Custom фильтр нужно будет поддерживать отдельно в list, report, API и direct document access.
+
+## Когда исключение оправдано
+
+Если политика зависит не от обычных linked records, а от сложного динамического набора правил — custom permission logic может быть оправдана.
 
 ---
 
-# Пример 9. Бизнес-команда через API
+# Правильный пример 6. Внешняя программа должна создать обычную заявку
 
 ## Задача
 
-Нужно выполнить:
+Внутренняя программа отправляет поля нового `Request` во Frappe.
 
-```text
-dispatch_shipment
-```
+## Интуитивная ошибка
 
-Команда:
+Написать новый endpoint `/api/request/create`, который просто делает `doc.insert()`.
 
-- проверяет Shipment;
-- создаёт несколько Documents;
-- вызывает внешний сервис;
-- меняет status.
+## Frappe-native
 
-## Ошибка
-
-Пытаться выразить это четырьмя generic PATCH requests с клиента.
-
-## Frappe-native решение
-
-Создать серверную business command / whitelisted method, которая владеет operation boundary.
+Использовать стандартный Document REST API.
 
 ## Почему
 
-Это уже не CRUD одного Document.
+**[FRAPPE DOCS + UPSTREAM]** Frappe автоматически предоставляет CRUD API DocTypes; v16 REST path создаёт Document через `insert()`.
+
+Пруфы:
+
+- https://docs.frappe.io/framework/user/en/api/rest
+- https://github.com/frappe/frappe/blob/version-16/frappe/api/v2.py
+
+## Что ухудшится при обходе
+
+Появится второй endpoint с собственной документацией, permission handling и tests, хотя он не добавляет нового смысла.
+
+## Когда исключение оправдано
+
+Если нужен стабильный public contract, скрывающий внутренний DocType, — dedicated API нормален.
 
 ---
 
-# Пример 10. Уведомление по сроку
+# Правильный пример 7. Нужно сообщить внешней системе об обновлении документа
 
 ## Задача
 
-За три дня до срока отправить ответственному письмо.
+После `Quotation.on_update` отправить HTTP callback в другую систему.
 
-## Ошибка
+## Интуитивная ошибка
 
-Создать собственный scheduler + mail service для одного простого правила.
+Написать scheduler, который каждые 5 минут ищет изменённые Quotations.
 
-## Frappe-native default
+## Frappe-native
 
-Проверить Notification/date-event capabilities.
+Сначала проверить Webhook.
 
-## Исключение
+## Почему
 
-Если нужен сложный multi-channel notification engine с retries/provider routing, отдельный subsystem может быть оправдан.
+**[FRAPPE DOCS]** Webhook именно связывает Document Event и HTTP callback.
+
+Пруф:
+
+- https://docs.frappe.io/framework/user/en/guides/integration/webhooks
+
+## Что ухудшится при обходе
+
+Polling создаёт задержку, лишние запросы и собственную логику поиска изменений.
+
+## Когда исключение оправдано
+
+Если нужны delivery guarantees, replay, сложные retries и reconciliation, отдельная integration pipeline может быть необходима.
 
 ---
 
-# Пример 11. Тяжёлый пересчёт
+# Правильный пример 8. Тяжёлый расчёт после сохранения
 
 ## Задача
 
-Пользователь запускает перерасчёт 200 000 строк.
+После создания документа нужно обработать 50 000 строк.
 
-## Ошибка
+## Интуитивная ошибка
 
-Выполнить всё внутри HTTP request и заставить browser ждать.
+Выполнять весь цикл прямо в кнопке Save.
 
-## Frappe-native решение
+## Frappe-native
 
-Background Job.
+Сохранить Document и поставить работу в Background Job; если job должна видеть только committed data — использовать `enqueue_after_commit`.
 
-## Дополнительные вопросы
+## Почему
 
-- idempotency;
-- deduplication;
-- timeout;
-- очередь;
-- что делать после failure;
-- должен ли job стартовать только после commit.
+**[FRAPPE DOCS + UPSTREAM]** Frappe имеет background job system и transaction-aware enqueue.
+
+Пруфы:
+
+- https://docs.frappe.io/framework/user/en/api/background_jobs
+- https://github.com/frappe/frappe/blob/version-16/frappe/utils/background_jobs.py
+
+## Что ухудшится при обходе
+
+Долгий HTTP request, timeout, длинные locks, плохой UX.
+
+## Когда исключение оправдано
+
+Если операция короткая и пользователю нужен синхронный результат, background job может только усложнить flow.
 
 ---
 
-# Пример 12. Ночной пересчёт
+# Неправильный пример 1. «Сделаем свой ACL сразу»
 
 ## Задача
 
-Раз в ночь пересчитывать технический показатель.
+Сотрудник видит свои документы, менеджер — отдел, директор — все.
 
-## Ошибка
+## Решение
 
-Отдельный Python daemon:
-
-```python
-while True:
-    sleep(...)
-```
-
-## Frappe-native default
-
-Scheduler event.
-
-## Исключение
-
-Если job является частью внешней enterprise orchestration и управляет несколькими системами, внешний scheduler может быть правильным.
-
----
-
-# Пример 13. Отправить Document во внешнюю систему
-
-## Задача
-
-После submit нужно сообщить внешнему сервису.
-
-## Ошибка
-
-В `on_submit` сразу выполнить HTTP request, не учитывая transaction.
-
-## Риск
-
-Внешняя система получит событие, а локальная transaction позже rollback.
-
-## Frappe-native решение
-
-Рассмотреть:
+Создаются:
 
 ```text
-Webhook
+Our Permission Rule
+Our Permission Role
+Our Permission Department
 ```
 
-для простого event и/или
+и собственные SQL conditions.
+
+## Почему это опасно
+
+Frappe уже имеет Role/DocPerm, owner, User Permission, Share и permission hooks.
+
+Появляются две системы доступа:
 
 ```text
-after_commit / enqueue_after_commit
+Frappe permissions
++
+Our permissions
 ```
 
-для контролируемой integration operation.
+Теперь нужно объяснить итог каждого запроса как пересечение двух моделей.
+
+## Правильный подход
+
+Сначала выразить максимум штатными mechanisms, а custom code использовать только для недостающей row policy.
+
+Пруфы:
+
+- https://docs.frappe.io/framework/user/en/basics/users-and-permissions
+- https://github.com/frappe/frappe/blob/version-16/frappe/permissions.py
 
 ---
 
-# Пример 14. Изменить стандартный DocType
+# Неправильный пример 2. «Спрячем поле JavaScript — значит доступа нет»
 
 ## Задача
 
-Добавить поведение существующему DocType другого App.
+Поле `salary` должен видеть только HR.
 
-## Ошибка
+## Решение
 
-Отредактировать его Python-файл напрямую.
+Client Script скрывает field для остальных.
 
-## Frappe-native решение
+## Почему неправильно
 
-Проверить:
+UI visibility не является permission boundary.
 
-```text
-Custom Field
-Property Setter
-doc_events
-extend_doctype_class [v16+]
-doctype JS
-```
+Frappe имеет Permission Level/field-level security.
 
-в зависимости от responsibility.
+Пруф:
+
+- https://docs.frappe.io/framework/user/en/basics/users-and-permissions
+
+## Правильный подход
+
+Настроить server-side permission model; UI может дополнительно отражать её.
+
+---
+
+# Неправильный пример 3. `get_all`, потому что `get_list` «ничего не возвращает»
+
+## Задача
+
+Разработчик ожидает увидеть records, но `get_list` их фильтрует.
+
+## Решение
+
+Заменить на `get_all`.
+
+## Почему неправильно
+
+Причина может быть именно в permissions. Обход проблемы превращается в bypass access control.
+
+Пруфы:
+
+- https://docs.frappe.io/framework/user/en/api/database
+- https://docs.frappe.io/framework/user/en/python-api/hooks
+
+## Правильный подход
+
+Сначала понять permission model. `get_all` использовать только в осознанном internal/system context.
+
+---
+
+# Неправильный пример 4. `frappe.db.set_value()` вместо Document save
+
+## Задача
+
+Нужно изменить бизнес-поле.
+
+## Решение
+
+Direct DB update, потому что короче.
+
+## Почему неправильно
+
+**[FRAPPE DOCS]** `set_value` не запускает ORM triggers вроде `validate` и `on_update`.
+
+Пруф:
+
+- https://docs.frappe.io/framework/user/en/api/database
+
+## Последствие
+
+Business invariants могут быть обойдены.
+
+## Когда нормально
+
+Технический field или намеренный migration/internal update, где bypass осознан.
+
+---
+
+# Неправильный пример 5. Ручной `commit()` после каждого шага
+
+## Задача
+
+Операция создаёт три связанных документа.
+
+## Решение
+
+После каждого `insert()` делается `frappe.db.commit()` «для надёжности».
+
+## Почему неправильно
+
+Frappe уже имеет request transaction. Если третий шаг упадёт, первые два изменения могут остаться committed.
+
+Пруф:
+
+- https://docs.frappe.io/framework/user/en/api/database
+
+## Правильный подход
+
+Позволить Framework завершить атомарную transaction, если нет отдельной причины дробить её.
+
+---
+
+# Неправильный пример 6. Правка core-файла
+
+## Задача
+
+Нужно добавить одну проверку к стандартному DocType другого App.
+
+## Решение
+
+Изменить его `.py` файл прямо в `apps/frappe` или `apps/erpnext`.
+
+## Почему неправильно как default
+
+Frappe предоставляет hooks, `doc_events`, `extend_doctype_class` и override mechanisms.
+
+Пруф:
+
+- https://docs.frappe.io/framework/user/en/python-api/hooks
+
+## Последствие
+
+Upgrade conflict, потеря воспроизводимости и зависимость от локально изменённого installed source.
 
 ## Когда fork оправдан
 
-Когда требуемая semantics принципиально не может быть расширена официальными seams, а команда сознательно принимает стоимость поддержки fork.
+Когда организация сознательно поддерживает собственную distribution и принимает постоянный merge cost.
 
 ---
 
-# Пример 15. Service class
-
-## Ошибка формулировки
-
-> «Services во Frappe запрещены».
-
-Это неверно.
-
-ERPNext сам использует service modules для сложной domain logic.
-
-## Плохой Service
-
-```text
-RequestService.save()
-    → request.save()
-```
-
-Просто переименование API.
-
-## Хороший Service
-
-Компонент, который координирует несколько Documents, сложный расчёт или integration responsibility.
-
----
-
-# Пример 16. Repository
-
-## Плохой вариант
-
-```text
-TaskRepository.get()
-    → frappe.get_doc()
-
-TaskRepository.save()
-    → doc.save()
-```
-
-Если это весь смысл слоя, он не добавляет ответственности.
-
-## Нормальный вариант
-
-Repository/adapter, который действительно скрывает несколько storage backends или сложную aggregate persistence.
-
----
-
-# Пример 17. Ручная production-настройка
+# Неправильный пример 7. Обязательные настройки остаются только на dev-site
 
 ## Задача
 
-App требует:
+Для работы App нужны 12 Custom Fields, Workflow и Role.
 
-- 6 Custom Fields;
-- Workflow;
-- 2 Notifications.
+## Решение
 
-## Ошибка
-
-README:
+Инструкция после установки:
 
 ```text
-после установки создайте всё вручную
+зайдите в Customize Form
+создайте поля
+потом создайте Workflow
+потом настройте права
 ```
 
-## Правильное решение
+## Почему неправильно для app-owned состояния
 
-Если это часть продукта — configuration должна доставляться source-controlled штатным механизмом.
+Новый site не воспроизводится из repository.
 
-Контроль:
+Frappe имеет fixtures, export customizations, DocType JSON и migrations.
 
-```text
-clean site
-+ install-app
-+ migrate
-=
-required state
-```
+Пруфы:
+
+- https://docs.frappe.io/framework/user/en/guides/app-development/exporting-customizations
+- https://docs.frappe.io/framework/user/en/python-api/hooks#fixtures
+- https://docs.frappe.io/framework/user/en/guides/deployment/migrations
+
+## Когда ручная настройка нормальна
+
+Когда это сознательно site-owned configuration, которую каждый заказчик должен выбирать самостоятельно.
 
 ---
 
-# Пример 18. Migration данных
+# Неправильный пример 8. Service ради названия Service
 
 ## Задача
 
-Переименовали модель status и нужно преобразовать существующие values.
+Нужно сохранять Task.
 
-## Ошибка
-
-После deploy вручную выполнить SQL.
-
-## Frappe-native решение
-
-Versioned patch/migration вместе с App.
-
-## Почему
-
-Upgrade должен быть воспроизводим.
-
----
-
-# Пример 19. `get_all`, потому что permissions мешают
-
-## Задача
-
-В custom page список оказался пустым.
-
-## Ошибка
-
-Заменить permission-aware query на `get_all`.
-
-## Почему кажется рабочим
-
-Данные появились.
-
-## Что реально произошло
-
-Security boundary была выключена.
-
-## Правильный вопрос
-
-Почему пользователь не имеет access и какая permission semantics нужна page?
-
----
-
-# Пример 20. Snapshot vs Link
-
-## Задача
-
-Invoice должен сохранить адрес клиента таким, каким он был при выставлении.
-
-## Ошибка
-
-Считать любое копирование значения «денормализацией-костылём» и хранить только Link на текущий Address.
-
-## Правильная модель
-
-Живая ссылка и historical snapshot могут существовать одновременно, потому что отвечают на разные вопросы.
-
----
-
-# Короткая памятка новичку
-
-Если не понимаешь, с чего начать, задавай вопросы в таком порядке:
+## Решение
 
 ```text
-1. Что это за реальный объект/процесс?
-2. Кто владеет этой ответственностью?
-3. Есть ли для неё прямой primitive Frappe?
-4. Совпадает ли его смысл с задачей?
-5. Если нет — какой официальный extension point ближе всего?
-6. Что именно наша собственная конструкция добавляет нового?
+TaskService
+  save(task) → task.save()
+
+TaskRepository
+  get(name) → frappe.get_doc("Task", name)
 ```
 
-Главная ошибка — не custom code.
+## Почему подозрительно
 
-Главная ошибка — **не заметить, что Framework уже решает ту же самую задачу, и построить рядом второй механизм**.
+Document уже предоставляет persistence/lifecycle abstraction. Новые слои пока не добавляют ответственности.
+
+## Правильный подход
+
+Не создавать слой до появления реальной причины.
+
+## Когда Service становится правильным
+
+Если появляется сложная операция нескольких Documents. First-party ERPNext сам использует service classes для таких задач:
+
+- https://github.com/frappe/erpnext/blob/develop/erpnext/stock/services/stock_ledger_service.py
+
+---
+
+# Итог для новичка
+
+Перед новым механизмом не спрашивай:
+
+> «Как программисты обычно это делают?»
+
+Сначала спроси:
+
+> **«Есть ли во Frappe механизм именно с таким смыслом?»**
+
+Если есть — используй его как starting point.
+
+Если не хватает — выясни, что именно не хватает.
+
+Только после этого появляется основание писать собственную конструкцию.
