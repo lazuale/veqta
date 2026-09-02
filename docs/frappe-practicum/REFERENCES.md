@@ -2,30 +2,33 @@
 
 Практикум зафиксирован на **Frappe Framework v16.32.0**.
 
-## Правило работы с источниками
+## Правило источников
 
-1. Ссылка на tag `v16.32.0` доказывает поведение зафиксированной версии.
-2. Ссылка на `version-16` или `develop` показывает последующее состояние и не заменяет exact tag.
-3. Официальная документация объясняет публичную модель, но спорные permission и export paths дополнительно проверяются по исходникам.
-4. ERPNext manual может описывать общий Frappe DocType, например Workflow, но ERPNext не становится зависимостью учебных app.
+1. Фактический стенд `v16.32.0` — execution proof курса.
+2. Exact source tag `v16.32.0` — главный источник version-sensitive runtime behavior.
+3. Официальная документация — публичная модель и назначение механизма.
+4. `version-16`/`develop` — только последующее состояние, не доказательство pinned курса.
+5. ERPNext может служить first-party примером использования Framework mechanism, но не становится зависимостью учебных app.
 
-## Версия и среда
+---
+
+# Версия и среда
 
 - Release: https://github.com/frappe/frappe/releases/tag/v16.32.0
 - Exact tag: https://github.com/frappe/frappe/tree/v16.32.0
 - Installation: https://docs.frappe.io/framework/user/en/installation
-- Python requirement: https://github.com/frappe/frappe/blob/v16.32.0/pyproject.toml
-- Node requirement: https://github.com/frappe/frappe/blob/v16.32.0/package.json
+- Python: https://github.com/frappe/frappe/blob/v16.32.0/pyproject.toml
+- Node: https://github.com/frappe/frappe/blob/v16.32.0/package.json
 - Migration notes v16: https://github.com/frappe/frappe/wiki/Migrating-to-version-16
-
-Проверено в tag:
 
 ```text
 Python >=3.14,<3.15
 Node >=24
 ```
 
-## Bench, app, Module и Desk
+---
+
+# Bench / app / Module / Desk
 
 - Create an App: https://docs.frappe.io/framework/user/en/tutorial/create-an-app
 - Create a Site: https://docs.frappe.io/framework/user/en/tutorial/create-a-site
@@ -35,55 +38,81 @@ Node >=24
 - Workspace source: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/workspace
 - Module Def: https://github.com/frappe/frappe/tree/v16.32.0/frappe/core/doctype/module_def
 
-Frappe v16 использует Apps Page, постоянный Workspace Sidebar и Workspace. Поэтому UI-проверка app не ограничивается существованием старой workspace page. Для custom app Apps Page настраивается через `add_to_apps_screen` в `hooks.py`.
+Frappe v16 использует Apps Page, Workspace Sidebar и Workspace. Custom app регистрируется
+на Apps Page через `add_to_apps_screen`.
 
-## DocType и модель данных
+---
+
+# DocType / Document / data model
 
 - DocType: https://docs.frappe.io/framework/user/en/basics/doctypes
 - Field Types: https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes
 - Naming: https://docs.frappe.io/framework/user/en/basics/doctypes/naming
 - Child DocType: https://docs.frappe.io/framework/user/en/basics/doctypes/child-doctype
 - Single DocType: https://docs.frappe.io/framework/user/en/basics/doctypes/single-doctype
-- Tree View: https://docs.frappe.io/framework/user/en/api/tree
+- Tree API: https://docs.frappe.io/framework/user/en/api/tree
+- Controllers: https://docs.frappe.io/framework/user/en/basics/doctypes/controllers
 - DocType schema: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/doctype/doctype.json
 - DocField schema: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/docfield/docfield.json
-- Document lifecycle: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py
+- Document implementation: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py
 - BaseDocument: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/base_document.py
-- Global Search: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/global_search.py
+- NestedSet: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/nestedset.py
 
-Серверная mandatory-проверка не требует истинного значения Check: значение `0`
-допустимо. Поэтому явное согласие в P3 выражено обязательным Select без default. Global
-Search индексирует child values только у полей, включённых в global search.
+P1–P3 используют metadata guarantees там, где они совпадают с требованием. Engineering
+E1 добавляет Controller только для cross-document state invariant, которого Link/Unique/
+Set Only Once не выражают.
 
-## Данные и стандартные views
+---
 
-- Desk views overview: https://docs.frappe.io/framework/user/en/desk
-- List View: https://github.com/frappe/frappe/tree/v16.32.0/frappe/public/js/frappe/list
+# Document lifecycle / Controller
+
+Exact controller/lifecycle source:
+
+- Document: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py
+- Controller docs: https://docs.frappe.io/framework/user/en/basics/doctypes/controllers
+
+`Document.run_method()` запускает controller method вместе с Framework hooks,
+notifications, webhooks и server-script doc events. Standard save lifecycle вызывает
+server methods вроде `validate`, `before_save`, `on_update` в соответствующих фазах.
+
+Engineering E1 использует `validate`, потому что правило должно действовать на
+permission-aware Document path независимо от конкретного Desk UI.
+
+---
+
+# Data operations / views / reports
+
+- List View source: https://github.com/frappe/frappe/tree/v16.32.0/frappe/public/js/frappe/list
 - Report Builder: https://docs.frappe.io/framework/user/en/desk/reports/report-builder
 - Data Import: https://github.com/frappe/frappe/tree/v16.32.0/frappe/core/doctype/data_import
 - Data Export: https://github.com/frappe/frappe/tree/v16.32.0/frappe/core/doctype/data_export
 - Kanban Board: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/kanban_board
 - Calendar View schema: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/calendar_view/calendar_view.json
-- Calendar View implementation: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/views/calendar/calendar.js
 - Number Card: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/number_card
 - Dashboard Chart: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/dashboard_chart
 
-Kanban меняет поле карточки как обычное значение. В проекте 2 он не используется как альтернативный путь Workflow Action. Calendar View и Kanban Board — записи site без собственного standard/module export path; необходимые общие представления поставляются fixtures.
+Kanban используется в P1 только для ordinary Select state. P2 Workflow state не получает
+альтернативный drag-path.
 
-## Пользователи и права
+---
+
+# Permissions
 
 - Users and Permissions: https://docs.frappe.io/framework/user/en/basics/users-and-permissions
 - Permission Types: https://docs.frappe.io/framework/permission-types
-- DocPerm schema: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/docperm/docperm.json
-- Custom DocPerm schema: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/custom_docperm/custom_docperm.json
 - Permission engine: https://github.com/frappe/frappe/blob/v16.32.0/frappe/permissions.py
-- Metadata permission helpers: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/meta.py
-- Document permission enforcement: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py
+- DocPerm: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/docperm/docperm.json
+- Custom DocPerm: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/custom_docperm/custom_docperm.json
+- Meta permission helpers: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/meta.py
+- Document enforcement: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py
 - Client permission model: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/model/perm.js
 
-Практикум отдельно проверяет Role Permission, Permission Level, If Owner, User Permission и Share, потому что они ограничивают разные части доступа.
+Engineering command не использует `ignore_permissions=True`: source Intake проверяет
+Write, а `case.insert()` идёт обычным permission-aware Document path.
 
-## Workflow и docstatus
+---
+
+# Workflow / docstatus
 
 - Workflow manual: https://docs.frappe.io/erpnext/user/manual/en/workflows
 - Workflow engine: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/workflow.py
@@ -91,73 +120,214 @@ Kanban меняет поле карточки как обычное значен
 - Workflow schema: https://github.com/frappe/frappe/blob/v16.32.0/frappe/workflow/doctype/workflow/workflow.json
 - Workflow State: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_state
 - Workflow Transition: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_transition
-- Client workflow model: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/model/workflow.js
 
-Workflow schema не имеет собственного `is_standard` или экспорта через Module, поэтому
-проект 2 использует fixtures и отдельную проверку на чистом site.
+P2 отделяет ordinary submit/cancel/amend lifecycle от Workflow до их объединения.
+P3 показывает business state с `docstatus=0`, когда submit/cancel семантически не нужны.
 
-## Assignment, ToDo и уведомления
+---
+
+# Assignment / Notification / history
 
 - Assignments and ToDos: https://docs.frappe.io/framework/assignments-and-todos
-- Assign To implementation: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/form/assign_to.py
+- Assign To: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/form/assign_to.py
 - ToDo: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/todo
-- Notification docs: https://docs.frappe.io/framework/notifications
+- Notification: https://docs.frappe.io/framework/notifications
 - Notification source: https://github.com/frappe/frappe/tree/v16.32.0/frappe/email/doctype/notification
 - Assignment Rule: https://github.com/frappe/frappe/tree/v16.32.0/frappe/automation/doctype/assignment_rule
+- Document API/comments: https://docs.frappe.io/framework/user/en/api/document
 
-Assignment Rule schema содержит конкретных Users и не имеет standard export flag. Поэтому rule с людьми текущего site классифицируется как local site configuration.
+Assignment остаётся responsibility mechanism, не ACL.
 
-## Printing
+---
 
-- Printing: https://docs.frappe.io/framework/user/en/desk/printing
-- Print Format schema: https://github.com/frappe/frappe/blob/v16.32.0/frappe/printing/doctype/print_format/print_format.json
-- PDF implementation: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/pdf.py
-
-## Web Form
+# Web Form
 
 - Web Form: https://docs.frappe.io/framework/user/en/web-form
-- Web Form Settings: https://docs.frappe.io/framework/user/en/web-form/settings
-- Web Form Customization: https://docs.frappe.io/framework/user/en/web-form/customization
-- Web Form schema: https://github.com/frappe/frappe/blob/v16.32.0/frappe/website/doctype/web_form/web_form.json
-- Web Form controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/website/doctype/web_form/web_form.py
+- Settings: https://docs.frappe.io/framework/user/en/web-form/settings
+- Customization: https://docs.frappe.io/framework/user/en/web-form/customization
+- Schema: https://github.com/frappe/frappe/blob/v16.32.0/frappe/website/doctype/web_form/web_form.json
+- Controller: https://github.com/frappe/frappe/blob/v16.32.0/frappe/website/doctype/web_form/web_form.py
 
-Exact source facts для архитектуры P3:
+Exact `v16.32.0` facts used by P3:
 
-- unpublished form блокируется;
-- `Login Required` блокирует Guest, но не задаёт role-specific authorization;
-- при создании нового target document выполняется `doc.insert(ignore_permissions=True, ...)`;
-- `allow_edit` отдельно проверяется для обновления существующего документа;
-- `is_standard` и Module позволяют экспортировать Standard Web Form в app.
+- unpublished form is blocked;
+- Login Required separates Guest/authenticated access but is not role-specific ACL;
+- new target Document is inserted by Web Form path with `ignore_permissions=True`;
+- edit existing target has its own `allow_edit` boundary;
+- Standard Web Form can live in app source.
 
-Поэтому внешняя форма направлена в отдельный `Service Intake`, а не во внутренний `Service Case`.
+Поэтому public Web Form targets `Service Intake`, а не internal `Service Case`.
 
-## REST API
+---
+
+# REST / semantic API
+
+Official REST:
 
 - REST API: https://docs.frappe.io/framework/user/en/api/rest
 - Authentication: https://docs.frappe.io/framework/user/en/api/rest#authentication
-- Resource endpoints: https://docs.frappe.io/framework/user/en/api/rest#crud-operations
 
-Практикум использует только автоматически созданный DocType API и отдельного пользователя с минимальными правами.
+Exact REST API v2 implementation:
 
-## Поставка app
+- https://github.com/frappe/frappe/blob/v16.32.0/frappe/api/v2.py
 
-- Hooks and fixtures: https://docs.frappe.io/framework/user/en/python-api/hooks
-- Frappe commands: https://docs.frappe.io/framework/user/en/bench/frappe-commands
-- Exporting Customizations: https://docs.frappe.io/framework/user/en/guides/app-development/exporting-customizations
-- Fixtures implementation: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/fixtures.py
-- Module JSON export helpers: https://github.com/frappe/frappe/blob/v16.32.0/frappe/modules/utils.py
-- Standard file export: https://github.com/frappe/frappe/blob/v16.32.0/frappe/modules/export_file.py
-- Installer: https://github.com/frappe/frappe/blob/v16.32.0/frappe/installer.py
-- Model sync: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/sync.py
+В exact source есть:
 
-Export Customizations синхронизирует custom fields, property setters и custom permissions целевого DocType. Документация прямо предупреждает, что при синхронизации существующие custom permissions заменяются содержимым exported customization.
+```text
+GET/POST/PATCH/DELETE Document routes
+POST /api/v2/document/<doctype>/<name>/method/<method>/
+```
 
-## Возможности следующего уровня
+Document method route проверяет, что method whitelisted, проверяет HTTP method и
+permission на Document, затем запускает controller method через `doc.run_method()`.
 
-- Controllers: https://docs.frappe.io/framework/user/en/basics/doctypes/controllers
-- Form Scripts: https://docs.frappe.io/framework/user/en/api/form
+Engineering E3/E4 поэтому различает:
+
+```text
+Document CRUD API
+vs
+semantic document command
+```
+
+Внутренние функции `frappe/api/v2.py` не используются как Python API приложения: сам
+source предупреждает, что route implementations не являются стабильным internal-call
+contract.
+
+Whitelisting decorator implementation:
+
+- https://github.com/frappe/frappe/blob/v16.32.0/frappe/__init__.py
+
+`@frappe.whitelist(methods=["POST"])` ограничивает semantic command write-методом.
+
+---
+
+# Request transactions
+
+Official database API:
+
+- https://docs.frappe.io/framework/user/en/api/database
+
+Exact source:
+
+- request application: https://github.com/frappe/frappe/blob/v16.32.0/frappe/app.py
+- database transaction callbacks: https://github.com/frappe/frappe/blob/v16.32.0/frappe/database/database.py
+
+В `app.py` write/unsafe request при успешном завершении commit-ится через Framework.
+Exception path выполняет rollback.
+
+`database.py` имеет callback managers:
+
+```text
+before_commit
+after_commit
+before_rollback
+after_rollback
+```
+
+Engineering E5 намеренно проверяет rollback после уже выполненного `case.insert()` и не
+добавляет manual `frappe.db.commit()` в command.
+
+---
+
+# Background Jobs / after commit
+
+- Docs: https://docs.frappe.io/framework/user/en/api/background_jobs
+- Exact source: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/background_jobs.py
+
+В `v16.32.0` `frappe.enqueue` имеет:
+
+```text
+enqueue_after_commit
+job_id
+deduplicate
+```
+
+При `enqueue_after_commit=True` enqueue регистрируется через
+`frappe.db.after_commit.add(...)`.
+
+Worker execution commit-ит успешную job и rollback-ит exception path.
+
+E8 не добавляет fake job в `service_intake`: механизм выбирается только если появляется
+реальная heavy/slow responsibility.
+
+---
+
+# Webhook
+
+- Docs: https://docs.frappe.io/framework/user/en/guides/integration/webhooks
+- Exact source: https://github.com/frappe/frappe/blob/v16.32.0/frappe/integrations/doctype/webhook/webhook.py
+
+Exact Webhook поддерживает DocType event, condition, headers, JSON/form payload, secret
+signature и request log.
+
+E8 использует Webhook как первый кандидат для простого configurable outbound HTTP event,
+а не требует custom integration service заранее.
+
+---
+
+# Migrate / patches / fixtures
+
+- Migration guide: https://docs.frappe.io/framework/user/en/guides/deployment/migrations
+- Bench migrate: https://docs.frappe.io/framework/user/en/bench/reference/migrate
+- Hooks/fixtures: https://docs.frappe.io/framework/user/en/python-api/hooks
+- Fixtures source: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/fixtures.py
+- Migrate source: https://github.com/frappe/frappe/blob/v16.32.0/frappe/migrate.py
+- Patch handler: https://github.com/frappe/frappe/blob/v16.32.0/frappe/modules/patch_handler.py
+
+Exact `migrate.py` выполняет patches вокруг schema sync, затем fixtures/customizations и
+другие post-schema tasks.
+
+Exact `patch_handler.py` поддерживает:
+
+```text
+[pre_model_sync]
+[post_model_sync]
+```
+
+Data patch, зависящий от нового `converted_at`, помещается в `post_model_sync`.
+
+Direct `frappe.db.set_value` в E6 — deliberate one-off migration bypass. Это не общий
+pattern для business CRUD.
+
+---
+
+# Automated tests
+
+- Unit/integration testing guide: https://docs.frappe.io/framework/user/en/guides/automated-testing/unit-testing
+- Test command source: https://github.com/frappe/frappe/blob/v16.32.0/frappe/commands/testing.py
+- IntegrationTestCase: https://github.com/frappe/frappe/blob/v16.32.0/frappe/tests/classes/integration_test_case.py
+- Test exports: https://github.com/frappe/frappe/blob/v16.32.0/frappe/tests/__init__.py
+
+Exact v16.32 exposes `IntegrationTestCase` through `frappe.tests` and `run-tests` accepts
+an app selector.
+
+Engineering E7 tests application-owned invariants/commands. Он не создаёт suite для
+повторной проверки внутренних гарантий Frappe Link/Mandatory.
+
+---
+
+# Printing
+
+- Printing: https://docs.frappe.io/framework/user/en/desk/printing
+- Print Format: https://github.com/frappe/frappe/blob/v16.32.0/frappe/printing/doctype/print_format/print_format.json
+- PDF: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/pdf.py
+
+---
+
+# Extension mechanisms следующего блока
+
+Эти механизмы архитектурно нативны, но текущим трём продуктам не нужна искусственная
+реализация:
+
+- Client Script / Form API: https://docs.frappe.io/framework/user/en/api/form
 - Server Script: https://docs.frappe.io/framework/user/en/desk/scripting/server-script
-- Hooks: https://docs.frappe.io/framework/user/en/python-api/hooks
-- Unit Testing: https://docs.frappe.io/framework/user/en/guides/automated-testing/unit-testing
+- Hooks / `doc_events`: https://docs.frappe.io/framework/user/en/python-api/hooks
+- custom permission hooks: https://docs.frappe.io/framework/user/en/python-api/hooks
+- Query/Script Reports: https://docs.frappe.io/framework/user/en/desk/reports
+- Virtual DocType: https://docs.frappe.io/framework/user/en/basics/doctypes/virtual-doctype
 
-Server Script с версии 15 отключён по умолчанию. Custom controller, permission hooks и tests относятся к следующему, программному уровню развития app и не скрываются внутри базового no-code маршрута.
+Server Script с v15 disabled by default in shared-bench contexts. Он не используется как
+замена source-controlled controller собственного app.
+
+Курс не делает moving-version feature исполняемым только потому, что он появился в
+более новой v16 документации: сначала механизм проверяется по exact `v16.32.0`.
