@@ -1,361 +1,302 @@
-# 08. UI and Reporting
+# 08. UI и Reporting — представление модели, а не замена модели
 
-## 1. UI — представление модели, а не сама модель
+## 1. Frappe уже предоставляет application UI
 
-Frappe генерирует значительную часть Desk UI из DocType metadata.
+**[FRAPPE DOCS]** Frappe Desk — встроенный administrative UI. Framework автоматически предоставляет standard Form/List experience для DocTypes и дополнительные views.
 
-Это означает, что модель должна проектироваться прежде экрана.
+Источники:
 
-Плохой порядок:
+- https://docs.frappe.io/framework/user/en/introduction
+- https://docs.frappe.io/framework/user/en/api/list
+
+Это одна из причин, по которой Frappe называет себя batteries-included.
+
+### Архитектурное следствие
+
+**[ARCHITECTURAL INFERENCE]** Для обычного back-office CRUD стандартный Desk — сильный default. Custom frontend не нужен только ради того, чтобы получить форму, список и фильтры, которые Framework уже генерирует.
+
+---
+
+## 2. Но Desk не определяет предметную модель
+
+Очень типичная ошибка:
+
+> «Нам нужна Kanban-доска, значит главная сущность приложения — Board Column».
+
+Это проектирование базы из экрана.
+
+Правильный порядок:
 
 ```text
-хочу Kanban
+business object
     ↓
-придумываю сущности Board / Column
+DocType + fields + lifecycle
+    ↓
+подходящие представления
 ```
 
-Хороший порядок:
+Например:
 
 ```text
-что является business object?
-    ↓
-какое поле выражает состояние?
-    ↓
-можно ли показать это Kanban view?
+Work Item
+  status = New / In Progress / Done
 ```
 
----
+может отображаться:
 
-## 2. Form
+- Form;
+- List;
+- Kanban;
+- Report;
+- custom page.
 
-Standard Form — default UI для работы с Document.
-
-Он уже знает:
-
-- fields;
-- child tables;
-- permissions;
-- attachments;
-- comments/timeline;
-- actions;
-- workflow state;
-- links.
-
-Для обычного административного CRUD это сильный default.
-
-### Когда custom form оправдан
-
-Когда interaction существенно отличается от обычной карточки Document:
-
-- специализированный массовый ввод;
-- высокоинтерактивный интерфейс;
-- consumer UX;
-- visual editor;
-- сложная multi-document operation.
+Один и тот же Document не обязан менять свою сущность из-за выбранного view.
 
 ---
 
-## 3. List View
+## 3. Form View
 
-List View — стандартное collection representation DocType.
+Form — естественное представление одного Document.
 
-Перед созданием собственной таблицы нужно проверить:
+Уместен, когда пользователь:
 
-- fields;
-- filters;
-- indicators;
-- list actions;
-- custom list JS;
-- saved filters.
+- просматривает карточку;
+- редактирует fields;
+- работает с child tables;
+- выполняет Document actions.
 
-Custom list нужен, если стандартная collection semantics действительно недостаточна.
+### Red flag
+
+Создавать custom page только потому, что standard Form кажется «слишком обычной», ещё до проверки её capabilities.
+
+Custom UI оправдан функциональным требованием, а не желанием отличаться визуально.
 
 ---
 
-## 4. Kanban
+## 4. List View
 
-Kanban — представление Documents по состоянию/категории.
+List естественен для поиска, фильтрации и массового просмотра records.
 
-Он не должен автоматически становиться источником domain model.
+Источник:
+
+- https://docs.frappe.io/framework/user/en/api/list
+
+List можно расширять JS-конфигурацией, indicators и custom actions.
+
+### Архитектурное правило
+
+Если пользователю нужен обычный реестр документов, сначала проверить List View, а не строить отдельный SPA registry.
+
+---
+
+## 5. Kanban, Calendar, Gantt и другие views
+
+Разные representations подходят разным семантикам данных.
 
 Пример:
 
 ```text
-Work Item.status
-    ↓
-Kanban columns
+status/category → Kanban
+start/end date  → Calendar/Gantt
+hierarchy       → Tree
 ```
 
-а не обязательно:
+Но view должен соответствовать уже существующему field meaning.
 
-```text
-Board Column = отдельный business DocType
-```
+### Неправильно
 
-если у Column нет самостоятельной семантики.
+Добавить artificial field только потому, что конкретный UI требует колонку, хотя бизнес-смысла у поля нет.
 
----
-
-## 5. Calendar/Gantt и другие views
-
-Если Documents естественно имеют даты/периоды, стандартные views могут покрыть задачу без отдельного frontend.
-
-Но view не должен заставлять искажать data model только ради совместимости.
+Если field существует только для layout и не выражает состояние модели, нужно проверить, не смешались ли domain и presentation.
 
 ---
 
 ## 6. Workspace
 
-Workspace организует пользовательскую навигацию и рабочую область.
+**[FRAPPE DOCS]** Workspace предназначен для организации рабочей области Desk: shortcuts, links, charts и sections.
 
-Он отвечает за presentation/navigation, а не domain ownership.
+Источник:
 
-Не хранить business state только потому, что его удобно показать в Workspace.
+- https://docs.frappe.io/framework/user/en/desk/workspace
 
----
+Workspace отвечает на вопрос:
 
-## 7. Client Script и UI behavior
+> Как пользователю собрать доступ к рабочим объектам и информации?
 
-Client Script хорош для:
-
-- UX;
-- dynamic visibility;
-- quick validation feedback;
-- filtering;
-- form buttons.
-
-Но он не должен быть единственным местом critical business rule/security.
-
-Подробно — `03_DOCUMENT_LIFECYCLE.md` и `04_SECURITY.md`.
+Он не должен становиться скрытым источником бизнес-логики.
 
 ---
 
-## 8. Custom frontend
+## 7. Report Builder
 
-Custom frontend не является «не-Frappe».
+**[FRAPPE DOCS]** Report Builder позволяет построить простой report без программирования на основе DocType и связанных данных.
 
-Он оправдан, если стандартный Desk не соответствует product UX.
+Источник:
 
-Примеры:
+- https://docs.frappe.io/framework/user/en/desk/reports/report-builder
 
-- мобильный operational interface;
-- public customer application;
-- visual planning board;
-- high-frequency dispatch console.
-
-### Главное условие
-
-Не создавать вместе с custom frontend второй business backend без необходимости.
-
-Frontend может продолжать использовать Frappe Document/API/domain services.
-
----
-
-## 9. Web Form
-
-Если внешний пользователь должен просто создать/редактировать Document через web, Web Form — естественный первый кандидат.
-
-Не нужно автоматически строить отдельный SPA ради формы из десяти полей.
-
-### Граница
-
-Если нужен сложный multi-step product UX, custom web frontend может быть правильнее.
-
----
-
-## 10. Portal/Web pages
-
-Frappe предоставляет website/portal mechanisms для server-rendered pages и внешнего взаимодействия.
-
-Их стоит проверить до отдельного frontend stack, если требования достаточно просты.
-
-Но framework-native не означает обязанность использовать portal для любого публичного продукта.
-
----
-
-## 11. Report Builder
-
-Report Builder подходит для относительно простой выборки/группировки данных без custom code.
-
-Хороший кандидат, когда пользователь хочет:
+Подходящий класс задач:
 
 ```text
-показать поля
-отфильтровать
-сгруппировать
-отсортировать
+выбрать поля;
+отфильтровать;
+сгруппировать;
+получить простой operational report.
 ```
 
 ---
 
-## 12. Query Report
+## 8. Query Report
 
-Query Report естественен, когда dataset хорошо выражается SQL/query logic.
+**[FRAPPE DOCS]** Query Report предназначен для SQL-based dataset/report.
 
-Он не является «следующей ступенью сложности» в обязательной лестнице.
+Источник:
 
-Это другой инструмент для другого типа задачи.
+- https://docs.frappe.io/framework/user/en/guides/reports-and-printing/how-to-make-query-report
 
----
+Он уместен, когда требование естественно выражается query и не нуждается в сложном procedural calculation.
 
-## 13. Script Report
+### Security warning
 
-Script Report подходит, когда отчёт требует программной логики, вычислений или нескольких источников.
+Report должен учитывать, какие данные реально разрешено показывать пользователю. SQL сам по себе не делает query permission-aware автоматически в том же смысле, что Document API.
 
-Если report становится тяжёлым, нужно учитывать prepared/background execution.
-
----
-
-## 14. Prepared Report
-
-Долгий report не должен обязательно выполняться синхронно в web request.
-
-Prepared report/background processing позволяет отделить тяжёлый расчёт от UI response.
+При чувствительных данных security нужно проверять отдельно.
 
 ---
 
-## 15. Report не должен становиться скрытым business engine
+## 9. Script Report
 
-Плохой паттерн:
+**[FRAPPE DOCS]** Script Report использует Python для сложной report logic.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/guides/reports-and-printing/how-to-make-script-reports
+
+Подходит, если report требует:
+
+- сложных расчётов;
+- нескольких queries;
+- нестандартного формирования columns/data;
+- charts/message/summary.
+
+### Не считать Script Report «хуже» Query Report
+
+Это не лестница качества.
+
+Выбор зависит от природы задачи:
 
 ```text
-критические business calculations
-живут только внутри Script Report
-```
-
-а другие части системы повторяют расчёт отдельно.
-
-Если расчёт является доменной функцией, его лучше вынести в reusable domain/service logic, которую Report использует.
-
----
-
-## 16. Dashboard/Number Card/Chart
-
-Для стандартной аналитической presentation сначала проверить встроенные компоненты.
-
-Но если аналитика требует полноценного BI/data warehouse, Frappe Desk не обязан заменять специализированную BI platform.
-
-Нативность = использовать Framework там, где его responsibility подходит.
-
----
-
-## 17. Print Format
-
-Print Format — нативный механизм представления Document для печати/PDF.
-
-Не создавать отдельный document-generation service для обычной печатной формы, если Print Format покрывает задачу.
-
-### Когда custom generation оправдана
-
-- сложная пакетная генерация;
-- regulatory format;
-- external rendering service;
-- специализированный binary output.
-
----
-
-## 18. UI permissions
-
-То, что кнопка скрыта, не означает, что операция запрещена.
-
-UI должен отражать server permissions, а не заменять их.
-
-Пример:
-
-```text
-button hidden for Employee
-```
-
-без server authorization — не security.
-
----
-
-## 19. UX и workflow
-
-Workflow должен оставаться server-governed process.
-
-Kanban drag/drop, custom button или API не должны обходить разрешённые transitions.
-
-Если UI может изменить state напрямую, это нужно протестировать.
-
----
-
-## 20. Presentation-specific denormalization
-
-Иногда для UI/reporting полезно хранить derived field.
-
-Это допустимо, если определены:
-
-- source of truth;
-- момент пересчёта;
-- consistency strategy.
-
-Не хранить одно и то же значение в пяти местах без ownership.
-
----
-
-## 21. Search
-
-Перед собственной search subsystem проверить стандартные search/global search/link search capabilities.
-
-Но специализированный полнотекстовый/semantic search может требовать внешнего engine.
-
-Это новая ответственность и нормальная интеграция.
-
----
-
-## 22. Realtime
-
-Если UI нужно получать realtime updates, Frappe имеет realtime/socket capabilities.
-
-Не обязательно строить собственный polling loop для внутренних events.
-
-Но external/event-stream architecture может требовать отдельной infrastructure.
-
----
-
-## 23. UI decision track
-
-```text
-Обычная карточка Document?
-        → Form
-
-Нужен список/filtering?
-        → List View
-
-Нужно состояние колонками?
-        → Kanban
-
-Простой внешний ввод?
-        → Web Form
-
-Навигация Desk?
-        → Workspace
-
-Простой аналитический отчёт?
-        → Report Builder
-
-SQL dataset?
-        → Query Report
-
-Programmable report?
-        → Script Report
-
-Специализированный product UX?
-        → custom frontend
+простая настройка      → Report Builder
+естественный SQL       → Query Report
+programmatic logic     → Script Report
 ```
 
 ---
 
-## 24. Design review checklist
+## 10. Prepared Report
 
-- [ ] Data model не выведена из конкретного экрана.
-- [ ] Standard Form/List/View capabilities проверены до custom UI.
-- [ ] Kanban не породил лишние domain entities без причины.
-- [ ] Web Form рассмотрен для простого external CRUD.
-- [ ] UI hiding не используется как security.
-- [ ] Workflow нельзя обойти альтернативным UI.
-- [ ] Report type выбран по nature задачи, а не по «лестнице сложности».
-- [ ] Domain calculations не спрятаны только в report.
-- [ ] Heavy reports/jobs не блокируют request без причины.
-- [ ] Custom frontend сохраняет ясную backend ownership model.
+Для тяжёлых reports Framework поддерживает prepared/background execution.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/guides/reports-and-printing/how-to-make-script-reports
+
+Это связывает reporting с background processing, а не требует держать пользователя в долгом request.
+
+---
+
+## 11. Web Form
+
+**[FRAPPE DOCS]** Web Form позволяет создать web-facing форму поверх DocType, включая создание/редактирование Documents и login/public scenarios.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/web-form
+
+Подходящий сценарий:
+
+> Внешний пользователь должен отправить простую заявку через web.
+
+### Red flag
+
+Сразу строить отдельный frontend + API только ради одной формы, не проверив Web Form.
+
+---
+
+## 12. Portal / web pages
+
+Frappe имеет web/portal mechanisms для server-rendered pages и пользовательских web-сценариев.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/portal-pages
+
+Они подходят, когда Web Form уже слишком ограничен, но полноценный отдельный frontend ещё не требуется.
+
+---
+
+## 13. Custom frontend совершенно допустим
+
+Стандарт не утверждает:
+
+```text
+всё приложение обязано работать только через Desk
+```
+
+Custom frontend оправдан, если требование действительно специализированное:
+
+```text
+массовая высокочастотная работа;
+сложные gestures/interactions;
+consumer-facing UX;
+mobile-first product;
+визуальный редактор;
+realtime dashboard;
+нестандартная навигационная модель.
+```
+
+Frappe при этом может оставаться backend/application platform.
+
+### Главная граница
+
+**[ARCHITECTURAL INFERENCE]** Custom frontend не должен вынуждать нас без причины строить параллельную business/data platform.
+
+---
+
+## 14. Не хранить бизнес-правила только в UI
+
+Если custom frontend запрещает кнопку, но server API позволяет операцию, запрет является только UX.
+
+Security и invariants должны оставаться на server side.
+
+Связанные разделы:
+
+- `03_DOCUMENT_LIFECYCLE.md`;
+- `04_SECURITY.md`.
+
+---
+
+## 15. Print и document output
+
+Frappe имеет встроенные printing/document output capabilities как часть batteries-included platform.
+
+Перед созданием отдельного PDF service для обычного печатного Document нужно проверить стандартные Print Format/printing возможности Framework.
+
+Но специализированный генератор оправдан, если требования к layout, rendering pipeline или downstream format выходят за стандартные capabilities.
+
+---
+
+## 16. UI design review
+
+```text
+1. Это обычная карточка Document?
+2. Подходит ли стандартный Form?
+3. Это обычный реестр — подходит ли List?
+4. Представление Kanban/Calendar/Gantt отражает реальное поле модели?
+5. Нужен ли Workspace или это бизнес-логика, спрятанная в навигации?
+6. Какой report type соответствует природе расчёта?
+7. Можно ли Web Form/Portal вместо отдельного frontend?
+8. Если custom frontend нужен — почему?
+9. Где находятся реальные server-side rules?
+10. Не диктует ли конкретный экран структуру domain model?
+```
