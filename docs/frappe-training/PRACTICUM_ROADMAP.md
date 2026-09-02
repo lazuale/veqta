@@ -39,7 +39,7 @@ App / Site / Module
   ↓
 Equipment + Customer
   ↓
-Rental + Rental Item + Link
+Rental + Rental Item + Link + Table MultiSelect
   ↓
 ┌──────────────┬──────────────┬──────────────┬──────────────┐
 │ status       │ Form / List  │ invariants   │ permissions  │
@@ -215,6 +215,8 @@ Equipment существует как самостоятельный `Document`,
 
 # 5. Этап 3 — смоделировать Customer
 
+**Исполняемая инструкция:** [`core/S03_CUSTOMER_DOCTYPE.md`](core/S03_CUSTOMER_DOCTYPE.md).
+
 **Опорный узел:** `P03`.
 
 **Покрывает:** `R02`, `D00` для Customer.
@@ -248,6 +250,8 @@ Customer существует как самостоятельный `Document`.
 
 # 6. Этап 4 — собрать Rental как композицию Documents
 
+**Исполняемая инструкция:** [`core/S04_RENTAL_COMPOSITION.md`](core/S04_RENTAL_COMPOSITION.md).
+
 **Опорный узел:** `P04`.
 
 **Покрывает:** `R03`, `R04`, `R05`, `D00` для Rental.
@@ -260,36 +264,56 @@ Customer существует как самостоятельный `Document`.
 
 - иметь собственную идентичность;
 - ссылаться на одного существующего Customer;
-- содержать несколько единиц Equipment;
-- хранить строки как состав одной операции.
+- выбирать несколько существующих Equipment;
+- хранить выбранный набор как часть одного Rental.
+
+У строки связи пока нет собственных бизнес-атрибутов: она содержит только ссылку на Equipment.
 
 ## Ученик делает
 
-1. Создаёт Standard `DocType` `Rental`.
-2. Создаёт `Rental Item` как `Child DocType`.
-3. Добавляет в Rental `Link → Customer`.
-4. Добавляет `Table → Rental Item`.
-5. В `Rental Item` добавляет `Link → Equipment`.
-6. Выбирает naming для Rental.
-7. Создаёт первый реальный Rental.
+1. Создаёт `Rental Item` как минимальный `Child DocType`.
+2. Добавляет в `Rental Item` `Link → Equipment` и отмечает это Link-поле `In List View`.
+3. Создаёт Standard `DocType` `Rental`.
+4. Добавляет в Rental `Link → Customer`.
+5. Добавляет даты периода.
+6. Добавляет `Table MultiSelect → Rental Item`.
+7. Выбирает naming для Rental.
+8. Создаёт первый реальный Rental минимум с двумя Equipment.
 
 ## Механизмы
 
 ```text
 DocType
 Child DocType
-Table
 Link
+Table MultiSelect
+Date
 naming
 ```
+
+## Почему не обычный Table
+
+Текущее требование звучит как:
+
+```text
+выбрать несколько существующих Equipment
+```
+
+а `Rental Item` содержит только:
+
+```text
+equipment → Link → Equipment
+```
+
+Frappe предоставляет `Table MultiSelect` именно как комбинацию Link и child-table механизма для такого набора. Обычный `Table` станет естественнее, когда у строки появятся собственные атрибуты отношения — например цена, состояние при выдаче или дата фактического возврата конкретной позиции.
 
 ## Результат
 
 ```text
 Rental
-├── Customer [Link]
-└── Rental Item [Table]
-     └── Equipment [Link]
+├── customer → Link → Customer
+└── items    → Table MultiSelect → Rental Item
+                                  └── equipment → Link → Equipment
 ```
 
 ## Проверка
@@ -298,13 +322,14 @@ Rental
 
 - почему Customer — `Link`;
 - почему Equipment — `Link`;
-- почему `Rental Item` — Child DocType;
-- почему строка не является самостоятельной карточкой;
-- какое требование заставило бы пересмотреть эту модель.
+- зачем `Table MultiSelect` всё равно использует Child DocType;
+- почему `Rental Item` не самостоятельная карточка;
+- почему обычный `Table` пока был бы менее точным механизмом;
+- какое новое требование заставит пересмотреть выбор.
 
 ## Архитектурный вывод
 
-Здесь собирается центральная модель Frappe: самостоятельные Documents, ссылки и состав родительского Document.
+Здесь собирается центральная модель Frappe: самостоятельные Documents, живые Links и принадлежащий родителю набор связанных Documents без преждевременного усложнения строки отношения.
 
 ---
 
@@ -377,7 +402,7 @@ business status ≠ Workflow ≠ docstatus
 2. создаёт Customer;
 3. создаёт Rental;
 4. выбирает Customer через Link;
-5. добавляет Equipment;
+5. выбирает несколько Equipment через Table MultiSelect;
 6. сохраняет Rental;
 7. находит Rental в List;
 8. открывает его повторно.
@@ -389,7 +414,7 @@ Desk
 Form
 List
 Link control
-Child Table UI
+Table MultiSelect control
 filters
 ```
 
@@ -499,7 +524,7 @@ UI не является границей безопасности; права �
 
 **Опорный узел:** `P08`.
 
-**Покрывает:** `R11`, `R12`.
+**Покрывает:** `R11`.
 
 **Зависит от:** этапов 5A и 5C.
 
@@ -711,13 +736,14 @@ Permission Type
 
 ```text
 foreign DocType customization
-fixtures
 exported customizations
 doc_events
 extend_doctype_class
 override_doctype_class
 custom API
 ```
+
+Fixtures не относятся здесь к «продвинутому расширению»: в CORE они уже могут быть штатным способом доставки обязательной конфигурации, например Role.
 
 Их нельзя тащить в базовый Rental без соответствующей задачи.
 
