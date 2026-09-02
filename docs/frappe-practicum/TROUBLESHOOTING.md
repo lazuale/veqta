@@ -129,7 +129,7 @@ Assignment и Read Only не являются заменой этим прове
 - Workflow включён;
 - текущий state документа совпадает с Current State transition;
 - у пользователя есть Allowed Role;
-- state field совпадает с `workflow_state`;
+- state field совпадает с `workflow_state`/настроенным полем;
 - базовые permissions разрешают действие;
 - переход в `docstatus = 1` выполняет роль с Submit;
 - документ сохранён после последнего изменения.
@@ -175,8 +175,129 @@ git diff
 
 Удаление строки из нового commit не делает уже опубликованный секрет безопасным.
 
+---
+
+# Engineering Bridge
+
+## Agent не может сохранить существующий Service Case
+
+Симптом:
+
+```text
+Agent открывает Case
+→ меняет разрешённое поле
+→ save падает на permission/read Service Intake
+```
+
+Сначала открыть `service_case.py`. Если Accepted-source rule находится в общем
+`validate()`, причина архитектурная: creation-only invariant выполняется при каждом save.
+
+Правильный вопрос:
+
+```text
+это правило создания?
+→ before_insert
+
+это правило любого сохранения?
+→ validate / другая подходящая lifecycle phase
+```
+
+Не исправлять проблему выдачей Agent лишнего Read на Intake. Это расширит доступ ради
+компенсации неправильного controller lifecycle.
+
+## `create_case` работает только под Administrator
+
+Проверить:
+
+1. Triage User имеет Write на `Service Intake`.
+2. Triage имеет Read на выбранный Intake.
+3. Triage имеет Create на `Service Case`.
+4. command не использует `ignore_permissions=True`.
+5. вызов идёт POST по whitelisted Document method.
+
+Не копировать Role names в Python как второй ACL.
+
+## После ошибки REST остался частично созданный Case
+
+Ожидаемая модель write request:
+
+```text
+uncaught exception
+→ rollback current request transaction
+```
+
+Проверить код на:
+
+- `frappe.db.commit()` внутри business command;
+- пойманное exception, после которого request продолжает считаться успешным;
+- внешнее действие, выполненное до transaction finality.
+
+Не добавлять дополнительный rollback вслепую, пока не найдена причина нарушения штатной
+transaction boundary.
+
+## Patch не заполнил `converted_at`
+
+Проверить:
+
+```bash
+bench --site intake.localhost migrate
+```
+
+Затем:
+
+- есть ли новый field в `Service Intake`;
+- path patch указан в `patches.txt`;
+- patch находится в `[post_model_sync]`, если зависит от нового field;
+- есть ли запись patch в `Patch Log`;
+- source Case действительно имеет `source_intake` и ожидаемую `creation`.
+
+Не запускать patch вручную повторно как обычную repair-команду, пока не понятно, почему
+migration path не сработал.
+
+## Automated tests создают неожиданные записи на рабочем site
+
+Не запускать suite на `intake.localhost`.
+
+Engineering Track использует:
+
+```text
+intake.localhost
+→ working/upgrade
+
+intake-test.localhost
+→ automated tests
+
+intake-engineering-clean.localhost
+→ fresh install acceptance
+```
+
+Если tests уже запускались на рабочем site, сначала определить созданные test records и
+не маскировать проблему database restore.
+
+## Webhook не отправился после save
+
+Для ordinary DocType event exact v16.32 webhook execution зависит от успешного commit и
+background worker.
+
+Проверить:
+
+- Webhook enabled;
+- правильный DocType event/condition;
+- request действительно завершился успешно;
+- worker/queue запущены;
+- Webhook Request Log;
+- URL/timeout/headers.
+
+Не оборачивать Webhook во второй custom job только потому, что первая отправка не
+сработала: сначала диагностировать штатный post-commit/background path.
+
+---
+
 ## Когда пересоздавать чистый site
 
 Чистый site можно пересоздать после исправления поставки app. Рабочий site с созданной
-моделью не пересоздаётся для маскировки ошибки. Если причина всё ещё непонятна, сохранить
-`git diff`, вывод команды и точный текст ошибки до следующих действий.
+моделью не пересоздаётся для маскировки ошибки. Test site можно пересоздать как отдельное
+тестовое окружение.
+
+Если причина всё ещё непонятна, сохранить `git diff`, вывод команды и точный текст ошибки
+до следующих действий.
