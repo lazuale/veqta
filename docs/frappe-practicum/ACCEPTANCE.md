@@ -2,53 +2,73 @@
 
 ## 1. Правило доказательства
 
-Настройка считается рабочей не после нажатия Save, а после проверки поведения.
+Настройка или код считаются рабочими не после Save и не после успешного запуска метода,
+а после проверки поведения.
 
-Для каждой существенной гарантии фиксируются:
+Для существенной гарантии фиксируются:
 
 ```text
 предусловие
 → действие
 → ожидаемый результат
 → фактический результат
-→ слой, который обеспечивает гарантию
+→ enforcement layer
 ```
 
-Фраза «кнопка не видна» не доказывает server-side запрет. Permission test выполняется штатным действием под целевой ролью и, где уместно, через стандартный API.
+Фраза «кнопка не видна» не доказывает server-side запрет.
 
-Фиксация не должна превращаться в отдельный бюрократический отчёт. Достаточно короткой
-рабочей заметки или таблицы по фактически выполненной проверке:
+Фраза «метод отработал» не доказывает transaction safety, permissions или правильный
+архитектурный owner.
+
+Короткой таблицы достаточно:
 
 | Проверка | Ожидалось | Получено | Слой |
 |---|---|---|---|
-| Viewer изменяет Equipment | запрет | запрет получен | DocPerm |
-| Guest создаёт Service Intake | разрешено | документ создан | Web Form create path |
+| Viewer изменяет Equipment | запрет | запрет | DocPerm |
+| Guest создаёт Service Intake | разрешено | создан | Web Form create path |
+| Case из New Intake | запрет | ValidationError | ServiceCase.validate |
+| exception после Case insert | Case отсутствует | rollback | request transaction |
 
-Если фактический результат совпал с ожидаемым, достаточно краткой записи. Если нет —
-записать ошибку, определить обеспечивающий слой и исправить причину до перехода дальше.
+---
 
-## 2. Четыре проверки каждого проекта
+# 2. Общие проверки каждого app
 
-### Рабочий сценарий
+## Product scenario
 
-Положительный пользовательский сценарий проходит от начала до конца на реалистичных данных.
+Положительный пользовательский сценарий проходит от начала до конца на реалистичных
+данных.
 
-### Права
+## Permissions
 
-Минимум один разрешённый и один запрещённый сценарий проверены для каждой роли. Administrator не используется как доказательство прав рабочей роли.
+Минимум один разрешённый и один запрещённый сценарий проверены для каждой рабочей роли.
+Administrator не является доказательством permissions.
 
-### Исходники
+## Source
 
-Ученик может показать, какой файл app изменился после сохранения Standard metadata, и объяснить, какие настройки остались только в базе site.
+Ученик показывает, какие файлы app изменились и какие данные остались только в site DB.
 
-### Чистый site
+## Clean install
 
-App устанавливается на новый site без копирования исходной базы. На нём повторяются
-ключевой сценарий и проверки прав.
+App устанавливается на новый site без копирования исходной базы.
 
-## 3. Общий source checklist
+## Engineering extension
 
-Из каталога конкретного app:
+Если app содержит собственный code, дополнительно проверяются:
+
+```text
+server invariant
+semantic command permissions
+transaction rollback
+migration existing data
+automated tests
+upgrade existing site
+```
+
+---
+
+# 3. Общий source checklist
+
+Из каталога app:
 
 ```bash
 git status --short
@@ -59,18 +79,29 @@ git diff
 
 Проверить:
 
-- нет паролей, token, API secret и SMTP credentials;
-- нет файлов рабочих вложений;
-- нет случайных Users и тестовых документов;
+- нет passwords/tokens/API secrets/SMTP credentials;
+- нет working attachments/data dumps;
 - DocType находятся в правильном Module;
-- standard Report, Workspace, Web Form и Notification действительно экспортированы;
-- fixtures содержат только заявленную переносимую конфигурацию;
+- Standard Report/Workspace/Web Form/Notification находятся в source, когда заявлены;
+- fixtures содержат только portable configuration;
+- нет случайных Users/test documents;
 - нет несвязанных изменений;
-- commit описывает законченное состояние продукта.
+- commit описывает законченное состояние.
 
-## 4. Общий site checklist
+Для Engineering Bridge дополнительно:
 
-Для рабочего site:
+- нет временного transaction probe;
+- нет `ignore_permissions=True` в public business command;
+- нет manual `frappe.db.commit()` в request action;
+- patch находится в `patches.txt`;
+- tests находятся в source;
+- не создан fake service/repository/job без самостоятельной ответственности.
+
+---
+
+# 4. Site checklist
+
+Рабочий site:
 
 ```bash
 bench --site <site> list-apps
@@ -78,7 +109,7 @@ bench --site <site> migrate
 bench --site <site> clear-cache
 ```
 
-Для чистой приёмки:
+Clean acceptance:
 
 ```bash
 bench new-site <clean-site>
@@ -88,105 +119,274 @@ bench --site <clean-site> clear-cache
 bench --site <clean-site> list-apps
 ```
 
-Clean site не получает database restore исходного site. Тестовых Users и master data создают заново как входные данные приёмки.
+Clean site не получает database restore исходного site.
 
-## 5. P1 — реестр оборудования
+Engineering Bridge дополнительно проверяет **upgrade исходного `intake.localhost`**, потому
+что fresh install не доказывает migration старых данных.
 
-### Положительные проверки
+---
+
+# 5. P1 — Equipment Register
+
+## Positive
 
 - Manager создаёт Location, Category и Equipment.
 - Equipment сохраняется с несколькими Identifier rows.
-- Operator меняет разрешённые рабочие поля.
-- Viewer читает List и Report, но не меняет документ.
-- импорт корректного файла создаёт записи.
+- Operator меняет разрешённые поля.
+- Viewer читает List/Report, но не меняет Document.
+- корректный Data Import создаёт records.
 - Kanban меняет обычный `status`.
-- глобальный поиск по дочернему идентификатору открывает правильный Equipment.
+- global search по child identifier открывает Equipment.
 
-### Отрицательные проверки
+## Negative
 
-- отсутствующий mandatory field блокирует сохранение;
-- дублирующий `asset_code` блокируется конфликтом системного `name`;
-- Link не принимает несуществующую Category;
-- Viewer не создаёт и не изменяет Equipment;
-- Operator не удаляет Equipment в финальной матрице;
-- User Permission действительно сужает видимые Location и связанные документы, затем опыт откатывается или фиксируется как осознанная политика.
+- mandatory field блокирует save;
+- duplicate `asset_code` конфликтует с system `name`;
+- Link не принимает отсутствующий Category;
+- Viewer не create/write;
+- Operator не delete в final matrix;
+- User Permission сужает видимость и после эксперимента возвращается к заявленной policy.
 
-### Проверка на чистом site
+## Clean site
 
-После установки существуют DocType, роли, Report, Number Card, Workspace и общий Kanban
-Board. Рабочих Equipment нет до ручного создания или импорта.
+После install существуют DocType, roles, Report, Number Card, Workspace, Kanban Board.
+Working Equipment отсутствуют.
 
-## 6. P2 — заявки на закупку
+---
 
-### Положительные проверки
+# 6. P2 — Purchase Requests
 
-- Requester создаёт Draft со строками items.
-- заявка проходит Department Approval и Procurement Review;
-- Approved получает `docstatus = 1`;
-- Procurement Officer отменяет Approved документ, получая `docstatus = 2`;
-- возврат в Rejected допускает исправление и повторную подачу;
-- Assign To создаёт ToDo нужному пользователю;
-- Notification приходит по выбранному каналу;
-- Approved печатается утверждённым Print Format;
-- Calendar View показывает заявки по `required_by`.
+## Positive
 
-### Отрицательные проверки
+- Requester создаёт Draft с items.
+- request проходит Department Approval и Procurement Review.
+- Approved получает `docstatus = 1`.
+- Procurement Officer cancel → `docstatus = 2`.
+- Reject допускает исправление/Resubmit.
+- Assign To создаёт ToDo.
+- Notification срабатывает по выбранному каналу.
+- Approved печатается Print Format.
+- Calendar показывает `required_by`.
 
-- Requester не выполняет Department/Procurement action;
-- Department Approver не выполняет финальное действие Procurement;
-- Auditor не меняет документ;
-- обычный Write без Submit не даёт права утвердить документ;
-- assignee без базового Read не получает неявную полную власть над документом;
-- state не меняется прямой правкой поля или Kanban drag;
-- после submit запрещённые поля не редактируются обычным save.
+## Negative
 
-### Проверка на чистом site
+- Requester не выполняет approval actions.
+- Department Approver не выполняет Procurement action.
+- Auditor не меняет document.
+- обычный Write не даёт Submit authority.
+- assignment не выдаёт скрытое полное право.
+- workflow state не меняется обходным drag/direct path.
+- submitted document не принимает запрещённые updates.
 
-После установки app присутствуют Workflow, роли, Calendar View, отчёт, Number Card,
-Dashboard Chart, Workspace, Notifications и Print Format. Полный переход Draft →
-Approved повторяется с новыми тестовыми Users.
+## Clean site
 
-## 7. P3 — внешняя приёмная
+Workflow, roles, Calendar, reports/cards/chart/workspace/notifications/print существуют.
+Новые Users повторяют Draft → Approved.
 
-### Положительные проверки
+---
 
-- Guest отправляет разрешённые поля Web Form;
-- отправка без явного Contact Consent блокируется;
-- в Desk появляется `Service Intake` со значениями только из публичного allow-list;
-- Triage принимает обращение и создаёт связанный `Service Case`;
-- Agent работает с назначенным Case;
-- Manager видит общую очередь и отчётность;
-- API user читает только разрешённый справочник стандартным REST API.
+# 7. P3 — Service Intake
 
-### Отрицательные проверки
+## Positive
 
-- Guest не видит Desk;
-- Guest не получает список Intake;
-- Guest не редактирует отправленный Intake;
-- Guest не задаёт triage status, internal notes, assignee или workflow state;
-- Guest не создаёт `Service Case`;
-- публичная форма не раскрывает закрытый Link-каталог;
-- второй Case с тем же `source_intake` блокируется Unique;
-- после создания Case его `source_intake` нельзя заменить на другой Intake;
-- API user не читает DocType без выданного Read;
-- API secret отсутствует в Git и протоколе приёмки.
+- Guest отправляет только разрешённые Web Form fields.
+- пустое Contact Consent блокирует submission.
+- Desk получает `Service Intake`, а не внутренний Case.
+- Triage принимает Intake и вручную создаёт Case.
+- Agent работает с назначенным Case.
+- Manager закрывает Case.
+- API User читает только разрешённый reference DocType.
 
-### Проверка на чистом site
+## Negative
 
-После установки доступны заданный маршрут Standard Web Form, Workflow, отчёты, Number
-Card, Dashboard Chart, Workspace и Notifications. Отправка Guest создаёт только
-`Service Intake`; внутренний Case появляется только после действия Triage user.
+- Guest не видит Desk/List и не редактирует submission.
+- Guest не задаёт triage/internal/workflow fields.
+- Guest не создаёт Service Case.
+- public form не раскрывает internal Link catalog.
+- второй Case для одного Intake блокируется Unique.
+- `source_intake` нельзя перепривязать после создания.
+- API User не читает Intake/Case без Read.
+- secrets отсутствуют в Git/protocol.
 
-## 8. Протокол ошибки
+## Clean site
 
-Если чистый site не воспроизводит рабочий site:
+Web Form route, Workflow, reporting, workspace и notifications присутствуют. Guest
+создаёт только Intake; Case появляется только после Triage action.
 
-1. не копировать базу и не создавать недостающий объект вручную молча;
-2. определить его тип: standard metadata, fixture, customization, локальная настройка
-   или рабочие данные;
-3. исправить слой поставки;
-4. обновить app source и commit;
-5. пересоздать чистую проверку;
-6. повторить permission и functional gates.
+**P3 acceptance закрывает Metadata & Configuration level.**
 
-Такой сбой — не помеха курсу, а основная проверка понимания архитектуры Frappe.
+---
+
+# 8. Engineering Bridge
+
+## E1 — Controller invariant
+
+Предусловие: существует `Service Intake` со статусом `New`.
+
+Проверка:
+
+```text
+create Service Case linked to New Intake
+→ forbidden
+→ ServiceCase.validate
+```
+
+После `Accepted` тот же Link должен быть допустим.
+
+Отдельно объяснить: Link/Unique/Set Only Once продолжают обеспечиваться metadata, а
+Controller не дублирует их.
+
+## E2/E3 — Semantic command
+
+Для Accepted Intake:
+
+```text
+POST create_case
+→ exactly one Service Case
+→ source_intake correct
+→ converted_at filled
+→ Timeline comment created
+```
+
+Повторный POST:
+
+```text
+→ error
+→ no second Case
+```
+
+Для New Intake:
+
+```text
+→ error
+→ no Case
+```
+
+Проверка выполняется permission-aware User, не Administrator/ignore-permissions path.
+
+## E4 — API boundary
+
+Ученик должен показать разницу:
+
+```text
+built-in Document REST
+→ CRUD resource
+
+whitelisted document method
+→ semantic application command
+```
+
+API secret после проверки удалён из shell variables и отсутствует в Git.
+
+## E5 — Transaction rollback
+
+Временный probe после `case.insert()` бросает uncaught exception.
+
+Ожидается:
+
+```text
+HTTP action failed
+Service Case absent
+converted_at empty
+```
+
+После удаления probe нормальный вызов создаёт Case.
+
+Проверить:
+
+```bash
+grep -R "Transaction rollback probe" -n service_intake || true
+```
+
+Результат должен быть пустым перед commit.
+
+Отдельно проверить отсутствие `frappe.db.commit()` в command.
+
+## E6 — Patch / upgrade
+
+На старом P3 site должен существовать Case, созданный до `converted_at`.
+
+До migrate:
+
+```text
+old Intake.converted_at = empty
+```
+
+После:
+
+```bash
+bench --site intake.localhost migrate
+```
+
+ожидается:
+
+```text
+old Intake.converted_at = old Service Case.creation
+```
+
+Повторный migrate не должен повторно менять data как новый patch.
+
+Ученик объясняет, почему patch использует deliberate DB update, а controller обычной
+business operation — Document lifecycle.
+
+## E7 — Automated tests
+
+Команда:
+
+```bash
+bench --site intake.localhost run-tests --app service_intake
+```
+
+Обязательные проверки app-owned behavior:
+
+- non-Accepted source rejected;
+- accepted conversion works;
+- duplicate conversion rejected;
+- `converted_at` заполнен.
+
+Не принимается suite, состоящий только из тестов, что Frappe Mandatory/Link вообще
+работают.
+
+## E8 — Async/integration decision
+
+Ученик получает три требования и выбирает owner:
+
+| Требование | Правильная первая проверка |
+|---|---|
+| простой HTTP callback по Case event | Webhook |
+| тяжёлая работа только после успешного commit | Background Job + `enqueue_after_commit` |
+| synchronous Document invariant | Controller lifecycle |
+
+Custom job отсутствует в source, потому что текущий product requirement его не требует.
+Это **положительный** результат архитектурного аудита.
+
+## E9 — Clean install + upgrade
+
+Оба сценария обязательны:
+
+```text
+existing intake.localhost
+→ migrate + tests + old-data check
+
+new intake-engineering-clean.localhost
+→ install-app + migrate + tests
+```
+
+На clean site patch должен быть безопасен при отсутствии historical Case data.
+
+---
+
+# 9. Протокол ошибки
+
+Если clean site или upgrade не воспроизводит ожидаемое состояние:
+
+1. не копировать базу и не «дочинивать» объект молча;
+2. определить layer: Standard source / fixture / local config / working data / patch / code;
+3. определить owner гарантии;
+4. исправить source/evolution path;
+5. повторить migrate/install;
+6. повторить positive/negative permission/behavior checks;
+7. зафиксировать причину, а не только команду, которая «помогла».
+
+Сбой переносимости или migration — часть практикума: он показывает, понял ли ученик
+архитектуру Frappe, а не только Desk UI.
