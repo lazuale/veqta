@@ -335,6 +335,8 @@ Rental
 
 # 7. Этап 5A — добавить предметное состояние
 
+**Исполняемая инструкция:** [`core/S05A_RENTAL_STATUS.md`](core/S05A_RENTAL_STATUS.md).
+
 **Опорный узел:** `P05`.
 
 **Покрывает:** `R08`.
@@ -383,6 +385,8 @@ business status ≠ Workflow ≠ docstatus
 ---
 
 # 8. Этап 5B — пройти вертикальный сценарий через Desk
+
+**Исполняемая инструкция:** [`core/S05B_DESK_VERTICAL_SCENARIO.md`](core/S05B_DESK_VERTICAL_SCENARIO.md).
 
 **Опорный узел:** `P06`.
 
@@ -434,6 +438,8 @@ filters
 
 # 9. Этап 5C — защитить инварианты одного Rental
 
+**Исполняемая инструкция:** [`core/S05C_RENTAL_LOCAL_INVARIANTS.md`](core/S05C_RENTAL_LOCAL_INVARIANTS.md).
+
 **Опорный узел:** `P07`.
 
 **Покрывает:** `R09`, `R10`.
@@ -455,28 +461,30 @@ end_date < start_date
 2. Реализует проверки в серверном lifecycle-пути `Document`.
 3. Использует `validate()` там, где его семантика совпадает с требованием.
 4. Клиентскую подсказку рассматривает только как дополнение UX.
+5. Проверяет оба правила через обычный `Document.insert()` без Form.
 
 ## Механизмы
 
 ```text
 Document Controller
 validate()
+frappe.throw()
 серверная ошибка валидации
 ```
 
 ## Результат
 
-Некорректный Rental невозможно сохранить обычным серверным путём.
+Некорректный Rental невозможно сохранить обычным серверным Document-путём.
 
 ## Проверка
 
-Проверить оба ошибочных сценария через Form и затем через серверный тест/другой путь создания Document.
+Проверить ошибочную дату через Form, затем оба инварианта через серверный `Document.insert()`.
 
 ## Архитектурный вывод
 
 ```text
 Client Script = удобство интерфейса
-server path   = гарантия данных
+Controller.validate = гарантия модели на обычном Document path
 ```
 
 ---
@@ -736,14 +744,13 @@ Permission Type
 
 ```text
 foreign DocType customization
+fixtures
 exported customizations
 doc_events
 extend_doctype_class
 override_doctype_class
 custom API
 ```
-
-Fixtures не относятся здесь к «продвинутому расширению»: в CORE они уже могут быть штатным способом доставки обязательной конфигурации, например Role.
 
 Их нельзя тащить в базовый Rental без соответствующей задачи.
 
