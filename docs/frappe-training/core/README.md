@@ -33,71 +33,79 @@
 | [`S05D`](S05D_ROLES_AND_PERMISSIONS.md) | `Rental Operator` / `Rental Manager` через Role + DocType Permissions | написан |
 | [`S06`](S06_ACTIVE_RENTAL_CONFLICT.md) | междокументный инвариант пересекающихся Active Rentals | написан |
 | [`S07`](S07_AUTOMATED_CONTRACT_TESTS.md) | автоматические Frappe-aware tests собственных контрактов | написан |
-| S08 | аудит App-owned состояния и миграций | следующий |
-| S09 | чистая установка и финальная приёмка | запланирован |
+| [`S08`](S08_APP_STATE_DELIVERY_AUDIT.md) | audit manifest App-owned/Site-owned состояния и migrate/fixture delivery | написан |
+| S09 | чистая установка и финальная приёмка | следующий |
 
 `NEXT`, `GATE` и `EXT` не смешиваются с этим маршрутом автоматически. Они подключаются только после соответствующего требования, как определено в архитектурных документах.
 
 ## Текущая точка
 
-После S07 CORE уже не зависит от ручного повторения проверок S05C/S05D/S06.
+После S08 для каждого обязательного элемента CORE должен быть известен владелец и source of truth.
 
 ```text
-Rental.validate()
-├── V01  date range
-├── V02  duplicate Equipment
-└── V03  overlapping Active Rental
+Rental Training Module
+→ modules.txt
 
-Role + DocType Permissions
-├── Rental Operator
-└── Rental Manager
+Equipment / Customer / Rental Item / Rental
+→ Standard DocType JSON
 
-        ↓
-IntegrationTestRental
-        ↓
-bench --site rental.localhost run-tests --app rental_training
+naming / fields / default DocPerm
+→ Standard DocType metadata
+
+V01 / V02 / V03
+→ rental.py
+
+Rental Operator / Rental Manager
+→ hooks.py + fixtures/role.json
+
+automated contracts
+→ test_rental.py
 ```
 
-S07 использует актуальный для Frappe v16 путь:
-
-```python
-from frappe.tests import IntegrationTestCase
-```
-
-а не deprecated `FrappeTestCase`.
-
-Тесты сами создают необходимые Customer/Equipment и test Users. Они не зависят от `EQ-00001`, `CUST-00001`, вручную созданных Rentals или паролей dev-site.
-
-Автоматически фиксируются не только базовые V01/V02/V03, но и точная семантика V03:
+При этом экземплярное состояние остаётся у Site:
 
 ```text
-общая граничная дата → конфликт
-следующий день        → допустимо
-Planned overlap       → допустимо
-self-save Active      → допустимо
+Users
+Equipment/Customer/Rental records
+developer_mode
+allow_tests
+runtime naming state
 ```
 
-Permission tests выполняют реальные `insert/save/delete`, а не проверяют кнопки Desk.
-
-Отдельно сохраняется архитектурная граница:
+S08 отдельно проверяет отсутствие скрытой обязательной конфигурации в:
 
 ```text
-автоматический test существующего контракта
-≠
-создание нового контракта
+Custom Field
+Property Setter
+Custom DocPerm
 ```
 
-Поэтому S07 не добавляет browser automation, CI, coverage target или фиктивный concurrency test для гарантии, которой S06 не реализует.
-
-Следующий этап — S08:
+и выполняет два round-trip:
 
 ```text
-каждый обязательный элемент CORE
-        ↓
-кто владелец?
-где source of truth?
-как попадёт на чистый Site?
-нужен ли migrate / fixture / patch?
+Site Role config
+→ export-fixtures
+→ committed fixture
+→ Git clean
+
+App source
+→ bench migrate
+→ current Site
+→ tests green
+→ Git clean
 ```
 
-После S08 останется финальное доказательство S09 на новом чистом Site.
+Patch в CORE не создаётся ради демонстрации: пока строится первый baseline и нет поддерживаемой старой версии данных, отсутствует реальная одноразовая data migration.
+
+Следующий и последний CORE-этап — S09:
+
+```text
+новый clean Frappe Site
++ текущий rental_training из Git
++ install-app
++ migrate
++ tests
++ основной Desk/permission scenario
+=
+доказательство воспроизводимости CORE
+```
