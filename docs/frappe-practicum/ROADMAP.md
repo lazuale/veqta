@@ -1,23 +1,35 @@
 # Дорожная карта
 
-Практикум идёт последовательно. Переход к следующему проекту разрешён только после
-проверки текущего app на чистом site.
+Практикум идёт последовательно. Следующий этап начинается после приёмки предыдущего.
 
-## Этап 0. Подготовить платформу
+```text
+Platform
+→ P1 Data Model
+→ P2 Lifecycle
+→ P3 Trust Boundary
+→ Engineering Bridge
+→ Final Architecture Audit
+```
+
+P1–P3 образуют законченный metadata/configuration уровень. Engineering Bridge — второй
+уровень того же курса, а не четвёртый независимый продукт.
+
+---
+
+# Этап 0. Подготовить платформу
 
 Результат:
 
-- установлен Frappe `v16.32.0`;
-- версии Python и Node соответствуют exact tag;
-- bench запускается;
-- можно создать site и войти в Desk;
-- понятна разница между Bench, site и app.
+- Frappe `v16.32.0` установлен;
+- Python/Node соответствуют exact tag;
+- Bench запускается;
+- site создаётся и Desk открывается;
+- ученик различает Bench, site, app, Module, DocType и Document.
 
-Маршрут установки: [SETUP_WSL2.md](SETUP_WSL2.md).
+Маршрут:
 
-После установки выполнить [FOUNDATIONS.md](FOUNDATIONS.md). Переход к P1 разрешён,
-когда ученик может объяснить Bench, site, app, Module, DocType и Document и умеет
-находить объекты через Awesomebar.
+1. [SETUP_WSL2.md](SETUP_WSL2.md)
+2. [FOUNDATIONS.md](FOUNDATIONS.md)
 
 Контроль:
 
@@ -27,198 +39,376 @@ python --version
 node --version
 ```
 
-## Этап 1. Реестр оборудования
+---
 
-Пошаговый маршрут: [projects/01-equipment-register/LABS.md](projects/01-equipment-register/LABS.md).
+# Этап 1. P1 — Реестр оборудования
 
-### P1.1. Контейнер продукта
+Маршрут: [projects/01-equipment-register/LABS.md](projects/01-equipment-register/LABS.md).
 
-- создать `equipment_register`;
-- создать `equipment.localhost`;
-- установить app;
-- включить Developer Mode;
-- проверить Module и исходную Git-структуру.
+## P1.1. Контейнер продукта
 
-### P1.2. Модель до интерфейса
+- `equipment_register`;
+- `equipment.localhost`;
+- Developer Mode;
+- Module;
+- Git/source layout.
 
-- создать `Equipment Location`, `Equipment Category`, `Equipment Identifier`, `Equipment`;
-- настроить naming, Set Only Once, Mandatory, Link и Child Table;
-- проверить Tree и системные поля Document;
-- задать базовые Permissions в Standard DocType.
+## P1.2. Модель
 
-### P1.3. Рабочие данные
+```text
+Equipment Location → Tree
+Equipment Category → independent DocType
+Equipment Identifier → Child Table
+Equipment → main Document
+```
 
-- создать минимальный набор вручную;
-- импортировать второй набор;
-- проверить ошибки обязательности, naming и Link;
-- проверить глобальный поиск по дочернему идентификатору;
-- сравнить Data Export с исходниками app.
+Проверяются naming, Set Only Once, Mandatory, Link и source permissions.
 
-### P1.4. Доступ
+## P1.3. Working data
 
-- создать роли Operator, Manager, Viewer;
-- проверить Read/Write/Create/Delete отдельными пользователями;
-- провести временные опыты с If Owner, User Permission и Share;
-- вернуть финальную permission matrix.
+- ручные Documents;
+- Data Import / Export;
+- negative mandatory/naming/Link checks;
+- global search по child identifier.
 
-### P1.5. Рабочее место
+## P1.4. Permissions
 
-- настроить List View;
-- создать Kanban по обычному `status`;
-- проверить Timeline после изменения состояния;
-- собрать Report Builder report, Number Card и Workspace;
-- проверить видимость по ролям.
+- Operator / Manager / Viewer;
+- Read/Write/Create/Delete отдельными Users;
+- временные If Owner, User Permission, Share;
+- возврат к final DocPerm.
 
-### P1.6. Поставка
+## P1.5. Рабочее место
 
-- найти Standard metadata в app;
-- экспортировать только необходимые fixtures;
-- выполнить `migrate`;
-- сделать Git commit;
-- установить app на `equipment-clean.localhost`;
-- пройти приёмку без копирования записей Equipment.
+- List;
+- Kanban по обычному `status`;
+- Timeline/Track Changes;
+- Report Builder;
+- Number Card;
+- Workspace.
 
-Gate P1: реестр работает как самостоятельный продукт и переносится на чистый site.
+Ключевой вывод:
 
-## Этап 2. Заявки на закупку
+```text
+status field существует
+≠ Workflow нужен автоматически
+```
 
-Пошаговый маршрут: [projects/02-purchase-requests/LABS.md](projects/02-purchase-requests/LABS.md).
+## P1.6. Поставка
 
-### P2.1. Новый независимый app и site
+- Standard metadata;
+- fixtures только для portable records;
+- Git commit;
+- `equipment-clean.localhost`;
+- acceptance без копирования Equipment data.
 
-- создать `purchase_requests` и `purchase.localhost`;
-- не устанавливать `equipment_register` на этот site;
-- включить Developer Mode;
-- проверить Module и Apps Page.
+**Gate P1:** модель естественна для реестра, а app воспроизводится на clean site.
 
-### P2.2. Роли и транзакционная модель
+---
 
-- создать четыре роли проекта;
-- создать `Purchase Department`;
-- создать Child DocType `Purchase Request Item`;
-- создать submittable `Purchase Request`;
-- настроить naming format, Permission Level и базовые DocPerm.
+# Этап 2. P2 — Заявки на закупку
 
-### P2.3. Обычный lifecycle до Workflow
+Маршрут: [projects/02-purchase-requests/LABS.md](projects/02-purchase-requests/LABS.md).
 
-- создать тестовую заявку;
-- выполнить Save, Submit, Cancel и Amend;
-- записать фактические значения `docstatus`;
-- отделить механику submittable document от будущего Workflow.
+## P2.1. Новый app/site
 
-### P2.4. Пользователи и базовые права
+- `purchase_requests`;
+- `purchase.localhost`;
+- без зависимости от P1 app.
 
-- создать Requester, Approver, Procurement Officer и Auditor;
-- проверить If Owner;
-- ограничить Requester и Approver через User Permission по Department;
-- проверить Permission Level;
-- не использовать Assignment как замену авторизации.
+## P2.2. Транзакционная модель
 
-### P2.5. Workflow
+```text
+Purchase Department
+Purchase Request Item (Child)
+Purchase Request (Submittable)
+```
 
-- создать Workflow State и Workflow Action Master;
-- создать `Purchase Request Approval`;
-- связать Approved с `docstatus = 1`, Cancelled — с `docstatus = 2`;
-- проверить возврат на доработку и повторную подачу;
-- доказать, что прямое изменение workflow state не является допустимым переходом.
+Создаются роли, Permission Levels и базовый DocPerm.
 
-### P2.6. Совместная работа и представления
+## P2.3. Document lifecycle до Workflow
 
-- назначить согласующего через Assign To;
-- проверить ToDo и Timeline;
-- настроить System Notification;
-- создать Calendar по `required_by`;
-- собрать Report Builder report, Number Card, Dashboard Chart и Workspace;
-- сделать Print Format и получить PDF под рабочей ролью;
-- Assignment Rule оставить только временным опытом, если он нужен для сравнения.
+Практически пройти:
 
-### P2.7. Поставка
+```text
+Save → Submit → Cancel → Amend
+```
 
-- классифицировать Standard metadata, fixtures и локальные записи site;
-- экспортировать только переносимую конфигурацию;
-- не переносить Users, User Permission, Assignment Rule, заявки и вложения;
-- установить app на `purchase-clean.localhost`;
-- повторить полный Workflow новыми тестовыми Users.
+и записать `docstatus`.
 
-Gate P2: state machine и docstatus воспроизводятся на чистом site, а обходной переход запрещён.
+Цель — сначала понять нативный Document lifecycle, затем добавлять Workflow.
 
-## Этап 3. Внешняя приёмная
+## P2.4. Users и access
 
-Пошаговый маршрут: [projects/03-service-intake/LABS.md](projects/03-service-intake/LABS.md).
+- Requester / Approver / Procurement / Auditor;
+- If Owner;
+- User Permission по Department;
+- Permission Level;
+- Assignment ещё не участвует в authorization.
 
-### P3.1. Новый app, site и роли
+## P2.5. Workflow
 
-- создать `service_intake` и `intake.localhost`;
-- включить Developer Mode;
-- проверить Module;
-- создать роли Triage, Agent, Manager и API Reader.
+```text
+Draft
+→ Pending Department Approval
+→ Procurement Review
+→ Approved / docstatus 1
+→ Cancelled / docstatus 2
+```
 
-### P3.2. Модель и граница доверия
+Отдельно проверить Reject/Resubmit и невозможность чужих Workflow Action.
 
-- создать `Service Category`, `Service Intake`, `Service Case`;
-- отделить недоверенный Intake от внутреннего Case;
-- дать публичному документу только необходимые поля;
-- разделить служебные поля через Permission Level;
-- запретить API Reader доступ к Intake и Case.
+Ключевой вывод:
 
-### P3.3. Внутренний Workflow
+```text
+Role Permission
+Workflow
+DocStatus
+Assignment
+```
 
-- создать состояния Open, In Progress, Resolved и Closed;
-- создать действия Start Work, Resolve, Close и Reopen;
-- оставить все состояния с `docstatus = 0`;
-- требовать Resolution перед Resolve.
+решают разные задачи.
 
-### P3.4. Web Form
+## P2.6. Collaboration/presentation
 
-- создать Standard Web Form для `Service Intake`;
-- проверить Guest create;
-- проверить обязательное явное согласие на контакт;
-- сравнить Guest и Website User режимы;
-- доказать финальные запреты list/edit/delete;
-- убедиться, что форма не принимает служебные поля и не создаёт `Service Case`.
+- Assign To / ToDo;
+- Timeline;
+- System Notification;
+- Calendar;
+- Report / Card / Chart / Workspace;
+- Print Format / PDF.
 
-### P3.5. Триаж и внутренняя работа
+## P2.7. Поставка
 
-- принять одно обращение, отклонить другое;
-- вручную создать Case только из проверенных данных;
-- проверить Unique на связи Intake → Case;
-- назначить Agent и пройти Workflow;
-- настроить Notification;
-- собрать раздельные отчёты по Intake и Case, Number Card, Dashboard Chart и Workspace.
+- portable Workflow/configuration;
+- local Users/User Permission/Assignment Rule не экспортируются;
+- `purchase-clean.localhost`;
+- полный Workflow повторяется новыми Users.
 
-### P3.6. Стандартный REST API
+**Gate P2:** lifecycle и state machine воспроизводятся без ручного восстановления
+configuration на clean site.
 
-- создать отдельного API user;
-- выдать минимальную роль;
-- сгенерировать key/secret локально;
-- выполнить разрешённый Read по `Service Category`;
-- доказать запрещённый доступ к `Service Intake`;
-- удалить секреты из переменных shell после проверки и не сохранять их в Git.
+---
 
-### P3.7. Поставка
+# Этап 3. P3 — Внешняя приёмная
 
-- проверить, что Standard Web Form находится в app;
-- экспортировать только роли и Workflow-конфигурацию, которой действительно нужны fixtures;
-- не экспортировать Users, keys, SMTP и рабочие обращения;
-- установить app на `intake-clean.localhost`;
-- повторить Guest submission и внутренний triage.
+Маршрут: [projects/03-service-intake/LABS.md](projects/03-service-intake/LABS.md).
 
-Gate P3: внешний канал работает, но не пересекает внутреннюю границу полномочий.
+## P3.1. App/site/roles
 
-## Финальный аудит
+- `service_intake`;
+- `intake.localhost`;
+- Triage / Agent / Manager / API Reader.
 
-После P3 ученик без подсказки объясняет:
+## P3.2. Trust model
 
-1. где заканчивается framework и начинается app;
-2. почему DocType — это модель документа, а не просто таблица;
-3. когда нужен Link, Child Table, Tree и submittable document;
+```text
+Service Intake → untrusted external input
+Service Case   → internal work
+Service Category
+```
+
+Проверяются public/internal fields и Permission Level.
+
+## P3.3. Internal Workflow
+
+```text
+Open → In Progress → Resolved → Closed
+```
+
+Все states `docstatus = 0`; Resolution требуется перед Resolve.
+
+## P3.4. Web Form
+
+- Guest create;
+- Website User comparison;
+- no list/edit/delete;
+- no internal fields;
+- no direct `Service Case` creation.
+
+Ключевой вывод:
+
+```text
+Web Form access path
+≠ Desk permission path
+```
+
+## P3.5. Manual triage
+
+- Accepted Intake;
+- ручное создание Case только после проверки;
+- Unique / Set Only Once source link;
+- Assign To;
+- Workflow;
+- separate Intake/Case reporting.
+
+Ручная конвертация здесь **не недостаток курса**. Это специально достигнутая граница:
+metadata уже не выражает следующую атомарную business operation.
+
+## P3.6. Built-in REST
+
+- отдельный API User;
+- allowed Read `Service Category`;
+- denied Read `Service Intake`;
+- secrets outside Git.
+
+## P3.7. Поставка
+
+- Standard Web Form source;
+- portable Workflow/roles;
+- no Users/keys/working data;
+- `intake-clean.localhost`;
+- Guest submission + internal triage повторяются.
+
+**Gate P3:** metadata/configuration уровень курса завершён.
+
+---
+
+# Этап 4. Engineering Bridge
+
+Маршрут: [engineering/LABS.md](engineering/LABS.md).
+
+Используется тот же `service_intake`, потому что именно он дошёл до естественной границы
+configuration-only решения.
+
+## E1. Controller invariant
+
+Новое правило:
+
+```text
+Service Case.source_intake
+must reference Accepted Service Intake
+```
+
+Metadata продолжает владеть Link/Unique/Set Only Once. Controller `validate` добавляет
+только cross-document state invariant.
+
+## E2. Schema evolution
+
+В `Service Intake` появляется Standard field:
+
+```text
+converted_at
+```
+
+Он принадлежит source модели app, а не site customization.
+
+## E3. Semantic Document command
+
+`ServiceIntake.create_case`:
+
+```text
+check Intake write
+→ require Accepted
+→ reject duplicate conversion
+→ permission-aware Case insert
+→ set converted_at
+→ add Timeline comment
+```
+
+Команда whitelisted только для POST.
+
+Ключевой вывод:
+
+```text
+business command
+≠ duplicate CRUD endpoint
+```
+
+## E4. REST document method
+
+Через exact v16 API v2 route выполняется whitelisted method конкретного Intake.
+
+Проверяются:
+
+- success;
+- duplicate rejection;
+- state rejection;
+- permissions;
+- secret hygiene.
+
+## E5. Transaction rollback
+
+Временный controlled failure после `case.insert()` доказывает:
+
+```text
+uncaught request exception
+→ no partial Case
+→ no converted_at
+```
+
+Probe удаляется до commit в Git.
+
+Manual `frappe.db.commit()` в business command отсутствует.
+
+## E6. Patch/migrate
+
+Новая схема сама не backfill-ит старые data.
+
+```text
+post_model_sync patch
+→ existing P3 Intake gets converted_at from old Case
+```
+
+Patch повторно через migrate не выполняется как новый.
+
+## E7. Integration tests
+
+Тестируется собственное поведение app:
+
+- non-Accepted source rejected;
+- accepted conversion works;
+- duplicate conversion rejected;
+- converted_at written.
+
+Не пишутся тесты «Link вообще работает» или «Mandatory вообще работает».
+
+## E8. Async/integration decision lab
+
+Практически разобрать границы:
+
+```text
+Webhook
+Background Job + enqueue_after_commit
+Controller lifecycle
+integration module/service
+```
+
+Custom Job в app **не добавлять**, потому что текущая модель не имеет реальной долгой
+операции.
+
+## E9. Deployment acceptance
+
+Проверяются два разных сценария:
+
+```text
+upgrade intake.localhost
+clean install intake-engineering-clean.localhost
+```
+
+**Gate Engineering:** code находится в нативных extension points, migration проходит, tests
+зелёные, искусственных abstractions/jobs нет.
+
+---
+
+# Финальный аудит
+
+После полного курса ученик без подсказки объясняет:
+
+1. где Framework заканчивается и начинается ответственность app;
+2. почему DocType — Document model, а не просто таблица;
+3. когда нужны Link, Child Table, Tree, Select и submittable document;
 4. чем Role Permission отличается от Permission Level, User Permission и Share;
-5. почему Assignment не является авторизацией;
-6. почему Workflow не заменяет базовые права;
-7. почему Web Form нельзя считать обычной Desk-формой;
-8. какие объекты app переносятся source-файлами, fixtures и customizations;
-9. почему Data Export не является поставкой app;
-10. как доказать переносимость на чистом site.
+5. почему Assignment не authorization;
+6. почему Workflow не заменяет permissions и docstatus;
+7. почему Web Form — отдельный trust/access path;
+8. когда invariant должен перейти в Controller;
+9. почему semantic command не дублирует CRUD REST;
+10. где проходит transaction boundary и почему manual commit опасен;
+11. чем schema migration отличается от data patch;
+12. что должны тестировать tests приложения;
+13. когда Background Job/Webhook действительно оправданы;
+14. как доказать clean install и upgrade.
 
-Финальная работа принимается только при наличии трёх независимых Git-репозиториев app и
-трёх протоколов проверки на чистом site.
+Финальная работа принимается, когда три app имеют воспроизводимые Git-состояния, а
+`service_intake` дополнительно проходит Engineering acceptance.
