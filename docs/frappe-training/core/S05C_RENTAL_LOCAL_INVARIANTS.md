@@ -33,12 +33,14 @@ V02  одно Equipment не повторяется внутри одного Re
 - [`S05B_DESK_VERTICAL_SCENARIO.md`](S05B_DESK_VERTICAL_SCENARIO.md);
 - [`../CORE_STAGE_SPECIFICATION.md`](../CORE_STAGE_SPECIFICATION.md);
 - [`../PRACTICUM_ROADMAP.md`](../PRACTICUM_ROADMAP.md);
-- [`../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md`](../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md).
+- [`../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md`](../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md);
+- [`../../frappe-architecture-standard/05_TRANSACTIONS_ASYNC.md`](../../frappe-architecture-standard/05_TRANSACTIONS_ASYNC.md).
 
 Первичные источники:
 
 - https://docs.frappe.io/framework/user/en/basics/doctypes/controllers
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/document.py
+- https://docs.frappe.io/framework/user/en/api/database
 
 ---
 
@@ -312,7 +314,7 @@ equipment = [row.equipment for row in self.items if row.equipment]
 frappe.throw(...)
 ```
 
-Он поднимает validation exception и останавливает обычный save/insert path.
+Без явного `exc=` он поднимает штатный `frappe.ValidationError`, поэтому в console-проверках ниже ловится именно этот тип ошибки.
 
 Строки обёрнуты в `_()` как пользовательские сообщения, которые могут участвовать в механизме переводов Frappe.
 
@@ -560,7 +562,7 @@ The same Equipment cannot be selected more than once in one Rental.
 frappe.db.rollback()
 ```
 
-Это **не** означает, что controller должен делать rollback самостоятельно.
+Это **не** означает, что Controller должен делать rollback самостоятельно.
 
 В Controller нет:
 
