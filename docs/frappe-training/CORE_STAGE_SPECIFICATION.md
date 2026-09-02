@@ -9,9 +9,9 @@
 - [`STAGE_DEPENDENCY_GRAPH.md`](STAGE_DEPENDENCY_GRAPH.md);
 - [`PRACTICUM_ROADMAP.md`](PRACTICUM_ROADMAP.md).
 
-Этот документ фиксирует **что именно должен построить ученик в CORE**. Здесь впервые задаются конкретные поля, контрольные данные, проверки и критерий `ГОТОВО / НЕ ГОТОВО`.
+Этот документ фиксирует **что именно должен построить ученик в CORE**: точную модель, поля, naming, контрольные данные, права, тесты и критерий `ГОТОВО / НЕ ГОТОВО`.
 
-Документ не является пошаговой инструкцией «куда нажать». Подробные практические задания пишутся только после согласования этой спецификации.
+Это ещё не инструкция «куда нажать». Подробные практические задания пишутся только после согласования спецификации.
 
 Нормативная база — [`docs/frappe-architecture-standard`](../frappe-architecture-standard/README.md).
 
@@ -19,24 +19,47 @@
 
 # 1. Правило спецификации
 
-Каждое решение должно отвечать на реальное требование.
+Каждый элемент обязан отвечать на требование:
 
 ```text
 требование
-→ модель
+→ ответственность
 → штатный механизм Frappe
 → конкретная конфигурация
 → контрольные данные
 → наблюдаемая проверка
 ```
 
-Запрещено добавлять поле, DocType, Script, Workflow, Report или другой механизм только потому, что он существует во Framework.
+Запрещено добавлять поле, DocType, Script, Workflow, Report или иной механизм только ради знакомства с функцией.
 
 ---
 
-# 2. Имена учебных объектов
+# 2. Граница учебной среды
 
-Чтобы документация, исходники и интерфейс не расходились, в CORE используются следующие технические имена:
+CORE проходит на **отдельном чистом Site Frappe v16**.
+
+До установки учебного App:
+
+```text
+installed apps:
+frappe
+```
+
+После установки:
+
+```text
+installed apps:
+frappe
+rental_training
+```
+
+ERPNext и другие прикладные Apps для CORE не требуются.
+
+Это не ограничение Frappe как Framework. Это граница практикума: ученик должен видеть, что именно предоставляет Frappe и что добавляет его собственный App, без случайных зависимостей от чужих моделей.
+
+---
+
+# 3. Имена учебных объектов
 
 ```text
 App       : rental_training
@@ -53,13 +76,13 @@ Rental Operator
 Rental Manager
 ```
 
-Название предметной области учебное и нейтральное. Оно не связано с VEQTA.
+Предметная область учебная и нейтральная, не связана с VEQTA.
 
 ---
 
-# 3. Naming — обязательное решение
+# 4. Naming и отображаемый title
 
-У каждого самостоятельного Document существует системный `name`. В CORE он не строится из изменяемого отображаемого названия.
+У каждого самостоятельного Document есть системный `name`. В CORE он не строится из изменяемого отображаемого названия.
 
 Используем штатный Expression naming:
 
@@ -77,32 +100,42 @@ CUST-00001
 RENT-00001
 ```
 
-`Rental Item` — Child DocType, отдельная naming-стратегия для него не проектируется.
-
-## Почему так
-
-CORE должен показать разницу между:
+Для человекочитаемой работы Desk отдельно используются штатные title-настройки:
 
 ```text
-name                 = стабильная идентичность Document
-equipment_name       = отображаемое предметное название
-customer_name        = имя клиента
-display fields       = человекочитаемое представление
+Equipment
+  Title Field               = equipment_name
+  Show Title in Link Fields = yes
+
+Customer
+  Title Field               = customer_name
+  Show Title in Link Fields = yes
 ```
 
-Изменение `equipment_name` или `customer_name` не должно менять identity Document и ломать существующие Link.
+Ученик должен увидеть разницу:
 
-## Что специально не используем
+```text
+name            = стабильная identity Document
+Title Field     = человекочитаемое представление
+equipment_name  = изменяемое название Equipment
+customer_name   = изменяемое имя Customer
+```
+
+Изменение title-поля не должно менять `name` и ломать Link.
+
+`Rental Item` — Child DocType, отдельная naming-стратегия для него не проектируется.
+
+## Не используем
 
 - серийный номер Equipment как `name`;
 - имя Customer как `name`;
-- собственный Python `autoname()`;
+- Python `autoname()` без отдельного требования;
 - UUID только ради демонстрации UUID;
-- отдельный Naming Series DocType/процесс, если фиксированного Expression достаточно.
+- отдельный `naming_series` field, когда одного фиксированного Expression достаточно.
 
 ---
 
-# 4. CORE-модель данных
+# 5. CORE-модель
 
 ```text
 Equipment
@@ -119,33 +152,32 @@ Rental Item
 └── equipment       → Link → Equipment
 ```
 
-Никаких дополнительных самостоятельных DocTypes в CORE нет.
+В CORE нет дополнительных самостоятельных DocTypes.
 
 ---
 
-# 5. Equipment — точная спецификация
+# 6. Equipment
 
 ## DocType
 
 ```text
-Name      : Equipment
-Module    : Rental Training
-Standard  : yes
-Child     : no
-Single    : no
+Name       : Equipment
+Module     : Rental Training
+Standard   : yes
+Child      : no
+Single     : no
 Submittable: no
 ```
 
 ## Fields
 
-| Label | Fieldname | Type | Required | Unique | Назначение |
+| Label | Fieldname | Type | Required | Unique | Дополнительно |
 |---|---|---|---:|---:|---|
-| Equipment Name | `equipment_name` | Data | yes | no | человекочитаемое название |
-| Equipment Type | `equipment_type` | Select | yes | no | небольшой стабильный классификатор |
-| Serial Number | `serial_number` | Data | no | no | предметный атрибут, не identity |
-| Active | `active` | Check | yes | no | можно ли использовать запись в текущей работе |
+| Equipment Name | `equipment_name` | Data | yes | no | Title Field |
+| Equipment Type | `equipment_type` | Select | yes | no | In List View |
+| Serial Number | `serial_number` | Data | no | no | In List View |
 
-## Select `equipment_type`
+`equipment_type`:
 
 ```text
 Tool
@@ -153,18 +185,16 @@ Camera
 Computer
 ```
 
-Это намеренно маленький стабильный список. В CORE отдельного `Equipment Type` нет.
+Отдельного `Equipment Type` в CORE нет: у типа пока нет собственных атрибутов, lifecycle или управления.
 
-## Default
+`serial_number` — предметный атрибут, но не системная identity. Он намеренно не объявляется `Unique`, потому что CORE не предъявляет требования гарантировать его наличие и глобальную уникальность.
 
-```text
-active = 1
-```
-
-## Naming
+## Naming / view
 
 ```text
-EQ-.#####
+Expression                : EQ-.#####
+Title Field               : equipment_name
+Show Title in Link Fields : yes
 ```
 
 ## Контрольные записи
@@ -174,78 +204,73 @@ EQ-00001
 Equipment Name : Bosch GBH 2-26
 Equipment Type : Tool
 Serial Number  : BH-10001
-Active         : yes
 
 EQ-00002
 Equipment Name : Canon EOS R50
 Equipment Type : Camera
 Serial Number  : CR50-20001
-Active         : yes
 
 EQ-00003
 Equipment Name : Lenovo ThinkPad E14
 Equipment Type : Computer
 Serial Number  : LTP-30001
-Active         : yes
 ```
 
 ## Проверка
 
-1. Создаются все три записи.
-2. Они находятся через List.
-3. List фильтруется по `equipment_type`.
-4. `Equipment Name` у первой записи меняется.
-5. `name = EQ-00001` остаётся прежним.
+1. Создать все три записи.
+2. Найти их через List.
+3. Отфильтровать List по `equipment_type`.
+4. В Link-поле убедиться, что пользователь видит человекочитаемый title, а запись сохраняет стабильный `name`.
+5. Переименовать `Equipment Name` у `EQ-00001`.
+6. Убедиться, что системный `name` и существующие Link не изменились.
 
 ## ГОТОВО
 
-Если ученик может объяснить:
+Ученик объясняет:
 
 ```text
 почему Equipment = DocType
 почему equipment_type = Select
 почему serial_number ≠ name
-почему изменение названия не должно менять identity
+почему name ≠ Title Field
 ```
 
 ## НЕ ГОТОВО
 
-Если создан отдельный `Equipment Type` без новых требований, название/серийный номер необоснованно сделаны identity либо Equipment существует только как текстовая строка внутри Rental.
+Если создан лишний `Equipment Type`, название/серийный номер необоснованно сделаны identity либо Equipment хранится только текстом внутри Rental.
 
 ---
 
-# 6. Customer — точная спецификация
+# 7. Customer
 
 ## DocType
 
 ```text
-Name      : Customer
-Module    : Rental Training
-Standard  : yes
-Child     : no
-Single    : no
+Name       : Customer
+Module     : Rental Training
+Standard   : yes
+Child      : no
+Single     : no
 Submittable: no
 ```
 
 ## Fields
 
-| Label | Fieldname | Type | Required | Unique | Назначение |
+| Label | Fieldname | Type | Required | Unique | Options |
 |---|---|---|---:|---:|---|
-| Customer Name | `customer_name` | Data | yes | no | человекочитаемое имя |
-| Phone | `phone` | Data | no | no | контакт |
-| Email | `email` | Data | no | no | контакт |
-| Active | `active` | Check | yes | no | актуальность записи |
+| Customer Name | `customer_name` | Data | yes | no | — |
+| Phone | `phone` | Data | no | no | `Phone` |
+| Email | `email` | Data | no | no | `Email` |
 
-## Default
+Phone и Email остаются обычными свойствами Customer. Для них используется штатная типизация `Data`, а не собственная регулярка или Client Script.
 
-```text
-active = 1
-```
-
-## Naming
+## Naming / view
 
 ```text
-CUST-.#####
+Expression                : CUST-.#####
+Title Field               : customer_name
+Show Title in Link Fields : yes
 ```
 
 ## Контрольные записи
@@ -255,39 +280,38 @@ CUST-00001
 Customer Name : Anna Petrova
 Phone         : +31 6 10000001
 Email         : anna@example.test
-Active        : yes
 
 CUST-00002
 Customer Name : Mark de Vries
 Phone         : +31 6 10000002
 Email         : mark@example.test
-Active        : yes
 ```
 
-`example.test` используется как заведомо учебный домен.
+`example.test` — учебный домен; реальные адреса не используются.
 
 ## Проверка
 
-1. Создаются два Customer.
-2. Один Customer позже используется в нескольких Rentals.
-3. Имя `Anna Petrova` меняется, но `CUST-00001` и ссылки на него сохраняются.
+1. Создать двух Customer.
+2. Использовать одного Customer в нескольких Rentals.
+3. Изменить `customer_name` у `CUST-00001`.
+4. Убедиться, что `name` и Link остаются прежними, а UI показывает новый title.
 
 ## ГОТОВО
 
-Ученик объясняет, почему Customer — самостоятельный Document и почему копирование имени клиента в Rental не заменяет `Link`.
+Ученик объясняет, почему Customer является отдельным Document и почему текстовая копия имени в Rental не заменяет Link.
 
 ---
 
-# 7. Rental Item — точная спецификация
+# 8. Rental Item
 
 ## DocType
 
 ```text
-Name      : Rental Item
-Module    : Rental Training
-Standard  : yes
-Child     : yes
-Single    : no
+Name       : Rental Item
+Module     : Rental Training
+Standard   : yes
+Child      : yes
+Single     : no
 Submittable: no
 ```
 
@@ -297,7 +321,7 @@ Submittable: no
 |---|---|---|---:|---|
 | Equipment | `equipment` | Link | yes | `Equipment` |
 
-На старте в строке **нет**:
+В строке намеренно нет:
 
 ```text
 quantity
@@ -308,37 +332,37 @@ return_date
 comment
 ```
 
-Причина простая: одна строка означает одну конкретную единицу Equipment. Эти поля появятся только после новых требований.
+Одна строка означает одну конкретную единицу Equipment. Новые поля появятся только после новых требований.
 
 ## ГОТОВО
 
-Если Rental Item существует только как часть Rental и ученик понимает смысл `parent`, `parenttype`, `parentfield`, а не пытается превратить строку в отдельный бизнес-объект.
+Rental Item существует только как часть Rental, а ученик может объяснить смысл `parent`, `parenttype`, `parentfield` и почему строке не нужен самостоятельный CRUD.
 
 ---
 
-# 8. Rental — точная спецификация
+# 9. Rental
 
 ## DocType
 
 ```text
-Name      : Rental
-Module    : Rental Training
-Standard  : yes
-Child     : no
-Single    : no
-Submittable: no
+Name         : Rental
+Module       : Rental Training
+Standard     : yes
+Child        : no
+Single       : no
+Submittable  : no
 Track Changes: не требуется для CORE
 ```
 
 ## Fields
 
-| Label | Fieldname | Type | Required | Options |
-|---|---|---|---:|---|
-| Customer | `customer` | Link | yes | `Customer` |
-| Start Date | `start_date` | Date | yes | — |
-| End Date | `end_date` | Date | yes | — |
-| Status | `status` | Select | yes | `Planned\nActive\nReturned` |
-| Equipment | `items` | Table | yes | `Rental Item` |
+| Label | Fieldname | Type | Required | Options | View |
+|---|---|---|---:|---|---|
+| Customer | `customer` | Link | yes | `Customer` | In List View |
+| Start Date | `start_date` | Date | yes | — | In List View |
+| End Date | `end_date` | Date | yes | — | In List View |
+| Status | `status` | Select | yes | `Planned\nActive\nReturned` | In List View |
+| Equipment | `items` | Table | yes | `Rental Item` | — |
 
 ## Default
 
@@ -352,17 +376,15 @@ status = Planned
 RENT-.#####
 ```
 
-## Почему Rental не Submittable
+## Почему не Submittable
 
-CORE пока описывает рабочий объект со статусом. Требования необратимо фиксировать операцию как транзакционный факт ещё нет.
-
-Поэтому:
+CORE пока моделирует рабочий объект со статусом. Требования фиксировать Rental как необратимый транзакционный факт нет.
 
 ```text
 status = Returned
 ```
 
-не превращается автоматически в:
+не означает:
 
 ```text
 docstatus = Submitted
@@ -370,9 +392,9 @@ docstatus = Submitted
 
 ---
 
-# 9. Контрольный набор Rentals
+# 10. Контрольный набор Rentals
 
-Для всех следующих этапов используется один и тот же минимальный набор.
+Один набор используется в Desk, серверных проверках и тестах.
 
 ## Rental A — валидный активный
 
@@ -388,7 +410,7 @@ Items:
 
 Ожидание: сохраняется.
 
-## Rental B — валидный плановый
+## Rental B — валидный Planned
 
 ```text
 Customer   : CUST-00002
@@ -412,7 +434,7 @@ Items:
 - EQ-00003
 ```
 
-Ожидание: отвергается сервером.
+Ожидание: сервер отклоняет.
 
 ## Rental D — дубль строки
 
@@ -426,9 +448,9 @@ Items:
 - EQ-00003
 ```
 
-Ожидание: отвергается сервером.
+Ожидание: сервер отклоняет.
 
-## Rental E — конфликт по периоду
+## Rental E — конфликт активного периода
 
 Создаётся после Rental A:
 
@@ -441,7 +463,7 @@ Items:
 - EQ-00001
 ```
 
-Ожидание: отвергается как пересекающийся активный прокат того же Equipment.
+Ожидание: сервер отклоняет.
 
 ## Rental F — тот же Equipment без конфликта
 
@@ -454,11 +476,11 @@ Items:
 - EQ-00001
 ```
 
-Ожидание: сохраняется при принятой семантике закрытых интервалов, где Rental A заканчивается 12 сентября, а новый начинается 13 сентября.
+Ожидание: сохраняется. Rental A заканчивается 12 сентября, новый начинается 13 сентября.
 
 ---
 
-# 10. Серверные инварианты Rental
+# 11. Серверные инварианты
 
 CORE содержит ровно три собственных бизнес-правила.
 
@@ -472,29 +494,27 @@ end_date >= start_date
 
 Естественная точка: `validate()`.
 
-Ошибка должна быть понятна пользователю и блокировать сохранение.
+Client Script не является единственной гарантией.
 
-## V02. Нет одного Equipment дважды внутри Rental
+## V02. Нет дубля Equipment внутри Rental
 
 Для одного `Rental.items` значения `equipment` должны быть уникальны.
 
 Владелец: `Rental` Controller.
 
-Не создаётся отдельный Rule Engine.
+Отдельный Rule Engine не создаётся.
 
-## V03. Нет пересекающихся активных Rentals
+## V03. Нет пересекающихся Active Rentals
 
-Проверка применяется только к Rentals, чьё предметное состояние участвует в фактической занятости Equipment.
-
-Для CORE занятость создаёт:
+В CORE Equipment считается занятым только при:
 
 ```text
 status = Active
 ```
 
-`Planned` и `Returned` в этой базовой модели не блокируют Equipment.
+`Planned` и `Returned` Equipment не блокируют.
 
-Два периода конфликтуют, если:
+Периоды конфликтуют, если:
 
 ```text
 existing.start_date <= current.end_date
@@ -502,19 +522,19 @@ AND
 existing.end_date >= current.start_date
 ```
 
-и существует совпадающее Equipment.
+и найдено совпадающее Equipment.
 
-Текущий Document при редактировании должен исключаться из поиска конфликта по `name`.
+При редактировании текущий Rental исключается из поиска конфликта по `name`.
 
 ## Граница V03
 
-Это учебная последовательная проверка. Она **не является доказанной защитой от race condition** при двух параллельных транзакциях.
+Это последовательная учебная проверка, а не доказанная race-condition защита для двух параллельных транзакций.
 
-Никакие ручные lock/commit в CORE ради этого не добавляются.
+В CORE не добавляются ручные `commit`, SQL-lock или отдельный reservation service ради имитации production-concurrency.
 
 ---
 
-# 11. Базовая permission model
+# 12. Базовая permission model
 
 В CORE используются только:
 
@@ -524,7 +544,7 @@ Role
 DocType Permissions
 ```
 
-Без `User Permission`, `Share`, `Permission Level`, custom permission hooks и собственного ACL.
+Без `Permission Level`, `User Permission`, `Share`, permission hooks и собственного ACL.
 
 ## Rental Operator
 
@@ -542,40 +562,55 @@ DocType Permissions
 | Customer | yes | yes | yes | yes |
 | Rental | yes | yes | yes | yes |
 
-`Submit`, `Cancel`, `Amend` в CORE не используются, потому что `Rental` не Submittable.
+`Submit`, `Cancel`, `Amend` не используются: Rental не Submittable.
 
-## Учебные пользователи
+## Что принадлежит App
 
-Создаются два обычных пользователя:
+Роли обязательны для permission model приложения, поэтому экспортируются как fixtures.
+
+`hooks.py` должен ограничивать fixture только этими ролями, например по `role_name`:
+
+```text
+Rental Operator
+Rental Manager
+```
+
+После изменения обязательных Role выполняется штатный `export-fixtures`, а полученный fixture хранится в Git.
+
+Permission rules Standard DocTypes находятся в метаданных самих DocTypes.
+
+## Что принадлежит Site
+
+Учебные Users являются тестовыми данными Site и в App не поставляются:
 
 ```text
 operator@example.test → Rental Operator
 manager@example.test  → Rental Manager
 ```
 
-Пароли в репозиторий не записываются.
+Пароли и реальные пользовательские аккаунты в репозиторий не записываются.
 
 ## Проверка
 
 Под Operator:
 
-- Equipment можно читать, но нельзя создавать/изменять/удалять;
-- Customer можно создавать и изменять, но нельзя удалять;
-- Rental можно создавать и изменять, но нельзя удалять.
+- Equipment можно читать, нельзя создавать/изменять/удалять;
+- Customer можно читать/создавать/изменять, нельзя удалять;
+- Rental можно читать/создавать/изменять, нельзя удалять.
 
 Под Manager разрешены все четыре CRUD-действия CORE.
 
 ## НЕ ГОТОВО
 
-Если права проверены только под Administrator либо ограничения существуют только в UI.
+Если права проверены только под Administrator, ограничение существует только в UI либо обязательные Role после clean install приходится создавать вручную.
 
 ---
 
-# 12. CORE-тесты
+# 13. CORE-тесты
 
 Тестируются только наши контракты.
 
-Минимальный обязательный набор:
+Минимальный набор:
 
 ```text
 test_valid_rental_can_be_saved
@@ -587,36 +622,37 @@ test_operator_cannot_create_equipment
 test_operator_can_create_rental
 ```
 
-Допустимо объединять/переименовывать тесты, если смысл набора сохраняется.
+Названия можно изменить, если смысл сохраняется.
 
-## Не тестировать
+## Не тестировать ради количества
 
 ```text
-Frappe умеет сохранять любой Document
-Link field вообще работает
+Frappe вообще умеет сохранять Document
+Link вообще работает
 Form вообще существует
 ```
 
 ## Запуск
 
-Финальная проверка должна уметь запускать тесты через штатный Bench test runner для учебного App/Site.
+Финальная проверка использует штатный Bench test runner для учебного Site/App.
 
 ---
 
-# 13. Этапы CORE и критерии готовности
+# 14. CORE-этапы и критерии готовности
 
 ## S00 — среда
 
 ### ГОТОВО
 
-- совместимый Frappe v16 работает;
-- учебный Site открывается;
+- Frappe v16 работает;
+- отдельный учебный Site открывается;
+- до установки App на Site установлен только `frappe`;
 - developer mode применим;
 - Git доступен.
 
 ### НЕ ГОТОВО
 
-Если дальнейшая работа зависит от ручной правки Frappe core или неизвестной локальной магии.
+Если практикум зависит от ERPNext, ручной правки Frappe core или неизвестной локальной настройки.
 
 ---
 
@@ -626,8 +662,9 @@ Form вообще существует
 
 - `rental_training` существует как отдельный App;
 - App установлен на учебный Site;
+- `list-apps` показывает `frappe` + `rental_training`;
 - Module существует внутри App;
-- исходники находятся под Git.
+- исходники находятся в Git.
 
 ---
 
@@ -635,10 +672,10 @@ Form вообще существует
 
 ### ГОТОВО
 
-- схема соответствует разделу 5;
-- naming стабилен;
+- схема соответствует разделу 6;
+- naming и Title Field разделены;
 - контрольные записи создаются;
-- тип остаётся Select.
+- `equipment_type` остаётся Select.
 
 ---
 
@@ -646,9 +683,9 @@ Form вообще существует
 
 ### ГОТОВО
 
-- схема соответствует разделу 6;
-- naming стабилен;
-- Link позже использует реальный Customer Document.
+- схема соответствует разделу 7;
+- naming и Title Field разделены;
+- Link позже использует настоящий Customer Document.
 
 ---
 
@@ -656,9 +693,9 @@ Form вообще существует
 
 ### ГОТОВО
 
-- Rental соответствует разделу 8;
+- Rental соответствует разделу 9;
 - Rental Item — Child DocType;
-- связи работают через Link;
+- связи реализованы Link;
 - один Rental содержит минимум два Equipment.
 
 ---
@@ -667,8 +704,8 @@ Form вообще существует
 
 ### ГОТОВО
 
-- `Planned / Active / Returned` являются обычным предметным status;
-- нет Workflow;
+- `Planned / Active / Returned` — обычный предметный status;
+- Workflow отсутствует;
 - Rental не Submittable.
 
 ---
@@ -677,7 +714,7 @@ Form вообще существует
 
 ### ГОТОВО
 
-Полный сценарий Equipment → Customer → Rental выполняется стандартными Form/List без собственного frontend.
+Equipment → Customer → Rental полностью проходит стандартными Form/List; человек видит title связанных Documents, а Link хранит их `name`.
 
 ---
 
@@ -685,7 +722,7 @@ Form вообще существует
 
 ### ГОТОВО
 
-Rental C и Rental D отвергаются сервером, а корректные Documents сохраняются.
+Rental C и D отвергаются сервером, корректные Documents сохраняются.
 
 ---
 
@@ -693,7 +730,9 @@ Rental C и Rental D отвергаются сервером, а коррект�
 
 ### ГОТОВО
 
-Operator и Manager реально получают разные серверные права согласно разделу 11.
+- Operator и Manager имеют разные реальные серверные права;
+- Role входят в переносимое состояние App;
+- Users остаются Site-local.
 
 ---
 
@@ -701,7 +740,7 @@ Operator и Manager реально получают разные серверн�
 
 ### ГОТОВО
 
-Rental E блокируется, Rental F сохраняется, граница concurrency явно понимается и не маскируется.
+Rental E блокируется, Rental F сохраняется, граница concurrency сформулирована явно.
 
 ---
 
@@ -709,8 +748,8 @@ Rental E блокируется, Rental F сохраняется, граница
 
 ### ГОТОВО
 
-- обязательный тестовый набор проходит;
-- намеренная поломка собственного правила приводит к падению соответствующего теста.
+- обязательный набор проходит через Bench test runner;
+- намеренная поломка собственного правила валит соответствующий тест.
 
 ---
 
@@ -718,16 +757,17 @@ Rental E блокируется, Rental F сохраняется, граница
 
 ### ГОТОВО
 
-Для каждого обязательного элемента можно ответить, откуда он восстановится:
+Для каждого обязательного элемента указан источник восстановления:
 
 ```text
-DocType schema → App JSON/source
-Controller     → App source
-обязательные переносимые настройки → штатный механизм App
-Site-local данные → не выдаются за часть исходников
+DocType schema + permissions  → App JSON/source
+Controller                    → App source
+Role                          → fixture
+Users                         → Site-local data
+изменение существующих данных → patch, только если реально понадобится
 ```
 
-Нет обязательного ручного SQL.
+Нет обязательного ручного SQL и списка «после установки докликайте ещё настройки».
 
 ---
 
@@ -735,22 +775,24 @@ Site-local данные → не выдаются за часть исходни
 
 ### ГОТОВО
 
-На новом совместимом Site:
+На новом чистом совместимом Site:
 
-1. App устанавливается;
-2. migrate проходит;
-3. обязательная схема появляется;
-4. тесты проходят;
-5. создаются контрольные Equipment/Customer;
-6. валидный Rental сохраняется;
-7. невалидные сценарии блокируются;
-8. permissions соответствуют спецификации.
+1. до установки есть только `frappe`;
+2. `rental_training` устанавливается;
+3. migrate проходит;
+4. Standard DocTypes появляются из App;
+5. обязательные Role появляются из fixture;
+6. тесты проходят;
+7. создаются Site-local учебные Users и контрольные бизнес-данные;
+8. валидный Rental сохраняется;
+9. невалидные сценарии блокируются;
+10. permissions соответствуют спецификации.
 
 ---
 
-# 14. Что специально остаётся вне CORE
+# 15. Что остаётся вне CORE
 
-Даже после этой спецификации CORE **не получает** автоматически:
+CORE **не получает автоматически**:
 
 ```text
 Single DocType / Rental Settings
@@ -773,42 +815,45 @@ Server Script
 custom frontend
 ```
 
-Они остаются NEXT/GATE/EXT и требуют отдельного принятого требования.
+Это NEXT/GATE/EXT и требует отдельного принятого требования.
 
 ---
 
-# 15. Запрещённые упрощения в будущих инструкциях
+# 16. Запрещённые упрощения будущих инструкций
 
 Пошаговый практикум не должен:
 
+- создавать обязательные модели через Customize Form вместо Standard DocType учебного App;
 - предлагать ручной SQL вместо обычного Document/migrate-пути;
-- создавать Custom DocType вместо Standard DocType учебного App;
 - делать бизнес-инвариант только Client Script;
-- использовать Administrator вместо реальной проверки permissions;
-- добавлять `ignore_permissions=True` для обхода неправильно настроенных прав;
+- проверять permissions только под Administrator;
+- использовать `ignore_permissions=True` как способ обойти неправильные права;
 - создавать отдельные DocTypes для статуса, комментариев, истории или вложений без требования;
-- превращать `Returned` в Submitted без появления транзакционной семантики;
+- превращать `Returned` в Submitted без транзакционной семантики;
 - создавать собственный CRUD API в CORE;
 - менять Frappe core;
-- требовать скрытых ручных действий, без которых clean install не работает.
+- поставлять реальные Users/пароли как fixtures;
+- требовать скрытых ручных действий после clean install.
 
 ---
 
-# 16. Контроль перед написанием пошаговых заданий
+# 17. Контроль перед написанием пошаговых заданий
 
-Спецификация может быть превращена в подробные инструкции только если на все вопросы ответ `да`:
+На все вопросы должен быть ответ `да`:
 
 ```text
 1. Поля минимальны и имеют предметный смысл?
-2. Naming стабилен и не зависит от изменяемого display value?
-3. Child DocType действительно является составом Rental?
-4. status не перепутан с Workflow/docstatus?
-5. Три собственных инварианта имеют серверного владельца?
-6. Permission model остаётся штатной и минимальной?
-7. Контрольные данные однозначно проверяют happy path и ошибки?
-8. Тесты проверяют наши контракты, а не Frappe ради coverage?
-9. CORE не содержит NEXT/GATE/EXT ради знакомства?
-10. Финальный критерий — clean install, а не «работает на моём dev-site»?
+2. Не осталось ли поля, семантика которого нигде не используется?
+3. Naming отделён от изменяемого title?
+4. Child DocType действительно является составом Rental?
+5. status не перепутан с Workflow/docstatus?
+6. Три собственных инварианта имеют серверного владельца?
+7. Permission model остаётся штатной и минимальной?
+8. Обязательные Role воспроизводятся из App, а Users остаются Site-local?
+9. Контрольные данные однозначно проверяют happy path и ошибки?
+10. Тесты проверяют наши контракты, а не Frappe ради coverage?
+11. CORE не содержит NEXT/GATE/EXT ради знакомства?
+12. Финальный критерий — clean install, а не «работает на моём dev-site»?
 ```
 
 Если хотя бы один ответ отрицательный, сначала исправляется спецификация.
