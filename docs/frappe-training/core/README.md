@@ -43,9 +43,9 @@
 После успешного S02 приложение уже содержит первый App-owned Standard DocType:
 
 ```text
-rental_training
-└── Rental Training
-    └── Equipment
+rental_training [App]
+└── Rental Training [Module]
+    └── Equipment [DocType]
         ├── equipment_name
         ├── equipment_type
         └── serial_number
@@ -58,7 +58,7 @@ Desk
 ├── Equipment Form
 └── Equipment List
 
-Git
+Git repository apps/rental_training
 └── rental_training/rental_training/doctype/equipment/
     ├── equipment.json
     ├── equipment.py
