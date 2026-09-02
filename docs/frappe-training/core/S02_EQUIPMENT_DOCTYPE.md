@@ -728,7 +728,7 @@ git status --short
 git add rental_training/rental_training/doctype
 ```
 
-Теперь посмотрите именно staged diff:
+Теперь посмотрите staged diff:
 
 ```bash
 git diff --cached -- rental_training/rental_training/doctype
