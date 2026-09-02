@@ -27,24 +27,29 @@ Moving branch не используется для доказательства 
 
 ## Допустимые средства
 
-Основной маршрут использует:
+Основной маршрут реально применяет и проверяет:
 
 - Bench, site, app и Module;
 - Developer Mode;
 - Standard DocType и стандартные типы полей;
 - naming, Link, Child Table, Tree и submittable documents;
-- Role Permission Manager, Permission Level, If Owner, User Permission и Share;
+- Role Permission, Permission Level, If Owner, User Permission и Share;
 - Workflow, Workflow State и Workflow Action;
-- Assign To, ToDo, Comments, Timeline и Tags;
+- Assign To, ToDo и Timeline;
 - List, Form, Report Builder, Calendar, Kanban и Workspace;
 - Number Card и Dashboard Chart;
-- Data Import и Data Export;
-- Notification и Assignment Rule;
+- Data Import и Data Export там, где они нужны сценарию;
+- Notification;
 - Print Format и PDF;
 - Web Form, Website User и Guest;
 - стандартный REST API DocType;
-- standard metadata, fixtures, exported customizations, `migrate` и `install-app`;
+- Standard metadata, fixtures, `migrate` и `install-app`;
 - Git для каждого учебного app.
+
+Role Permission Manager, Assignment Rule, Comments, Tags, Saved Filter, exported
+customizations и другие штатные механизмы могут использоваться для наблюдения или
+сравнения, но не объявляются освоенными без отдельного практического сценария. Точный
+статус каждого механизма указан в [MATRIX.md](MATRIX.md).
 
 Штатные Python expressions в Conditions и конфигурация `hooks.py` для fixtures считаются конфигурацией платформы, а не собственной business logic.
 
@@ -137,8 +142,10 @@ Web Form не создаёт внутренний `Service Case` напряму�
 6. Web Form — отдельный канал доступа. Создание нового target document в `v16.32.0` выполняется с `ignore_permissions=True`.
 7. Публичная Web Form не должна принимать внутреннее состояние, исполнителя, закрытые Link-каталоги или другие служебные поля.
 8. API user получает отдельную роль и минимальные права; ключи не попадают в Git.
-9. Обязательный Check не доказывает согласие: для явного подтверждения используется
-   обязательный Select без значения по умолчанию.
+9. Поле Check семантически подходит для булевого согласия, но обязательность Check сама
+   по себе не гарантирует значение true. В P3 обязательный Select с одной непустой
+   option используется только как осознанный no-code компромисс; при наличии собственной
+   business logic такое требование должно проверяться на серверной стороне.
 
 ## Критерий завершения программы
 
