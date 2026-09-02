@@ -1,577 +1,385 @@
-# 05. Transactions and Async
+# 05. Transactions, Background Jobs и Scheduler
 
-## 1. Почему этот раздел обязателен
+## 1. Транзакции — часть архитектуры Frappe
 
-Без понимания transaction model легко получить систему, где:
+Предыдущая версия стандарта почти не учитывала transactions. Для production-приложения это критический пробел.
 
-- часть данных сохранилась, часть нет;
-- внешняя система получила событие до commit;
-- background job стартовал раньше сохранения Document;
-- ручной `commit()` разрушил atomic operation;
-- direct DB update обошёл validation.
+**[FRAPPE DOCS]** Database API описывает transaction model Frappe:
 
-Frappe уже имеет собственную transaction semantics. Архитектура приложения должна её учитывать.
+- успешный write web request commit'ится в конце;
+- uncaught exception вызывает rollback;
+- background/scheduled job commit'ится после успеха;
+- uncaught exception в job вызывает rollback;
+- patches также выполняются в transaction model.
 
----
+Источник:
 
-## 2. Базовая transaction model
+- https://docs.frappe.io/framework/user/en/api/database
 
-Обычный write request выполняется внутри transaction.
+Главный вывод для новичка:
 
-Упрощённо:
-
-```text
-request
-    ↓
-Document operations
-    ↓
-успех
-    ↓
-commit
-```
-
-Если uncaught exception прерывает операцию:
-
-```text
-rollback
-```
-
-### Архитектурное следствие
-
-Не нужно вручную делать `frappe.db.commit()` после каждого `doc.save()`.
-
-Framework уже управляет нормальной request transaction.
+> Обычно не нужно вручную управлять commit для каждой операции. Framework уже определяет границу транзакции.
 
 ---
 
-## 3. Atomic business operation
+## 2. Почему ручной `frappe.db.commit()` — red flag
 
-Допустим, операция должна:
+Если обычная business operation выполняется внутри request:
 
 ```text
-1. создать Order
-2. создать Reservation
-3. обновить Inventory State
+создать документ A
+обновить документ B
+создать документ C
 ```
 
-Бизнес ожидает:
+Framework способен закоммитить изменения вместе после успешного завершения.
+
+Если разработчик делает commit посередине:
 
 ```text
-либо всё выполнено
-либо ничего
-```
-
-Это естественная transaction boundary.
-
-### Плохое решение
-
-```text
-save Order
+создали A
 COMMIT
-save Reservation
-ошибка
+обновили B
+ошибка при C
 ```
 
-Теперь состояние частично применено.
+rollback уже не сможет вернуть A.
 
-### Правильный принцип
+**[ARCHITECTURAL INFERENCE]** Поэтому manual commit внутри обычной application flow требует конкретного обоснования.
 
-Не разделять одну atomic business operation ручными commits без необходимости.
-
----
-
-## 4. Когда ручной commit может быть оправдан
-
-Например:
-
-- отдельная административная batch operation;
-- специальная migration logic;
-- операция сознательно разбита на checkpoints;
-- long-running process с явной recovery model.
-
-Но это уже отдельный design decision.
-
-В обычном Document lifecycle ручной commit — красный флаг для review.
+Это не абсолютный запрет: существуют migration, tooling или специальные long-running сценарии. Но «на всякий случай закоммитим» — неправильный мотив.
 
 ---
 
-## 5. Rollback
+## 3. Исключение, которое поймали сами — отвечаем за rollback
 
-Если операция падает до commit, Framework откатывает database changes текущей transaction.
+**[FRAPPE DOCS]** Документация Database API отдельно предупреждает: если код сам ловит exception, database abstraction уже не знает, что операция должна считаться failed; разработчик отвечает за корректное transaction behaviour.
 
-Но rollback базы данных **не может откатить внешний мир**.
+Источник:
 
-Например:
+- https://docs.frappe.io/framework/user/en/api/database
 
-```text
-Frappe DB write
-HTTP request to external system
-email
-file write
-external payment
-```
-
-могут иметь разную transaction semantics.
-
-Это приводит к ключевой проблеме side effects.
-
----
-
-## 6. External side effect до commit
-
-Пример:
-
-```text
-on_update:
-    send order to external ERP
-```
-
-Последовательность:
-
-```text
-Document saved
-    ↓
-external ERP receives order
-    ↓
-позже request падает
-    ↓
-Frappe rollback
-```
-
-Результат:
-
-```text
-Frappe: Order не существует
-External ERP: Order существует
-```
-
-### Вывод
-
-External side effects должны проектироваться относительно transaction commit.
-
----
-
-## 7. after_commit
-
-Frappe предоставляет transaction callbacks, включая действия после успешного commit.
-
-Это полезно для side effects, которые нельзя запускать до того, как database state гарантированно зафиксирован.
-
-Пример conceptual flow:
-
-```text
-save Document
-    ↓
-commit succeeds
-    ↓
-after_commit callback
-    ↓
-external side effect
-```
-
----
-
-## 8. enqueue_after_commit
-
-Background job может быть поставлен в очередь после успешного commit.
-
-Это особенно полезно:
-
-```text
-Document сохранён
-    ↓
-после commit
-    ↓
-job отправляет данные во внешнюю систему
-```
-
-Так worker не увидит состояние, которое ещё может rollback.
-
-### Design question
-
-> Job должен существовать, если текущая transaction не commit'нулась?
-
-Если нет — рассмотреть `enqueue_after_commit`.
-
----
-
-## 9. before_commit / after_commit
-
-Эти callbacks дают явную точку синхронизации с transaction lifecycle.
-
-Но ими не следует заменять нормальную Document logic.
-
-Использовать нужно тогда, когда **момент transaction boundary действительно важен**.
-
----
-
-## 10. before_rollback / after_rollback
-
-Они полезны для cleanup/compensation локальных side effects, если операция откатывается.
-
-Но внешний irreversible effect часто невозможно просто отменить.
-
-Поэтому лучше не запускать его до commit, чем потом пытаться компенсировать.
-
----
-
-## 11. Document API и DB API — разные уровни
+Пример риска:
 
 ```python
-doc.save()
+try:
+    dangerous_operation()
+except Exception:
+    frappe.log_error()
+    return "ok"
 ```
 
-проходит Document lifecycle.
-
-```python
-frappe.db.set_value(...)
-```
-
-может обновить DB напрямую без обычных Document triggers.
-
-### Следствие
-
-Для обычной business operation, где invariants должны соблюдаться, Document API является естественным default.
-
-Direct DB API используется, когда обход lifecycle **намерен**.
+Если `dangerous_operation()` частично изменила DB, а exception проглочен, стандартный rollback path может не сработать так, как ожидает разработчик.
 
 ---
 
-## 12. `db_set`
+## 4. Direct DB update обходит часть Document lifecycle
 
-`doc.db_set()` также является более прямым update path и имеет другую event semantics, чем полноценный `save()`.
+**[FRAPPE DOCS]** `frappe.db.set_value()` обновляет database value и не вызывает ORM triggers вроде `validate` и `on_update`.
 
-Его удобно использовать для служебных полей, прогресса или технических updates.
+Источник:
 
-Но не следует применять его для обхода бизнес-validation только потому, что `save()` «мешает» неправильным данным.
+- https://docs.frappe.io/framework/user/en/api/database
+
+Поэтому:
+
+```text
+Document API
+    → обычная business mutation,
+      где нужны validation/lifecycle
+
+Direct DB API
+    → намеренный обход lifecycle
+```
+
+### Типовая ошибка
+
+Использовать `db_set`/`set_value` вместо `save()` просто потому, что так короче или быстрее.
+
+Если бизнес-инварианты находятся в Controller, такой update может их обойти.
 
 ---
 
-## 13. Raw SQL
+## 5. Когда direct DB access нормален
 
-Raw SQL не запрещён.
+Он может быть оправдан, если:
 
-Он оправдан для:
+- обновляется техническое/derived поле;
+- migration намеренно обходит lifecycle;
+- bulk operation требует другого performance profile;
+- разработчик сознательно управляет последствиями;
+- нужно выполнить служебное internal update.
 
-- сложных bulk operations;
-- migrations;
-- performance-sensitive internal queries;
-- операций, плохо выражаемых ORM/query builder.
-
-Но он сильнее связывает код со схемой и легче обходит Framework behavior.
-
-### Review questions
-
-```text
-Нужны ли permissions?
-Нужен ли lifecycle?
-Нужна ли portability?
-Можно ли решить Query Builder/DB API?
-```
+Ключевое слово — **намеренно**.
 
 ---
 
-## 14. Background Job
+## 6. External side effects и commit
 
-Frappe имеет штатный job subsystem.
-
-Долгая операция не должна удерживать web request без необходимости.
-
-Пример:
+Один из самых опасных классов ошибок:
 
 ```text
-пользователь запускает пересчёт 100 000 строк
+1. сохранить Frappe Document
+2. отправить данные во внешнюю систему
+3. позже в request возникает exception
+4. Frappe делает rollback
 ```
 
-Вместо:
+Получается:
 
 ```text
-browser waits 5 minutes
+внешняя система считает операцию выполненной
+Frappe считает, что операции не было
 ```
 
-естественнее:
+Frappe предоставляет transaction callbacks и `enqueue_after_commit`.
 
-```text
-enqueue job
-user continues work
-worker processes task
-```
+Источники:
+
+- https://docs.frappe.io/framework/user/en/api/database
+- https://docs.frappe.io/framework/user/en/api/background_jobs
+- https://github.com/frappe/frappe/blob/version-16/frappe/utils/background_jobs.py
+
+**[ARCHITECTURAL INFERENCE]** Side effect, который должен происходить только после успешной фиксации данных, нужно привязывать к successful commit path.
 
 ---
 
-## 15. Job не только про timeout
+## 7. `after_commit`
 
-Background job также даёт operational separation:
+Database API предоставляет callbacks:
 
-- отдельный worker;
-- queue;
+```text
+before_commit
+after_commit
+before_rollback
+after_rollback
+```
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/api/database
+
+Это полезно, когда работа с внешним ресурсом должна соответствовать результату DB transaction.
+
+Но callback не отменяет необходимости думать об idempotency: процесс может упасть после внешнего side effect, network response может потеряться и т.д.
+
+---
+
+## 8. Background Jobs — штатная инфраструктура
+
+**[FRAPPE DOCS]** Frappe поставляется с background job system и `frappe.enqueue`.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/api/background_jobs
+
+**[UPSTREAM]** В `version-16` implementation есть:
+
+- queues;
 - timeout;
-- failure handling;
-- retries/design around retry;
+- `enqueue_after_commit`;
+- success/failure callbacks;
 - job id;
 - deduplication;
-- post-commit scheduling.
+- transaction commit/rollback worker path.
 
-Поэтому job полезен не только для операций «дольше 30 секунд».
+Источник:
 
----
+- https://github.com/frappe/frappe/blob/version-16/frappe/utils/background_jobs.py
 
-## 16. Idempotency background jobs
-
-Worker может упасть.
-
-Операция может быть retry.
-
-Пользователь может нажать кнопку дважды.
-
-Следовательно, для критических jobs нужно решить:
-
-> Что произойдёт при повторном запуске?
-
-### Плохой job
+### Когда Job — естественный выбор
 
 ```text
-каждый запуск безусловно создаёт новую Invoice
-```
-
-### Более безопасный подход
-
-Использовать business key/job id/check existing state, если операция должна быть уникальной.
-
----
-
-## 17. Deduplication
-
-Frappe job API поддерживает job identifiers/deduplication capabilities.
-
-Если одна и та же тяжёлая работа не должна одновременно находиться в queue несколько раз, использовать штатный механизм предпочтительнее собственной таблицы `Running Jobs` без причины.
-
----
-
-## 18. Job user/security context
-
-Background process может выполняться с user context.
-
-Это нужно учитывать:
-
-```text
-job выполняет пользовательскую операцию?
-или системную?
-```
-
-Не нужно случайно обходить permissions только потому, что код ушёл в background worker.
-
----
-
-## 19. Queue selection
-
-Frappe имеет разные queues/timeouts.
-
-Короткая interactive работа и тяжёлый import — разные workloads.
-
-Не отправлять всё автоматически в одну long queue только потому, что она существует.
-
-Выбор queue является operational design decision.
-
----
-
-## 20. Scheduler
-
-Frappe Scheduler предназначен для периодических задач App/site.
-
-Примеры:
-
-```text
-каждый час проверить сроки;
-раз в день выполнить агрегирование;
-еженедельно очистить временные данные.
-```
-
-Для такого класса задач отдельный `while True` daemon обычно не нужен.
-
----
-
-## 21. Scheduler и business event — не одно и то же
-
-Плохой паттерн:
-
-```text
-каждую минуту искать Documents,
-которые только что изменились
-```
-
-если Framework уже имеет lifecycle hooks/Webhook/events для реакции на изменение.
-
-Polling нужен, когда event-driven вариант недоступен или внешняя система не умеет иного.
-
----
-
-## 22. Когда внешний scheduler нормален
-
-Например:
-
-- enterprise orchestration;
-- процесс управляет несколькими системами;
-- infrastructure maintenance;
-- задача должна существовать независимо от Frappe site.
-
-Нативность не означает, что всё в мире обязано запускаться Scheduler Frappe.
-
----
-
-## 23. Notification
-
-Для пользовательских уведомлений по условиям/событиям сначала рассматривается стандартный Notification.
-
-Он подходит, когда задача действительно является notification:
-
-```text
-при событии X
-при условии Y
-уведомить Z
-```
-
-### Не использовать Notification как
-
-- reliable domain event bus;
-- exactly-once integration mechanism;
-- complex message broker.
-
----
-
-## 24. Assignment
-
-Assignment/ToDo — стандартный operational work-assignment mechanism.
-
-Если требование:
-
-> назначить конкретному пользователю работу по Document
-
-сначала рассматривается Assignment.
-
-Но domain field:
-
-```text
-account_manager
-responsible_engineer
-owner_company
-```
-
-не обязательно нужно заменять Assignment.
-
-Это могут быть постоянные свойства бизнес-объекта.
-
----
-
-## 25. Assignment Rule
-
-Если назначения выполняются автоматически по правилам, следует проверить штатные Assignment Rule capabilities до создания собственного round-robin engine.
-
-Но если распределение требует сложной optimization/ML/external planning logic, custom service может быть оправдан.
-
----
-
-## 26. Event-driven или scheduled
-
-Decision:
-
-```text
-Действие должно произойти сразу
-после Document event?
-        → lifecycle / hook / webhook / enqueue
-
-Действие происходит по времени?
-        → Scheduler / Notification date event
-
-Действие тяжёлое?
-        → Background Job
-
-Внешняя система не умеет events?
-        → controlled polling может быть нормальным
+долгий расчёт;
+массовая обработка;
+внешняя интеграция, которую не нужно держать в HTTP request;
+работа, которая может выполняться асинхронно.
 ```
 
 ---
 
-## 27. Long transaction
+## 9. Job не означает «можно забыть о надёжности»
 
-Не следует удерживать одну огромную DB transaction без необходимости при обработке миллионов rows.
-
-Для bulk operations иногда нужна batch strategy с checkpoint semantics.
-
-Но это должно проектироваться явно:
+Перед enqueue нужно ответить:
 
 ```text
-что является atomic unit?
-как возобновить после failure?
-как избежать partial inconsistency?
+1. Можно ли безопасно выполнить job повторно?
+2. Что будет, если worker упадёт посередине?
+3. Нужен ли job_id/deduplicate?
+4. Должна ли задача запускаться только после commit?
+5. Как пользователь узнает результат?
+6. Как обрабатывается failure?
+7. Какой timeout действительно нужен?
 ```
 
----
+### Idempotency
 
-## 28. Migration и transaction
+На бытовом языке:
 
-Patches также имеют transaction semantics.
-
-Data migration должна быть повторяемой/безопасной относительно upgrade process.
-
-Не проектировать production migration как набор ручных SQL-команд, запускаемых «если предыдущая не упала».
-
-Подробнее — `09_DEPLOYMENT_TESTING.md`.
+> Если одну и ту же кнопку случайно нажали дважды или job запустился повторно, система не должна создать двойную оплату, двойную накладную или повторный внешний запрос без контроля.
 
 ---
 
-## 29. File system side effects
+## 10. `enqueue_after_commit`
 
-Database rollback не обязательно удалит вручную созданный внешний файл.
+**[FRAPPE DOCS + UPSTREAM]** `frappe.enqueue` поддерживает `enqueue_after_commit=True`.
 
-Если операция пишет файлы вне normal File lifecycle, нужно предусмотреть transaction cleanup/recovery.
+Источники:
 
-То же относится к:
+- https://docs.frappe.io/framework/user/en/api/background_jobs
+- https://github.com/frappe/frappe/blob/version-16/frappe/utils/background_jobs.py
 
-- S3/external storage;
-- remote API;
-- message broker;
-- payment provider.
-
----
-
-## 30. Transaction decision track
+Это важно для сценария:
 
 ```text
-Обычная Document business operation?
-        → позволить Frappe управлять transaction
-
-Нужен direct DB update?
-        → явно подтвердить обход lifecycle
-
-External side effect зависит от успешного save?
-        → after_commit / enqueue_after_commit
-
-Долгая работа?
-        → Background Job
-
-Периодическая работа?
-        → Scheduler
-
-Работа может быть повторена?
-        → спроектировать idempotency
-
-Несколько steps должны быть атомарны?
-        → не делать промежуточный commit без причины
+создали документ
+    ↓
+после успешного commit
+    ↓
+запустили тяжёлую обработку этого документа
 ```
+
+Иначе worker теоретически может начать работать с состоянием, которое ещё не зафиксировано или позже будет откатано.
 
 ---
 
-## 31. Design review checklist
+## 11. Scheduler Events
 
-- [ ] Определена atomic unit бизнес-операции.
-- [ ] Нет случайных ручных `commit()` внутри обычного lifecycle.
-- [ ] Direct DB updates имеют обоснование.
-- [ ] External side effects не происходят преждевременно.
-- [ ] Рассмотрены `after_commit` / `enqueue_after_commit`.
-- [ ] Background jobs имеют idempotency strategy.
-- [ ] Дубликаты jobs рассмотрены.
-- [ ] Queue/timeout соответствуют workload.
-- [ ] Scheduler используется для site-periodic work, а не как универсальный event poller.
-- [ ] Permission context background operation определён.
-- [ ] File/external-system side effects учитывают rollback boundary.
+**[FRAPPE DOCS]** Периодические задачи подключаются через `scheduler_events` hook.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/api/background_jobs
+
+Пример:
+
+```text
+каждый час проверить просроченные записи
+каждую ночь пересчитать агрегаты
+раз в неделю выполнить cleanup
+```
+
+Для site-level application jobs Scheduler — native default.
+
+---
+
+## 12. Когда внешний scheduler нормален
+
+Внешний cron/enterprise orchestrator не является автоматически костылём.
+
+Он может быть правильным, если процесс:
+
+- управляет несколькими независимыми системами;
+- является инфраструктурным;
+- должен существовать даже без доступного Frappe site;
+- централизованно управляется отдельной orchestration platform.
+
+**[ARCHITECTURAL INFERENCE]** Red flag — не внешний scheduler сам по себе, а параллельный scheduler без отдельной ответственности.
+
+---
+
+## 13. Notification — штатный механизм пользовательских уведомлений
+
+Frappe имеет Notification subsystem для событий Documents, условий и date-based notification.
+
+Источник:
+
+- https://docs.frappe.io/framework/notifications
+
+Подходящий сценарий:
+
+```text
+за 3 дня до срока отправить уведомление ответственному
+после изменения status уведомить руководителя
+```
+
+### Не превращать Notification в integration event bus
+
+Notification не нужно автоматически использовать для:
+
+```text
+guaranteed domain event delivery;
+exactly-once external processing;
+сложных retries;
+external event store.
+```
+
+Если требуется надёжная integration orchestration, это другая ответственность.
+
+---
+
+## 14. Assignment / ToDo
+
+Frappe имеет встроенный assignment mechanism через Assign To / ToDo.
+
+Источник:
+
+- https://docs.frappe.io/framework/assignments-and-todos
+
+Он подходит, когда смысл требования:
+
+> назначить пользователю работу по конкретному Document.
+
+Но это не означает, что любое domain field `account_manager`, `owner_employee` или `responsible_department` нужно заменить Assignment.
+
+**[ARCHITECTURAL INFERENCE]** Отличаем operational assignment от устойчивого business property.
+
+---
+
+## 15. Типовой неправильный сценарий
+
+Задача:
+
+> После submit документа отправить его в API, построить PDF и обновить 20 000 строк.
+
+Плохой вариант:
+
+```text
+on_submit
+  ├─ HTTP API call
+  ├─ PDF generation
+  └─ цикл 20 000 updates
+```
+
+всё синхронно в request.
+
+Риски:
+
+- большой response time;
+- timeout;
+- длинные locks;
+- внешний API уже принял данные, а transaction затем откатилась;
+- пользователь не понимает, завершилась ли операция.
+
+Более устойчивый вариант:
+
+```text
+submit transaction
+      ↓
+commit
+      ↓
+enqueue_after_commit
+      ↓
+background orchestration
+```
+
+Конкретная реализация зависит от требований к надёжности.
+
+---
+
+## 16. Transaction/async design review
+
+```text
+1. Где начинается и заканчивается transaction?
+2. Есть ли manual commit/rollback? Зачем?
+3. Есть ли direct DB writes, обходящие Document lifecycle?
+4. Есть ли external side effects до commit?
+5. Нужен ли after_commit/enqueue_after_commit?
+6. Должна ли операция быть background job?
+7. Идемпотентна ли job?
+8. Как обрабатываются retry/failure?
+9. Нужен ли deduplication?
+10. Scheduler — site-level responsibility или внешняя orchestration?
+```
+
+Без ответов на эти вопросы сложную business operation нельзя считать архитектурно завершённой.
