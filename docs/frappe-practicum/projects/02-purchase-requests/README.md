@@ -22,7 +22,7 @@ App `purchase_requests` ведёт внутренние заявки со стр
 
 ```bash
 bench new-app purchase_requests
-bench new-site purchase.localhost
+bench new-site purchase.localhost --db-root-username frappe_admin
 bench --site purchase.localhost install-app purchase_requests
 bench --site purchase.localhost set-config developer_mode 1
 bench --site purchase.localhost clear-cache
@@ -85,8 +85,6 @@ Naming: `format:PR-{YYYY}-{#####}`. Title Field: `title`.
 Инициатор заявки — системное поле `owner`. Отдельный изменяемый Link `requester` не создаётся: без server-side validation пользователь мог бы указать в нём другого человека, а интерфейс создавал бы ложное ощущение гарантии.
 
 Перед Workflow вручную проверить обычный lifecycle submittable document на тестовой записи: Draft → Submit → Cancel → Amend. После этого удалить тестовую запись или явно оставить её как учебную.
-
-Начальные `Purchase Department` загрузить через Data Import. Purchase Request импортировать только как отдельный контролируемый опыт: импорт не должен использоваться для обхода Workflow или создания фиктивно Approved документов.
 
 ## 4. Роли и базовые права
 
@@ -163,8 +161,7 @@ Permission Level:
 Проверить:
 
 - создан ToDo с reference на Purchase Request;
-- Due Date соответствует принятой политике;
-- Comment виден в Timeline;
+- Timeline фиксирует назначение и снятие назначения;
 - снятие assignment не меняет Workflow State;
 - назначение пользователя без базового доступа не превращает его автоматически в Approver.
 
@@ -229,7 +226,7 @@ git add .
 git commit -m "Build purchase request approval app"
 
 cd ../..
-bench new-site purchase-clean.localhost
+bench new-site purchase-clean.localhost --db-root-username frappe_admin
 bench --site purchase-clean.localhost install-app purchase_requests
 bench --site purchase-clean.localhost migrate
 bench --site purchase-clean.localhost clear-cache
