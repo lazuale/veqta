@@ -1,127 +1,126 @@
-# 04. Security
+# 04. Security — как реально устроены permissions Frappe
 
-## 1. Почему permissions нужно проектировать отдельно
+## 1. Почему permissions нельзя проектировать как одну таблицу ролей
 
-Frappe имеет много механизмов доступа:
-
-- Roles;
-- DocType Permissions;
-- Permission Level;
-- If Owner;
-- User Permissions;
-- Sharing;
-- query-time restrictions;
-- controller permission hooks;
-- explicit bypass mechanisms.
-
-Если воспринимать их как случайный набор «танцев», очень легко построить параллельный ACL.
-
-Правильнее разделить:
+Frappe имеет несколько механизмов доступа, потому что они отвечают на разные вопросы:
 
 ```text
-runtime permission model
+Role / DocPerm        → что роль может делать с DocType
+Permission Level      → какие поля доступны на разных уровнях
+If Owner              → меняются ли права для владельца Document
+User Permission       → с какими конкретными связанными records можно работать
+Share                 → ad-hoc доступ к конкретному Document
+permission_query_conditions → дополнительная фильтрация list/query
+has_permission        → custom document-level veto/check
 ```
 
-и
+Ошибка — включить все механизмы сразу.
 
-```text
-design escalation
-```
-
-Это не одно и то же.
+Но также ошибка — считать, что они являются одной простой последовательностью runtime checks.
 
 ---
 
-## 2. Role и DocType Permission
+## 2. Role и DocType Permission — базовая модель
 
-Role отвечает на базовый вопрос:
+**[FRAPPE DOCS]** Role описывает, какие действия User может выполнять на DocType. DocType Permissions включают права вроде Read, Write, Create, Delete, Submit, Cancel, Amend, Report и другие.
 
-> **Что пользователь этой роли вообще может делать с этим DocType?**
+Источник:
 
-Типовые rights:
+- https://docs.frappe.io/framework/user/en/basics/users-and-permissions
+
+Для обычного DocType проектирование должно начинаться с вопроса:
 
 ```text
-read
-write
-create
-delete
-submit
-cancel
-amend
-print
-email
-report
-import
-export
-share
+Какие роли существуют?
+Что каждая роль вообще может делать с этим типом документа?
 ```
 
-Это основа permission design обычного приложения.
+Пример:
+
+```text
+Request User
+  Read   ✓
+  Create ✓
+  Write  ✓
+  Delete —
+
+Request Manager
+  Read   ✓
+  Create ✓
+  Write  ✓
+  Delete ✓
+```
+
+Это декларативная основа permission model.
 
 ---
 
-## 3. Permission Level
+## 3. Permission Level — доступ может отличаться по полям
 
-Доступ может различаться не только на уровне всего Document, но и отдельных полей.
+**[FRAPPE DOCS]** Fields могут иметь `permlevel`, а role permissions — разрешения на соответствующем permission level.
 
-Например:
+Источник:
+
+- https://docs.frappe.io/framework/user/en/basics/users-and-permissions
+
+На бытовом языке:
+
+> Пользователь может открыть карточку, но это не означает, что он имеет право читать или менять каждое поле.
+
+Пример:
 
 ```text
-Employee
-    public fields      permlevel 0
-    salary             permlevel 1
+Employee Request
+  title       permlevel 0
+  description permlevel 0
+  salary      permlevel 1
 ```
 
-Роль может иметь read access к Employee, но не к полям более высокого permission level.
+Если salary должен быть доступен только отдельной роли, field-level permission — штатный механизм.
 
-### Архитектурный вывод
+### Red flag
 
-Не нужно автоматически создавать отдельный DocType только ради ограничения пары чувствительных полей.
+Скрыть чувствительное поле только через JavaScript.
 
-Сначала нужно проверить field-level permissions.
-
-### Граница
-
-Если чувствительная часть имеет самостоятельный lifecycle или самостоятельную security boundary, отдельный DocType всё-таки может быть лучше.
+Скрытие интерфейса не заменяет server-side permission model.
 
 ---
 
 ## 4. If Owner
 
-`If Owner` позволяет ограничить часть прав документами, которыми пользователь владеет.
+**[FRAPPE DOCS]** DocPerm имеет режим `If Owner`.
 
-Пример:
+Источник:
 
-```text
-Employee Request User
-    read   if owner
-    write  if owner
-```
+- https://docs.frappe.io/framework/user/en/basics/users-and-permissions
 
-Это естественный механизм для сценария:
-
-> пользователь работает только со своими Documents.
-
-### Но owner имеет конкретную semantics
-
-Owner — системное поле создания/владения Document.
-
-Не следует автоматически приравнивать его к:
+Он полезен для правил вида:
 
 ```text
-responsible_user
-manager
-assignee
-account_owner
+пользователь может редактировать только свои Documents
 ```
 
-Это могут быть другие бизнес-понятия.
+### Важно
+
+`owner` во Frappe — системный creator/owner Document. Он не обязательно совпадает с бизнес-понятием:
+
+```text
+Responsible Employee
+Account Manager
+Department Owner
+```
+
+Если бизнес говорит «исполнитель задачи», не нужно автоматически пытаться выразить это через `owner`.
 
 ---
 
 ## 5. User Permission
 
-User Permission ограничивает пользователя определёнными связанными Documents.
+**[FRAPPE DOCS]** User Permission ограничивает пользователя по связанным Documents, обычно через Link fields.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/basics/users-and-permissions
 
 Пример:
 
@@ -131,485 +130,280 @@ Allow = Company
 For Value = ACME
 ```
 
-Если бизнес-документы содержат Link на Company, Framework может учитывать это ограничение.
+После этого Company и связанные через Link данные могут ограничиваться соответствующим набором.
 
-Это полезно для organizational/data scope.
-
----
-
-## 6. User Permission не является обычной Role
-
-Role:
-
-> что можно делать?
-
-User Permission:
-
-> с какими связанными данными можно это делать?
-
-Это разные измерения access control.
-
-Попытка выразить оба вопроса сотнями Roles часто приводит к explosion ролей.
-
----
-
-## 7. Sharing
-
-Sharing — ad-hoc document-level grant.
-
-То есть конкретный Document можно поделиться конкретному пользователю.
-
-Хорошая бытовая аналогия:
+### Подходящий класс задач
 
 ```text
-общие правила офиса
-    → Roles
-
-тебе разрешили доступ
-к конкретной папке
-    → Share
+пользователь работает только с одной Company;
+только с определённым Department;
+только с выбранными Warehouses.
 ```
 
-### Следствие
+### Неподходящий класс задач
 
-Share хорошо подходит для исключений.
-
-Плохо строить на нём основную predictable organizational permission model, если она должна вычисляться системно.
-
----
-
-## 8. Runtime permission pipeline
-
-Важно не путать рекомендуемый порядок проектирования с реальным алгоритмом Framework.
-
-В упрощённом виде document-level permission evaluation включает:
+Сложная динамическая политика:
 
 ```text
-controller permission veto
-        ↓
-role permissions
-        ↓
-owner rules
-        ↓
-User Permissions
-        ↓
-sharing / document-level grants
+доступ разрешён, если сумма < лимита,
+проект совпадает,
+договор активен,
+а пользователь состоит в временной комиссии.
 ```
 
-Плюс отдельные query/filter и field-level механизмы.
-
-Это упрощённая схема для понимания, а не полный псевдокод `permissions.py`.
+Это уже может требовать custom policy.
 
 ---
 
-## 9. Controller permission hooks
+## 6. Share — точечное исключение, а не иерархическая ступень
 
-Custom `has_permission` logic может дополнительно ограничить доступ.
+Frappe поддерживает document sharing.
 
-Критически важно: upstream Framework прямо задаёт semantics, при которой controller permission checks могут **запретить** доступ, но не должны использоваться как независимый механизм выдачи прав, отсутствующих в базовой permission model.
-
-### Архитектурное следствие
-
-Custom permission code — не замена DocPerm.
-
-Это extension point для дополнительной domain policy.
-
----
-
-## 10. Design escalation
-
-Это уже рекомендация стандарта, а не runtime algorithm.
-
-Начинать проектирование стоит так:
+Правильная ментальная модель:
 
 ```text
-Role + DocPerm
-        ↓
-Permission Level / If Owner
-        ↓
-User Permission
-        ↓
-Share для точечных исключений
-        ↓
-custom query/document policy
+Share = ad-hoc grant на конкретный Document
 ```
-
-Причина проста:
-
-первые механизмы declarative и встроены во всю Framework permission model.
-
-Custom logic вводится тогда, когда policy действительно нельзя естественно выразить ими.
-
----
-
-## 11. Почему ранний custom ACL опасен
-
-Допустим, приложение создаёт:
-
-```text
-Our Role
-Our Permission Rule
-Our Department Access
-Our User Scope
-```
-
-и проверяет всё собственными SQL-фильтрами.
-
-Теперь существуют две системы:
-
-```text
-Frappe permissions
-+
-Our permissions
-```
-
-При debugging нужно одновременно отвечать:
-
-> Кто разрешил?
-> Кто запретил?
-> Где фильтруется list?
-> Где проверяется direct read?
-
-Это резко повышает сложность безопасности.
-
----
-
-## 12. Когда custom permission policy действительно нужна
 
 Например:
 
-```text
-доступ разрешён,
-если user связан с contract party,
-security level <= clearance,
-document не находится под legal hold,
-и временное окно ещё действует
-```
+> Пользователь обычно не видит Contract, но ему временно открыли именно CONTRACT-0007.
 
-Такая policy уже выходит за простой Role/User Permission model.
-
-Custom permission hook оправдан.
-
-Но он должен **интегрироваться** с Frappe permission system, а не создавать параллельную auth platform.
+Не нужно проектировать основную организационную модель доступа через тысячи Share records, если правило на самом деле систематическое.
 
 ---
 
-## 13. List permission и direct document permission
+## 7. Реальный runtime pipeline сложнее design-порядка
 
-Один из самых опасных классов ошибок:
+**[UPSTREAM]** В `version-16/frappe/permissions.py` `get_doc_permissions()`:
 
-```text
-в списке запись скрыта
-но по прямому URL доступна
-```
+1. выполняет controller-level permission check;
+2. получает role permissions;
+3. учитывает ownership;
+4. применяет User Permissions.
 
-Это происходит, когда разработчик ограничил только query/list surface.
+Top-level `has_permission()` также умеет рассмотреть explicitly shared Documents.
 
-### Design requirement
+Источник:
 
-Custom row-level policy должна быть проверена минимум в двух направлениях:
+- https://github.com/frappe/frappe/blob/version-16/frappe/permissions.py
 
-```text
-collection/list query
-single-document access
-```
-
-Если используется query condition hook, нужно проверить соответствующую document-level permission semantics.
+Это важно, потому что **runtime order** и **наш design escalation** — разные вещи.
 
 ---
 
-## 14. permission_query_conditions
+## 8. Custom controller permission не является независимым ACL
 
-Этот extension point предназначен для добавления query restrictions.
+**[UPSTREAM]** В `frappe/permissions.py` прямо записано:
 
-Он полезен, когда пользователь должен видеть только subset records.
+> Controllers can only deny permission, they can not explicitly grant any permission that wasn't already present.
+
+Источник:
+
+- https://github.com/frappe/frappe/blob/version-16/frappe/permissions.py
+
+Это сильный архитектурный сигнал.
+
+Custom `has_permission` — extension point существующей permission model, а не параллельный движок, который должен полностью заменить Role/DocPerm.
+
+---
+
+## 9. `permission_query_conditions`
+
+**[FRAPPE DOCS]** Hook `permission_query_conditions` добавляет custom conditions к list query.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/python-api/hooks
+
+Документация отдельно предупреждает:
+
+> hook влияет на `frappe.db.get_list`, но не на `frappe.db.get_all`.
+
+Это критично.
+
+### Типовой риск
+
+Разработчик пишет только list filter:
+
+```text
+в списке секретный документ скрыт
+```
+
+но забывает полноценный document-level check.
+
+Результат может выглядеть так:
+
+```text
+в List записи нет
+но прямой доступ к Document проверяется другой логикой
+```
+
+**[ARCHITECTURAL INFERENCE]** Если custom row policy является security boundary, list/query filtering и document-level authorization должны проектироваться согласованно.
+
+---
+
+## 10. `get_list` и `get_all` — не взаимозаменяемые удобства
+
+**[FRAPPE DOCS]** `frappe.db.get_list` применяет user permissions. `permission_query_conditions` также участвует в соответствующем query path.
+
+Источники:
+
+- https://docs.frappe.io/framework/user/en/api/database
+- https://docs.frappe.io/framework/get_query
+
+`get_all` используется для получения records без обычной permission filtering.
+
+### Правило
+
+```text
+user-facing/application query
+    → permission-aware path по умолчанию
+
+system/internal operation
+    → bypass допускается намеренно
+```
+
+### Red flag
+
+Заменить `get_list` на `get_all`, потому что «не показывает нужные записи», не разобрав причину permissions.
+
+---
+
+## 11. `ignore_permissions=True`
+
+Frappe позволяет внутреннему коду обходить permission checks в определённых API paths.
+
+Это не «режим починки проблем с правами».
+
+**[ARCHITECTURAL INFERENCE]** Bypass допустим, когда операция является системной и авторизация уже обеспечена на другой границе.
 
 Пример:
 
 ```text
-Project Member видит только Projects,
-где он участник
+background system process создаёт технический record
+после уже выполненной и проверенной business command
 ```
 
-### Красный флаг
-
-Не считать query condition полноценной security policy без проверки direct document access.
-
----
-
-## 15. has_permission
-
-`has_permission` решает document-level policy.
-
-Его естественно использовать вместе с query restrictions, когда одна и та же domain policy должна действовать и для списков, и для конкретного Document.
-
-### Требование
-
-Логика двух механизмов не должна расходиться.
-
----
-
-## 16. `get_list` и permission-aware queries
-
-При обычной пользовательской выборке следует использовать APIs, которые применяют permissions.
-
-Если код получает Documents для пользовательского интерфейса, query должен уважать security model.
-
-Это часть application boundary.
-
----
-
-## 17. `get_all` и permission bypass
-
-`get_all` и аналогичные bypass capabilities полезны во внутреннем системном коде.
-
-Но их использование должно быть осознанным.
-
-Плохой мотив:
-
-> «get_list ничего не возвращал из-за прав, поэтому заменил на get_all».
-
-Это не исправление query.
-
-Это отключение security boundary.
-
----
-
-## 18. `ignore_permissions=True`
-
-То же правило.
-
-Иногда system process действительно должен работать с правами системы.
-
-Например:
-
-- scheduled maintenance;
-- migration;
-- controlled internal service;
-- administrative process.
-
-Но permission bypass должен иметь явный reason.
-
-### Review question
-
-> Кто является security principal этой операции и почему обычные permissions здесь неприменимы?
-
----
-
-## 19. Administrator
-
-Administrator имеет специальный системный статус и не является нормальной пользовательской role model.
-
-Нельзя тестировать безопасность только под Administrator.
-
-Иначе значительная часть реальных permission paths вообще не проверяется.
-
----
-
-## 20. API не отменяет permissions
-
-Встроенный Document API выполняет permission checks.
-
-Но custom whitelisted method может сам сделать:
-
-```python
-frappe.get_all(...)
-```
-
-или
-
-```python
-doc.save(ignore_permissions=True)
-```
-
-Поэтому наличие authentication на endpoint ещё не означает корректную authorization.
-
-### Design question
-
-> Как именно custom endpoint применяет permissions к business action?
-
----
-
-## 21. Assignment не является permission
-
-Пользователь может быть назначен на Document через Assignment/ToDo, но это не нужно автоматически воспринимать как универсальный access rule.
-
-Если бизнес требует:
-
-> assignee получает read/write
-
-это отдельная domain permission policy, которую нужно выразить и проверить.
-
-Не предполагать, что assignment semantics автоматически равны authorization semantics.
-
----
-
-## 22. Workflow role не заменяет DocPerm
-
-Workflow может определять, кто способен выполнить transition.
-
-Но пользователь всё ещё должен иметь базовый доступ к Document согласно permission model.
-
-То есть:
+Но пользовательский endpoint:
 
 ```text
-Workflow permission
+@frappe.whitelist()
+def update_secret_document(...):
+    doc.save(ignore_permissions=True)
 ```
 
-и
+без отдельной security проверки — серьёзный red flag.
+
+---
+
+## 12. Field-level security применяется и к query
+
+**[FRAPPE DOCS]** Документация `frappe.qb.get_query` описывает permission-aware query: inaccessible fields ограничиваются в selected fields и могут запрещаться в filters/group/order.
+
+Источник:
+
+- https://docs.frappe.io/framework/get_query
+
+Это ещё один аргумент не строить собственную query infrastructure без понимания permission semantics Framework.
+
+---
+
+## 13. Design escalation permissions
+
+Следующая последовательность — **не runtime algorithm Frappe**.
+
+Это **[ARCHITECTURAL INFERENCE]** для проектирования от простого штатного механизма к custom policy:
 
 ```text
-Document permission
+1. Role + DocPerm
+       ↓
+2. Permission Level / If Owner
+       ↓
+3. User Permission
+       ↓
+4. Share для точечных исключений
+       ↓
+5. permission_query_conditions + has_permission
+   для нестандартной row/document policy
+       ↓
+6. отдельная policy abstraction,
+   только если сложность действительно требует её
 ```
 
-решают связанные, но разные задачи.
+Почему так:
+
+- первые уровни декларативны и видимы администраторам;
+- они интегрированы с Framework;
+- custom code добавляется, когда стандартная модель не выражает политику.
 
 ---
 
-## 23. Field visibility не равна security
+## 14. Когда custom ACL/policy оправдан
 
-Скрыть поле JavaScript'ом:
+Собственная policy abstraction может быть нормальной, если доступ зависит от сложной модели:
 
 ```text
-frm.set_df_property(..., "hidden", 1)
+роль
++ отношения между организациями
++ классификация документа
++ контракт
++ временной интервал
++ динамическая policy
 ```
 
-не означает защитить данные.
+Тогда проблема действительно шире стандартного Role/User Permission.
 
-Security должна обеспечиваться server-side permission model.
-
-UI hiding — presentation.
+Но желательно подключать такую policy через официальные permission seams, чтобы Desk, API и Document access оставались согласованными с Framework.
 
 ---
 
-## 24. Sensitive data
+## 15. Типовой неправильный сценарий
 
-Для чувствительных данных нужно отдельно рассмотреть:
-
-- field permlevel;
-- masking capabilities;
-- API serialization;
-- reports;
-- exports;
-- print formats;
-- logs;
-- attachments.
-
-Security модели Document недостаточно, если данные затем случайно раскрываются в отчёте или custom API.
-
----
-
-## 25. Child permissions
-
-Child records входят в permission context parent Document.
-
-Не следует считать Child Table независимой security boundary.
-
-Если каждой строке нужен отдельный access control, это ещё один сигнал, что Child DocType может быть неправильной data model.
-
----
-
-## 26. Permission tests
-
-Сложная permission model обязательно должна тестироваться не только под Administrator.
-
-Минимальная матрица:
+Задача:
 
 ```text
-Role A
-Role B
-Owner
-Non-owner
-Allowed User Permission
-Disallowed User Permission
-Shared document
-Direct URL
-List query
-API access
+Сотрудник видит свои заявки.
+Менеджер — заявки отдела.
+Директор — все.
 ```
 
----
-
-## 27. Бытовой пример
-
-Требование:
-
-> Обычный сотрудник видит свои заявки. Руководитель видит заявки своего подразделения. Директор видит всё.
-
-### Не начинать с
+Новичок сразу создаёт:
 
 ```text
-Custom ACL table
+Custom ACL Rule
+Custom ACL Department
+Custom ACL User
 ```
 
-### Начать с анализа
+и затем фильтрует SQL вручную.
+
+Почему это плохо:
+
+- появляется второй источник истины;
+- стандартные permissions остаются активны;
+- List, Report, API и direct Document access могут расходиться;
+- администратору трудно объяснить итоговый доступ.
+
+Правильный путь — сначала проверить Role/Owner/User Permission semantics, и только недостающую часть выразить custom policy.
+
+---
+
+## 16. Security design review
+
+Для каждого DocType ответить:
 
 ```text
-Employee:
-    Role + If Owner?
-
-Manager:
-    Role + User Permission by Department?
-
-Director:
-    broad Role permission?
+1. Какие роли имеют Read/Create/Write/Delete/Submit/Cancel?
+2. Есть ли поля с отдельным permlevel?
+3. Имеет ли значение системный owner?
+4. Нужны ли ограничения по Link values через User Permission?
+5. Нужны ли точечные Share grants?
+6. Есть ли custom row-level policy?
+7. Если есть permission_query_conditions — есть ли согласованный document check?
+8. Какие queries permission-aware, а какие намеренно обходят permissions?
+9. Где используется ignore_permissions и почему это безопасно?
+10. Совпадает ли поведение Desk, REST API, Reports и background processes?
 ```
 
-И только если реальная модель отдела не выражается стандартными relations, добавлять custom policy.
-
----
-
-## 28. Другой пример
-
-Требование:
-
-> Пользователь может открыть Contract только если он является участником хотя бы одного Project, связанного с Contract.
-
-Это уже relational rule, которая может плохо выражаться простыми User Permissions.
-
-Custom query/document policy здесь может быть совершенно оправданной.
-
----
-
-## 29. Security decision track
-
-```text
-Нужно право на весь DocType?
-        → Role / DocPerm
-
-Нужно ограничить поля?
-        → Permission Level
-
-Только собственные Documents?
-        → If Owner
-
-Ограничение по связанным masters?
-        → User Permission
-
-Точечный доступ к конкретному Document?
-        → Share
-
-Сложная domain row policy?
-        → permission_query_conditions
-          + document-level permission logic
-
-Системная операция должна обходить user ACL?
-        → explicit controlled bypass
-```
-
----
-
-## 30. Design review checklist
-
-- [ ] Role/DocPerm определены до custom ACL.
-- [ ] Permission Level рассмотрен для sensitive fields.
-- [ ] Owner не перепутан с assignee/responsible.
-- [ ] User Permission используется только там, где relation semantics совпадает.
-- [ ] Share используется для точечных grants, а не как основная organizational model.
-- [ ] Runtime pipeline не перепутан с design escalation.
-- [ ] Query restrictions проверены вместе с direct access.
-- [ ] `get_all`/`ignore_permissions` имеют явное обоснование.
-- [ ] Workflow role не считается заменой Document permission.
-- [ ] UI hiding не считается security.
-- [ ] Custom API применяет authorization явно.
-- [ ] Permission matrix покрыта тестами обычных пользователей.
+Security считается спроектированной только тогда, когда эти ответы известны, а не когда «форма вроде не показывает лишнее».
