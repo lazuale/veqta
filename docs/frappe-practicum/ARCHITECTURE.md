@@ -1,25 +1,53 @@
 # Архитектура практикума
 
-## 1. Почему три приложения, а не один учебный комбайн
+## 1. Базовый закон курса
 
-Один app, в который последовательно добавляют Tree, Workflow, Web Form, Auto Repeat и все специальные поля, быстро перестаёт быть продуктом. Его модель начинает обслуживать учебную матрицу.
-
-Здесь применён другой принцип:
+Практикум не строится от списка функций Frappe.
 
 ```text
 реальная задача
+→ ответственность
 → минимальная модель продукта
-→ подходящие механизмы Frappe
-→ аудит покрытия платформы
+→ Frappe primitive с подходящей семантикой
+→ официальный extension point, если primitive уже недостаточен
+→ custom abstraction только при новой самостоятельной ответственности
 ```
 
-Каждый проект заканчивается до начала следующего. Лишняя функция не добавляется только потому, что она существует во Frappe.
+Отсюда два одинаково важных запрета:
 
-## 2. Физическая архитектура стенда
+```text
+не изобретать второй Framework поверх Frappe
+не объявлять любой Python «ненативным»
+```
 
-Bench общий: зависимости Frappe устанавливаются один раз.
+Нативность определяется владельцем ответственности, а не количеством строк кода.
 
-App и site разделены по продуктам:
+---
+
+# 2. Почему три приложения, а не один учебный комбайн
+
+Один app, в который ради coverage последовательно добавляют Tree, Workflow, Web Form,
+Auto Repeat и специальные поля, быстро перестаёт быть продуктом. Его domain model
+начинает обслуживать учебную матрицу.
+
+Поэтому Metadata Track состоит из трёх самостоятельных приложений:
+
+```text
+P1 equipment_register
+→ data model / registry
+
+P2 purchase_requests
+→ lifecycle / approval
+
+P3 service_intake
+→ trust boundary / web intake
+```
+
+Функция Framework появляется только тогда, когда естественно нужна одному из продуктов.
+
+---
+
+# 3. Физическая архитектура стенда
 
 ```text
 Frappe Bench
@@ -28,7 +56,7 @@ Frappe Bench
 └── service_intake     ──► intake.localhost
 ```
 
-Для финальной проверки создаются временные чистые site:
+Clean-site acceptance:
 
 ```text
 equipment-clean.localhost
@@ -36,37 +64,48 @@ purchase-clean.localhost
 intake-clean.localhost
 ```
 
-Ни один учебный app не объявляет другой обязательной зависимостью. Поэтому проверка
-установки на чистый site действительно проверяет один продукт.
+Ни один учебный app не зависит от другого.
 
-## 3. Единица обучения
+Engineering Bridge продолжает `service_intake` после принятого P3 и дополнительно
+проверяет:
 
-Единица обучения — не экран настройки и не feature. Это законченный инженерный шаг:
+```text
+upgrade existing intake.localhost
++
+clean install new version
+```
+
+Это разные deployment scenarios.
+
+---
+
+# 4. Единица обучения
+
+Единица обучения — законченный инженерный шаг:
 
 ```text
 проблема
-→ решение в модели
-→ настройка Frappe
-→ рабочий пример
-→ отрицательная проверка
-→ проверка границы между исходниками app и данными site
+→ кто владеет гарантией
+→ решение
+→ действие
+→ positive test
+→ negative test
+→ граница механизма
+→ source/site/deployment check
 ```
 
-Например, Link изучается не как тип поля сам по себе. Сначала появляется Equipment, которому нужна существующая Category; затем создаётся Link; затем проверяется невозможность сохранить несуществующую Category; затем смотрится, какие данные действительно записаны в Document.
+Например, Link изучается не как пункт меню. Сначала появляется Equipment, которому нужен
+существующий Category; затем Link; затем negative Link test; затем проверка metadata в
+source.
 
-## 4. Проект 1 — `equipment_register`
+Controller появляется так же: сначала обнаруживается cross-document правило, которого
+нет в metadata, и только после этого пишется `validate`.
 
-### Назначение
+---
 
-Небольшой внутренний реестр, отвечающий на вопросы:
+# 5. P1 — `equipment_register`
 
-- какое оборудование существует;
-- к какой категории относится;
-- где находится сейчас;
-- в каком состоянии;
-- какие идентификаторы с ним связаны.
-
-### Модель
+## Модель
 
 ```text
 Equipment Location (Tree) ◄──── Equipment ────► Equipment Category
@@ -74,27 +113,23 @@ Equipment Location (Tree) ◄──── Equipment ────► Equipment Ca
                                       └──── Equipment Identifier (Child)
 ```
 
-### Архитектурные решения
+## Ownership решений
 
-- `Equipment Location` — Tree, потому что место естественно имеет иерархию.
-- `Equipment Category` — отдельный справочник, потому что значение переиспользуется и должно иметь собственную целостность.
-- `Equipment Identifier` — Child Table, потому что строки не имеют самостоятельной жизни вне Equipment.
-- `asset_code` управляет naming Equipment и помечен Set Only Once. Отдельный Unique
-  не нужен: при `field:asset_code` уникальность обеспечивает системный `name`.
-- `status` — обычный Select. Workflow здесь не нужен: смена состояния не является согласованием.
-- Kanban допустим по `status`, потому что это обычное изменяемое поле, а не workflow state.
+- `Equipment Location` → Tree, потому что location имеет hierarchy.
+- `Equipment Category` → normal DocType, потому что значение переиспользуется и имеет собственную identity/integrity.
+- `Equipment Identifier` → Child Table, потому что строка не имеет самостоятельного lifecycle/permissions/workspace.
+- `asset_code` → naming source; отдельный duplicate identity layer не создаётся.
+- `status` → Select, потому что это состояние объекта без approval transition model.
+- Kanban → presentation/edit surface обычного status, не альтернативный permission model.
+- Track Changes → штатная история изменений вместо custom history registry.
 
-### Финальная гарантия
+Workflow в P1 не нужен. Его отсутствие — архитектурное решение, а не пробел курса.
 
-Пользователь может найти объект по коду, имени и идентификатору, отфильтровать реестр по месту/категории/состоянию и получить управляемый список без Excel.
+---
 
-## 5. Проект 2 — `purchase_requests`
+# 6. P2 — `purchase_requests`
 
-### Назначение
-
-Внутренняя заявка на закупку проходит согласование подразделением и проверку закупщиком.
-
-### Модель
+## Модель
 
 ```text
 Purchase Department ◄──── Purchase Request
@@ -102,7 +137,7 @@ Purchase Department ◄──── Purchase Request
                                └──── Purchase Request Item (Child)
 ```
 
-### Жизненный цикл
+## Lifecycle
 
 ```text
 Draft
@@ -119,36 +154,31 @@ Procurement Review
 Approved ── Cancel ─► Cancelled (docstatus 2)
 ```
 
-### Роли
+## Ownership решений
 
-| Роль | Ответственность |
-|---|---|
-| Purchase Requester | создаёт и повторно подаёт свою заявку |
-| Department Approver | принимает решение от подразделения |
-| Procurement Officer | проводит финальную проверку и submit/cancel |
-| Purchase Auditor | только читает и строит отчёты |
+- `Purchase Request` → submittable, потому что Approved становится зафиксированным деловым документом.
+- Workflow → допустимые business transitions и связанный docstatus.
+- DocPerm → базовый access независимо от Workflow.
+- Permission Level → field-level authority для decision/procurement notes.
+- User Permission → ограничение по Department, а не новый ACL framework.
+- Assign To / ToDo → конкретный ответственный, не authorization.
+- Print Format → представление Approved document, не отдельная модель.
 
-### Архитектурные решения
+```text
+business state
+Workflow transition
+docstatus
+permission
+assignment
+```
 
-- `Purchase Request` — submittable, потому что Approved должен стать зафиксированным деловым документом.
-- Workflow управляет только разрешёнными переходами и `docstatus`.
-- Role Permission определяет базовый доступ к DocType независимо от Workflow.
-- Assign To/ToDo фиксирует конкретного ответственного, но не используется как ACL.
-- Kanban не применяется для перетаскивания workflow state: переход выполняется Workflow Action.
-- Workflow переносится не как рабочие данные, а как конфигурация app с отдельной
-  проверкой на чистом site.
+в P2 изучаются как разные семантики, даже когда участвуют в одном процессе.
 
-### Финальная гарантия
+---
 
-Нельзя утвердить заявку в обход последовательности ролей, обычный заявитель не может утвердить её сам, а Approved документ действительно имеет `docstatus = 1`.
+# 7. P3 — `service_intake`
 
-## 6. Проект 3 — `service_intake`
-
-### Назначение
-
-Приложение принимает внешние сообщения и после проверки превращает подходящие обращения во внутренние рабочие кейсы.
-
-### Модель доверия
+## Trust model
 
 ```text
 Internet / Website User
@@ -157,90 +187,245 @@ Internet / Website User
 Web Form
         │
         ▼
-Service Intake        недоверенный ввод
-        │ ручная проверка
+Service Intake        untrusted input
+        │ manual triage
         ▼
-Service Case          внутренний документ
+Service Case          internal document
         │
         └────► Service Category
 ```
 
-### Почему два DocType
+## Почему два DocType
 
-Внешняя форма создаёт target document через специальный Web Form path. В `v16.32.0` новый документ вставляется с `ignore_permissions=True`. Если направить форму сразу в `Service Case`, публичный канал окажется связан с внутренней моделью, полями и жизненным циклом.
+В `v16.32.0` Web Form создаёт новый target Document специальным path с
+`ignore_permissions=True`.
 
-Разделение даёт ясную границу:
+Направить публичную форму сразу в `Service Case` означало бы связать untrusted channel с
+внутренними fields, permissions и lifecycle.
 
-- `Service Intake` принимает минимальный набор непроверенных данных;
-- служебные поля не публикуются;
-- сотрудник решает, создавать ли `Service Case`;
-- внутренние права и Workflow применяются только после триажа.
-
-### Финальная гарантия
-
-Гость может отправить сообщение, но не может читать список обращений, редактировать отправленное, выбирать внутреннее состояние или создавать внутренний кейс. Сотрудник работает только с проверенными данными и видит источник обращения.
-
-## 7. Модель поставки app
-
-В каждом проекте явно разделяются четыре слоя:
+Разделение оправдано разными ответственностями:
 
 ```text
-1. Standard metadata
-   DocType, Workspace, standard Report, Web Form, Notification
+Service Intake
+→ принимает минимальный непроверенный ввод
 
-2. Переносимая конфигурация
-   Role, Workflow, Calendar View, общий Kanban Board и связанные записи
-
-3. Локальная конфигурация site
-   Users, Assignment Rule с конкретными Users, User Permission, SMTP, API keys
-
-4. Рабочие данные
-   Equipment, Purchase Request, Service Intake, Service Case
+Service Case
+→ живёт во внутреннем permission/workflow контуре
 ```
 
-Git должен содержать первый слой и явно выбранную часть второго. Третий и четвёртый слои не выдаются за содержимое продукта.
+Это не дублирование одного объекта двумя таблицами, а настоящая trust/lifecycle boundary.
 
-Permissions собственных Standard DocType относятся к первому слою: строки DocPerm
-хранятся в JSON DocType. Export Customizations нужен только при осознанном расширении
-DocType, принадлежащего другому app.
+P3 намеренно заканчивается **ручным** созданием Case после триажа. Пока курс запрещает
+business Python, это честная граница возможностей metadata.
 
-## 8. Повторяемый цикл проекта
+---
 
-### A. Спроектировать
+# 8. Engineering Bridge — где code становится нативным решением
 
-Записать сценарии, документы, связи, владельцев данных, состояния и запреты.
+После P3 появляется новое требование:
 
-### B. Собрать ядро
+```text
+Accepted Intake
+→ создать Case одной server command
+→ гарантировать Accepted source
+→ записать converted_at
+→ не оставить частичное изменение при ошибке
+```
 
-Создать app, site, Module и Standard DocType. Сразу проверять `mandatory`, `unique`, naming и Link-целостность.
+Разбор ownership:
 
-### C. Ограничить доступ
+| Требование | Владелец |
+|---|---|
+| source существует | Link |
+| один Case на Intake | Unique |
+| source нельзя перепривязать | Set Only Once |
+| source обязан быть Accepted | `ServiceCase.validate` |
+| действие «convert Intake to Case» | whitelisted `ServiceIntake` Document method |
+| Create permission на Case | permission-aware `case.insert()` |
+| атомарность Case + Intake + Comment | request transaction Frappe |
+| новое поле на всех installations | Standard DocType JSON |
+| backfill старых records | patch |
+| защита custom behavior от regression | integration tests |
 
-Создать роли и отдельных тестовых пользователей. Проверять каждую роль входом под ней, а не только взглядом на Permission Manager.
+Ни одна строка Python не должна повторять гарантию, которой уже владеет metadata.
 
-### D. Настроить работу
+---
 
-Добавить подходящие views, assignment, notifications, print и reporting. Не смешивать ответственность, авторизацию и состояние.
+# 9. Почему semantic command живёт в Controller
 
-### E. Зафиксировать
+`create_case` относится к одному конкретному `Service Intake` и использует его state.
+Поэтому controller — естественный владелец.
 
-Проверить созданные source-файлы, выполнить `migrate`, посмотреть `git diff` и сделать осмысленный commit.
+Не создаётся:
 
-### F. Доказать переносимость
+```text
+CaseRepository
+CaseFactoryService
+ServiceIntakeManager
+```
 
-Создать чистый site, установить app, повторить функциональные и permission checks без копирования базы исходного site.
+если они лишь переименуют `frappe.new_doc`, `insert` и `save`.
 
-## 9. Что сознательно не моделируется
+Отдельный service/module становится оправданным, если появляется реальная
+cross-document orchestration, сложный reusable algorithm или external protocol, а не
+потому, что «business logic должна жить в services».
 
-В учебные приложения не добавляются универсальные `Status`, `Priority`, `Person`, `Team`, `Attachment` и другие справочники «на будущее». Select или стандартный User/Role/File используются, пока отдельная сущность не получила собственный жизненный цикл и правила.
+---
 
-Dynamic Link не используется там, где известен конкретный target DocType. Универсальность без доказанной потребности ухудшает модель и усложняет права.
+# 10. Transaction architecture
 
-## 10. Главный критерий архитектуры
+В write HTTP request Framework управляет transaction boundary:
 
-Для каждого элемента должен существовать прямой ответ на два вопроса:
+```text
+successful request
+→ commit
 
-1. Какую реальную задачу продукта он решает?
-2. Какая проверка докажет, что решение работает?
+uncaught exception
+→ rollback
+```
 
-Если ответа нет, элемент исключается из основного маршрута и не возвращается только ради процента покрытия.
+Поэтому `create_case` не делает manual `frappe.db.commit()`.
+
+```text
+Case insert
+Intake converted_at update
+Timeline Comment
+```
+
+составляют одну business operation.
+
+Engineering Lab временно бросает exception после `case.insert()` и доказывает отсутствие
+частичного Case после rollback.
+
+External/slow side effect не надо выполнять до уверенности, что business transaction
+зафиксирована. Для будущей background work существует `enqueue_after_commit=True`.
+
+---
+
+# 11. Migration architecture
+
+Schema evolution и data migration разделены:
+
+```text
+DocType JSON
+→ поле converted_at существует в новой модели
+
+post_model_sync patch
+→ старые Intakes получают значение из уже существующих Cases
+```
+
+В patch допустим deliberate direct DB update, потому что это one-off migration, где
+обычный current-document lifecycle не является целью.
+
+Это не превращает `frappe.db.set_value` в рекомендуемый business CRUD path.
+
+---
+
+# 12. Async and integration boundary
+
+Current `service_intake` не имеет реальной долгой операции, поэтому custom Background
+Job в продукт не добавляется.
+
+Решение выбирается по требованию:
+
+```text
+simple configurable outbound HTTP event
+→ Webhook first
+
+slow/heavy internal work after successful write
+→ Background Job + enqueue_after_commit
+
+synchronous invariant/current Document mutation
+→ Controller lifecycle
+
+complex multi-system protocol/orchestration
+→ integration module/service when responsibility appears
+```
+
+Умение **не создать queue без задачи** является частью архитектурной приёмки.
+
+---
+
+# 13. Extension of other apps
+
+Три учебных app в основном владеют своими DocType, поэтому собственное поведение живёт в
+controllers.
+
+Для чужого DocType архитектурный выбор был бы другим:
+
+```text
+react to document event
+→ doc_events
+
+add behavior without taking full ownership
+→ extension seam such as extend_doctype_class when supported by pinned version
+
+complete override
+→ только при доказанной необходимости и с пониманием composition conflicts
+```
+
+Эти механизмы не внедряются искусственно в текущие продукты и остаются следующим
+практическим блоком.
+
+---
+
+# 14. Модель поставки
+
+Четыре слоя:
+
+```text
+1. Standard source
+   DocType JSON, controllers, Workspace, Report, Web Form, Notification
+
+2. portable configuration
+   Roles, Workflow, shared view/config records
+
+3. local site configuration
+   Users, Assignment Rule with Users, User Permission, SMTP, API keys
+
+4. working data
+   Equipment, Purchase Request, Service Intake, Service Case, Files
+```
+
+Engineering Bridge добавляет:
+
+```text
+5. evolution path
+   patches + tests for upgrade
+```
+
+Git содержит product source и осознанно выбранную portable configuration. Working data и
+secrets не выдаются за product source.
+
+---
+
+# 15. Что сознательно не моделируется
+
+Не создаются универсальные `Status`, `Priority`, `Person`, `Team`, `Attachment` и другие
+справочники «на будущее».
+
+Dynamic Link не используется там, где target известен.
+
+Не создаются service/repository/background job/custom API только ради архитектурного
+coverage.
+
+Принцип:
+
+```text
+механизм известен
+≠ механизм обязан быть использован
+```
+
+---
+
+# 16. Финальный критерий
+
+Для каждого элемента курса должны существовать ответы:
+
+1. Какую реальную ответственность он решает?
+2. Почему именно этот Frappe layer ей владеет?
+3. Какая проверка доказывает гарантию?
+4. Где заканчивается семантика этого механизма?
+5. Что произойдёт при clean install и при upgrade?
+
+Если ответа нет, элемент не должен оставаться в архитектуре курса.
