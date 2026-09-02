@@ -24,8 +24,8 @@
 |---|---|---|
 | [`S00`](S00_ENVIRONMENT.md) | чистый Frappe v16 Bench + `rental.localhost` | написан |
 | [`S01`](S01_APP_AND_SITE.md) | создан и установлен `rental_training` | написан |
-| S02 | `Equipment` как самостоятельный Document | следующий |
-| S03 | `Customer` как самостоятельный Document | запланирован |
+| [`S02`](S02_EQUIPMENT_DOCTYPE.md) | `Equipment` как самостоятельный Standard DocType | написан |
+| S03 | `Customer` как самостоятельный Document | следующий |
 | S04 | `Rental` + `Rental Item` + Link/Table | запланирован |
 | S05A | предметный status | запланирован |
 | S05B | полный сценарий через Desk | запланирован |
@@ -40,22 +40,40 @@
 
 ## Текущая точка
 
-После успешного S01 структура должна быть:
+После успешного S02 приложение уже содержит первый App-owned Standard DocType:
 
 ```text
-rental-training-bench/
-├── apps/
-│   ├── frappe/
-│   └── rental_training/
-└── sites/
-    └── rental.localhost/
-```
-
-А Site должен сообщать:
-
-```text
-frappe
 rental_training
+└── Rental Training
+    └── Equipment
+        ├── equipment_name
+        ├── equipment_type
+        └── serial_number
 ```
 
-После этого можно переходить к S02 и впервые создавать Standard DocType, принадлежащий `rental_training`.
+Ученик должен уже уметь показать две стороны одной модели:
+
+```text
+Desk
+├── Equipment Form
+└── Equipment List
+
+Git
+└── rental_training/rental_training/doctype/equipment/
+    ├── equipment.json
+    ├── equipment.py
+    ├── equipment.js
+    └── test_equipment.py
+```
+
+И объяснить:
+
+```text
+Equipment = самостоятельный Document
+Equipment Type = пока Select
+name = стабильная identity
+Title Field = человекочитаемое представление
+Standard DocType = App-owned metadata в Git
+```
+
+После этого можно переходить к S03 и создать второй независимый Document — `Customer`.
