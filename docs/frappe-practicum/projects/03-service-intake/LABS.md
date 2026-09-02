@@ -405,4 +405,9 @@ bench --site intake-clean.localhost clear-cache
 Reports, Card, Chart и Workspace. Users, Categories и рабочие обращения создать заново.
 Повторить Guest submission, ручной triage и P3 из [ACCEPTANCE.md](../../ACCEPTANCE.md).
 
-После P3 выполнить финальный аудит из [ROADMAP.md](../../ROADMAP.md).
+P3 принят только после этой проверки. На этом Metadata & Configuration level завершён.
+Не переделывать P3 задним числом под Python: его ручная конвертация остаётся доказанной
+границей декларативного решения.
+
+Следующий шаг — [Engineering Bridge](../../engineering/LABS.md). Финальный аудит из
+[ROADMAP.md](../../ROADMAP.md) выполняется после Engineering Bridge.
