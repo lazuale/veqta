@@ -26,8 +26,8 @@
 | [`S01`](S01_APP_AND_SITE.md) | создан и установлен `rental_training` | написан |
 | [`S02`](S02_EQUIPMENT_DOCTYPE.md) | `Equipment` как самостоятельный Standard DocType | написан |
 | [`S03`](S03_CUSTOMER_DOCTYPE.md) | `Customer` как второй самостоятельный Document | написан |
-| S04 | `Rental` + `Rental Item` + Link/Table | следующий |
-| S05A | предметный status | запланирован |
+| [`S04`](S04_RENTAL_COMPOSITION.md) | `Rental` + `Rental Item` + Link + Table MultiSelect | написан |
+| S05A | предметный status | следующий |
 | S05B | полный сценарий через Desk | запланирован |
 | S05C | серверные инварианты одного Rental | запланирован |
 | S05D | Roles / DocType Permissions | запланирован |
@@ -40,53 +40,75 @@
 
 ## Текущая точка
 
-После успешного S03 приложение содержит две независимые предметные сущности:
+После успешного S04 приложение впервые содержит саму операцию проката:
 
 ```text
 rental_training [App]
 └── Rental Training [Module]
     ├── Equipment [DocType]
-    └── Customer [DocType]
+    ├── Customer [DocType]
+    ├── Rental [DocType]
+    └── Rental Item [Child DocType]
 ```
 
-Обе имеют собственную стабильную identity и человекочитаемый title:
+Связи:
 
 ```text
-Equipment
-name  = EQ-#####
-title = equipment_name
-
-Customer
-name  = CUST-#####
-title = customer_name
+Rental
+├── customer → Link → Customer
+├── start_date
+├── end_date
+└── items → Table MultiSelect → Rental Item
+                              └── equipment → Link → Equipment
 ```
 
-Для Customer дополнительно проверена штатная типизация текстовых значений:
+S04 специально использует `Table MultiSelect`, а не обычный `Table`.
+
+Причина архитектурная, а не учебная:
 
 ```text
-phone : Data + Options=Phone
-email : Data + Options=Email
+текущее требование
+= выбрать несколько существующих Equipment
+
+Rental Item
+= только Link → Equipment
 ```
 
-Ученик должен уметь объяснить:
+Обычный `Table` появится только если у строки появятся собственные бизнес-атрибуты отношения. Мы не добавляем такие поля заранее ради знакомства с grid.
+
+Через `bench console` ученик уже должен увидеть, что компактный Table MultiSelect всё равно хранится как дочерние Documents с:
 
 ```text
-почему Equipment и Customer существуют независимо
-почему их display-поля не используются как identity
-почему обычная Email validation не требует своей regex
-почему эти два Documents пока не нужно связывать напрямую
+parent
+parenttype
+parentfield
+idx
 ```
 
-Следующий реальный вопрос предметной области:
-
-> кто взял, на какой период и какое оборудование?
-
-Он приводит к S04, где впервые появляется сама операция `Rental` и естественно используются:
+И уметь объяснить:
 
 ```text
-Link
-Child DocType
-Table
+Rental = самостоятельный Document
+Rental Item = часть одного Rental
+Customer = живая Link-ссылка
+Equipment = живая Link-ссылка
+Table MultiSelect = набор Links через child-table модель
+обычный Table = пока не требуется текущей семантикой
 ```
 
-Не как отдельные учебные функции, а как следствие модели операции проката.
+После S04 в `Rental` **ещё нет status**.
+
+Следующее реальное требование:
+
+> отличать запланированный прокат от активного и возвращённого.
+
+Оно приводит к S05A и обычному предметному полю:
+
+```text
+status → Select
+Planned
+Active
+Returned
+```
+
+без автоматического Workflow и без `Is Submittable`.
