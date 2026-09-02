@@ -656,6 +656,100 @@ https://github.com/frappe/erpnext/blob/develop/erpnext/stock/services/stock_ledg
 
 ---
 
+## 34. Аутентификация REST API
+
+### Источники
+
+- https://docs.frappe.io/framework/user/en/api/rest
+- https://docs.frappe.io/framework/user/en/guides/integration/rest_api/token_based_authentication
+- https://docs.frappe.io/framework/user/en/guides/integration/rest_api/oauth-2
+
+### Тип
+
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
+
+### Что подтверждает
+
+- REST API поддерживает token-based и password/session authentication;
+- OAuth access token поддерживается как Bearer token;
+- API Key/API Secret связаны с конкретным `User`;
+- запросы с таким токеном выполняются с проверкой ролей этого пользователя.
+
+### Архитектурное следствие
+
+Аутентификацию интеграции нужно проектировать отдельно от её permissions; технический пользователь не должен автоматически быть Administrator.
+
+---
+
+## 35. File и вложения
+
+### Источник
+
+https://docs.frappe.io/framework/user/en/desk/attachments
+
+### Тип
+
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
+
+### Что подтверждает
+
+- файлы можно прикреплять к `Document`;
+- пользователь с `Read` на исходный документ получает доступ к прикреплённым файлам;
+- Frappe имеет собственный File Manager и модель вложений.
+
+### Архитектурное следствие
+
+Для обычного вложения сначала использовать `File`/Attach; собственный attachment-`DocType` требует дополнительной бизнес-семантики.
+
+---
+
+## 36. Comment и Version
+
+### Источники
+
+- https://docs.frappe.io/framework/user/en/api/document
+- https://docs.frappe.io/framework/user/en/guides/integration/rest_api
+- https://docs.frappe.io/erpnext/document-versioning
+
+### Тип
+
+**[ДОКУМЕНТАЦИЯ FRAPPE] + [ОФИЦИАЛЬНАЯ ДОКУМЕНТАЦИЯ ЭКОСИСТЕМЫ]**
+
+### Что подтверждает
+
+- `Document` поддерживает добавление комментариев;
+- REST API v2 предоставляет стандартный `add_comment`;
+- при `Track Changes` ведётся журнал версий с изменёнными полями, временем и пользователем.
+
+### Что НЕ подтверждает
+
+`Version` является юридически неизменяемым compliance-журналом для любых регуляторных требований.
+
+---
+
+## 37. Realtime API
+
+### Источник
+
+https://docs.frappe.io/framework/user/en/api/realtime
+
+### Тип
+
+**[ДОКУМЕНТАЦИЯ FRAPPE]**
+
+### Что подтверждает
+
+- Frappe поставляет realtime API на базе Socket.IO;
+- клиент может подписываться через `frappe.realtime.on`;
+- сервер публикует события через `frappe.publish_realtime`;
+- `frappe.publish_progress` предназначен для отображения прогресса.
+
+### Важно
+
+Custom realtime handlers, отмеченные документацией как nightly/experimental, не считаются стабильным контрактом Frappe v16 без отдельной проверки.
+
+---
+
 # Правило работы с реестром
 
 Если новый нормативный тезис нельзя привязать к одному из источников выше, он должен:
