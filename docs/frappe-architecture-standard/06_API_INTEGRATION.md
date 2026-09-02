@@ -1,411 +1,391 @@
-# 06. API and Integration
+# 06. API и Integration — когда использовать встроенный REST, а когда свой контракт
 
-## 1. Главная граница
+## 1. Frappe автоматически даёт Document REST API
 
-Нужно различать три вещи:
+**[FRAPPE DOCS]** Framework генерирует REST API для DocTypes.
+
+Источники:
+
+- https://docs.frappe.io/framework/user/en/api/rest
+- https://docs.frappe.io/framework/user/en/guides/integration/rest_api
+
+**[UPSTREAM]** `frappe/api/v2.py` в ветке `version-16` содержит routes для:
 
 ```text
-обычный CRUD Document
-business command
-integration contract
+GET    /document/<doctype>
+POST   /document/<doctype>
+GET    /document/<doctype>/<name>
+PATCH  /document/<doctype>/<name>
+PUT    /document/<doctype>/<name>
+DELETE /document/<doctype>/<name>
 ```
 
-Они могут использовать разные механизмы Frappe.
+Источник:
+
+- https://github.com/frappe/frappe/blob/version-16/frappe/api/v2.py
+
+Это прямой пруф: обычный CRUD Document уже является ответственностью Framework.
 
 ---
 
-## 2. Document REST API
+## 2. Почему свой CRUD API часто лишний
 
-Frappe автоматически предоставляет REST API для DocTypes.
-
-Это сильный default для обычных операций:
+Типовой anti-pattern:
 
 ```text
-create
-read
-update
-delete
+/api/task/create
+/api/task/read
+/api/task/update
+/api/task/delete
 ```
 
-### Архитектурное следствие
+где каждый endpoint только вызывает:
 
-Если внутреннему Frappe-aware клиенту нужно просто работать с Document, не следует автоматически писать четыре собственных endpoints, которые лишь повторяют стандартный CRUD.
+```text
+frappe.new_doc()
+frappe.get_doc()
+doc.save()
+frappe.delete_doc()
+```
 
-### Граница
+**[ARCHITECTURAL INFERENCE]** Такой слой не добавляет новый contract или domain semantics, а лишь переименовывает существующий resource API.
 
-Generic Document API раскрывает внутреннюю модель DocType: имена полей, child tables и структуру Documents. Для долгоживущего публичного API это может быть нежелательно.
+Дополнительная цена:
+
+- ещё один API surface;
+- ещё одна документация;
+- риск рассинхронизации permissions;
+- риск обхода field-level security;
+- больше тестов и upgrade responsibility.
 
 ---
 
-## 3. Whitelisted methods
+## 3. Встроенный API проходит через Document model
 
-Когда операция является не CRUD, а бизнес-командой, custom method естественен.
+**[UPSTREAM]** В `frappe/api/v2.py`:
 
-Примеры:
+- read выполняет `doc.check_permission("read")`;
+- read применяет field-level read permissions;
+- create использует `frappe.new_doc(...).insert()`;
+- update загружает Document и вызывает `save()`;
+- document methods выполняют permission checks.
 
-```text
-approve_request
-close_period
-generate_statement
-dispatch_shipment
-```
+Источник:
 
-Команда может затронуть несколько Documents и выполнить orchestration.
+- https://github.com/frappe/frappe/blob/version-16/frappe/api/v2.py
 
----
-
-## 4. Document method или module-level command
-
-Если операция естественно принадлежит конкретному Document:
-
-```text
-Order.submit_to_supplier()
-```
-
-она может быть controller/document method.
-
-Если операция шире одного Document:
-
-```text
-generate_monthly_plan()
-```
-
-она может жить в service/module command.
-
-Критерий — ownership ответственности.
+Это показывает, почему generic REST API хорошо интегрирован с остальным Framework: он не является отдельной database door.
 
 ---
 
-## 5. Custom CRUD API
+## 4. Когда built-in Document API — хороший default
 
-Собственный CRUD API не является запрещённым.
+Подходит, если клиент:
 
-Он оправдан, если нужен:
-
-- стабильный внешний contract;
-- versioning;
-- aggregation нескольких DocTypes;
-- специальная security boundary;
-- скрытие внутренней Frappe model;
-- compatibility с внешним протоколом.
-
-Анти-паттерн — не custom API сам по себе, а бессмысленный дубль generic Document API.
-
----
-
-## 6. Public contract и internal model
-
-Если внешний клиент зависит от:
-
-```text
-/api/v2/document/Work Item
-```
-
-он знает внутреннее имя DocType и полей.
-
-При refactoring model это может стать breaking change для интеграции.
-
-Поэтому для публичных/долгоживущих интеграций полезно отдельно решить:
-
-> Может ли внешний contract совпадать с внутренней Document model?
-
-Если да — generic REST отлично подходит.
-
-Если нет — нужен domain API.
-
----
-
-## 7. Webhook
-
-Когда Frappe должен сообщить внешней системе о событии Document, сначала рассматривается стандартный Webhook.
+- внутренний;
+- понимает Frappe DocType model;
+- выполняет обычный CRUD;
+- может зависеть от названий DocType/fields;
+- не требует отдельного стабильного публичного contract.
 
 Пример:
 
 ```text
-Sales Order submitted
+внутренняя автоматизация создаёт Work Order
+и обновляет его обычные поля
+```
+
+---
+
+## 5. Когда собственный API оправдан
+
+Встроенный REST не обязан быть внешним контрактом любого продукта.
+
+Свой endpoint разумен, когда нужен:
+
+```text
+стабильный публичный contract;
+versioning, независимый от DocType schema;
+агрегация нескольких DocType;
+command semantics;
+специальная security boundary;
+скрытие внутренней модели;
+protocol compatibility;
+другая форма payload/response.
+```
+
+Пример:
+
+```text
+POST /shipment/dispatch
+```
+
+внутри может:
+
+- проверить Shipment;
+- создать Stock Entry;
+- обновить Reservation;
+- записать Integration Log;
+- поставить background job.
+
+Это уже не «CRUD Shipment».
+
+---
+
+## 6. Resource command vs Document method vs application command
+
+### Обычный CRUD
+
+```text
+создать/прочитать/изменить Document
+```
+
+→ Document REST API.
+
+### Операция конкретного Document
+
+```text
+Order.confirm()
+Task.close()
+Inspection.complete()
+```
+
+→ controller/document method может быть естественным владельцем.
+
+**[UPSTREAM]** REST v2 умеет выполнять whitelisted document methods.
+
+Источник:
+
+- https://github.com/frappe/frappe/blob/version-16/frappe/api/v2.py
+
+### Application-level command
+
+```text
+generate_monthly_plan()
+reconcile_all_open_shipments()
+```
+
+→ module/service-level whitelisted method может быть естественнее, потому что операция не принадлежит одному Document.
+
+---
+
+## 7. Whitelisted method — официальный RPC seam
+
+**[FRAPPE DOCS]** REST/RPC API позволяет вызывать whitelisted Python methods.
+
+Источники:
+
+- https://docs.frappe.io/framework/user/en/api/rest
+- https://docs.frappe.io/framework/user/en/guides/integration/rest_api
+
+Это не workaround. Это штатный способ expose business operation, которой не соответствует обычный resource CRUD.
+
+Но сам `@frappe.whitelist()` не делает method безопасным автоматически.
+
+Нужно отдельно проверить:
+
+```text
+authentication;
+authorization;
+HTTP method;
+input validation;
+transaction semantics;
+idempotency;
+rate/abuse risks при public API.
+```
+
+---
+
+## 8. Не использовать внутреннюю реализацию REST как Python API
+
+**[UPSTREAM]** В заголовке `frappe/api/v2.py` есть важное предупреждение: functions файла exposed через routes, но их внутреннюю Python implementation не следует вызывать из application code; location/implementation может меняться без breaking-change guarantee.
+
+Источник:
+
+- https://github.com/frappe/frappe/blob/version-16/frappe/api/v2.py
+
+### Универсальное правило
+
+**[ARCHITECTURAL INFERENCE]** Различать:
+
+```text
+public/stable API Framework
+и
+internal implementation Framework
+```
+
+Не привязываться к внутреннему модулю только потому, что его можно импортировать.
+
+---
+
+## 9. Webhook — штатный outgoing document event
+
+**[FRAPPE DOCS]** Webhook связывает DocType + Document Event + optional Condition с HTTP callback во внешнюю систему.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/guides/integration/webhooks
+
+Подходящий сценарий:
+
+```text
+Quotation обновилась
     ↓
-HTTP request to external service
+POST в внешнюю CRM/шину
 ```
 
-Webhook подходит для простых event-driven integrations.
+Webhook может подписывать payload HMAC secret.
+
+### Когда Webhook должен рассматриваться первым
+
+Если требование буквально звучит:
+
+> «Когда с Document произошло X, вызови внешний HTTP endpoint».
 
 ---
 
-## 8. Когда Webhook недостаточен
+## 10. Когда Webhook уже недостаточен
 
-Если нужны:
+Например, нужны:
 
-- сложные retries;
 - гарантированная доставка;
+- сложные retries/backoff;
+- ordering;
 - дедупликация;
-- transformation pipeline;
-- orchestration нескольких systems;
-- stateful integration;
+- mapping нескольких Documents;
+- OAuth token lifecycle;
+- rate limits;
+- reconciliation;
+- dead-letter queue;
+- ручной replay.
 
-может понадобиться custom integration service/background job.
+Тогда это уже отдельная integration responsibility.
 
-Webhook не нужно превращать в полноценный message broker.
+**[ARCHITECTURAL INFERENCE]** В таком случае custom integration service/background job не дублирует Webhook, а добавляет недостающую надёжность и orchestration.
 
 ---
 
-## 9. Integration service
+## 11. Integration service — когда он действительно нужен
 
-Отдельный integration module/service нормален, если он владеет реальной интеграционной ответственностью:
+Хороший integration service изолирует внешний контракт от Document lifecycle.
+
+Пример:
 
 ```text
-authentication
-rate limits
-mapping
-retry policy
-provider errors
-versioning
-idempotency
+ExternalTaxService
+  authenticate()
+  calculate_tax()
+  map_error()
+  retry_policy()
 ```
 
-Такую логику не следует размазывать по нескольким Controllers.
+Он решает ответственность, которой Frappe Document не владеет: протокол конкретной внешней системы.
 
----
-
-## 10. External API client
-
-Хорошая граница:
+Плохой service:
 
 ```text
-Document Controller
-    → вызывает domain/integration service
-
-Integration Service
-    → знает протокол внешней системы
+TaskApiService.create_task(data):
+    return frappe.get_doc(data).insert()
 ```
 
-Controller не обязан знать URL, OAuth flow и retry semantics стороннего сервиса.
+если это единственная его функция и никакого отдельного контракта нет.
 
 ---
 
-## 11. Authentication ≠ Authorization
+## 12. Built-in REST связывает клиента с внутренней schema
 
-Custom endpoint может быть authenticated, но всё равно неправильно применять права.
-
-Например:
-
-```python
-@frappe.whitelist()
-def get_secret_documents():
-    return frappe.get_all("Secret Document")
-```
-
-Authentication сама по себе не делает этот method безопасным.
-
-Нужно отдельно определить authorization business action.
-
----
-
-## 12. Permission-aware API
-
-Для Document CRUD стандартный REST использует permission model Framework.
-
-Custom methods должны явно соблюдать требуемую security semantics.
-
-Вопрос review:
-
-> От имени какого principal выполняется операция и какие permissions должны применяться?
-
----
-
-## 13. API method не должен зависеть от internal REST implementation
-
-Внутренние функции `frappe/api/v2.py` не являются обязательным public Python API.
-
-Нужно использовать документированные Framework APIs (`frappe.get_doc`, Document methods и т. п.), а не импортировать route handlers ради повторного использования кода.
-
----
-
-## 14. Idempotency integration commands
-
-Команда:
+Generic endpoint использует имена:
 
 ```text
-POST /dispatch
+DocType
+fieldname
+child table fields
 ```
 
-может быть отправлена повторно из-за network retry.
+Для внутренней интеграции это часто удобно и нормально.
 
-Следовательно, критические integration commands должны решать:
+Но долгоживущий public API может не хотеть раскрывать внутренние изменения schema наружу.
+
+**[ARCHITECTURAL INFERENCE]** Поэтому выбор такой:
 
 ```text
-как определить duplicate?
-можно ли выполнить повторно?
-что является idempotency key?
+internal Frappe-aware client
+    → generic Document API часто достаточно
+
+stable product/external contract
+    → dedicated API может быть лучше
 ```
 
-Особенно для платежей, отгрузок и создания внешних records.
-
 ---
 
-## 15. Sync vs async integration
+## 13. Incoming integration и permissions
 
-### Синхронно
-
-Подходит, когда:
-
-- ответ нужен пользователю сразу;
-- операция быстрая;
-- внешний сервис достаточно надёжен;
-- transaction semantics понятна.
-
-### Асинхронно
-
-Подходит, когда:
-
-- внешний API медленный;
-- нужны retries;
-- результат можно получить позже;
-- нельзя блокировать web request.
-
-В Frappe естественный механизм — Background Job.
-
----
-
-## 16. Transaction boundary
-
-Нельзя бездумно отправлять внешний request до commit local transaction.
-
-Для действий, которые должны происходить только после успешного сохранения, рассмотреть:
+Не решать проблемы интеграции через:
 
 ```text
-after_commit
-enqueue_after_commit
+ignore_permissions=True в каждом endpoint
 ```
 
-Подробно — `05_TRANSACTIONS_ASYNC.md`.
+Если integration user должен иметь системные права, спроектировать его Role/permissions или отдельную безопасную server-side command boundary.
+
+Подробно: `04_SECURITY.md`.
 
 ---
 
-## 17. Mapping
+## 14. External side effects и transaction
 
-External model не обязана совпадать с DocType 1:1.
+API call во внешнюю систему — side effect.
 
-Нормально иметь mapping layer:
+Перед вызовом нужно решить:
 
 ```text
-External Shipment
-    ↕ mapping
-Delivery Note + Package + Tracking
+должен он произойти до commit?
+после commit?
+в background job?
+как обработать duplicate/retry?
 ```
 
-Это не «второй framework». Это реальная integration responsibility.
+Подробно: `05_TRANSACTIONS_ASYNC.md`.
 
 ---
 
-## 18. Web Form как integration surface
-
-Если человеку вне Desk нужно просто создать/редактировать Document через browser, Web Form может быть проще отдельного frontend/API.
-
-Но Web Form не является заменой полноценного public application UX, если требования значительно сложнее.
-
----
-
-## 19. Uploads/files
-
-Если integration передаёт файлы, использовать стандартный File model/API там, где semantics обычного attachment подходит.
-
-Не хранить base64-файлы в Data/Text fields без отдельной причины.
-
----
-
-## 20. Versioning public API
-
-Generic Frappe REST versioned вместе с Framework/application model.
-
-Если продукт обещает независимый стабильный внешний contract, его versioning должен проектироваться отдельно.
-
-Например:
+## 15. API/integration decision track
 
 ```text
-/api/my_product/v1/...
+Нужно обычное CRUD с DocType?
+    → Document REST API
+
+Нужно действие конкретного Document?
+    → document method
+
+Нужна application/business command?
+    → whitelisted service/module method
+
+Нужно сообщить внешний HTTP endpoint о Document event?
+    → Webhook
+
+Нужен стабильный внешний contract или aggregation?
+    → dedicated API
+
+Нужны retries, reconciliation, mapping, complex auth?
+    → integration service + jobs
 ```
 
-может быть оправдан, даже если внутри используется Frappe Documents.
+Это не строгая иерархия. Это выбор механизма по ответственности.
 
 ---
 
-## 21. Errors
-
-Integration boundary должна преобразовывать internal exceptions в понятный внешний contract там, где API является публичным.
-
-Не следует раскрывать caller'у произвольный traceback как часть бизнес-протокола.
-
----
-
-## 22. Integration ownership
-
-Перед проектированием определить:
+## 16. Design review API
 
 ```text
-кто system of record?
-кто инициирует изменение?
-кто имеет authoritative state?
-как разрешаются конфликты?
+1. Это CRUD или business command?
+2. Клиент может зависеть от DocType schema?
+3. Нужен ли отдельный versioned contract?
+4. Где происходит authorization?
+5. Используются ли Document permission/lifecycle paths?
+6. Есть ли ignore_permissions и чем он оправдан?
+7. Есть ли external side effects до commit?
+8. Нужна ли idempotency?
+9. Может ли Webhook решить outbound event без custom code?
+10. Не импортируем ли мы internal Frappe API implementation вместо public API?
 ```
-
-Frappe API mechanics не решают эти business questions автоматически.
-
----
-
-## 23. Polling
-
-Polling не является автоматически костылём.
-
-Он оправдан, если external system не предоставляет webhook/events.
-
-Но не нужно polling'ом имитировать события собственного Frappe Document, для которых уже есть lifecycle/hooks.
-
----
-
-## 24. Outbox/reliable delivery
-
-Если integration требует гарантированной доставки и replay, обычного Webhook может быть недостаточно.
-
-Тогда отдельный integration event/outbox mechanism может быть оправдан как новая responsibility.
-
-Важно: это уже не дублирование Notification/Webhook, а другой reliability contract.
-
----
-
-## 25. API decision track
-
-```text
-Обычный CRUD Frappe Document?
-        → Document REST API
-
-Команда конкретного Document?
-        → whitelisted document method
-
-Application/domain command?
-        → whitelisted service/module method
-
-Нужен стабильный внешний contract?
-        → dedicated domain API
-
-Нужно отправить простой Document event наружу?
-        → Webhook
-
-Нужна сложная/reliable integration?
-        → integration service + jobs/state
-```
-
----
-
-## 26. Design review checklist
-
-- [ ] Определено, является endpoint CRUD или command.
-- [ ] Custom CRUD не дублирует generic API без причины.
-- [ ] Public contract осознанно связан или не связан с DocType schema.
-- [ ] Custom method применяет authorization.
-- [ ] External side effects согласованы с commit.
-- [ ] Idempotency рассмотрена.
-- [ ] Sync/async модель выбрана осознанно.
-- [ ] Webhook рассмотрен для простого outbound event.
-- [ ] Complex integration выделена в самостоятельную responsibility.
-- [ ] Internal route implementation не используется как public Python API.
-- [ ] Определён system of record.
