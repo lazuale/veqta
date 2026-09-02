@@ -29,7 +29,7 @@ Guest / Website User
 
 ```bash
 bench new-app service_intake
-bench new-site intake.localhost
+bench new-site intake.localhost --db-root-username frappe_admin
 bench --site intake.localhost install-app service_intake
 bench --site intake.localhost set-config developer_mode 1
 bench --site intake.localhost clear-cache
@@ -71,8 +71,11 @@ Naming: `format:INT-{YYYY}-{#####}`. Title Field: `subject`.
 
 Значение `reporter_email` — сообщённый гостем контакт, а не подтверждённая личность. Оно не используется для авторизации или автоматической выдачи доступа.
 
-Mandatory Check не используется для согласия: сервер Frappe считает `0` допустимым
-значением Check. Обязательный Select без default требует явного выбора.
+`Contact Consent` семантически является булевым согласием, но обязательность Check сама
+по себе не гарантирует значение true. Поэтому в no-code маршруте используется обязательный
+Select без default. Это осознанный компромисс практикума, а не универсальный паттерн для
+булевых полей; при наличии собственной business logic явное согласие следует проверять
+на серверной стороне.
 
 Публичная и внутренняя классификации связаны явным правилом:
 
@@ -92,7 +95,7 @@ Standard DocType, Track Changes включён.
 | Label | Fieldname | Type | Правила |
 |---|---|---|---|
 | Case Title | `case_title` | Data | Mandatory, In List View |
-| Source Intake | `source_intake` | Link | Mandatory, Unique, Options: Service Intake |
+| Source Intake | `source_intake` | Link | Mandatory, Unique, Set Only Once, Options: Service Intake |
 | Case Description | `case_description` | Text | Mandatory; проверенное содержание для внутренней работы |
 | Category | `category` | Link | Mandatory, Options: Service Category |
 | Priority | `priority` | Select | `Low`, `Normal`, `High`, `Urgent` |
@@ -101,7 +104,9 @@ Standard DocType, Track Changes включён.
 
 Naming: `format:CASE-{YYYY}-{#####}`. Title Field: `case_title`.
 
-Unique на `source_intake` выражает правило «одно принятое внешнее обращение — не более одного внутреннего Case» без custom controller.
+`Unique` на `source_intake` выражает правило «одно принятое внешнее обращение — не более
+одного внутреннего Case». `Set Only Once` защищает происхождение уже созданного Case:
+Agent или другой пользователь с Write не может перепривязать его к другому Intake.
 
 ## 4. Роли и внутренний процесс
 
@@ -203,6 +208,10 @@ Web Form new document
 - второе обращение отметить `Rejected` и записать причину в Internal Notes;
 - попытаться создать второй Case по тому же Intake и получить Unique violation.
 
+После сохранения Case попытаться под Agent заменить `source_intake` на другой Intake.
+Изменение должно быть заблокировано `Set Only Once`; иначе трассируемость источника не
+считается доказанной.
+
 Автоматической кнопки «Преобразовать» нет. Она потребовала бы custom Client/Python logic. В базовом app ручной шаг является честной границей возможностей конфигурации.
 
 Agent работает с `case_description` и не получает Read на исходный Intake с контактными данными. Link на источник сохраняет трассируемость для Triage/Manager, но не используется как способ расширить доступ Agent.
@@ -214,7 +223,6 @@ Agent работает с `case_description` и не получает Read на 
 Создать:
 
 - Notification `New Service Intake` для Triage;
-- Notification `Service Case Assigned` или системное назначение;
 - Report `New Intakes`;
 - Report `Open Service Cases`;
 - Number Card `Untriaged Intakes`;
@@ -263,7 +271,7 @@ git add .
 git commit -m "Build service intake boundary app"
 
 cd ../..
-bench new-site intake-clean.localhost
+bench new-site intake-clean.localhost --db-root-username frappe_admin
 bench --site intake-clean.localhost install-app service_intake
 bench --site intake-clean.localhost migrate
 bench --site intake-clean.localhost clear-cache
@@ -278,6 +286,7 @@ bench --site intake-clean.localhost clear-cache
 Выполнить P3 из [ACCEPTANCE.md](../../ACCEPTANCE.md) и объяснить:
 
 - почему внешний Intake и внутренний Case — разные DocType;
+- почему `source_intake` нельзя менять после создания Case;
 - почему Login Required не равен role authorization;
 - почему `Apply Document Permissions` не превращает new Web Form insert в обычный Desk Create;
 - почему закрытые Link options не публикуются;
