@@ -100,7 +100,7 @@ CHECK: New → In Progress → Review → Done
 
 ## Универсальный архитектурный стандарт Frappe
 
-**`docs/frappe-architecture-standard/README.md`** — отдельное исследование и design standard по Frappe Framework 16: как выбирать нативные primitives, где проходит граница custom code, как проектировать permissions, lifecycle, transactions, integrations, extensions, migrations и tests. Документ не описывает VEQTA и не является частью её предметной модели.
+**`docs/frappe-architecture-standard/README.md`** — отдельное исследование и архитектурный стандарт по Frappe Framework 16: как выбирать штатные механизмы, где проходит граница собственного кода, как проектировать права доступа, жизненный цикл, транзакции, интеграции, расширения, миграции и тесты. Документ не описывает VEQTA и не является частью её предметной модели.
 
 ## Термины
 
