@@ -1,211 +1,223 @@
-# 03. Document Lifecycle
+# 03. Document Lifecycle — где должна жить логика
 
-## 1. Главная идея
+## 1. Controller — владелец поведения своего DocType
 
-Во Frappe Document — не пассивная строка таблицы.
+**[FRAPPE DOCS]** Controller — Python class DocType, наследующий `frappe.model.document.Document`.
 
-Он имеет:
+Источник:
 
-- metadata;
-- permissions;
-- lifecycle;
-- validation;
-- persistence semantics;
-- events;
-- submit/cancel state;
-- integration points.
+- https://docs.frappe.io/framework/user/en/basics/doctypes/controllers
 
-Поэтому правила, которые принадлежат самому Document, должны проектироваться с учётом его lifecycle, а не как произвольный набор обработчиков.
+**[UPSTREAM]** `frappe/model/document.py` показывает, что `Document.save()` и `insert()` выполняют permission checks, validation и lifecycle methods.
+
+Источник:
+
+- https://github.com/frappe/frappe/blob/version-16/frappe/model/document.py
+
+Это означает: Controller — не случайное место, куда «удобно положить код», а часть официальной Document model.
 
 ---
 
-## 2. Controller
+## 2. Главное разделение: UX и гарантия данных
 
-Controller — Python-класс конкретного DocType, наследующий `frappe.model.document.Document`.
+### Client Script
 
-Он является естественным владельцем поведения самого Document.
+**[FRAPPE DOCS]** Client Script выполняется в браузере и влияет на standard form view.
 
-Пример:
+Источник:
 
-```python
-class Inspection(Document):
-    def validate(self):
-        ...
+- https://docs.frappe.io/framework/user/en/desk/scripting/client-script
+
+Подходящие задачи:
+
+```text
+показать предупреждение;
+скрыть/показать поле;
+автоматически заполнить удобное значение;
+изменить filter Link;
+добавить кнопку;
+немедленно подсказать ошибку пользователю.
 ```
 
-Это нативно.
+### Server-side Document logic
 
-Нативность не определяется количеством Python-кода. Она определяется тем, что логика находится в механизме, специально предназначенном для lifecycle Document.
+Подходящие задачи:
+
+```text
+данные никогда не должны нарушать правило;
+неправильный Document нельзя сохранить через API;
+правило должно работать при импорте и background processing;
+бизнес-инвариант не зависит от UI.
+```
+
+### Ключевое правило
+
+**[ARCHITECTURAL INFERENCE]**
+
+```text
+Client Script = удобство интерфейса
+Server-side validation = гарантия модели
+```
+
+Это следует из прямого предупреждения документации: Client Script validation применяется только в standard browser form.
 
 ---
 
-## 3. Document lifecycle как server-side boundary
+## 3. Типовой пример
 
-`doc.save()` — не просто SQL UPDATE.
+Правило:
 
-Framework выполняет permission checks, validation hooks и post-save events.
+```text
+end_date не может быть раньше start_date
+```
 
-Поэтому обычное изменение business Document через `Document` API имеет другую семантику, чем direct DB update.
+Неполное решение:
 
-### Архитектурное следствие
+```text
+Client Script запрещает выбрать неправильную дату
+```
 
-Если операция должна соблюдать правила документа, используем Document lifecycle.
+Проблема: Document может быть создан через REST API, import или серверный код.
 
-Если lifecycle намеренно обходится — это отдельное архитектурное решение, которое должно быть явно обосновано.
+Надёжное решение:
+
+```text
+Controller.validate()
+```
+
+и, при желании, тот же check на форме для ранней обратной связи.
 
 ---
 
 ## 4. Основные lifecycle hooks
 
-Упрощённая последовательность обычного сохранения:
+**[FRAPPE DOCS]** Controller API перечисляет hooks жизненного цикла Document.
 
-```text
-before_validate
-    ↓
-validate
-    ↓
-before_save
-    ↓
-DB write
-    ↓
-on_update
-```
+Источник:
 
-Для insert дополнительно существуют:
+- https://docs.frappe.io/framework/user/en/basics/doctypes/controllers
 
-```text
-before_insert
-after_insert
-```
+Для архитектурного мышления полезна следующая семантика.
 
-Для submittable Documents:
+### `before_validate`
 
-```text
-before_submit
-on_submit
-
-before_cancel
-on_cancel
-```
-
-Для изменения разрешённых полей после submit:
-
-```text
-before_update_after_submit
-on_update_after_submit
-```
-
----
-
-## 5. before_validate
-
-Хорошее место для подготовки данных, необходимых самой validation.
+Подготовить данные перед проверкой.
 
 Пример:
 
 ```text
-нормализовать значение;
-заполнить производное поле;
-подготовить child rows.
+нормализовать введённое значение;
+заполнить производное поле, необходимое validation.
 ```
 
-### Не следует
+### `validate`
 
-Превращать `before_validate` в универсальный event bus с внешними side effects.
+Проверить инварианты Document.
 
----
-
-## 6. validate
-
-`validate` — основное место для business invariants конкретного Document.
-
-Инвариант — правило, которое никогда не должно быть нарушено независимо от интерфейса.
-
-Примеры:
+Пример:
 
 ```text
-finish_date >= start_date
 quantity > 0
+end_date >= start_date
 parent != self
-closed document cannot contain active child operation
 ```
 
-### Почему server-side
+### `before_save`
 
-Документ может быть изменён:
+Последняя подготовка перед обычным save.
 
-- Desk form;
-- REST API;
-- import;
-- Python;
-- background job;
-- integration.
+### `on_update`
 
-Правило должно работать во всех обычных путях сохранения.
+Реакция после update Document.
 
----
+Нельзя автоматически превращать `on_update` в место для любой тяжёлой интеграции. Side effects требуют учёта transactions — см. `05_TRANSACTIONS_ASYNC.md`.
 
-## 7. before_save
+### `before_submit`
 
-Используется для изменений непосредственно перед persistence, когда validation уже пройдена.
+Последняя проверка перед переходом в Submitted.
 
-Но если вычисление нужно самой validation, его следует выполнять раньше.
+### `on_submit`
 
-Главный вопрос:
+Реакция на успешный submit.
 
-> Нужны ли эти данные для проверки корректности Document или только для финальной записи?
+### `before_cancel`
 
----
+Проверить, допустима ли отмена.
 
-## 8. on_update
+### `on_cancel`
 
-`on_update` выполняется после изменения Document.
+Реакция на cancel.
 
-Это естественное место для реакций на успешное обновление в рамках Document lifecycle.
+### `before_update_after_submit` / `on_update_after_submit`
 
-Но side effects должны учитывать transaction semantics: окончательный commit request ещё может не произойти.
-
-Поэтому внешнюю систему нельзя бездумно уведомлять из любого `on_update`.
-
-Эта тема подробно рассматривается в `05_TRANSACTIONS_ASYNC.md`.
+Отдельные hooks для разрешённых изменений Submitted Document.
 
 ---
 
-## 9. submit/cancel
+## 5. Инвариант должен находиться там, где его нельзя обойти
 
-Если DocType `Is Submittable`, у него появляется системный transaction lifecycle:
+Инвариант — правило, которое должно быть истинно всегда.
+
+Пример:
 
 ```text
-Draft      docstatus = 0
-Submitted  docstatus = 1
-Cancelled  docstatus = 2
+Inspection нельзя завершить без result.
 ```
 
-### before_submit
+Если правило реализовано только:
 
-Последняя проверка возможности подтвердить документ.
+- кнопкой;
+- client validation;
+- скрытием поля;
+- фильтром формы,
 
-### on_submit
+оно не является гарантией данных.
 
-Последствия успешно выполненного submit.
-
-### before_cancel
-
-Проверка, можно ли отменить документ.
-
-### on_cancel
-
-Компенсационные последствия отмены.
+**[ARCHITECTURAL INFERENCE]** Критические инварианты должны проверяться на server-side path, через который проходят обычные изменения Document.
 
 ---
 
-## 10. Submit не является обычным status change
+## 6. Server Script — официальный, но особый механизм
 
-Это критическая граница.
+**[FRAPPE DOCS]** Server Script позволяет выполнять Python logic на Document Event или как API.
 
-`Submitted` во Frappe имеет системную semantics: документ переходит в более фиксированное состояние и обычное редактирование ограничивается.
+Источник:
 
-Поэтому бизнес-статусы:
+- https://docs.frappe.io/framework/user/en/desk/scripting/server-script
+
+Но начиная с v15 Server Scripts **disabled by default** на shared benches из соображений безопасности; public shared Frappe Cloud bench их не разрешает.
+
+Отсюда важный вывод.
+
+**[ARCHITECTURAL INFERENCE]** Server Script не является обязательной промежуточной ступенью между configuration и Python App code.
+
+### Когда Server Script уместен
+
+- site-specific automation;
+- ограниченная low-code настройка;
+- логика действительно должна жить как runtime configuration;
+- deployment environment разрешает Server Scripts.
+
+### Когда Controller лучше
+
+- логика является обязательной частью устанавливаемого App;
+- нужен Git history;
+- нужны обычные code review и tests;
+- логика должна одинаково разворачиваться на нескольких sites.
+
+---
+
+## 7. Business status, Workflow и docstatus
+
+Это три разных понятия, которые могут взаимодействовать.
+
+### Business status
+
+Отвечает:
+
+> Что сейчас происходит с объектом?
+
+Пример:
 
 ```text
 New
@@ -214,455 +226,276 @@ Waiting
 Done
 ```
 
-не должны автоматически превращаться в `docstatus`.
+Обычно выражается обычным field.
+
+### Workflow
+
+Отвечает:
+
+> Какие переходы между состояниями разрешены, кому и при каких условиях?
+
+Workflow имеет states, transitions, roles и conditions.
+
+Официальная документация Workflow:
+
+- https://docs.frappe.io/erpnext/user/manual/en/workflows
+
+### `docstatus`
+
+**[FRAPPE DOCS]** Системный транзакционный lifecycle:
+
+```text
+0 Draft
+1 Submitted
+2 Cancelled
+```
+
+Источник:
+
+- https://docs.frappe.io/framework/doctypes/docstatus
+
+`docstatus` отвечает не на вопрос «в какой колонке Kanban находится задача», а на вопрос о системном состоянии transactional Document.
 
 ---
 
-## 11. Business status
+## 8. Они различны, но не изолированы
 
-Обычный status отвечает:
+Нельзя рисовать их как три независимых мира.
 
-> **В каком бизнес-состоянии находится объект?**
+Workflow может управлять состояниями и участвовать в переходах, связанных с `docstatus`.
+
+Поэтому правильная формулировка:
+
+```text
+business status = предметный смысл состояния
+Workflow        = политика переходов
+DocStatus       = системный transaction lifecycle
+```
+
+Один Document может использовать более одного из этих механизмов.
+
+---
+
+## 9. Когда достаточно обычного status
 
 Пример:
 
 ```text
-Work Item
-    status = New / In Progress / Done
+Task
+New → In Progress → Waiting → Done
 ```
 
-Это просто часть предметной модели.
+Если уполномоченный пользователь может менять состояние без отдельного approval route, обычное поле может быть достаточно.
+
+### Red flag
+
+Создавать Workflow только потому, что у поля есть четыре значения.
+
+Workflow имеет смысл, когда действительно нужны управляемые переходы, роли и условия.
 
 ---
 
-## 12. Workflow
-
-Workflow отвечает на другой вопрос:
-
-> **Какие переходы разрешены и кто может их выполнять?**
+## 10. Когда рассматривать Workflow
 
 Пример:
 
 ```text
 Draft
-  ↓ Employee submits
+  ↓ Employee: Submit for Review
 Manager Review
-  ↓ Manager approves
+  ↓ Manager: Approve
 Approved
 ```
 
-Здесь имеются:
-
-- states;
-- transitions;
-- roles;
-- conditions.
-
-Workflow является естественным первым кандидатом.
-
----
-
-## 13. docstatus
-
-`docstatus` отвечает:
-
-> **Каково системное транзакционное состояние Document?**
-
-Его нельзя использовать как универсальный Kanban status.
-
----
-
-## 14. Workflow и docstatus могут взаимодействовать
-
-Business status, Workflow и docstatus семантически различны, но не полностью независимы.
-
-Workflow может управлять системным `docstatus`.
-
-Поэтому правильная модель:
+Здесь присутствуют:
 
 ```text
-business state       → предметная семантика
-workflow transition  → governance переходов
-docstatus            → системный transaction state
+states
+transitions
+roles
+conditions
 ```
 
-а не три полностью изолированных механизма.
+и Workflow естественно выражает процесс.
 
----
+### Исключение
 
-## 15. Когда Workflow не нужен
-
-Если любой уполномоченный пользователь может просто менять:
+Если approval является сложной динамической orchestration:
 
 ```text
-Open → In Progress → Done
+стоимость × риск × договор × организация × внешний API
 ```
 
-обычного `status` может быть достаточно.
+стандартный Workflow может перестать быть достаточным. Тогда сложная domain logic может быть оправдана.
 
-Workflow не нужен только потому, что значений несколько.
+Наличие слова «approval» не является автоматическим требованием использовать Workflow.
 
 ---
 
-## 16. Когда Workflow может быть недостаточен
+## 11. Когда нужен `Is Submittable`
 
-Если approval зависит от сложной динамической логики:
+**[FRAPPE DOCS]** Submittable Documents используют Draft → Submitted → Cancelled semantics и получают ограничения после submit.
 
-```text
-amount
-× risk level
-× external scoring
-× contract type
-× organization hierarchy
-```
+Источник:
 
-стандартная States/Transitions/Roles модель может перестать быть достаточной.
+- https://docs.frappe.io/framework/doctypes/docstatus
 
-Тогда custom domain logic оправдана.
-
-Критерий:
-
-> Может ли процесс естественно выражаться моделью Workflow без превращения условий в нечитаемую программу внутри configuration?
-
----
-
-## 17. Client Script
-
-Client Script выполняется в браузере и предназначен прежде всего для form UX.
-
-Хорошие задачи:
-
-```text
-показать/скрыть поле;
-изменить фильтр Link;
-сразу предупредить пользователя;
-заполнить вспомогательное значение;
-добавить button;
-изменить presentation формы.
-```
-
----
-
-## 18. Client Script не является гарантией данных
-
-Критическое правило нельзя защищать только Client Script.
-
-Почему?
-
-Потому что Document можно изменить без этой browser form.
-
-Пример плохого решения:
-
-```text
-finish_date >= start_date
-```
-
-проверяется только JavaScript.
-
-Через API неправильный Document может быть сохранён.
-
-### Правильная модель
-
-```text
-Client Script
-    → удобное раннее предупреждение
-
-server validate
-    → окончательная гарантия
-```
-
----
-
-## 19. Server Script
-
-Server Script — штатный runtime customization mechanism.
-
-Он полезен для site-level automation, когда полноценное изменение App source не требуется или недоступно.
-
-Но Server Script нельзя автоматически считать обязательной промежуточной ступенью перед Python Controller.
-
-### В source-controlled App
-
-Python Controller или normal Python module часто:
-
-- проще тестировать;
-- проще version-control;
-- проще review;
-- проще переносить между sites.
-
-### Важная граница
-
-Server Script имеет security/deployment restrictions и может быть отключён в конкретной инфраструктуре.
-
-Поэтому architecture продукта не должна неосознанно зависеть от него.
-
----
-
-## 20. Controller или doc_events
-
-Хорошая граница ownership:
-
-```text
-мы владеем DocType
-    → Controller — естественный owner lifecycle logic
-
-мы хотим реагировать на DocType другого App
-    → doc_events — естественный extension seam
-```
-
-Это рекомендация, а не технический запрет.
-
----
-
-## 21. Service layer
-
-Service не противоречит Frappe.
-
-Он оправдан, если действительно выделяет отдельную ответственность.
+Это естественно для документа, где submit означает совершённый/зафиксированный факт.
 
 Примеры:
 
-- координация нескольких Documents;
-- сложный расчёт;
-- интеграционная orchestration;
-- общий алгоритм для нескольких Controllers;
-- разгрузка слишком большого Controller.
-
-ERPNext сам использует подобные service modules.
-
----
-
-## 22. Когда Service является пустым слоем
-
-Плохой пример:
-
-```python
-class RequestService:
-    def save(self, request):
-        request.save()
+```text
+финансовая операция;
+акт;
+складская транзакция;
+официально подтверждённый документ.
 ```
 
-Это не новая ответственность.
+### Неправильный мотив
 
-Код лишь переименовал Document API.
+> «У нас задача может быть Done, значит сделаем её Submitted».
 
-### Design question
-
-> Если удалить Service, потеряется ли понятная отдельная business/technical responsibility?
-
-Если нет — слой, вероятно, ничего не добавляет.
+Done и Submitted имеют разную семантику.
 
 ---
 
-## 23. Repository
+## 12. Allow on Submit — не способ бесконтрольно редактировать Submitted Document
 
-Repository также не запрещён.
+Некоторые поля могут быть разрешены для изменения после submit.
 
-Но обычный Frappe Document уже скрывает большую часть persistence lifecycle.
+Архитектурно это следует рассматривать как исключение для конкретных полей, а не как обход транзакционной фиксации.
 
-Поэтому wrapper:
+Перед `Allow on Submit` нужно спросить:
+
+> Это действительно атрибут, изменение которого не меняет смысл уже подтверждённой операции?
+
+---
+
+## 13. Service layer — не запрещён
+
+Аудит first-party ERPNext показывает реальные service classes:
+
+- `StockLedgerService`;
+- `TaxService`;
+- `QualityInspectionService`;
+- `AssetService`;
+- `SerialBatchBundleService`.
+
+Примеры:
+
+- https://github.com/frappe/erpnext/blob/develop/erpnext/stock/services/stock_ledger_service.py
+- https://github.com/frappe/erpnext/blob/develop/erpnext/accounts/services/taxes.py
+
+`StockLedgerService` даже прямо описывает логику, вынесенную из большого `StockController`.
+
+### Следствие
+
+Нельзя утверждать:
 
 ```text
-get → frappe.get_doc
-save → doc.save
+вся бизнес-логика обязана жить только в Controller
 ```
 
-обычно не создаёт ценности.
-
-Repository становится осмысленным, если действительно абстрагирует:
-
-- несколько storage mechanisms;
-- специализированную aggregate persistence;
-- внешний источник;
-- сложную query abstraction с самостоятельной ценностью.
-
----
-
-## 24. Side effects
-
-Document lifecycle и external side effects — разные вопросы.
-
-Например:
-
-```text
-on_submit
-    → call external API
-```
-
-кажется естественным.
-
-Но если request transaction затем rollback, внешний API уже мог выполнить операцию.
-
-Поэтому такие действия должны проектироваться вместе с transaction boundary.
-
----
-
-## 25. Idempotency
-
-Некоторые lifecycle events или background operations могут быть повторены.
-
-Side effect должен отвечать на вопрос:
-
-> Что произойдёт, если этот код выполнится второй раз?
-
-Особенно важно для:
-
-- внешних API calls;
-- создания derived Documents;
-- background jobs;
-- cancellation/compensation;
-- integration retries.
-
----
-
-## 26. Direct DB update обходит lifecycle
-
-Операция вида:
-
-```python
-frappe.db.set_value(...)
-```
-
-не эквивалентна:
-
-```python
-doc.save()
-```
-
-Если business rules живут в validation/events, direct DB write может их обойти.
-
-Это не делает DB API плохим.
-
-Оно означает:
-
-> bypass должен быть намеренным.
-
----
-
-## 27. Derived fields
-
-Если поле полностью вычисляется из других данных, нужно определить ownership вычисления.
-
-Варианты:
-
-```text
-не хранить вообще;
-вычислять перед сохранением;
-хранить как snapshot;
-пересчитывать background job;
-```
-
-Не нужно автоматически хранить каждое удобное UI-значение в DB.
-
-Но performance/reporting может оправдывать денормализацию.
-
----
-
-## 28. Validation vs mutation
-
-Хорошая validation отвечает:
-
-> допустим ли Document?
-
-Если `validate` неожиданно создаёт множество других Documents, отправляет API calls и выполняет тяжёлую orchestration, lifecycle становится трудно понимать.
-
-Такую логику часто полезнее вынести в понятную command/service operation.
-
----
-
-## 29. Большой Controller
-
-«Вся бизнес-логика должна жить в Controller» — неправильное правило.
-
-Controller должен оставаться владельцем Document lifecycle, но сложные алгоритмы можно выносить в:
-
-- domain/service modules;
-- pure functions;
-- integration services;
-- background operations.
-
-Controller может координировать их в соответствующем lifecycle hook.
-
----
-
-## 30. Маленький Controller тоже не самоцель
-
-Обратная крайность:
+Правильнее:
 
 ```text
 Controller
-  → Service
-      → Manager
-          → Handler
-              → Repository
+  владеет Document lifecycle и поведением своего Document
+
+Service/domain module
+  выделяет сложную отдельную ответственность,
+  особенно если она координирует несколько Documents
 ```
-
-для проверки двух дат.
-
-Это добавляет переходы, но не ответственность.
-
-Архитектурная ценность определяется не количеством слоёв, а ясностью ownership.
 
 ---
 
-## 31. Decision track: где должна жить логика
+## 14. Плохой и хороший Service
+
+### Пустая обёртка
 
 ```text
-Нужно изменить UX формы?
-        → Client Script / form JS
-
-Нужно гарантировать корректность Document?
-        → server-side Controller validation
-
-Нужно обработать lifecycle собственного DocType?
-        → Controller
-
-Нужно реагировать на lifecycle чужого DocType?
-        → doc_events / extension hook
-
-Нужна сложная reusable domain orchestration?
-        → service/domain module
-
-Нужна долгая операция?
-        → Background Job
-
-Нужно выполнить периодически?
-        → Scheduler
-
-Нужна runtime site-only автоматизация?
-        → рассмотреть Server Script
+TaskService.save(task):
+    task.save()
 ```
 
----
+Она ничего не добавляет к Document API.
 
-## 32. State decision track
+### Реальная ответственность
 
 ```text
-Просто рабочее состояние объекта?
-        → status field
-
-Нужны управляемые переходы/roles/approval?
-        → Workflow
-
-Нужна системная фиксация transaction?
-        → Is Submittable / docstatus
-
-Workflow должен управлять submit/cancel?
-        → интегрировать Workflow и docstatus
+MonthlySettlementService
 ```
+
+может:
+
+- собрать данные из нескольких DocType;
+- выполнить расчёты;
+- создать несколько Documents;
+- вызвать integration;
+- работать как background job.
+
+Тогда выделение service снижает coupling и размер Controllers.
 
 ---
 
-## 33. Design review checklist
+## 15. Repository — такой же критерий
 
-- [ ] Определены invariants Document.
-- [ ] Критические invariants проверяются server-side.
-- [ ] Client Script не является единственной защитой данных.
-- [ ] `status`, Workflow и `docstatus` не смешаны семантически.
-- [ ] `Is Submittable` используется из-за transaction semantics, а не просто наличия статусов.
-- [ ] Controller владеет lifecycle собственного DocType.
-- [ ] Service имеет самостоятельную ответственность.
-- [ ] Direct DB writes используются намеренно.
-- [ ] External side effects согласованы с transaction boundary.
-- [ ] Повторное выполнение side effects рассмотрено.
-- [ ] Server Script не стал скрытой обязательной production dependency.
+Framework не запрещает Repository pattern.
+
+Но обёртка:
+
+```text
+TaskRepository.get(name):
+    return frappe.get_doc("Task", name)
+```
+
+лишь дублирует API Framework.
+
+Repository приобретает смысл, если действительно абстрагирует:
+
+```text
+несколько backends;
+специализированный aggregate storage;
+внешний источник;
+сложную query/persistence responsibility.
+```
+
+Статус этого правила: **[ARCHITECTURAL INFERENCE]**.
+
+---
+
+## 16. Свой DocType vs расширение чужого
+
+Если App владеет DocType, его Controller — естественное место для lifecycle logic.
+
+Если другое App лишь реагирует на чужой DocType, часто естественнее официальный extension seam:
+
+```text
+doc_events
+extend_doctype_class
+```
+
+Это позволяет не захватывать ownership чужой модели.
+
+Подробно: `07_EXTENSION_CUSTOMIZATION.md`.
+
+---
+
+## 17. Lifecycle design review
+
+Перед реализацией правила спросить:
+
+```text
+1. Это UX или гарантия данных?
+2. Правило относится к одному Document или координирует несколько?
+3. Какой lifecycle event соответствует семантике?
+4. Может ли логика быть вызвана повторно?
+5. Есть ли внешние side effects?
+6. Что произойдёт при rollback?
+7. Это business status, Workflow policy или docstatus?
+8. Нужна ли transaction finality через submit?
+9. Logic site-specific или является частью App?
+10. Нужен ли service, или Controller остаётся понятным и локальным?
+```
+
+Если эти ответы известны, место для логики обычно становится очевидным без искусственных архитектурных слоёв.
