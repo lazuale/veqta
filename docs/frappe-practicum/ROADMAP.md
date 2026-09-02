@@ -242,7 +242,7 @@ Web Form access path
 - Workflow;
 - separate Intake/Case reporting.
 
-Ручная конвертация здесь **не недостаток курса**. Это специально достигнутая граница:
+Ручная конвертация здесь не недостаток курса. Это специально достигнутая граница:
 metadata уже не выражает следующую атомарную business operation.
 
 ## P3.6. Built-in REST
@@ -260,7 +260,8 @@ metadata уже не выражает следующую атомарную busi
 - `intake-clean.localhost`;
 - Guest submission + internal triage повторяются.
 
-**Gate P3:** metadata/configuration уровень курса завершён.
+**Gate P3:** metadata/configuration уровень курса завершён. Следующий шаг —
+[Engineering Bridge](engineering/LABS.md).
 
 ---
 
@@ -271,17 +272,20 @@ metadata уже не выражает следующую атомарную busi
 Используется тот же `service_intake`, потому что именно он дошёл до естественной границы
 configuration-only решения.
 
-## E1. Controller invariant
+## E1. Creation invariant в Controller
 
 Новое правило:
 
 ```text
-Service Case.source_intake
-must reference Accepted Service Intake
+при создании Service Case
+source_intake must reference Accepted Service Intake
 ```
 
-Metadata продолжает владеть Link/Unique/Set Only Once. Controller `validate` добавляет
-только cross-document state invariant.
+Metadata продолжает владеть Link/Unique/Set Only Once. Controller `before_insert`
+добавляет только creation-time cross-document state invariant.
+
+Проверка обязательно включает Agent-save существующего Case без Read на Intake. Так
+доказывается, что правило не повешено на слишком широкий `validate()`.
 
 ## E2. Schema evolution
 
@@ -291,7 +295,7 @@ Metadata продолжает владеть Link/Unique/Set Only Once. Controll
 converted_at
 ```
 
-Он принадлежит source модели app, а не site customization.
+Он принадлежит source-модели app, а не site customization.
 
 ## E3. Semantic Document command
 
@@ -319,13 +323,7 @@ business command
 
 Через exact v16 API v2 route выполняется whitelisted method конкретного Intake.
 
-Проверяются:
-
-- success;
-- duplicate rejection;
-- state rejection;
-- permissions;
-- secret hygiene.
+Проверяются success, duplicate rejection, state rejection, permissions и secret hygiene.
 
 ## E5. Transaction rollback
 
@@ -337,9 +335,7 @@ uncaught request exception
 → no converted_at
 ```
 
-Probe удаляется до commit в Git.
-
-Manual `frappe.db.commit()` в business command отсутствует.
+Probe удаляется до commit. Manual `frappe.db.commit()` в business command отсутствует.
 
 ## E6. Patch/migrate
 
@@ -354,18 +350,25 @@ Patch повторно через migrate не выполняется как н�
 
 ## E7. Integration tests
 
-Тестируется собственное поведение app:
+Создаётся отдельный:
 
-- non-Accepted source rejected;
+```text
+intake-test.localhost
+```
+
+На нём тестируется собственное поведение app:
+
+- non-Accepted source rejected on insert;
 - accepted conversion works;
 - duplicate conversion rejected;
-- converted_at written.
+- converted_at written;
+- Agent сохраняет существующий Case без Read на Intake.
 
-Не пишутся тесты «Link вообще работает» или «Mandatory вообще работает».
+Рабочий `intake.localhost` не используется как test database.
 
 ## E8. Async/integration decision lab
 
-Практически разобрать границы:
+Разобрать границы:
 
 ```text
 Webhook
@@ -374,20 +377,26 @@ Controller lifecycle
 integration module/service
 ```
 
-Custom Job в app **не добавлять**, потому что текущая модель не имеет реальной долгой
+В exact v16.32 обычный Webhook для DocType event сам проходит через after-commit flush и
+background queue. Custom Job вокруг него только ради «асинхронности» не нужен.
+
+Custom Job в app не добавлять, потому что текущая модель не имеет реальной долгой
 операции.
 
 ## E9. Deployment acceptance
 
-Проверяются два разных сценария:
+Проверяются три разных сценария:
 
 ```text
 upgrade intake.localhost
+
+automated tests intake-test.localhost
+
 clean install intake-engineering-clean.localhost
 ```
 
-**Gate Engineering:** code находится в нативных extension points, migration проходит, tests
-зелёные, искусственных abstractions/jobs нет.
+**Gate Engineering:** code находится в нативных extension points и правильных lifecycle
+phases, migration проходит, tests зелёные, искусственных abstractions/jobs нет.
 
 ---
 
@@ -402,13 +411,13 @@ clean install intake-engineering-clean.localhost
 5. почему Assignment не authorization;
 6. почему Workflow не заменяет permissions и docstatus;
 7. почему Web Form — отдельный trust/access path;
-8. когда invariant должен перейти в Controller;
+8. когда invariant должен перейти в Controller и как выбрать lifecycle phase;
 9. почему semantic command не дублирует CRUD REST;
 10. где проходит transaction boundary и почему manual commit опасен;
 11. чем schema migration отличается от data patch;
-12. что должны тестировать tests приложения;
+12. что должны тестировать tests приложения и почему им нужен отдельный site;
 13. когда Background Job/Webhook действительно оправданы;
-14. как доказать clean install и upgrade.
+14. как отдельно доказать upgrade и clean install.
 
 Финальная работа принимается, когда три app имеют воспроизводимые Git-состояния, а
 `service_intake` дополнительно проходит Engineering acceptance.
