@@ -1,622 +1,414 @@
-# 02. Data Model
+# 02. Data Model — как выбирать DocType, поля и связи
 
-## 1. Цель раздела
+## 1. Главный вопрос
 
-Задача data modeling во Frappe — не придумать как можно больше DocType, а выразить предметную область через минимальный набор правильных Document structures.
+Frappe — metadata-driven framework, поэтому качество приложения во многом определяется качеством DocType model.
 
-Главный вопрос:
+Перед созданием каждого нового DocType нужно спросить:
 
-> **Это самостоятельный Document, свойство другого Document или составная часть parent Document?**
+> Это действительно самостоятельный Document системы или всего лишь свойство/строка/ссылка другого Document?
 
-Из этого уже выбираются DocType, field, Link, Child Table и другие primitives.
+Это не официальный «тест Frappe», а **[ARCHITECTURAL INFERENCE]**, основанный на том, что Framework предоставляет разные primitives для разных форм данных.
+
+Основные источники:
+
+- https://docs.frappe.io/framework/user/en/basics/doctypes
+- https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes
 
 ---
 
-## 2. DocType или поле
+## 2. Когда нужен обычный DocType
 
-### Базовая эвристика
+**[FRAPPE DOCS]** DocType — core building block и описание типа Document.
 
-Отдельный DocType является естественным кандидатом, если объект:
+Обычный DocType естественен, если запись имеет собственную идентичность и хотя бы несколько из признаков ниже:
 
-- существует самостоятельно;
-- имеет свой lifecycle;
-- должен открываться отдельно;
-- имеет собственные permissions;
-- используется несколькими другими Documents;
-- должен участвовать в independent search/reporting;
-- имеет собственную историю;
-- должен быть target для Links.
-
-### Поле естественно, если
-
-значение просто описывает Document.
+```text
+имеет самостоятельный lifecycle;
+имеет собственные permissions;
+на неё ссылаются другие Documents;
+её открывают и ищут отдельно;
+она может существовать независимо от одного parent;
+нужен собственный audit/history;
+у неё есть собственные business rules.
+```
 
 Пример:
 
 ```text
 Vehicle
-    registration_number
-    color
-    model
+Customer
+Contract
+Work Order
+Inspection
 ```
 
-`Vehicle` — DocType.
+### Ошибка новичка
 
-`color` — field.
+Создавать DocType для каждого существительного:
 
-Создавать `Vehicle Color Instance` только ради хранения значения цвета не нужно, если у цвета нет собственной бизнес-семантики.
+```text
+Task Color
+Task Priority Value
+Task Comment Row
+Task Responsible Row
+```
 
-### Важное исключение
+только потому, что «отдельная таблица выглядит чище».
 
-Если список цветов сам является управляемым справочником с дополнительными атрибутами, правилами или ссылками, отдельный DocType может быть оправдан.
+Каждый лишний DocType добавляет собственную модель, права, naming, search/list semantics, ссылки и upgrade surface.
 
 ---
 
-## 3. Link
+## 3. Когда достаточно DocField
 
-`Link` используется, когда один Document содержит живую ссылку на другой самостоятельный Document.
+**[FRAPPE DOCS]** Frappe предоставляет field types для описания свойств Document: Data, Select, Int, Date, Link, Table и другие.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes
+
+Если значение является обычным свойством Document и не имеет самостоятельного поведения, отдельный DocType чаще всего не нужен.
 
 Пример:
 
 ```text
-Request
-    department → Department
+Vehicle
+  registration_number : Data
+  manufacture_year    : Int
+  active              : Check
 ```
 
-Здесь `Department` существует независимо от Request.
+### Select или отдельный справочник?
 
-### Почему Link лучше текста для живой связи
+`Select` подходит, когда набор значений:
 
-Он сохраняет referential semantics Framework:
+- мал;
+- стабилен;
+- не имеет дополнительных атрибутов;
+- не требует прав или отдельного управления.
 
-- выбор существующего Document;
-- поиск;
-- link validation;
-- navigation;
-- User Permissions по связанным данным;
-- report/query relationships.
+Отдельный DocType лучше, когда элемент списка сам становится управляемым объектом.
 
-### Но Link не всегда лучше snapshot
+Пример:
 
-Иногда transaction должен хранить значение таким, каким оно было в момент операции.
+```text
+Priority = Low / Normal / High
+```
+
+может быть Select.
+
+Но если у каждой Priority имеются:
+
+```text
+name
+response_time
+color
+escalation_rule
+active
+```
+
+это уже хороший кандидат на отдельный DocType.
+
+---
+
+## 4. Link — живая ссылка на другой Document
+
+**[FRAPPE DOCS]** Field type `Link` ссылается на другой DocType.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes
+
+Пример:
+
+```text
+Work Order
+  vehicle -> Vehicle
+```
+
+Если `Vehicle` является самостоятельным master record, Link сохраняет настоящую связь.
+
+### Ошибка
+
+Хранить вместо Link:
+
+```text
+vehicle_name = "Shacman A123"
+```
+
+когда система должна работать именно с записью Vehicle.
+
+Так теряются ссылочная целостность Frappe, link search и возможность однозначно идентифицировать объект.
+
+---
+
+## 5. Snapshot — важное исключение из правила Link
+
+Не каждое повторение значения является ошибкой.
+
+Иногда transaction должен сохранить состояние данных **на момент операции**.
 
 Пример:
 
 ```text
 Invoice
-    customer → Customer
-    customer_name_snapshot
-    billing_address_text
+  customer -> Customer
+  customer_name_snapshot
+  billing_address_snapshot
 ```
 
-Если `Customer` позже переименуют, старый Invoice может быть обязан сохранить исторический текст.
+Если завтра Customer поменяет адрес, старый Invoice не должен обязательно переписать исторический адрес.
 
-Поэтому вопрос не:
-
-> «Link или Data — что более нативно?»
-
-А:
-
-> **Нужна живая ссылка или исторический снимок?**
-
----
-
-## 4. Dynamic Link
-
-Обычный Link заранее знает target DocType.
-
-Dynamic Link нужен, когда target type определяется значением другого поля.
-
-Классический паттерн:
+**[ARCHITECTURAL INFERENCE]** Поэтому нужно различать:
 
 ```text
-reference_doctype
-reference_name → Dynamic Link(reference_doctype)
+Link     = текущая связь с живым master
+Snapshot = историческое значение на момент события
 ```
 
-Это полезно для универсальных ссылок на документы разных типов.
-
-### Красный флаг
-
-Не использовать Dynamic Link вместо нормальной модели только ради универсальности.
-
-Если объект всегда связан, например, только с `Customer`, обычный Link проще и семантически точнее.
+Решение определяется бизнес-семантикой, а не борьбой с «дублированием данных» как таковым.
 
 ---
 
-## 5. Child DocType
+## 6. Child DocType — составная часть parent Document
 
-Child DocType — строка, являющаяся составной частью parent Document.
+**[FRAPPE DOCS]** Child DocType предназначен для records, прикреплённых к parent DocType. Child row содержит `parent`, `parenttype`, `parentfield`, `idx`.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/basics/doctypes/child-doctype
 
 Пример:
 
 ```text
 Purchase Request
-    items
-        ├── Item A, 10
-        ├── Item B, 3
-        └── Item C, 1
+  applicant
+  date
+  items[]
+      item
+      qty
+      uom
 ```
 
-Строка `Purchase Request Item` существует внутри `Purchase Request`.
+`Purchase Request Item` не является отдельной заявкой. Это состав документа.
 
-Framework хранит для child row системные связи с parent:
+### Лучший вопрос для новичка
 
-```text
-parent
-parenttype
-parentfield
-idx
-```
+Не только:
 
-### Хороший вопрос
+> «Переживёт ли строка удаление parent?»
 
-> **Является ли эта запись частью документа или самостоятельным business record, просто связанным с документом?**
+а:
 
-Если часть документа — Child Table естественна.
+> **«Эта запись является частью одного Document или отдельным business record, который просто связан с ним?»**
 
----
-
-## 6. Когда Child Table становится плохим выбором
-
-Запись может требовать отдельного DocType, если она:
-
-- должна иметь независимые permissions;
-- открывается отдельно;
-- является target Link из других Documents;
-- участвует в нескольких parents;
-- имеет самостоятельный lifecycle;
-- должна существовать после удаления/отмены parent;
-- является отдельной business event/record.
-
-Пример:
-
-`Shipment Stop` может начинаться как child row маршрута.
-
-Но если stop становится самостоятельной операционной единицей с исполнителем, SLA, status и внешними ссылками, отдельный DocType может стать правильнее.
+Если запись требует собственных permissions, используется несколькими parents или на неё должны ссылаться другие документы, отдельный DocType может быть правильнее.
 
 ---
 
 ## 7. Table MultiSelect
 
-Когда Document должен содержать несколько ссылок на Documents другого типа, Frappe предоставляет Table MultiSelect.
+**[FRAPPE DOCS]** `Table MultiSelect` позволяет представить набор ссылок через child-table semantics.
 
-Это избавляет от самодельного хранения:
+Источник:
 
-```text
-"USER-001,USER-002,USER-003"
-```
+- https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes
 
-в одном Data field.
+Это хороший вариант, когда parent должен выбрать несколько records одного типа и сама связь почти не несёт дополнительных бизнес-атрибутов.
 
-Но если связь имеет собственные атрибуты:
+Если связь имеет собственные данные:
 
 ```text
-member
 role
 valid_from
 valid_to
+allocation_percent
 ```
 
-может быть нужен нормальный child/relation DocType.
+может понадобиться обычный child row или самостоятельный relation DocType.
 
 ---
 
-## 8. Отдельный relation DocType
+## 8. Dynamic Link
 
-Иногда связь сама является business record.
+**[FRAPPE DOCS]** Dynamic Link позволяет одному полю ссылаться на Documents разных DocTypes, а целевой DocType определяется другим полем.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes
 
 Пример:
 
 ```text
-Employee ← Project Membership → Project
+reference_doctype = "Sales Invoice"
+reference_name    = "SINV-0001"
 ```
 
-Если membership содержит:
+или тот же объект может ссылаться на Purchase Order, Issue и т.д.
 
-- роль;
-- даты;
-- статус;
-- allocation;
-- историю;
-
-то отдельный DocType связи может быть правильнее простой multi-select таблицы.
-
-Принцип:
-
-> Если у отношения появляются собственные значимые свойства и lifecycle, оно само становится кандидатом в Document.
+Использовать Dynamic Link только ради «универсальности на будущее» не следует. Обычный Link проще и сильнее выражает модель, если тип связи известен заранее.
 
 ---
 
-## 9. Single DocType
+## 9. Когда нужен отдельный relation DocType
 
-Single используется, когда в site логически существует один набор настроек.
+Frappe не запрещает моделировать связь отдельным DocType.
 
-Примеры:
+Это естественно, когда отношение само является бизнес-фактом.
+
+Пример:
 
 ```text
-Application Settings
-Integration Settings
-Policy Settings
+Employee Project Membership
+  employee
+  project
+  role
+  valid_from
+  valid_to
+  allocation_percent
 ```
 
-Если несколько записей этой сущности не имеют смысла, обычный DocType плюс самодельный запрет второй записи — лишнее усложнение.
+Здесь membership имеет собственный смысл, историю и поля. Он уже не просто «список выбранных сотрудников».
 
-### Граница
-
-Если настройки различаются, например, по Company или Region, один глобальный Single может оказаться неправильной моделью.
+**[ARCHITECTURAL INFERENCE]** Отдельный relation DocType оправдан не потому, что many-to-many «должен иметь join table», а потому что отношение имеет самостоятельную семантику.
 
 ---
 
-## 10. Virtual DocType
+## 10. Single DocType
 
-Virtual DocType позволяет представить внешний источник как Frappe Document model.
+**[FRAPPE DOCS]** Single DocType предназначен для данных, где в site имеет смысл только одна запись, например settings.
 
-Это полезно, если данные находятся:
+Источник:
 
-- в external API;
-- secondary database;
-- файле;
-- ином storage;
+- https://docs.frappe.io/framework/user/en/basics/doctypes/single-doctype
 
-но должны участвовать во Frappe как Documents.
-
-### Когда использовать
-
-Когда действительно нужна Document-like semantics:
+Пример:
 
 ```text
-forms
-permissions
-resource API
-links
-Frappe views
+My App Settings
+  default_priority
+  integration_enabled
+  api_base_url
 ```
 
-### Когда не использовать
+### Неправильно
 
-Если App просто вызывает внешний API для получения курса валют, отдельный Virtual DocType может быть избыточным.
+Создать обычный DocType `My App Settings`, а потом вручную запрещать вторую запись.
 
-Обычный integration service будет проще.
+Framework уже имеет тип модели для этого случая.
 
 ---
 
-## 11. Tree DocType
+## 11. Virtual DocType
 
-Если предметная область является иерархией:
+**[FRAPPE DOCS]** Virtual DocType позволяет представить данные, которые физически хранятся не в обычной Frappe table, как Documents Framework.
 
-```text
-Company
- └── Division
-      └── Department
-```
+Источник:
 
-нужно рассмотреть стандартную tree model Frappe, а не автоматически создавать:
+- https://docs.frappe.io/framework/user/en/basics/doctypes/virtual-doctype
 
-```text
-parent_id
-level
-path
-```
+Внешний источник может быть API, другая database и т.п.
 
-с собственными recursive queries.
+### Когда это хорошо
 
-Но использовать tree semantics нужно только для настоящей иерархии.
+Если внешние данные действительно должны вести себя внутри Frappe как Documents:
 
----
+- отображаться штатными views;
+- участвовать в permissions;
+- читаться через resource API;
+- иметь Document-like interface.
 
-## 12. Naming — часть архитектуры модели
+### Когда не нужно
 
-Каждый Document имеет `name` — primary identifier Framework.
+Если приложение делает два вызова внешнего API для расчёта курса валют, создавать Virtual DocType `External Exchange Rate Record` может быть лишним.
 
-Naming нельзя оставлять полностью «на потом».
-
-Нужно заранее ответить:
-
-> **`name` является техническим ID или бизнес-идентификатором?**
-
-### Вариант A: технический ID
-
-Пользователь видит отдельное бизнес-поле:
-
-```text
-request_number
-```
-
-а `name` остаётся внутренним identifier.
-
-### Вариант B: бизнес-ID
-
-Например:
-
-```text
-REQ-2026-00042
-```
-
-становится `name`.
-
-### Почему решение важно
-
-На `name` могут ссылаться другие Documents и external integrations.
-
-Поздняя смена naming strategy может быть значительно дороже раннего решения.
+**[ARCHITECTURAL INFERENCE]** Внешний источник сам по себе не означает Virtual DocType. Нужна именно Document semantics.
 
 ---
 
-## 13. Naming strategies
+## 12. Tree DocType
 
-Frappe предоставляет стандартные способы именования:
+Frappe поддерживает tree-структуры DocType для иерархических данных.
 
-- user supplied;
-- field-based;
-- Naming Series;
-- expression;
-- random;
-- UUID;
-- autoname/controller logic;
-- Document Naming Rule.
+Использовать tree нужно, когда предметная область действительно иерархична:
 
-Выбор должен соответствовать бизнес-семантике, а не эстетике номера.
+```text
+Department
+Account
+Territory
+```
 
-### Красный флаг
+Не нужно превращать любой parent-child relation в tree только ради красивого интерфейса.
 
-Не писать собственный «генератор номеров» без проверки Naming Series / Naming Rule / autoname capabilities.
+Источник для общей модели DocType:
+
+- https://docs.frappe.io/framework/user/en/basics/doctypes
 
 ---
 
-## 14. Business key и mutable data
+## 13. Naming — часть архитектуры, а не косметика
 
-Не следует автоматически использовать изменяемое бизнес-значение как `name`.
+**[FRAPPE DOCS]** Frappe имеет системное поле `name` и несколько naming strategies: field, naming series, expression, UUID, controller `autoname` и другие.
 
-Например, если регистрационный номер Vehicle может измениться, нужно решить:
+Источник:
+
+- https://docs.frappe.io/framework/user/en/basics/doctypes/naming
+
+При проектировании DocType нужно решить:
 
 ```text
-Vehicle.name = registration_number
-```
-
+name = технический ID?
 или
-
-```text
-Vehicle.name = immutable ID
-Vehicle.registration_number = mutable field
+name = бизнес-номер, который видит человек?
 ```
 
-Второй вариант часто безопаснее для долгоживущих ссылок.
-
-Но это domain decision, а не универсальное правило Frappe.
-
----
-
-## 15. Select или отдельный справочник
-
-Простой список:
-
-```text
-Low
-Medium
-High
-```
-
-может быть обычным `Select`.
-
-Отдельный DocType нужен не потому, что «справочники должны быть таблицами», а когда значение:
-
-- редактируется пользователем;
-- имеет дополнительные поля;
-- участвует в permissions;
-- используется как самостоятельный record;
-- должно расширяться без изменения metadata.
+Это важно, потому что `name` участвует в ссылках и URL.
 
 ### Пример
 
-Если Priority имеет только три фиксированных значения — Select достаточно.
+Для Vehicle естественным `name` может быть UUID/внутренний ID, если госномер способен измениться.
 
-Если у Priority есть:
+Для официального документа может быть оправдан бизнес-номер через naming series.
+
+### Red flag
+
+Использовать изменяемое отображаемое название как permanent primary key только потому, что оно сейчас уникально.
+
+---
+
+## 14. Не путать identity и label
+
+У Document есть идентичность `name`, но пользователю часто нужен человекочитаемый title.
+
+**[ARCHITECTURAL INFERENCE]** Если display name может изменяться, а ссылки должны оставаться стабильными, лучше разделить:
 
 ```text
-label
-color
-response_time
-escalation_rule
+name  = стабильный ID
+title = изменяемое отображаемое значение
 ```
 
-отдельный DocType становится логичным.
+Это особенно важно для каталогов и master data.
 
 ---
 
-## 16. Не создавать DocType «на всякий случай»
+## 15. Data model design review
 
-Избыточный DocType имеет стоимость:
+Перед утверждением нового DocType пройти вопросы:
 
 ```text
-schema
-permissions
-naming
-views
-migration
-API surface
-maintenance
-conceptual complexity
+1. Это самостоятельный Document или свойство другого?
+2. Нужен ли собственный lifecycle?
+3. Нужны ли собственные permissions?
+4. Должны ли другие Documents ссылаться на эту запись?
+5. Это состав parent или самостоятельная запись?
+6. Link нужен как живая связь или бизнесу нужен snapshot?
+7. Нужен ли Single вместо обычного DocType?
+8. Нужен ли Dynamic Link или обычный Link точнее?
+9. Должны ли внешние данные действительно иметь Document semantics?
+10. Что является стабильной identity и как работает naming?
+11. Что произойдёт с существующими ссылками при rename?
+12. Как модель будет мигрировать после появления production data?
 ```
 
-Поэтому каждый DocType должен иметь понятную самостоятельную семантику.
-
----
-
-## 17. Не нормализовать Frappe как чистую реляционную БД
-
-Хорошая relational normalization полезна, но Frappe model не обязана выглядеть как академическая SQL schema.
-
-Child Tables специально существуют как Document composition.
-
-Snapshot fields тоже могут быть правильны.
-
-Metadata и lifecycle имеют значение не меньше нормализации.
-
-### Анти-паттерн
-
-Разбить обычный документ на десять отдельных DocTypes только ради 3NF, хотя пользователь работает с ним как с одной неделимой карточкой.
-
----
-
-## 18. Не денормализовать без причины
-
-Обратная крайность:
-
-```text
-customer_name
-customer_phone
-customer_company
-customer_department
-```
-
-в десятках Documents вместо Links к реальным masters.
-
-Это создаёт дублирование и проблемы консистентности.
-
-Денормализация должна иметь причину:
-
-- snapshot;
-- performance;
-- external contract;
-- reporting convenience с понятным ownership.
-
----
-
-## 19. Attachments
-
-Для обычных прикреплённых файлов Frappe имеет `File` subsystem.
-
-Не нужно создавать:
-
-```text
-TaskAttachment
-```
-
-только ради хранения файла, если дополнительная domain semantics отсутствует.
-
-### Когда отдельный DocType оправдан
-
-Если «документ» имеет:
-
-- тип;
-- обязательность;
-- срок действия;
-- verification status;
-- signatory;
-- compliance workflow.
-
-Тогда это уже не просто attachment.
-
----
-
-## 20. Comments и коммуникации
-
-Обычные комментарии и timeline activity уже являются Framework capability.
-
-Не создавать собственный `Task Comment` только потому, что приложению нужны комментарии.
-
-Но если запись является domain event, например:
-
-```text
-Inspection Finding
-```
-
-с severity, category и resolution, это самостоятельная модель, а не Comment.
-
----
-
-## 21. Version/history
-
-Стандартная document version/history подходит для обычного аудита изменений.
-
-Но не нужно путать её с формальным immutable event ledger.
-
-Если требования включают:
-
-- regulatory retention;
-- криптографическую целостность;
-- юридическую неизменяемость;
-- специальные audit events;
-
-может понадобиться отдельная модель.
-
----
-
-## 22. Проектирование модели: порядок вопросов
-
-Для каждого нового понятия:
-
-```text
-1. Что это означает для бизнеса?
-
-2. Может ли оно существовать самостоятельно?
-
-3. Нужен ли отдельный lifecycle?
-
-4. Нужны ли отдельные permissions?
-
-5. Будут ли другие Documents ссылаться на него?
-
-6. Это часть parent Document?
-
-7. Нужна живая ссылка или snapshot?
-
-8. Как оно именуется?
-
-9. Что произойдёт с существующими данными
-   при изменении модели?
-```
-
----
-
-## 23. Decision tree
-
-```text
-Нужно хранить значение
-        │
-        ▼
-Самостоятельный объект?
-   │              │
-  нет            да
-   │              │
-   ▼              ▼
-Field          DocType
-   │
-   ├── фиксированный список → Select
-   │
-   ├── ссылка на Document → Link
-   │
-   ├── polymorphic link → Dynamic Link
-   │
-   └── повторяющиеся составные строки
-             → Child Table
-
-Один набор settings на site?
-        → Single
-
-External storage должен выглядеть
-как Frappe Documents?
-        → Virtual DocType
-
-Связь имеет собственные атрибуты/lifecycle?
-        → relation DocType
-```
-
----
-
-## 24. Design review checklist
-
-Перед принятием модели проверить:
-
-- [ ] Каждый DocType имеет самостоятельный смысл.
-- [ ] Child rows действительно являются частью parent.
-- [ ] Links используются для живых отношений.
-- [ ] Snapshot fields имеют объяснение.
-- [ ] Fixed Select не вынесен в master без причины.
-- [ ] Master не заменён произвольным текстом без причины.
-- [ ] Naming strategy определена.
-- [ ] Mutable business value не стало `name` случайно.
-- [ ] Virtual DocType применяется только при необходимости Document semantics.
-- [ ] Attachments/comments/history не дублируются без новой семантики.
-- [ ] Учтена migration существующих данных.
+Если на эти вопросы нет ответа, DocType ещё рано создавать.
