@@ -30,8 +30,8 @@
 | [`S05A`](S05A_RENTAL_STATUS.md) | предметный `status` без Workflow/docstatus | написан |
 | [`S05B`](S05B_DESK_VERTICAL_SCENARIO.md) | полный сценарий через стандартный Desk | написан |
 | [`S05C`](S05C_RENTAL_LOCAL_INVARIANTS.md) | серверные инварианты одного Rental | написан |
-| S05D | Roles / DocType Permissions | следующий |
-| S06 | правило пересекающихся Active Rentals | запланирован |
+| [`S05D`](S05D_ROLES_AND_PERMISSIONS.md) | `Rental Operator` / `Rental Manager` через Role + DocType Permissions | написан |
+| S06 | правило пересекающихся Active Rentals | следующий |
 | S07 | автоматические тесты контрактов | запланирован |
 | S08 | аудит App-owned состояния и миграций | запланирован |
 | S09 | чистая установка и финальная приёмка | запланирован |
@@ -40,71 +40,84 @@
 
 ## Текущая точка
 
-После S05C центральная модель впервые защищает себя на серверном Document path:
+После S05D CORE уже имеет две независимые серверные гарантии.
+
+### Допустимость данных
 
 ```text
 Rental
-├── customer
-├── start_date
-├── end_date
-├── status
-└── items
       ↓
 Controller.validate()
-├── validate_date_range()
-└── validate_duplicate_equipment()
+├── V01 end_date >= start_date
+└── V02 Equipment не повторяется внутри одного Rental
 ```
 
-Зафиксированы два локальных инварианта:
+### Авторизация
 
 ```text
-V01  end_date >= start_date
-V02  Equipment не повторяется внутри одного Rental
+User
+  ↓ roles
+Rental Operator / Rental Manager
+  ↓ DocType Permissions
+Equipment / Customer / Rental
 ```
 
-Они проверяются не только через Form, но и через обычный серверный:
+S05D специально доказывает права не только через кнопки Desk, но и настоящими server-side операциями под `operator@example.test` и `manager@example.test`.
 
-```python
-Document.insert()
-```
-
-Это принципиальная граница:
-
-```text
-Client Script
-= удобство конкретного UI
-
-Controller.validate()
-= обязательное поведение собственного Rental на обычном Document path
-```
-
-S05C не меняет DocType schema: меняется только App-owned `rental.py`. Поэтому этап специально не приучает выполнять `bench migrate` после любого Python-изменения.
-
-В Controller нет:
-
-```text
-frappe.db.commit()
-ignore_permissions=True
-ручного SQL
-Rule Engine
-Server Script
-проверки других Rentals
-```
-
-Последний пункт оставлен S06: междокументный конфликт — отдельная ответственность.
-
-После P04 ветки UI, status, локальные инварианты и permissions архитектурно независимы. Следующая исполняемая ветка — S05D:
+Базовая матрица:
 
 ```text
 Rental Operator
+Equipment → Read
+Customer  → Read/Create/Write
+Rental    → Read/Create/Write
+
 Rental Manager
-      ↓
-Role + DocType Permissions
+Equipment → CRUD
+Customer  → CRUD
+Rental    → CRUD
 ```
 
-Она должна доказать уже другой контракт:
+Обязательная permission model разделена по ownership:
 
 ```text
-S05C → какие Documents допустимы
-S05D → кто какие операции может выполнять
+Role records
+→ fixtures App
+
+DocType default permissions
+→ Standard DocType JSON
+
+конкретные учебные Users
+→ Site only
 ```
+
+Именно поэтому после S05D чистая установка не должна требовать вручную создавать `Rental Operator` / `Rental Manager` или заново накликивать default CRUD matrix.
+
+Без требования не добавлены:
+
+```text
+Permission Level
+Permission Type
+If Owner
+User Permission
+Share
+permission_query_conditions
+has_permission hook
+custom ACL
+ignore_permissions=True
+```
+
+Следующий этап — S06. Он соединит две уже готовые части модели:
+
+```text
+status = Active
++
+локально корректный Rental
++
+поиск других Rentals
+        ↓
+V03: один Equipment не может находиться
+     в двух пересекающихся Active Rentals
+```
+
+Это будет первый междокументный инвариант CORE.
