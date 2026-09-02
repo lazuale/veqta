@@ -1,8 +1,8 @@
-# 07. Extension и Customization — как изменять Frappe и чужие Apps без форка
+# 07. Расширение и настройка — как изменять Frappe и чужие Apps без форка
 
-## 1. Сначала определить ownership
+## 1. Сначала определить владельца
 
-Перед изменением существующего DocType нужно ответить:
+Перед изменением существующего `DocType` нужно ответить:
 
 ```text
 Кто владеет моделью?
@@ -10,7 +10,7 @@
 наше App?
 Frappe?
 ERPNext?
-другое installed App?
+другое установленное App?
 конкретный Site?
 ```
 
@@ -18,17 +18,17 @@ ERPNext?
 
 ### Если DocType наш
 
-Обычно мы свободно меняем Standard DocType, Controller и metadata в source tree App.
+Обычно мы свободно меняем Standard DocType, Controller и метаданные в исходном коде App.
 
 ### Если DocType чужой
 
-Нужно расширять его через предусмотренные Framework mechanisms, а не копировать/форкать модель без необходимости.
+Нужно расширять его через предусмотренные Framework механизмы, а не копировать или форкать модель без необходимости.
 
 ---
 
-## 2. Hooks — официальный extension mechanism
+## 2. Hooks — официальный механизм расширения
 
-**[FRAPPE DOCS]** Hooks определяются как места в core, позволяющие App override или extend standard implementation.
+**[ДОКУМЕНТАЦИЯ FRAPPE]** Hooks определяются как места в ядре, позволяющие App переопределять или расширять стандартную реализацию.
 
 Источник:
 
@@ -36,22 +36,22 @@ ERPNext?
 
 Это прямое архитектурное намерение Frappe.
 
-Следовательно, поиск решения для расширения чужого App должен начинаться с официальных seams.
+Следовательно, поиск решения для расширения чужого App должен начинаться с официальных точек расширения.
 
 ---
 
 ## 3. Custom Field
 
-Custom Field позволяет добавить поле существующему DocType без изменения его исходного JSON.
+`Custom Field` позволяет добавить поле существующему `DocType` без изменения его исходного JSON.
 
-Официальные материалы по export/customization:
+Официальные материалы по экспорту и настройке:
 
 - https://docs.frappe.io/framework/user/en/guides/app-development/exporting-customizations
 - https://docs.frappe.io/framework/user/en/guides/app-development/how-to-create-custom-fields-during-app-installation
 
 ### Подходящий сценарий
 
-Наш App требует, чтобы стандартный `Customer` имел дополнительный field:
+Наше App требует, чтобы стандартный `Customer` имел дополнительное поле:
 
 ```text
 external_customer_id
@@ -63,25 +63,25 @@ external_customer_id
 
 ## 4. Property Setter
 
-Frappe customization model позволяет изменять свойства стандартных fields/DocType без прямого редактирования исходного JSON чужого App.
+Модель настройки Frappe позволяет изменять свойства стандартных полей и `DocType` без прямого редактирования исходного JSON чужого App.
 
-`frappe.get_meta()` объединяет standard metadata с Custom Fields и Property Setters.
+`frappe.get_meta()` объединяет стандартные метаданные с `Custom Fields` и `Property Setters`.
 
 Источник:
 
 - https://docs.frappe.io/framework/user/en/api/document
 
-Это важный пруф: customization не является внешним костылём, она встроена в Meta model.
+Это важный пруф: настройка встроена в модель `Meta`, а не является внешним костылём.
 
 ---
 
-## 5. Site customization vs App-owned customization
+## 5. Настройка конкретного Site и настройка, принадлежащая App
 
 Главное различие:
 
-### Site-owned
+### Принадлежит Site
 
-Изменение специфично для одного site:
+Изменение специфично для одного сайта:
 
 ```text
 локальное поле;
@@ -90,15 +90,15 @@ Frappe customization model позволяет изменять свойства 
 локальный Workflow.
 ```
 
-Оно может жить как runtime customization.
+Оно может жить как настройка конкретного сайта.
 
-### App-owned
+### Принадлежит App
 
-Изменение является обязательной частью продукта и должно появляться на каждом site после install/update.
+Изменение является обязательной частью продукта и должно появляться на каждом сайте после установки или обновления.
 
 Тогда состояние должно быть воспроизводимо из App.
 
-**[FRAPPE DOCS]** Frappe позволяет экспортировать Custom Fields и Property Setters в App; при `bench update`/`bench migrate` они синхронизируются.
+**[ДОКУМЕНТАЦИЯ FRAPPE]** Frappe позволяет экспортировать `Custom Fields` и `Property Setters` в App; при `bench update`/`bench migrate` они синхронизируются.
 
 Источник:
 
@@ -106,9 +106,9 @@ Frappe customization model позволяет изменять свойства 
 
 ---
 
-## 6. Важное предупреждение при export customizations
+## 6. Важное предупреждение при Export Customizations
 
-**[FRAPPE DOCS]** Export Customizations имеет сильную семантику: при sync Property Setters и Custom Permissions на target site могут быть заменены тем, что указано в коде.
+**[ДОКУМЕНТАЦИЯ FRAPPE]** `Export Customizations` имеет сильную семантику: при синхронизации `Property Setters` и `Custom Permissions` на целевом сайте могут быть заменены тем, что указано в коде.
 
 Источник:
 
@@ -116,12 +116,12 @@ Frappe customization model позволяет изменять свойства 
 
 ### Архитектурный вывод
 
-Нельзя бездумно одновременно считать один и тот же customization:
+Нельзя бездумно одновременно считать одну и ту же настройку:
 
 ```text
 частью продукта
 и
-свободно редактируемой локальной настройкой каждого site
+свободно редактируемой локальной настройкой каждого сайта
 ```
 
 Нужно определить владельца конфигурации.
@@ -130,13 +130,13 @@ Frappe customization model позволяет изменять свойства 
 
 ## 7. Fixtures
 
-**[FRAPPE DOCS]** Fixtures — database records, которые экспортируются в JSON и синхронизируются при install/update.
+**[ДОКУМЕНТАЦИЯ FRAPPE]** `Fixtures` — записи базы данных, которые экспортируются в JSON и синхронизируются при установке или обновлении.
 
 Источник:
 
 - https://docs.frappe.io/framework/user/en/python-api/hooks#fixtures
 
-Подходят для records, являющихся частью App configuration.
+Подходят для записей, являющихся частью конфигурации App.
 
 Пример:
 
@@ -144,52 +144,52 @@ Frappe customization model позволяет изменять свойства 
 обязательные Role;
 набор категорий продукта;
 Custom Fields;
-определённая configuration metadata.
+определённые записи конфигурации.
 ```
 
-Не использовать fixtures как способ положить в Git обычные пользовательские transactions.
+Не использовать `fixtures` как способ положить в Git обычные пользовательские транзакции.
 
 ---
 
-## 8. Client Script как customization seam
+## 8. Client Script как точка настройки
 
-Client Script может быть site-specific customization для UI behaviour.
+`Client Script` может быть настройкой конкретного сайта для поведения интерфейса.
 
 Источник:
 
 - https://docs.frappe.io/framework/user/en/desk/scripting/client-script
 
-Но если JavaScript является обязательной частью source-controlled App, standard JS files/hooks обычно дают лучше управляемый deployment path.
+Но если JavaScript является обязательной частью App, управляемого через Git, стандартные JS-файлы и hooks обычно дают более управляемый путь развёртывания.
 
 ### Критическая граница
 
-Client Script не заменяет server validation/security.
+`Client Script` не заменяет серверную проверку и безопасность.
 
 ---
 
-## 9. Server Script как runtime extension
+## 9. Server Script как настройка времени выполнения
 
-**[FRAPPE DOCS]** Server Script поддерживает Document Event и API modes, но с v15 disabled by default на shared benches.
+**[ДОКУМЕНТАЦИЯ FRAPPE]** `Server Script` поддерживает режимы `Document Event` и API, но с v15 отключён по умолчанию на shared benches.
 
 Источник:
 
 - https://docs.frappe.io/framework/user/en/desk/scripting/server-script
 
-Следовательно, runtime Server Script хорошо подходит не для любой application logic, а для ограниченного класса site/custom low-code extensions.
+Следовательно, `Server Script` хорошо подходит не для любой логики приложения, а для ограниченного класса локальных low-code-расширений сайта.
 
-Если логика является ядром App, Python source обычно лучше переносится и тестируется.
+Если логика является ядром App, Python-код в репозитории обычно лучше переносится и тестируется.
 
 ---
 
-## 10. `doc_events`
+## 10. doc_events
 
-**[FRAPPE DOCS]** Hook `doc_events` позволяет App подписываться на lifecycle events DocTypes.
+**[ДОКУМЕНТАЦИЯ FRAPPE]** Hook `doc_events` позволяет App подписываться на события жизненного цикла `DocType`.
 
 Источник:
 
 - https://docs.frappe.io/framework/user/en/python-api/hooks
 
-Это естественный seam, когда наше App **не владеет Controller**, но хочет реагировать на чужой Document.
+Это естественная точка расширения, когда наше App **не владеет Controller**, но хочет реагировать на чужой `Document`.
 
 Пример:
 
@@ -203,31 +203,31 @@ ERPNext Sales Invoice submitted
 
 ---
 
-## 11. `extend_doctype_class` — v16+
+## 11. extend_doctype_class — v16+
 
-**[FRAPPE DOCS]** В v16 `extend_doctype_class` позволяет добавлять методы/свойства к существующему DocType через mixin-like extension.
+**[ДОКУМЕНТАЦИЯ FRAPPE]** В v16 `extend_doctype_class` позволяет добавлять методы и свойства к существующему `DocType` через расширение класса.
 
 Источник:
 
 - https://docs.frappe.io/framework/user/en/python-api/hooks#extend-doctype-class
 
-Документация рекомендует prefer extension вместо полного override, когда требуется добавить functionality.
+Документация рекомендует предпочитать расширение полному переопределению, когда требуется только добавить функциональность.
 
 ### Подходящий случай
 
-Наше App хочет добавить reusable behaviour существующему `Address`, не заменяя весь Controller.
+Наше App хочет добавить повторно используемое поведение существующему `Address`, не заменяя весь Controller.
 
 ```text
 extend_doctype_class
 ```
 
-обычно имеет меньший конфликтный surface.
+обычно создаёт меньше конфликтов.
 
 ---
 
-## 12. `override_doctype_class`
+## 12. override_doctype_class
 
-**[FRAPPE DOCS]** Этот hook полностью заменяет controller class DocType.
+**[ДОКУМЕНТАЦИЯ FRAPPE]** Этот hook полностью заменяет класс Controller `DocType`.
 
 Источник:
 
@@ -238,15 +238,15 @@ extend_doctype_class
 Риски:
 
 ```text
-несколько Apps хотят override один class;
-upstream меняет original Controller;
-нужно самостоятельно наследовать/сохранять нужное поведение;
-повышается coupling к implementation другого App.
+несколько Apps хотят переопределить один class;
+upstream меняет исходный Controller;
+нужно самостоятельно сохранить необходимое исходное поведение;
+повышается связанность с реализацией другого App.
 ```
 
 ### Правило
 
-**[ARCHITECTURAL INFERENCE]** В v16 extension предпочтительнее replacement, если задача действительно состоит только в добавлении поведения.
+**[АРХИТЕКТУРНЫЙ ВЫВОД]** В v16 расширение предпочтительнее полной замены, если задача действительно состоит только в добавлении поведения.
 
 ---
 
@@ -258,60 +258,60 @@ Frappe также имеет hook `override_whitelisted_methods`.
 
 - https://docs.frappe.io/framework/user/en/python-api/hooks
 
-Полная замена API method — сильный extension. Перед ней нужно убедиться, что:
+Полная замена API-метода — сильное расширение. Перед ней нужно убедиться, что:
 
-- обычное событие/extension hook не решает задачу;
-- изменение действительно должно заменить semantics метода;
-- учтены другие Apps, также способные override method.
+- обычное событие или hook расширения не решает задачу;
+- изменение действительно должно заменить смысл метода;
+- учтены другие Apps, также способные переопределить метод.
 
 ---
 
-## 14. Hook order и несколько Apps
+## 14. Порядок hooks и несколько Apps
 
-Hooks живут не в вакууме. На site установлено несколько Apps.
+Hooks живут не в вакууме. На сайте установлено несколько Apps.
 
-Следовательно, extension design должен учитывать:
+Следовательно, проектирование расширения должно учитывать:
 
 ```text
-какой App зависит от какого;
+какое App зависит от какого;
 может ли несколько Apps подписаться на событие;
-может ли несколько Apps пытаться override одно место;
-какой порядок выполнения критичен.
+может ли несколько Apps пытаться переопределить одно место;
+критичен ли порядок выполнения.
 ```
 
-Это особенно важно для полного override, меньше — для composable event hooks.
+Это особенно важно для полного переопределения и меньше — для событийных hooks, которые могут работать совместно.
 
 ---
 
-## 15. Patch core — крайний red flag
+## 15. Правка core — крайний тревожный признак
 
-Плохой default:
+Плохой вариант по умолчанию:
 
 ```text
 открыть frappe/.../document.py
 и изменить Framework под своё приложение
 ```
 
-или аналогично модифицировать installed ERPNext file.
+или аналогично модифицировать установленный файл ERPNext.
 
 Почему:
 
-- update перезапишет/конфликтует с изменением;
+- обновление перезапишет изменение или создаст конфликт;
 - репозиторий App больше не содержит полной правды;
-- другой site не воспроизводится обычной установкой;
-- upgrade analysis резко усложняется.
+- другой сайт не воспроизводится обычной установкой;
+- анализ обновлений резко усложняется.
 
 ### Правильный порядок
 
 ```text
-1. Проверить configuration/customization.
+1. Проверить штатную настройку.
 2. Проверить hooks/doc_events.
 3. Проверить extend_doctype_class.
-4. Проверить override mechanism.
+4. Проверить механизм override.
 5. Только после доказанной невозможности — обсуждать fork/core patch.
 ```
 
-Это **[ARCHITECTURAL INFERENCE]**, основанный на наличии официальных extension seams.
+Это **[АРХИТЕКТУРНЫЙ ВЫВОД]**, основанный на наличии официальных точек расширения.
 
 ---
 
@@ -321,10 +321,10 @@ Hooks живут не в вакууме. На site установлено нес
 
 Fork Framework/ERPNext может быть осознанным выбором, если организация:
 
-- намеренно поддерживает собственную distribution;
-- принимает постоянную стоимость merge/upgrades;
-- изменение невозможно выразить extension API;
-- изменение настолько глубоко, что upstream contract не подходит.
+- намеренно поддерживает собственную сборку;
+- принимает постоянную стоимость слияния изменений и обновлений;
+- изменение невозможно выразить через API расширения;
+- изменение настолько глубоко, что контракт upstream не подходит.
 
 Но тогда это уже отдельная продуктовая стратегия, а не незаметная «правка одного файла».
 
@@ -332,56 +332,56 @@ Fork Framework/ERPNext может быть осознанным выбором, 
 
 ## 17. Packages
 
-**[FRAPPE DOCS]** Packages — lightweight apps, собираемые из UI-created custom modules и переносимые между sites.
+**[ДОКУМЕНТАЦИЯ FRAPPE]** `Packages` — облегчённые пакеты, собираемые из созданных через интерфейс пользовательских модулей и переносимые между сайтами.
 
 Источник:
 
 - https://docs.frappe.io/framework/user/en/guides/deployment/packages
 
-Они показывают, что Frappe официально поддерживает не только Python-first development, но и переносимую metadata/configuration development model.
+Они показывают, что Frappe официально поддерживает не только Python-first разработку, но и переносимую модель разработки через метаданные и конфигурацию.
 
-Однако Package не обязан заменять App. Выбор зависит от требуемого кода, dependencies и deployment model.
+Однако `Package` не обязан заменять `App`. Выбор зависит от требуемого кода, зависимостей и модели развёртывания.
 
 ---
 
-## 18. Extension decision track
+## 18. Карта выбора расширения
 
 ```text
 Изменяем собственный DocType?
-    → Standard metadata + Controller
+    → стандартные метаданные + Controller
 
-Добавляем field/property чужому DocType?
+Добавляем поле/свойство чужому DocType?
     → Custom Field / Property Setter
 
-Нужно поставлять customization вместе с App?
+Нужно поставлять настройку вместе с App?
     → export customization / fixtures
 
-Нужно реагировать на lifecycle чужого DocType?
+Нужно реагировать на жизненный цикл чужого DocType?
     → doc_events
 
-Нужно добавить behaviour чужому class? [v16+]
+Нужно добавить поведение class? [v16+]
     → extend_doctype_class
 
 Нужно полностью заменить Controller?
-    → override_doctype_class, с отдельным обоснованием
+    → override_doctype_class + отдельное обоснование
 
 Ничего из этого не выражает требование?
-    → custom extension/fork decision
+    → отдельное решение по расширению или fork
 ```
 
 ---
 
-## 19. Design review extension
+## 19. Архитектурная проверка расширения
 
 ```text
 1. Кто владеет исходным DocType?
-2. Изменение site-specific или app-owned?
+2. Изменение относится к одному Site или принадлежит App?
 3. Нужен Custom Field/Property Setter или новый DocType?
-4. Как customization попадёт на новый site?
-5. Нет ли конфликта с локальными customizations target site?
+4. Как настройка попадёт на новый сайт?
+5. Нет ли конфликта с локальными настройками целевого сайта?
 6. Есть ли официальный hook?
-7. Можно ли extension вместо override?
-8. Какие другие Apps могут затронуть тот же seam?
-9. Что произойдёт после upstream update?
+7. Можно ли расширение вместо override?
+8. Какие другие Apps могут затронуть ту же точку расширения?
+9. Что произойдёт после обновления upstream?
 10. Можно ли воспроизвести систему без ручной правки core?
 ```
