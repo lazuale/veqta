@@ -66,16 +66,21 @@ intake-clean.localhost
 
 Ни один учебный app не зависит от другого.
 
-Engineering Bridge продолжает `service_intake` после принятого P3 и дополнительно
-проверяет:
+Engineering Bridge продолжает `service_intake` после принятого P3 и разделяет три
+проверочных контекста:
 
 ```text
-upgrade existing intake.localhost
-+
-clean install new version
+existing intake.localhost
+→ upgrade existing data
+
+intake-test.localhost
+→ automated integration tests
+
+intake-engineering-clean.localhost
+→ fresh install without historical working data
 ```
 
-Это разные deployment scenarios.
+Рабочий site не используется как test database.
 
 ---
 
@@ -98,8 +103,8 @@ clean install new version
 существующий Category; затем Link; затем negative Link test; затем проверка metadata в
 source.
 
-Controller появляется так же: сначала обнаруживается cross-document правило, которого
-нет в metadata, и только после этого пишется `validate`.
+Controller появляется так же: сначала обнаруживается правило, которого нет в metadata,
+а затем выбирается не только Controller, но и конкретная фаза Document lifecycle.
 
 ---
 
@@ -215,8 +220,8 @@ Service Case
 
 Это не дублирование одного объекта двумя таблицами, а настоящая trust/lifecycle boundary.
 
-P3 намеренно заканчивается **ручным** созданием Case после триажа. Пока курс запрещает
-business Python, это честная граница возможностей metadata.
+P3 намеренно заканчивается ручным созданием Case после триажа. Пока основной маршрут не
+пишет business Python, это честная граница metadata/configuration уровня.
 
 ---
 
@@ -227,7 +232,7 @@ business Python, это честная граница возможностей m
 ```text
 Accepted Intake
 → создать Case одной server command
-→ гарантировать Accepted source
+→ гарантировать Accepted source при СОЗДАНИИ Case
 → записать converted_at
 → не оставить частичное изменение при ошибке
 ```
@@ -239,8 +244,9 @@ Accepted Intake
 | source существует | Link |
 | один Case на Intake | Unique |
 | source нельзя перепривязать | Set Only Once |
-| source обязан быть Accepted | `ServiceCase.validate` |
+| при создании source обязан быть Accepted | `ServiceCase.before_insert` |
 | действие «convert Intake to Case» | whitelisted `ServiceIntake` Document method |
+| Write permission на Intake | `self.check_permission("write")` + API route permission |
 | Create permission на Case | permission-aware `case.insert()` |
 | атомарность Case + Intake + Comment | request transaction Frappe |
 | новое поле на всех installations | Standard DocType JSON |
@@ -248,6 +254,34 @@ Accepted Intake
 | защита custom behavior от regression | integration tests |
 
 Ни одна строка Python не должна повторять гарантию, которой уже владеет metadata.
+
+## Почему не `validate`
+
+Creation rule не должен выполняться при каждом последующем save.
+
+По модели P3 Agent:
+
+```text
+Service Case → Read/Write
+Service Intake → no access
+```
+
+Если `ServiceCase.validate()` каждый раз загружает Intake и проверяет Read, Agent перестаёт
+сохранять уже существующий Case. Выдавать ему лишний доступ ради исправления такого кода
+было бы архитектурной ошибкой.
+
+Поэтому:
+
+```text
+creation-only invariant
+→ before_insert
+
+invariant каждого save
+→ validate / другой подходящий lifecycle event
+```
+
+Правильный Controller с неправильной фазой lifecycle всё равно является неправильным
+решением.
 
 ---
 
@@ -298,7 +332,8 @@ Engineering Lab временно бросает exception после `case.inser
 частичного Case после rollback.
 
 External/slow side effect не надо выполнять до уверенности, что business transaction
-зафиксирована. Для будущей background work существует `enqueue_after_commit=True`.
+зафиксирована. Для собственной post-commit background work существует
+`enqueue_after_commit=True`.
 
 ---
 
@@ -319,9 +354,32 @@ post_model_sync patch
 
 Это не превращает `frappe.db.set_value` в рекомендуемый business CRUD path.
 
+Fresh install и upgrade existing site проверяются отдельно: пустой новый site не может
+доказать, что старые рабочие данные мигрируют корректно.
+
 ---
 
-# 12. Async and integration boundary
+# 12. Testing architecture
+
+Automated tests проверяют application-owned поведение:
+
+```text
+non-Accepted source rejected on insert
+Accepted conversion creates exactly one Case
+converted_at is written
+duplicate conversion rejected
+Agent can save existing Case without Read on Intake
+```
+
+Последний test защищает сам выбор `before_insert`.
+
+Suite запускается на `intake-test.localhost`, а не на рабочем `intake.localhost`. Test
+runner имеет собственную подготовку test dependencies, поэтому рабочий учебный site не
+используется как test database.
+
+---
+
+# 13. Async and integration boundary
 
 Current `service_intake` не имеет реальной долгой операции, поэтому custom Background
 Job в продукт не добавляется.
@@ -342,11 +400,16 @@ complex multi-system protocol/orchestration
 → integration module/service when responsibility appears
 ```
 
-Умение **не создать queue без задачи** является частью архитектурной приёмки.
+В exact v16.32 штатный Webhook для обычных DocType events сам накапливается до commit:
+Framework регистрирует flush в `frappe.db.after_commit`, а затем ставит HTTP execution в
+background queue. Поэтому обычный Webhook не надо вручную оборачивать ещё в одну custom
+post-commit job только ради асинхронности.
+
+Умение не создать queue без задачи является частью архитектурной приёмки.
 
 ---
 
-# 13. Extension of other apps
+# 14. Extension of other apps
 
 Три учебных app в основном владеют своими DocType, поэтому собственное поведение живёт в
 controllers.
@@ -369,7 +432,7 @@ complete override
 
 ---
 
-# 14. Модель поставки
+# 15. Модель поставки
 
 Четыре слоя:
 
@@ -399,7 +462,7 @@ secrets не выдаются за product source.
 
 ---
 
-# 15. Что сознательно не моделируется
+# 16. Что сознательно не моделируется
 
 Не создаются универсальные `Status`, `Priority`, `Person`, `Team`, `Attachment` и другие
 справочники «на будущее».
@@ -418,14 +481,15 @@ coverage.
 
 ---
 
-# 16. Финальный критерий
+# 17. Финальный критерий
 
 Для каждого элемента курса должны существовать ответы:
 
 1. Какую реальную ответственность он решает?
 2. Почему именно этот Frappe layer ей владеет?
-3. Какая проверка доказывает гарантию?
-4. Где заканчивается семантика этого механизма?
-5. Что произойдёт при clean install и при upgrade?
+3. Почему выбрана именно эта lifecycle phase?
+4. Какая проверка доказывает гарантию?
+5. Где заканчивается семантика этого механизма?
+6. Что произойдёт при clean install и при upgrade?
 
 Если ответа нет, элемент не должен оставаться в архитектуре курса.
