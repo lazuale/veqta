@@ -2,12 +2,14 @@
 
 Базовая версия: **Frappe Framework v16.32.0**.
 
-- **Core** — L0–L11;
-- **Lab** — A–F;
-- **Optional** — самостоятельная проверка;
-- **Later** — следующий уровень.
+Обозначения:
 
-Формальные гарантии: [INVARIANTS.md](INVARIANTS.md).
+- **Core** — L0–L11, один развивающийся `facility_ops`;
+- **Lab** — отдельный практический эксперимент без обязательного изменения постоянной предметной модели;
+- **Optional** — дополнительная проверка внутри Core/Lab;
+- **Later** — следующий уровень, обычно с собственным программным слоем.
+
+Матрица показывает **coverage**, но не задаёт архитектуру автоматически. Для каждого применения механизм всё равно выбирается по смыслу требования.
 
 ---
 
@@ -15,22 +17,22 @@
 
 | Код | Тема | Результат |
 |---|---|---|
-| L0 | платформа | Bench, app, site, Module, Developer Mode, Git |
-| L1 | места | Facility Location |
-| L2 | оборудование | Equipment |
+| L0 | платформа | Bench, App, Site, Module, Developer Mode, Git |
+| L1 | места | `Facility Location` как Tree DocType |
+| L2 | оборудование | `Equipment`, поля, Link, Form/List, Track Changes |
 | L3 | данные | filters, import, export, bulk edit |
-| L4 | документ | Service Request + data invariants |
-| L5 | доступ | Level 0 document + Level 1 content + Level 2 state authority |
-| L6 | collaboration | Assign To, ToDo, Comments, Tags, Kanban |
-| L7 | процесс | Workflow поверх Level 2 state field |
-| L8 | контроль | Report, Cards, Chart, Workspace |
-| L9 | automation | Notification, Assignment Rule, scheduler |
-| L10 | web intake | separate Web Form capability; final update Off |
-| L11 | поставка | clean-site portability + Level 0/1/2 acceptance |
+| L4 | заявка | `Service Request`, Status, Attach, Track Changes |
+| L5 | доступ | Role Permission + Permission Level 1 + If Owner + User Permission + Share |
+| L6 | совместная работа | Assign To, ToDo, Comments, Timeline, Tags, Kanban |
+| L7 | процесс | Workflow поверх существующего `status` |
+| L8 | контроль | Report Builder, Number Cards, Chart, Workspace |
+| L9 | штатная автоматизация | Notification, Assignment Rule, scheduler |
+| L10 | web intake | Web Form как отдельный канал создания |
+| L11 | поставка | fixtures, customizations, clean-site acceptance |
 
 ---
 
-# Data model
+# Модель данных
 
 | Механизм | Где | Статус |
 |---|---|---|
@@ -40,7 +42,8 @@
 | Naming | L1/L2/L4 | Core |
 | Title/Search Fields | L2/L4 | Core |
 | Quick Entry | L2 | Core |
-| Track Changes | L2/L4 | Core |
+| Track Changes / Version | L2/L4/L6 | Core |
+| Attach / File | L2/L4/L10 | Core |
 | Allow Import | L3 | Core |
 | Child DocType / Table | Lab A | Lab |
 | Single | Lab F | Lab |
@@ -48,15 +51,7 @@
 | Table MultiSelect | Lab F | Lab |
 | Virtual DocType | — | Later |
 
-Status:
-
-```text
-New
-Accepted
-In Progress
-Resolved
-Closed
-```
+Постоянное предметное ядро не расширяется только ради покрытия механизма.
 
 ---
 
@@ -69,17 +64,19 @@ Closed
 | Role | L5 | Core |
 | Role Permission Manager | L5 | Core |
 | Read / Write / Create | L5 | Core |
-| Delete | L5 | Core, temporary for Service Request; final Off |
+| Delete | L5 | Core, временный эксперимент; финально Off |
 | Report / Export / Import | L5 | Core |
 | If Owner | L5 | Core |
-| Permission Level 1 | L5 | Core, business content authority |
-| Permission Level 2 | L5 | Core, process-state authority |
-| User Permission | L5 | Core, temporary |
-| Share | L5 | Core, temporary |
-| Mask | Lab F | Lab |
-| custom permission hooks | — | Later |
+| Permission Level 1 | L5+ | Core, защита содержательных полей `Service Request` |
+| User Permission | L5 | Core, временный эксперимент |
+| Share | L5 | Core, временный эксперимент |
+| Mask / Data Masking | Lab F | Lab |
+| Permission Type [v16+] | — | Later |
+| custom `has_permission` / query conditions | — | Later |
 
-## Level 0
+## Конкретная модель `Service Request`
+
+### Level 0 — Document
 
 ```text
 Requester   → Create + Read own; Write/Delete No
@@ -87,7 +84,7 @@ Technician  → Read/Write; Create/Delete No
 Supervisor  → Read/Write/Create; Delete No; Report/Export
 ```
 
-## Level 1 content
+### Permission Level 1 — business content
 
 ```text
 subject
@@ -105,69 +102,87 @@ Technician  → Read only
 Supervisor  → Read/Write
 ```
 
-## Level 2 process state
+### Status
 
 ```text
-status
+до L7
+→ обычный Select, Permission Level 0
+
+после L7
+→ тот же field + Workflow transition validation
 ```
 
-```text
-Requester   → Read only
-Technician  → Read/Write
-Supervisor  → Read/Write
-```
+Отдельный Permission Level для status в Core не используется.
 
-Ключевой proof:
-
-```text
-Technician document Write
-≠ content Write
-≠ unrestricted state transition
-```
+`Permission Type [v16+]` оставлен на Later, потому что его практический смысл проявляется при собственном программном действии, которое должно проверять дополнительное право.
 
 ---
 
-# Collaboration
+# Совместная работа и история
 
 | Механизм | Где | Статус |
 |---|---|---|
 | Assign To | L6 | Core |
-| ToDo | L6 | Core |
+| ToDo | L6/L9 | Core |
 | Due Date | L6/L9 | Core |
-| Comments / Timeline / Tags | L6 | Core |
+| Comments | L6 | Core |
+| Timeline | L4/L6/L7 | Core |
+| Track Changes / Version | L4/L6/L7 | Core |
+| Tags | L6 | Core |
 | Kanban | L6/L7 | Core |
 
-Assignment не расширяет Level 1/2 permissions.
+```text
+Assignment = responsibility
+Assignment ≠ authorization
+Assignment ≠ Workflow state
+```
 
 ---
 
-# Workflow
+# Состояние и Workflow
 
 | Механизм | Где | Статус |
 |---|---|---|
-| обычный Status до Workflow | L4–L6 | Core |
-| Status Permission Level 2 | L5+ | Core |
+| обычный Status Select | L4–L6 | Core |
 | Workflow / State / Action Master | L7 | Core |
 | Transition | L7 | Core |
 | Allowed Role | L7 | Core, server transition gate |
-| Condition | L7 | Core, server predicate |
+| Condition | L7 | Core, временный эксперимент |
 | Only Allow Edit For | L7 | Core, Desk guard |
 | Read Only status | L7 | Core, UI guard |
 | Is Submittable / DocStatus | Lab B | Lab |
+| Allow on Submit | Lab B | Lab |
 
-После L7 state change требует:
+Главный учебный переход:
 
 ```text
-Level 0 Write
-+ Level 2 Write
-+ valid Workflow transition
-```
+до Workflow:
+Select = значения, переходы не ограничены моделью процесса
 
-Requester Level 2 Write отсутствует уже с L5.
+после Workflow:
+Workflow = допустимые переходы
+```
 
 ---
 
-# Analytics
+# Интерфейс и представления
+
+| Механизм | Где | Статус |
+|---|---|---|
+| Form | L0–L7 | Core |
+| List | L0–L8 | Core |
+| Tree | L1 | Core |
+| Kanban | L6/L7 | Core |
+| Workspace | L8 | Core |
+| DocType Layout [v16+] | Lab F | Lab |
+| Calendar / Gantt | Lab F | Lab |
+| собственный frontend | — | Later |
+
+`DocType Layout` изучается как решение задачи «одни и те же Documents нужно показывать по-разному», не создавая второй `DocType` только ради другой формы.
+
+---
+
+# Аналитика
 
 | Механизм | Где | Статус |
 |---|---|---|
@@ -177,11 +192,15 @@ Requester Level 2 Write отсутствует уже с L5.
 | Dashboard Chart | L8 | Core |
 | Workspace | L8 | Core |
 | Shortcut / Quick List | L8 | Core |
-| Query / Script Report | — | Later |
+| Query Report | — | Later |
+| Script Report | — | Later |
+| внешний BI/OLAP | — | Later |
+
+Core не создаёт аналитический `DocType` ради данных, которые уже читаются из `Service Request`.
 
 ---
 
-# Automation
+# Автоматизация
 
 | Механизм | Где | Статус |
 |---|---|---|
@@ -193,10 +212,13 @@ Requester Level 2 Write отсутствует уже с L5.
 | Load Balancing | L9 | Optional |
 | Due Date Based On | L9 | Core, conditional |
 | Close Condition | L9 | Core, site policy |
-| scheduler/background jobs | L9 | Core |
+| scheduler / scheduled standard automation | L0/L9 | Core |
 | Auto Repeat | Lab C | Lab |
+| Background Jobs / `frappe.enqueue` | — | Later |
+| `enqueue_after_commit` | — | Later |
+| custom scheduled events | — | Later |
 
-Automation не расширяет Level 1/2 authority.
+L0 только показывает наличие scheduler/workers. L9 изучает штатные декларативные автоматизации. Собственную фоновую задачу Core не проектирует.
 
 ---
 
@@ -206,79 +228,114 @@ Automation не расширяет Level 1/2 authority.
 |---|---|---|
 | Standard Web Form | L10 | Core |
 | Published / Route | L10 | Core |
-| Guest submission | L10 | Core, temporary |
-| Login Required | L10 | Core, final On; authentication only |
+| Guest submission | L10 | Core, временный эксперимент |
+| Login Required | L10 | Core, финально On |
 | Website User | L10 | Core |
-| Web Form new insert | L10 | Core, separate capability |
-| Allow Edit | L10 | Core, temporary; final Off |
-| Show List | L10 | Core, final On |
-| Apply Document Permissions | L10 | Core, existing-doc experiment; final Off |
+| Web Form create path | L10 | Core |
+| Allow Edit | L10 | Core, временно; финально Off |
+| Show List | L10 | Core, финально On |
+| Apply Document Permissions | L10 | Core, experiment for existing docs; финально Off |
 | Allow Read On All Link Options | L10 | Core, trusted-internal policy |
 | role-restricted/public portal | — | Later |
 
 ```text
-Desk Requester Create
-→ Level 0/1/2 permission path
+Desk Create
+→ Role Permission + Permission Level path
 
-Web Form new insert
-→ ignore_permissions=True
-→ separate intake capability
+Web Form Create
+→ отдельная capability
 ```
 
-`Status` не входит в Web Form fields.
+`Login Required` изучается как authentication boundary, а не как role-specific authorization.
 
 ---
 
-# Packaging
+# Расширение и кастомизация
 
 | Механизм | Где | Статус |
 |---|---|---|
-| Export Customizations | L11/Lab D | Core |
-| Custom Permissions Level 0 | L11 | Core |
-| Custom Permissions Level 1 | L11 | Core |
-| Custom Permissions Level 2 | L11 | Core |
+| Standard DocType source | L0–L4 | Core |
+| Customize Form | Lab D | Lab |
+| Custom Field | Lab D | Lab |
+| Property Setter | Lab D | Lab |
+| Export Customizations | L11/Lab D | Core/Lab |
+| Server Script | — | Later |
+| Client Script / custom JS | — | Later |
+| `doc_events` / hooks | — | Later |
+| `extend_doctype_class` | — | Later |
+| override/fork | — | Later |
+
+Core сначала осваивает метаданные и стандартную настройку; программные точки расширения не считаются запрещёнными.
+
+---
+
+# Packaging / deployment / verification
+
+| Механизм | Где | Статус |
+|---|---|---|
+| Standard source in Git | L0+ | Core |
 | fixtures / fixture_auto_order | L11 | Core |
 | export-fixtures | L11 | Core |
-| install-app / migrate | L11 | Core |
-| clean-site portability | L11 | Core |
-| Desk/Web Form separate acceptance | L11 | Core |
-| arbitrary multi-app compatibility | — | Later |
+| exported Custom DocPerm | L11 | Core |
+| install-app | L0/L11 | Core |
+| migrate | L11/Lab D | Core/Lab |
+| clean-site acceptance | L11 | Core |
+| patches | — | Later |
+| automated `FrappeTestCase` / `bench run-tests` | — | Later |
+| migration tests | — | Later |
+
+Core доказывает воспроизводимость вручную на чистом Site. Автоматизированные tests вводятся позже вместе с собственным программным поведением.
+
+---
+
+# Realtime / API / интеграции
+
+| Механизм | Где | Статус |
+|---|---|---|
+| built-in Document REST API | — | Later |
+| whitelisted methods / RPC | — | Later |
+| Webhook | — | Later |
+| Realtime API / `publish_realtime` | — | Later |
+| custom integration service | — | Later |
+
+Эти механизмы архитектурно нативны, но требуют отдельного программного/интеграционного блока и не добавляются в Core ради формального покрытия.
 
 ---
 
 # Labs
 
-Labs, затрагивающие `Service Request`, обязаны вернуть Level 0/1/2 baseline.
-
-Lab A temporary `work_logs` = Permission Level 1.
-
-Lab C Auto Repeat не меняет permission authority.
-
----
-
-# Later
+Labs, затрагивающие `Service Request`, обязаны вернуть:
 
 ```text
-Server Script
-custom controller / validation
-custom permission logic
-assignee-only authorization
-absolute Closed immutability
-role-restricted/public-untrusted portal intake
-Client Script / custom JS
-Query/Script Report
-production hardening
+Level 0 document matrix
+Permission Level 1 content matrix
+Workflow
 ```
+
+Lab A временный `work_logs` получает Permission Level 1, потому что в учебной модели это содержательные данные заявки.
+
+Lab B доказывает различие Status / Workflow / DocStatus.
+
+Lab C доказывает Auto Repeat как отдельную штатную автоматизацию.
+
+Lab D различает Standard source и site/app customization.
+
+Lab F покрывает специальные Field Types и `DocType Layout [v16+]`, не превращая полигон в постоянную предметную модель.
 
 ---
 
 # Правило матрицы
 
-Coverage не подменяет architecture quality.
-
 ```text
-Service Request Delete → изучен → final Off
-Web Form Allow Edit     → изучен → final Off
+механизм изучен
+≠ механизм обязан использоваться в реальном приложении
 ```
 
-И `Write` на Document не означает ни write любого field, ни право на любой process transition.
+И наоборот:
+
+```text
+механизм находится в Later
+≠ он не-Frappe-native
+```
+
+Курс принят архитектурно, если ученик умеет объяснить **почему механизм выбран по смыслу и какую ответственность он не решает**.
