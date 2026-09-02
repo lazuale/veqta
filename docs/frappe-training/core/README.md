@@ -25,8 +25,8 @@
 | [`S00`](S00_ENVIRONMENT.md) | чистый Frappe v16 Bench + `rental.localhost` | написан |
 | [`S01`](S01_APP_AND_SITE.md) | создан и установлен `rental_training` | написан |
 | [`S02`](S02_EQUIPMENT_DOCTYPE.md) | `Equipment` как самостоятельный Standard DocType | написан |
-| S03 | `Customer` как самостоятельный Document | следующий |
-| S04 | `Rental` + `Rental Item` + Link/Table | запланирован |
+| [`S03`](S03_CUSTOMER_DOCTYPE.md) | `Customer` как второй самостоятельный Document | написан |
+| S04 | `Rental` + `Rental Item` + Link/Table | следующий |
 | S05A | предметный status | запланирован |
 | S05B | полный сценарий через Desk | запланирован |
 | S05C | серверные инварианты одного Rental | запланирован |
@@ -40,40 +40,53 @@
 
 ## Текущая точка
 
-После успешного S02 приложение уже содержит первый App-owned Standard DocType:
+После успешного S03 приложение содержит две независимые предметные сущности:
 
 ```text
 rental_training [App]
 └── Rental Training [Module]
-    └── Equipment [DocType]
-        ├── equipment_name
-        ├── equipment_type
-        └── serial_number
+    ├── Equipment [DocType]
+    └── Customer [DocType]
 ```
 
-Ученик должен уже уметь показать две стороны одной модели:
+Обе имеют собственную стабильную identity и человекочитаемый title:
 
 ```text
-Desk
-├── Equipment Form
-└── Equipment List
+Equipment
+name  = EQ-#####
+title = equipment_name
 
-Git repository apps/rental_training
-└── rental_training/rental_training/doctype/equipment/
-    ├── equipment.json
-    ├── equipment.py
-    ├── equipment.js
-    └── test_equipment.py
+Customer
+name  = CUST-#####
+title = customer_name
 ```
 
-И объяснить:
+Для Customer дополнительно проверена штатная типизация текстовых значений:
 
 ```text
-Equipment = самостоятельный Document
-Equipment Type = пока Select
-name = стабильная identity
-Title Field = человекочитаемое представление
-Standard DocType = App-owned metadata в Git
+phone : Data + Options=Phone
+email : Data + Options=Email
 ```
 
-После этого можно переходить к S03 и создать второй независимый Document — `Customer`.
+Ученик должен уметь объяснить:
+
+```text
+почему Equipment и Customer существуют независимо
+почему их display-поля не используются как identity
+почему обычная Email validation не требует своей regex
+почему эти два Documents пока не нужно связывать напрямую
+```
+
+Следующий реальный вопрос предметной области:
+
+> кто взял, на какой период и какое оборудование?
+
+Он приводит к S04, где впервые появляется сама операция `Rental` и естественно используются:
+
+```text
+Link
+Child DocType
+Table
+```
+
+Не как отдельные учебные функции, а как следствие модели операции проката.
