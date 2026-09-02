@@ -17,8 +17,8 @@
 
 Фраза «кнопка не видна» не доказывает server-side запрет.
 
-Фраза «метод отработал» не доказывает transaction safety, permissions или правильный
-архитектурный owner.
+Фраза «метод отработал» не доказывает transaction safety, permissions, правильный owner
+или правильную lifecycle phase.
 
 Короткой таблицы достаточно:
 
@@ -26,7 +26,8 @@
 |---|---|---|---|
 | Viewer изменяет Equipment | запрет | запрет | DocPerm |
 | Guest создаёт Service Intake | разрешено | создан | Web Form create path |
-| Case из New Intake | запрет | ValidationError | ServiceCase.validate |
+| Case из New Intake | запрет | ValidationError | `ServiceCase.before_insert` |
+| Agent сохраняет существующий Case без Intake Read | разрешено | сохранён | creation rule не выполняется на update |
 | exception после Case insert | Case отсутствует | rollback | request transaction |
 
 ---
@@ -57,10 +58,11 @@ App устанавливается на новый site без копирова�
 
 ```text
 server invariant
+correct lifecycle phase
 semantic command permissions
 transaction rollback
 migration existing data
-automated tests
+automated tests on dedicated test site
 upgrade existing site
 ```
 
@@ -95,6 +97,7 @@ git diff
 - нет manual `frappe.db.commit()` в request action;
 - patch находится в `patches.txt`;
 - tests находятся в source;
+- creation-only rule не висит на общем `validate()`;
 - не создан fake service/repository/job без самостоятельной ответственности.
 
 ---
@@ -121,8 +124,20 @@ bench --site <clean-site> list-apps
 
 Clean site не получает database restore исходного site.
 
-Engineering Bridge дополнительно проверяет **upgrade исходного `intake.localhost`**, потому
-что fresh install не доказывает migration старых данных.
+Engineering Bridge разделяет:
+
+```text
+intake.localhost
+→ upgrade existing working data
+
+intake-test.localhost
+→ automated integration tests
+
+intake-engineering-clean.localhost
+→ fresh install without historical data
+```
+
+Рабочий site не используется как automated-test database.
 
 ---
 
@@ -219,7 +234,7 @@ Web Form route, Workflow, reporting, workspace и notifications присутст
 
 # 8. Engineering Bridge
 
-## E1 — Controller invariant
+## E1 — Creation invariant
 
 Предусловие: существует `Service Intake` со статусом `New`.
 
@@ -228,15 +243,27 @@ Web Form route, Workflow, reporting, workspace и notifications присутст
 ```text
 create Service Case linked to New Intake
 → forbidden
-→ ServiceCase.validate
+→ ServiceCase.before_insert
 ```
 
 После `Accepted` тот же Link должен быть допустим.
 
-Отдельно объяснить: Link/Unique/Set Only Once продолжают обеспечиваться metadata, а
-Controller не дублирует их.
+Затем обязательно проверить:
 
-## E2/E3 — Semantic command
+```text
+Agent has no Read on Service Intake
++
+Agent has Write on existing Service Case
+→ changing allowed Case field and save succeeds
+```
+
+Если save падает на чтении Intake, creation-only rule размещён слишком широко, например в
+общем `validate()`.
+
+Link/Unique/Set Only Once продолжают обеспечиваться metadata, Controller их не
+дублирует.
+
+## E2/E3 — Schema + semantic command
 
 Для Accepted Intake:
 
@@ -266,7 +293,7 @@ POST create_case
 
 ## E4 — API boundary
 
-Ученик должен показать разницу:
+Ученик показывает разницу:
 
 ```text
 built-in Document REST
@@ -304,7 +331,7 @@ grep -R "Transaction rollback probe" -n service_intake || true
 
 ## E6 — Patch / upgrade
 
-На старом P3 site должен существовать Case, созданный до `converted_at`.
+На старом P3 site существует Case, созданный до `converted_at`.
 
 До migrate:
 
@@ -326,67 +353,80 @@ old Intake.converted_at = old Service Case.creation
 
 Повторный migrate не должен повторно менять data как новый patch.
 
-Ученик объясняет, почему patch использует deliberate DB update, а controller обычной
-business operation — Document lifecycle.
+Ученик объясняет, почему patch использует deliberate DB update, а текущая business
+operation — Document lifecycle.
 
 ## E7 — Automated tests
 
-Команда:
+Test site создаётся отдельно:
 
 ```bash
-bench --site intake.localhost run-tests --app service_intake
+bench new-site intake-test.localhost --db-root-username frappe_admin
+bench --site intake-test.localhost install-app service_intake
+bench --site intake-test.localhost migrate
+bench --site intake-test.localhost run-tests --app service_intake
 ```
 
 Обязательные проверки app-owned behavior:
 
-- non-Accepted source rejected;
+- non-Accepted source rejected on insert;
 - accepted conversion works;
 - duplicate conversion rejected;
-- `converted_at` заполнен.
+- `converted_at` заполнен;
+- Agent без Intake Read сохраняет существующий Case.
 
 Не принимается suite, состоящий только из тестов, что Frappe Mandatory/Link вообще
 работают.
 
 ## E8 — Async/integration decision
 
-Ученик получает три требования и выбирает owner:
+Ученик получает требования и выбирает owner:
 
 | Требование | Правильная первая проверка |
 |---|---|
 | простой HTTP callback по Case event | Webhook |
 | тяжёлая работа только после успешного commit | Background Job + `enqueue_after_commit` |
-| synchronous Document invariant | Controller lifecycle |
+| synchronous Document invariant | подходящий Controller lifecycle event |
+| сложный multi-system protocol | integration module/service |
+
+Для ordinary DocType event exact v16.32 Webhook сам проходит через after-commit flush и
+background queue. Дополнительная custom job вокруг него только ради асинхронности не
+нужна.
 
 Custom job отсутствует в source, потому что текущий product requirement его не требует.
-Это **положительный** результат архитектурного аудита.
+Это положительный результат архитектурного аудита.
 
-## E9 — Clean install + upgrade
+## E9 — Upgrade + test + clean install
 
-Оба сценария обязательны:
+Все три сценария обязательны и не смешиваются:
 
 ```text
 existing intake.localhost
-→ migrate + tests + old-data check
+→ migrate + old-data check + manual business scenario
+
+intake-test.localhost
+→ migrate + automated tests
 
 new intake-engineering-clean.localhost
-→ install-app + migrate + tests
+→ install-app + migrate + fresh-install checks
 ```
 
-На clean site patch должен быть безопасен при отсутствии historical Case data.
+На clean site patch должен быть безопасен при отсутствии historical Case data, а до
+создания working data Intake/Case должны отсутствовать.
 
 ---
 
 # 9. Протокол ошибки
 
-Если clean site или upgrade не воспроизводит ожидаемое состояние:
+Если clean site, test site или upgrade не воспроизводит ожидаемое состояние:
 
 1. не копировать базу и не «дочинивать» объект молча;
 2. определить layer: Standard source / fixture / local config / working data / patch / code;
-3. определить owner гарантии;
+3. определить owner гарантии и lifecycle phase;
 4. исправить source/evolution path;
-5. повторить migrate/install;
+5. повторить migrate/install/test;
 6. повторить positive/negative permission/behavior checks;
 7. зафиксировать причину, а не только команду, которая «помогла».
 
-Сбой переносимости или migration — часть практикума: он показывает, понял ли ученик
-архитектуру Frappe, а не только Desk UI.
+Сбой переносимости, migration или lifecycle placement — часть практикума: он показывает,
+понял ли ученик архитектуру Frappe, а не только Desk UI.
