@@ -493,10 +493,10 @@ find apps/rental_training/rental_training/rental_training/doctype/equipment \
 
 ```text
 __init__.py
- equipment.json   metadata DocType
- equipment.py     Python controller
- equipment.js     client-side controller
- test_equipment.py test boilerplate
+equipment.json    metadata DocType
+equipment.py      Python controller
+equipment.js      client-side controller
+test_equipment.py test boilerplate
 ```
 
 Точный набор служебных boilerplate-файлов определяется текущим scaffold Frappe, поэтому критерием является не буквальное количество файлов, а наличие App-owned metadata и controller/test locations.
@@ -698,11 +698,11 @@ name и title различаются
 
 ---
 
-# 17. Посмотреть Documents через Frappe, не изменяя БД вручную
+# 17. Не изменять модель прямым SQL
 
-Для дополнительной технической проверки можно использовать System Console или Bench console позже, но для приёмки S02 это не требуется.
+Для приёмки S02 прямой доступ к MariaDB не требуется.
 
-Не выполняйте ручные `INSERT`, `UPDATE` или изменение структуры `tabEquipment` через MariaDB.
+Не выполняйте ручные `INSERT`, `UPDATE`, `ALTER TABLE` или другие изменения `tabEquipment` через MariaDB.
 
 Причина простая: приложение должно работать через модель Frappe, а не обходить Document lifecycle и metadata вручную.
 
@@ -712,22 +712,35 @@ name и title различаются
 
 # 18. Проверить Git после создания DocType
 
+Сначала посмотрите, какие файлы появились:
+
 ```bash
 cd ~/frappe/rental-training-bench/apps/rental_training
 
-git status
-git diff -- rental_training/rental_training/doctype/equipment
+git status --short
 ```
 
-Новые файлы Equipment должны принадлежать repository `rental_training`.
+Новые файлы на этом шаге могут быть `untracked`, поэтому обычный `git diff` их ещё не покажет. Это нормально.
 
-Добавьте их в Git:
+Добавьте generated source в индекс Git:
 
 ```bash
 git add rental_training/rental_training/doctype
+```
 
+Теперь посмотрите именно staged diff:
+
+```bash
+git diff --cached -- rental_training/rental_training/doctype
+```
+
+Проверьте:
+
+```bash
 git status
 ```
+
+Новые файлы Equipment должны принадлежать repository `rental_training`.
 
 Создайте commit:
 
