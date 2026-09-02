@@ -32,67 +32,72 @@
 | [`S05C`](S05C_RENTAL_LOCAL_INVARIANTS.md) | серверные инварианты одного Rental | написан |
 | [`S05D`](S05D_ROLES_AND_PERMISSIONS.md) | `Rental Operator` / `Rental Manager` через Role + DocType Permissions | написан |
 | [`S06`](S06_ACTIVE_RENTAL_CONFLICT.md) | междокументный инвариант пересекающихся Active Rentals | написан |
-| S07 | автоматические тесты контрактов | следующий |
-| S08 | аудит App-owned состояния и миграций | запланирован |
+| [`S07`](S07_AUTOMATED_CONTRACT_TESTS.md) | автоматические Frappe-aware tests собственных контрактов | написан |
+| S08 | аудит App-owned состояния и миграций | следующий |
 | S09 | чистая установка и финальная приёмка | запланирован |
 
 `NEXT`, `GATE` и `EXT` не смешиваются с этим маршрутом автоматически. Они подключаются только после соответствующего требования, как определено в архитектурных документах.
 
 ## Текущая точка
 
-После S06 CORE имеет три бизнес-инварианта и базовую authorization model.
+После S07 CORE уже не зависит от ручного повторения проверок S05C/S05D/S06.
 
 ```text
 Rental.validate()
-├── V01 local
-│   └── end_date >= start_date
-├── V02 local
-│   └── Equipment не повторяется внутри Rental
-└── V03 cross-document
-    └── одно Equipment не может находиться
-        в пересекающихся Active Rentals
+├── V01  date range
+├── V02  duplicate Equipment
+└── V03  overlapping Active Rental
 
-User
-  ↓ roles
-Rental Operator / Rental Manager
-  ↓ DocType Permissions
-Equipment / Customer / Rental
+Role + DocType Permissions
+├── Rental Operator
+└── Rental Manager
+
+        ↓
+IntegrationTestRental
+        ↓
+bench --site rental.localhost run-tests --app rental_training
 ```
 
-Для V03 зафиксирована включительная семантика дат:
+S07 использует актуальный для Frappe v16 путь:
 
-```text
-10–12 + 12–14 → конфликт
-10–12 + 13–14 → допустимо
+```python
+from frappe.tests import IntegrationTestCase
 ```
 
-и предметная семантика статусов:
+а не deprecated `FrappeTestCase`.
+
+Тесты сами создают необходимые Customer/Equipment и test Users. Они не зависят от `EQ-00001`, `CUST-00001`, вручную созданных Rentals или паролей dev-site.
+
+Автоматически фиксируются не только базовые V01/V02/V03, но и точная семантика V03:
 
 ```text
-Planned  → не блокирует
-Active   → блокирует
-Returned → не блокирует
+общая граничная дата → конфликт
+следующий день        → допустимо
+Planned overlap       → допустимо
+self-save Active      → допустимо
 ```
 
-Внутренний validator использует `frappe.get_all()` намеренно, потому что целостность данных не должна зависеть от того, какие другие Rentals текущий пользователь видит в List. Пользовательские выборки при этом продолжают использовать permission-aware путь.
+Permission tests выполняют реальные `insert/save/delete`, а не проверяют кнопки Desk.
 
-S06 отдельно фиксирует границу:
+Отдельно сохраняется архитектурная граница:
 
 ```text
-последовательная validate-проверка
+автоматический test существующего контракта
 ≠
-полная concurrency/locking strategy
+создание нового контракта
 ```
 
-SQL-locks, reservation service и другие production-механизмы не добавляются без отдельного требования.
+Поэтому S07 не добавляет browser automation, CI, coverage target или фиктивный concurrency test для гарантии, которой S06 не реализует.
 
-Следующий этап — S07. На нём ручные проверки S05C, S05D и S06 должны превратиться в повторяемые автоматические контракты Frappe test runner:
+Следующий этап — S08:
 
 ```text
-valid Rental
-invalid dates
-duplicate Equipment
-overlapping Active Rental
-non-overlapping Active Rental
-permissions
+каждый обязательный элемент CORE
+        ↓
+кто владелец?
+где source of truth?
+как попадёт на чистый Site?
+нужен ли migrate / fixture / patch?
 ```
+
+После S08 останется финальное доказательство S09 на новом чистом Site.
