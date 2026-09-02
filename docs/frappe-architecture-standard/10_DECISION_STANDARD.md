@@ -16,36 +16,38 @@
 
 | Ответственность | Штатный владелец во Frappe | Первое расширение для проверки | Тревожный признак |
 |---|---|---|---|
-| Структурированная модель | DocType / Meta | Custom Field, Child, Virtual | параллельная entity model без новой ответственности |
+| Структурированная модель | DocType / Meta | Custom Field, Child, Virtual | параллельная модель сущностей без новой ответственности |
 | Свойство Document | DocField | вычисление/серверная логика | отдельный DocType ради одного значения |
 | Ссылка на справочник | Link | Dynamic Link | копия текста вместо живой связи без смысла снимка |
 | Состав Document | Child DocType | отдельный DocType связи | самостоятельный CRUD для обычных строк |
 | Один набор настроек | Single DocType | — | обычный DocType + ручной запрет второй записи |
 | Вложения Document | File / Attach | внешнее хранилище при отдельном требовании | собственный Attachment DocType для обычного файла |
 | Комментарии и история изменений | Comment / Version / Timeline | отдельный журнал при иной семантике | Task History / Task Comment, дублирующие штатную историю |
-| Хранение и жизненный цикл | Document | Controller/service | raw SQL/direct DB для обычного бизнес-CRUD |
+| Хранение и жизненный цикл | Document | Controller/service | прямой SQL/Database API для обычного бизнес-CRUD |
 | Инварианты | серверный путь Document | service/domain validation | только Client Script |
 | Бизнес-состояние | поле предметной модели | Workflow | docstatus как статус Kanban |
-| Переходы согласования | Workflow | предметный сервис | десятки role/status `if` на клиенте |
+| Переходы согласования | Workflow | предметный сервис | десятки проверок role/status на клиенте |
 | Транзакционная фиксация | docstatus / submit | Workflow + docstatus | собственный `Approved` + ручная блокировка всех полей |
 | Аутентификация | User/session, API Key/Secret, OAuth | отдельный интеграционный пользователь/контракт | общая учётная запись администратора для интеграций |
+| Специальное действие над DocType | Permission Type [v16+] | собственная проверка через `frappe.has_permission` | ручные проверки ролей в разных местах кода |
 | Доступ | движок permissions | permission hooks | отдельный ACL до проверки штатных механизмов |
 | Доступ к полям | permlevel | собственное формирование ответа | скрытие только в UI |
 | Рабочее назначение | Assignment / ToDo | предметное поле при другом смысле | дублирование исполнителя в нескольких источниках истины |
 | Уведомление пользователя | Notification | собственный сервис уведомлений | собственный движок ради одного письма |
-| Исходящее HTTP-событие Document | Webhook | сервис/задача интеграции | собственный polling без причины |
+| Исходящее HTTP-событие Document | Webhook | сервис/задача интеграции | собственный опрос без причины |
 | Асинхронное выполнение | Background Jobs | настройка worker | отдельный daemon для обычной задачи Site |
 | Периодическая задача Site | Scheduler events | внешний оркестратор при иной ответственности | `while True` внутри App |
-| Обычный CRUD API | Document REST API | отдельный API-контракт | четыре endpoint, просто дублирующие CRUD |
+| Обычный CRUD API | Document REST API | отдельный API-контракт | четыре точки API, просто дублирующие CRUD |
 | Команда одного Document | метод Document | метод сервиса | изменение состояния только клиентской кнопкой |
 | Команда приложения | whitelisted method/service | отдельный API | обычный CRUD, скрытый под «service endpoint» |
 | Расширение чужого DocType | Custom Field / hooks | `extend_doctype_class` | правка установленного исходного кода |
-| Полная замена Controller | `override_doctype_class` | fork при осознанной стратегии | override без анализа совместимости |
+| Полная замена Controller | `override_doctype_class` | fork при осознанной стратегии | полная замена без анализа совместимости |
 | Простой административный UI | Desk Form/List | собственный JS | отдельный SPA ради обычного CRUD |
-| Обновление интерфейса в реальном времени | Realtime API / Socket.IO | специализированный realtime-слой | polling или свой WebSocket-сервер без причины |
+| Несколько форм одного DocType | DocType Layout [v16+] | собственный интерфейс при отдельном UX | дублирование DocType только ради разной формы |
+| Обновление интерфейса в реальном времени | Realtime API / Socket.IO | специализированный realtime-слой | опрос или свой WebSocket-сервер без причины |
 | Простой отчёт | Report Builder | Query/Script Report | отдельная BI-система ради простого списка |
 | Простая публичная веб-форма | Web Form | Portal/собственный фронтенд | отдельный фронтенд ради одной формы |
-| Доставка схемы | DocType JSON / migrate | patches | ручные изменения production DB |
+| Доставка схемы | DocType JSON / migrate | patches | ручные изменения рабочей БД |
 | Доставка конфигурации | fixtures / exported customization | install hooks | ручное накликивание после каждой установки |
 | Критичное собственное поведение | Frappe tests | integration/e2e | «проверили руками один раз» |
 
@@ -172,12 +174,20 @@
   → permissions
 ```
 
+Если нужно отдельное право на нестандартное действие:
+
+```text
+можно читать Document,
+но только часть ролей может выполнить approve
+  → Permission Type [v16+] + frappe.has_permission()
+```
+
 Дальше применяется **порядок проектирования**, а не реальный порядок выполнения:
 
 ```text
 Role + DocPerm
    ↓
-permlevel / If Owner
+Permission Level / Permission Type / If Owner
    ↓
 User Permission
    ↓
@@ -266,6 +276,9 @@ permission_query_conditions + has_permission
 Обычная карточка?
   → Form
 
+Нужны разные формы одной и той же модели? [v16+]
+  → DocType Layout
+
 Реестр?
   → List
 
@@ -291,7 +304,7 @@ permission_query_conditions + has_permission
   → кандидат на собственный фронтенд
 ```
 
-Представление не должно подменять серверные правила.
+Представление не должно подменять серверные правила или создавать второй `DocType` только ради другой формы.
 
 ---
 
@@ -396,7 +409,7 @@ extend_doctype_class
 override_doctype_class
 override_whitelisted_method
 ignore_permissions
-direct DB lifecycle bypass
+прямой обход жизненного цикла через Database API
 manual commit
 ```
 
@@ -406,9 +419,9 @@ manual commit
 
 ```text
 fork core
-parallel ACL
-parallel lifecycle engine
-own persistence layer over ordinary DocTypes
+параллельный ACL
+параллельный движок жизненного цикла
+собственный слой хранения поверх обычных DocType
 ```
 
 Не запрещено, но требует доказательства, что семантики Framework принципиально недостаточно и стоимость расхождения принята сознательно.
@@ -430,7 +443,7 @@ own persistence layer over ordinary DocTypes
 
 «Сделаем свой scheduler».
 
-«Сделаем четыре API endpoint поверх CRUD».
+«Сделаем четыре точки API поверх CRUD».
 
 «После установки админ руками добавит поля».
 
@@ -499,12 +512,14 @@ fork
 [ ] Бизнес-статус / Workflow / docstatus не смешаны.
 [ ] Инварианты проверяются на сервере.
 [ ] Способ аутентификации пользователя или интеграции определён.
+[ ] Для нестандартных действий проверен Permission Type [v16+].
 [ ] Права проверены не только визуально.
 [ ] Обход прав отсутствует или обоснован.
 [ ] Семантика транзакции и rollback понятна.
 [ ] Внешние эффекты согласованы с commit.
 [ ] Для фоновых задач продуманы повторы и идемпотентность.
 [ ] API не дублирует обычный CRUD без причины.
+[ ] Для разных форм одного DocType проверен DocType Layout [v16+].
 [ ] Для realtime-задач проверен штатный Realtime API.
 [ ] Чужое App расширяется официальной точкой.
 [ ] Нет обязательной ручной настройки после установки.
