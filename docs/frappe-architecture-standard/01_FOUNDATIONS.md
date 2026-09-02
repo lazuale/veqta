@@ -1,495 +1,288 @@
-# 01. Foundations
+# 01. Foundations — как Frappe предполагает строить приложения
 
-## 1. Что мы называем Frappe-native архитектурой
+## 1. Frappe — не пустой web-framework
 
-Frappe-native архитектура — это не отдельный стиль программирования и не запрет собственного кода.
+**[FRAPPE DOCS]** Frappe официально описывает себя как **metadata-driven, full-stack, batteries-included framework**. В Introduction отдельно сказано, что metadata рассматривается как data, а архитектура Framework сознательно монолитна: Frappe поставляется почти со всем, что требуется современному web-приложению.
 
-Это способ проектирования, при котором приложение сначала использует **семантически подходящие primitives самого Framework**, затем его официальные точки расширения и только после этого вводит собственные конструкции там, где появляется действительно новая ответственность.
+Источники:
 
-Главный вопрос design review:
+- https://docs.frappe.io/framework/user/en/introduction
+- https://docs.frappe.io/framework/user/en/basics
+- https://github.com/frappe/frappe/blob/version-16/pyproject.toml
 
-> **Какой механизм Frappe уже владеет этой ответственностью и почему его семантика недостаточна для нашей задачи?**
+На бытовом языке это значит: Frappe похож не на пустую строительную площадку, а на уже оборудованное здание. Пользователи, роли, документы, формы, списки, файлы, комментарии, API, scheduler и фоновые workers уже существуют.
 
-Если ответа на вторую часть нет, новая abstraction, скорее всего, преждевременна.
-
----
-
-## 2. Что Frappe говорит о себе сам
-
-### Факт Frappe
-
-Frappe позиционирует себя как metadata-driven, full-stack low-code framework.
-
-### Архитектурное следствие
-
-Приложение не должно воспринимать Frappe как пустой Python web-framework, поверх которого обязательна отдельная application platform.
-
-Framework уже предоставляет значительную часть application infrastructure:
-
-- DocType / Meta;
-- Document lifecycle;
-- permissions;
-- generated Desk UI;
-- REST API;
-- reports;
-- notifications;
-- assignments;
-- background jobs;
-- scheduler;
-- hooks;
-- website/web forms;
-- files/comments/versioning.
-
-### Граница
-
-Это не означает, что приложение обязано пользоваться всеми механизмами Framework или что custom implementation запрещён.
-
-Критерий один: **совпадает ли семантика штатного механизма с требованием**.
+**[ARCHITECTURAL INFERENCE]** Поэтому обычное приложение должно в первую очередь добавлять предметную модель и правила, а не заново реализовывать инфраструктуру приложения.
 
 ---
 
-## 3. Configuration over code
+## 2. Configuration over code — прямой принцип Frappe
 
-### Факт Frappe
+**[FRAPPE DOCS]** Страница *Why Frappe Framework?* прямо говорит:
 
-Официальная философия Frappe формулируется как preference for configuration over code и минимизация кода там, где задача уже выражается средствами Framework.
+- core philosophy — писать как можно меньше кода;
+- предпочитать configuration over code;
+- generic capability, нужную многим приложениям, помещать непосредственно во Framework.
 
-### Архитектурное следствие
+Источник:
 
-Если требование полностью выражается через metadata или стандартный subsystem, не следует программировать параллельный механизм только потому, что разработчик привык делать так в другом стеке.
+- https://docs.frappe.io/framework/user/en/basics/why
 
-Пример:
+Это один из самых сильных первичных пруфов для всего стандарта.
+
+Но его нельзя толковать как запрет программирования.
+
+Неправильное прочтение:
 
 ```text
-нужно отправить письмо при изменении статуса
+metadata хорошо
+Python плохо
 ```
 
-Сначала проверяется `Notification`.
-
-Не потому, что Python плохой, а потому, что Notification уже специально отвечает за такой класс задач.
-
-### Граница
-
-Если Notification не выражает нужную orchestration, retries, external contract или другую сложную семантику, custom code является нормальным следующим решением.
-
----
-
-## 4. Batteries included и монолитная модель
-
-Frappe проектируется как интегрированная application platform, а не набор микробиблиотек.
-
-Это важно понимать до проектирования архитектуры приложения.
-
-### Неправильная стартовая модель
+Правильное прочтение:
 
 ```text
-Frappe = ORM + HTTP
-
-наша платформа:
-    domain entities
-    repositories
-    ACL
-    workflow engine
-    notification engine
-    scheduler
-    REST framework
-    UI metadata
+если Framework уже выражает задачу штатно,
+не переписывай тот же механизм кодом без причины
 ```
 
-### Более естественная модель
-
-```text
-Frappe
-    ├── application infrastructure
-    └── extension points
-
-Our App
-    ├── domain model
-    ├── domain rules
-    ├── domain services where needed
-    └── integrations specific to our product
-```
-
-### Архитектурное следствие
-
-Не следует автоматически создавать второй generic framework поверх Frappe.
-
-### Граница
-
-«Монолит» не означает:
-
-- один файл;
-- один Controller;
-- отсутствие modules;
-- отсутствие services;
-- отсутствие custom frontend;
-- отсутствие интеграционных компонентов.
-
-ERPNext сам использует services для сложной предметной логики.
+Python Controller, hooks, services, background jobs и custom API — штатные части экосистемы Frappe.
 
 ---
 
-## 5. Metadata — не просто описание формы
+## 3. Monolith — не «всё в одном файле»
 
-DocType metadata влияет одновременно на несколько частей Framework:
+**[FRAPPE DOCS]** Introduction прямо говорит: Frappe придерживается monolithic architecture и поэтому предоставляет integrated application capabilities из коробки.
 
-```text
-fields
-schema
-relationships
-form
-list
-permissions
-naming
-API surface
-reports
-workflow integration
-```
+Источник:
 
-Поэтому изменение metadata является архитектурным изменением модели приложения, а не только UI-настройкой.
+- https://docs.frappe.io/framework/user/en/introduction
 
-Например, добавление `Link` вместо `Data` меняет не только вид поля, но и семантику связи между Documents.
-
----
-
-## 6. DocType как основной structural primitive
-
-DocType — главный структурированный тип данных во Frappe.
-
-Но его не следует узко называть только «бизнес-сущностью».
-
-DocTypes используются для:
-
-- бизнес-документов;
-- master data;
-- settings;
-- logs;
-- integration configuration;
-- workflow definitions;
-- system metadata.
-
-Правильнее думать так:
-
-> **DocType — основной metadata-defined Document type Framework.**
-
----
-
-## 7. Document как runtime model
-
-DocType отвечает на вопрос:
-
-> Как устроен этот тип документа?
-
-`Document` отвечает:
-
-> Как ведёт себя конкретный экземпляр этого типа во время выполнения?
-
-Controller является Python-классом Document и участвует в lifecycle документа.
-
-Это делает Document значительно более богатой abstraction, чем обычная database row.
-
----
-
-## 8. Не путать Framework responsibility и domain responsibility
-
-Очень важное разделение.
-
-### Framework responsibility
+Под «монолитом» здесь нельзя понимать плохой код или отсутствие модулей. Речь о другом: основные application concerns работают в одной согласованной платформе.
 
 Например:
 
 ```text
-как сохранить Document
-как проверить Role permissions
-как выполнить background job
-как вызвать REST CRUD
-как синхронизировать schema
+DocType
+  ├─ metadata
+  ├─ persistence
+  ├─ permissions
+  ├─ form/list UI
+  ├─ REST resource
+  └─ lifecycle
 ```
 
-### App responsibility
+**[ARCHITECTURAL INFERENCE]** Поэтому механическое добавление параллельных Entity/Repository/ACL/API layers может разрушить именно ту интеграцию, ради которой используется Frappe.
 
-Например:
-
-```text
-что такое Inspection
-когда Claim считается допустимым
-как рассчитать Stock Reservation
-какие документы создаёт business operation
-```
-
-Плохая архитектура часто появляется именно при смешивании этих уровней.
+Исключение: слой решает отдельную реальную ответственность. Например, сложный integration service или shared stock-calculation service не дублирует Document model, а организует сложную предметную логику.
 
 ---
 
-## 9. Ownership matrix
+## 4. Основная единица приложения — DocType
 
-Перед изменением любого элемента нужно определить, кто им владеет.
+**[FRAPPE DOCS]** Документация называет `DocType` **core building block** приложений на Frappe.
 
-| Владелец | Что это означает |
-|---|---|
-| Frappe Framework | системный primitive Framework |
-| другое App | модель принадлежит установленному приложению |
-| наше App | мы владеем моделью и её lifecycle |
-| Site | локальная customization конкретного сайта |
-| external system | Frappe только интегрируется с данными/процессом |
+Источник:
 
-### Пример
+- https://docs.frappe.io/framework/user/en/basics/doctypes
 
-`User` принадлежит Framework.
+DocType задаёт metadata модели. Обычный DocType приводит к schema в database и получает стандартные представления Framework.
 
-Если нашему приложению нужно добавить поле к User, это не означает, что нужно копировать User в `Our User`.
+Поэтому архитектура Frappe начинается не с таблиц SQL и не с REST endpoints, а с вопроса:
 
-Сначала рассматриваются штатные customization/extension mechanisms.
+> Какие устойчивые документы и записи существуют в предметной области?
+
+При этом не каждое существительное бизнеса обязано стать отдельным DocType. Решение разбирается отдельно в `02_DATA_MODEL.md`.
 
 ---
 
-## 10. App
+## 5. Document — не просто ORM row
 
-Frappe App — source/deployment/package boundary.
+**[FRAPPE DOCS]** Каждый controller DocType наследуется от `frappe.model.document.Document`. Document управляет загрузкой, сохранением и lifecycle документа.
 
-Это Python package, устанавливаемый на site.
+Источник:
 
-### Хорошие причины для отдельного App
+- https://docs.frappe.io/framework/user/en/basics/doctypes/controllers
 
-- независимая установка;
-- самостоятельный release cycle;
-- отдельная зависимость;
-- возможность использовать функциональность на разных sites;
-- логически самостоятельная функция продукта.
+**[UPSTREAM]** В `frappe/model/document.py` `save()` проверяет permissions, выполняет validation и lifecycle hooks.
 
-### Плохая причина
+Источник:
 
-> «У нас появилась ещё одна таблица».
+- https://github.com/frappe/frappe/blob/version-16/frappe/model/document.py
 
-Каждый DocType не требует отдельного App.
+Следовательно, Frappe Document — более богатая abstraction, чем обычная database row.
 
----
-
-## 11. Module
-
-Module группирует связанные модели и код внутри App.
-
-Не нужно превращать Module в строгий DDD bounded context, если предметная область этого не требует.
-
-Но и бессистемная свалка всех DocTypes в одном Module ухудшает навигацию и ownership.
-
-Принцип:
-
-> Module должен давать понятную логическую группировку, но не обязан соответствовать чужой архитектурной методологии.
-
----
-
-## 12. Site customization и product source — разные вещи
-
-Один из важнейших design boundaries Frappe.
-
-### Site customization
-
-Изменение делается для конкретного site:
-
-- Customize Form;
-- Custom Field;
-- Property Setter;
-- Workflow;
-- Notification;
-- Client Script;
-- Server Script.
-
-### Product source
-
-Изменение является обязательной частью нашего App и должно воспроизводиться из repository.
-
-### Design question
-
-> Если поставить App на чистый совместимый site, должно ли это изменение появиться автоматически?
-
-Если да — оно должно быть представлено source-controlled artifacts, fixtures, exported customization, hooks, patches или другим штатным механизмом доставки.
-
----
-
-## 13. Packages
-
-Современный Frappe также имеет Packages как более лёгкий механизм packaging части configuration artifacts.
-
-Их наличие важно учитывать, чтобы не делать ложный вывод:
-
-> любая переносимая low-code configuration обязательно требует отдельного Python App.
-
-Но Package и App имеют разные capabilities и lifecycle, поэтому выбирать нужно по реальной deployment задаче.
-
----
-
-## 14. Extension first, replacement second
-
-Если приложение расширяет поведение другого App, сначала ищется предусмотренная точка расширения.
-
-Примеры:
-
-- `doc_events`;
-- `extend_doctype_class`;
-- `doctype_js`;
-- permission hooks;
-- scheduler hooks;
-- fixtures/customizations;
-- whitelisted-method overrides там, где это действительно требуется.
-
-Полная замена объекта или core patch — более сильное вмешательство и требует более сильного обоснования.
-
----
-
-## 15. Core patching
-
-По умолчанию нельзя строить App на ручном изменении файлов Frappe или другого upstream App.
-
-Причина не идеологическая, а эксплуатационная:
-
-```text
-upstream update
-    +
-local untracked modification
-    =
-merge/upgrade risk
-```
-
-Если Framework предоставляет extension seam, он и является нормальной точкой интеграции.
-
----
-
-## 16. Public API против internal implementation
-
-Даже код самого Frappe различает public surface и internal implementation.
-
-Следовательно, приложение должно по возможности зависеть от документированных/public APIs Framework, а не от внутренних функций только потому, что их удалось импортировать.
-
-Внутренняя функция может измениться без гарантии compatibility.
-
----
-
-## 17. Собственная abstraction: правильный критерий
-
-Вопрос не:
-
-> «Разрешены ли services/repositories?»
-
-Правильный вопрос:
-
-> **Какую новую ответственность создаёт этот слой?**
-
-### Плохой wrapper
-
-```python
-class TaskRepository:
-    def get(self, name):
-        return frappe.get_doc("Task", name)
-
-    def save(self, task):
-        task.save()
-```
-
-Здесь слой просто переименовал Frappe API.
-
-### Нормальный отдельный компонент
-
-```text
-StockLedgerService
-```
-
-который координирует сложную логику между несколькими Documents и расчётами.
-
----
-
-## 18. Один универсальный escalation ladder — ошибка
-
-Нельзя строить архитектуру в виде:
+Он находится на пересечении:
 
 ```text
 metadata
-↓
-controller
-↓
-hook
-↓
-custom API
-↓
-custom UI
+persistence
+permissions
+lifecycle
+relations
+versioning hooks
+framework events
 ```
 
-Эти механизмы решают разные классы задач.
-
-В стандарте используются независимые decision tracks:
-
-```text
-Data Model
-Lifecycle
-State
-Security
-Transactions
-Async
-Integration
-Extension
-Presentation
-Deployment
-Testing
-```
-
-Внутри каждого действует общий принцип:
-
-```text
-native primitive
-    ↓
-official extension
-    ↓
-custom implementation
-```
+**[ARCHITECTURAL INFERENCE]** Repository, который только переназывает `frappe.get_doc()` и `doc.save()`, обычно не добавляет ценности. Но repository/service не запрещён, если действительно изолирует новую ответственность.
 
 ---
 
-## 19. Что является реальным анти-паттерном
+## 6. Границы ответственности: Framework, App, Site, External System
 
-Не название класса и не количество Python-кода.
+Для любого решения сначала нужно понять, **кто им владеет**.
 
-Анти-паттерн — **необоснованное параллельное владение той же ответственностью**.
+### Framework
 
-Например:
-
-```text
-Frappe Permission Engine
-+
-Our Permission Engine
-```
-
-или:
+Общие инфраструктурные возможности:
 
 ```text
-Frappe Document lifecycle
-+
-Our Generic Document lifecycle
+DocType/Document model
+permissions engine
+REST resources
+scheduler/background jobs
+hooks
+Desk foundations
+migrate
+files/comments/assignments/notifications
 ```
 
-или:
+### App
+
+Устанавливаемый source-controlled пакет:
 
 ```text
-Frappe Scheduler
-+
-собственный daemon для обычной site-задачи
+свои Standard DocType
+Controllers
+hooks.py
+reports
+public assets
+patches
+fixtures
+integration code
 ```
+
+**[FRAPPE DOCS]** App является Python package; `hooks.py` содержит integration points, `modules.txt` — modules, `patches.txt` — migrations.
+
+Источники:
+
+- https://docs.frappe.io/framework/user/en/basics/apps
+- https://docs.frappe.io/framework/user/en/tutorial/create-an-app
+
+### Site
+
+Конкретный экземпляр системы. На нём могут существовать runtime/custom configuration:
+
+```text
+Custom Field
+Property Setter
+Client Script
+Server Script
+Workflow
+Notification
+site-specific settings
+```
+
+Часть таких изменений можно экспортировать в App.
+
+### External System
+
+Система за границей Frappe: ERP, API provider, identity provider, data warehouse и т.д.
+
+**[ARCHITECTURAL INFERENCE]** Ошибка ownership часто и создаёт костыль. Например, если App требует конкретное поле в чужом DocType, это нельзя оставлять только ручным изменением одного dev-site: изменение должно стать воспроизводимой частью App.
 
 ---
 
-## 20. Главное правило стандарта
+## 7. App, Module и Package — не одно и то же
 
-Перед любой собственной архитектурной конструкцией должны существовать четыре ответа:
+### App
+
+**[FRAPPE DOCS]** Source/dependency/install boundary. App имеет Python package, hooks, modules, patches и другие файлы.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/basics/apps
+
+### Module
+
+**[FRAPPE DOCS]** Frappe app организуется в modules. Это способ группировки связанных DocType и кода.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/basics/apps
+
+Нельзя автоматически приравнивать Module к DDD bounded context. Это может быть удобным проектным решением, но Framework этого не требует.
+
+### Package
+
+**[FRAPPE DOCS]** Начиная с v14 Frappe поддерживает Packages — lightweight app-like packaging custom Module Defs, созданных через UI. Package можно release/import и хранить в Git.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/guides/deployment/packages
+
+**[ARCHITECTURAL INFERENCE]** Для серьёзного source-controlled приложения обычный App остаётся основным инструментом. Package полезен, когда задача действительно относится к переносимой low-code/custom конфигурации.
+
+---
+
+## 8. Extensibility — часть замысла, а не обход Framework
+
+**[FRAPPE DOCS]** Страница Why Frappe прямо говорит об extensible architecture: собственные apps могут приносить модели и изменять существующие модели Frappe.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/basics/why
+
+Hooks официально определены как места, где App может extend или override standard implementation.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/python-api/hooks
+
+Это означает:
 
 ```text
-1. Какую проблему решаем?
-
-2. Какой Frappe primitive уже отвечает
-   за ближайшую ответственность?
-
-3. Почему его семантика недостаточна?
-
-4. Почему выбранный extension/custom mechanism
-   является минимально достаточным?
+не менять core-файлы
+        ↓
+найти предусмотренный extension seam
+        ↓
+если seam недостаточен — обосновать custom solution
 ```
 
-Если на вопрос №3 нет конкретного ответа, custom mechanism не доказан.
+В v16 особенно важен `extend_doctype_class`, позволяющий добавлять поведение существующему DocType без полной замены controller.
+
+---
+
+## 9. Почему стандарт не навязывает Clean Architecture или DDD
+
+Frappe не запрещает применять идеи DDD, services или decomposition.
+
+Но стандарт не позволяет использовать их как самостоятельное доказательство решения.
+
+Плохое обоснование:
+
+> «У каждой Entity должен быть Repository, потому что так принято».
+
+Хорошее обоснование:
+
+> «Эта предметная операция координирует пять DocType и внешний API, не принадлежит lifecycle одного Document, поэтому выделяем отдельный service».
+
+Первое — перенос чужого шаблона.
+
+Второе — объяснение ответственности.
+
+---
+
+## 10. Минимальный тест Frappe-native решения
+
+Решение проходит базовый фильтр, если на пять вопросов есть ясный ответ:
+
+```text
+1. Что является бизнес-требованием?
+2. Какой native primitive Frappe ближе всего по семантике?
+3. Совпадает ли его семантика с требованием?
+4. Если нет — какой официальный extension seam существует?
+5. Какую новую ответственность добавляет custom code?
+```
+
+Ключевой критерий — **совпадение семантики**, а не просто наличие похожей функции в интерфейсе.
