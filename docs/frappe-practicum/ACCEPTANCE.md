@@ -166,6 +166,8 @@ Approved повторяется с новыми тестовыми Users.
 - Guest не задаёт triage status, internal notes, assignee или workflow state;
 - Guest не создаёт `Service Case`;
 - публичная форма не раскрывает закрытый Link-каталог;
+- второй Case с тем же `source_intake` блокируется Unique;
+- после создания Case его `source_intake` нельзя заменить на другой Intake;
 - API user не читает DocType без выданного Read;
 - API secret отсутствует в Git и протоколе приёмки.
 
