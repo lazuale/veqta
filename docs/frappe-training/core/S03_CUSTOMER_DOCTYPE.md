@@ -400,7 +400,7 @@ autoname / naming metadata
 
 ---
 
-# 10. Зафиксировать generated source корректно
+# 10. Проверить generated source через Git
 
 Новые файлы сначала являются untracked, поэтому одного `git diff` недостаточно.
 
@@ -412,23 +412,26 @@ cd ~/frappe/rental-training-bench/apps/rental_training
 git status --short
 ```
 
-Добавьте generated source в staging:
+Добавьте generated source Equipment и Customer в staging:
 
 ```bash
-git add rental_training/rental_training/doctype/customer
+git add \
+  rental_training/rental_training/doctype/equipment \
+  rental_training/rental_training/doctype/customer
 ```
 
-Теперь посмотрите именно staged diff:
+Теперь посмотрите staged diff:
 
 ```bash
 git diff --cached -- \
+  rental_training/rental_training/doctype/equipment \
   rental_training/rental_training/doctype/customer
 ```
 
 Ученик должен увидеть связь:
 
 ```text
-настроил Standard DocType в Desk
+настроил Standard DocTypes в Desk
 ↓
 Frappe сформировал metadata в App
 ↓
@@ -439,7 +442,36 @@ Git видит изменение исходного состояния App
 
 ---
 
-# 11. Создать контрольных Customers
+# 11. Зафиксировать первый предметный Git checkpoint
+
+До перехода к операции Rental зафиксируйте обе независимые сущности в истории App:
+
+```bash
+git commit -m "feat: add equipment and customer doctypes"
+```
+
+Проверьте:
+
+```bash
+git status --short
+git log --oneline -3
+```
+
+После commit `git status --short` должен быть пустым, если вы не делали других изменений.
+
+Это не урок Git ради Git. Здесь commit подтверждает архитектурную границу:
+
+```text
+Equipment + Customer metadata
+принадлежат App
+и восстановимы из его Git history
+```
+
+Если Git просит настроить `user.name`/`user.email`, настройте свою локальную Git identity и повторите commit. Не используйте вымышленные авторские данные из инструкции.
+
+---
+
+# 12. Создать контрольных Customers
 
 Через стандартную Form создайте две записи.
 
@@ -477,7 +509,7 @@ name = CUST-00002
 
 ---
 
-# 12. Проверить штатную Email validation
+# 13. Проверить штатную Email validation
 
 Попробуйте создать временную запись:
 
@@ -506,7 +538,7 @@ Data + Options = Email
 
 ---
 
-# 13. Проверить List и title
+# 14. Проверить List и title
 
 Откройте Customer List.
 
@@ -548,7 +580,7 @@ Anna Petrova
 
 ---
 
-# 14. Почему Customer не копируется в Rental текстом
+# 15. Почему Customer не копируется в Rental текстом
 
 До S04 у нас теперь существуют две независимые сущности:
 
@@ -576,7 +608,7 @@ Rental
 
 ---
 
-# 15. Типовые неправильные решения
+# 16. Типовые неправильные решения
 
 ## Ошибка 1. `customer_name` используется как `name`
 
@@ -610,7 +642,7 @@ Email — контактное свойство, а не гарантирова�
 
 ---
 
-# 16. ГОТОВО
+# 17. ГОТОВО
 
 S03 пройден, если одновременно выполняется всё ниже.
 
@@ -660,7 +692,7 @@ Mark de Vries
 - invalid email ловится штатным Data/Email механизмом;
 - изменение `customer_name` не меняет системный `name`;
 - Customer metadata находится в source App;
-- Git показывает generated source.
+- Equipment + Customer metadata зафиксированы Git commit.
 
 ## Ученик может объяснить
 
@@ -674,7 +706,7 @@ Mark de Vries
 
 ---
 
-# 17. НЕ ГОТОВО
+# 18. НЕ ГОТОВО
 
 Не переходите к S04, если:
 
@@ -683,11 +715,12 @@ Mark de Vries
 - email validation реализована собственным Script вместо штатного Options;
 - контактные данные копируются в несуществующий ещё Rental вместо самостоятельного Customer;
 - созданы дополнительные CRM-сущности без требования;
-- generated metadata не находится в Git/source App.
+- generated metadata не находится в Git/source App;
+- App repository после этапа содержит незакоммиченные изменения Equipment/Customer.
 
 ---
 
-# 18. Что теперь существует
+# 19. Что теперь существует
 
 После S03 предметная модель впервые содержит **две независимые сущности**:
 
