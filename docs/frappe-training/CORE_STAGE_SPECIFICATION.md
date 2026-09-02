@@ -654,6 +654,12 @@ manager@example.test  → Rental Manager
 
 Тестируются только наши контракты.
 
+Для DB/Document/permission сценариев Frappe v16 используется актуальный Frappe-aware integration test API:
+
+```python
+from frappe.tests import IntegrationTestCase
+```
+
 Минимальный набор:
 
 ```text
@@ -661,12 +667,16 @@ test_valid_rental_can_be_saved
 test_end_date_before_start_date_is_rejected
 test_duplicate_equipment_in_same_rental_is_rejected
 test_overlapping_active_rental_is_rejected
+test_touching_active_periods_are_rejected
 test_non_overlapping_active_rental_is_allowed
+test_planned_overlap_is_allowed
+test_active_rental_does_not_conflict_with_itself
 test_operator_cannot_create_equipment
-test_operator_can_create_rental
+test_operator_can_create_and_update_rental_but_cannot_delete_it
+test_manager_can_manage_equipment
 ```
 
-Названия можно изменить, если смысл сохраняется.
+Тестовые Customer, Equipment и Users создаются самим test case. Он не должен зависеть от вручную созданных `EQ-00001`, `CUST-00001` или паролей dev-site.
 
 ## Не тестировать ради количества
 
@@ -788,14 +798,14 @@ Equipment → Customer → Rental полностью проходит станд
 
 ### ГОТОВО
 
-- Active overlap блокируется по включительной формуле дат;
-- непересекающийся Active Rental сохраняется;
-- Planned/Returned не блокируют по CORE-семантике;
-- Planned → Active при конфликте блокируется;
-- текущий Rental исключается из self-conflict;
-- V03 проверена через обычный `Document.insert()`;
-- внутренний invariant не зависит от permission-filtered List;
-- граница concurrency сформулирована явно.
+- пересекающийся Active Rental блокируется;
+- общая граничная дата считается конфликтом;
+- следующий день разрешён;
+- Planned overlap разрешён;
+- self-save текущего Active Rental разрешён;
+- правило доказано обычным `Document.insert()`;
+- системное чтение не зависит случайно от permission-filtering List;
+- concurrency boundary сформулирована явно.
 
 ---
 
@@ -803,8 +813,11 @@ Equipment → Customer → Rental полностью проходит станд
 
 ### ГОТОВО
 
-- обязательный набор проходит через Bench test runner;
-- намеренная поломка собственного правила валит соответствующий тест.
+- используется актуальный `IntegrationTestCase`, а не deprecated `FrappeTestCase`;
+- test data создаются самим test case;
+- инварианты V01/V02/V03 и permission contracts проходят через Bench test runner;
+- намеренная поломка собственного правила валит соответствующий test;
+- после восстановления полный suite снова зелёный.
 
 ---
 
@@ -812,17 +825,28 @@ Equipment → Customer → Rental полностью проходит станд
 
 ### ГОТОВО
 
-Для каждого обязательного элемента указан источник восстановления:
+Для каждого обязательного элемента указан владелец и источник восстановления:
 
 ```text
-DocType schema + permissions  → App JSON/source
-Controller                    → App source
-Role                          → fixture
+Module                        → App / modules.txt
+DocType schema + permissions  → App / Standard DocType JSON
+Controller V01/V02/V03        → App / rental.py
+Role                          → App / hooks.py + fixtures/role.json
+automated contracts           → App / test_rental.py
 Users                         → Site-local data
-изменение существующих данных → patch, только если реально понадобится
+business Documents            → Site-local data
+developer_mode / allow_tests  → Site-local config
 ```
 
-Нет обязательного ручного SQL и списка «после установки докликайте ещё настройки».
+Дополнительно доказано:
+
+- у CORE DocTypes нет скрытой обязательной зависимости от `Custom Field`, `Property Setter` или `Custom DocPerm`;
+- повторный `export-fixtures` не оставляет необъяснённый Git diff;
+- Users и runtime business data не поставляются fixtures;
+- `bench migrate` проходит без ручного SQL и повторного накликивания модели;
+- после migrate автоматические tests зелёные;
+- App Git остаётся clean;
+- patch не создаётся без реальной миграции существующих данных поддерживаемой предыдущей версии.
 
 ---
 
@@ -838,7 +862,7 @@ Users                         → Site-local data
 4. Standard DocTypes появляются из App;
 5. обязательные Role появляются из fixture;
 6. тесты проходят;
-7. создаются Site-local учебные Users и контрольные бизнес-данные;
+7. создаются Site-local учебные Users и контрольные business data;
 8. валидный Rental сохраняется;
 9. невалидные сценарии блокируются;
 10. permissions соответствуют спецификации.
@@ -903,14 +927,12 @@ custom frontend
 4. Child DocType действительно является составом Rental?
 5. status не перепутан с Workflow/docstatus?
 6. Три собственных инварианта имеют серверного владельца?
-7. Междокументный invariant не зависит случайно от permission-filtered List?
-8. Concurrency boundary V03 названа честно?
-9. Permission model остаётся штатной и минимальной?
-10. Обязательные Role воспроизводятся из App, а Users остаются Site-local?
-11. Контрольные данные однозначно проверяют happy path и ошибки?
-12. Тесты проверяют наши контракты, а не Frappe ради coverage?
-13. CORE не содержит NEXT/GATE/EXT ради знакомства?
-14. Финальный критерий — clean install, а не «работает на моём dev-site»?
+7. Permission model остаётся штатной и минимальной?
+8. Обязательные Role воспроизводятся из App, а Users остаются Site-local?
+9. Контрольные данные однозначно проверяют happy path и ошибки?
+10. Тесты проверяют наши контракты, а не Frappe ради coverage?
+11. CORE не содержит NEXT/GATE/EXT ради знакомства?
+12. Финальный критерий — clean install, а не «работает на моём dev-site»?
 ```
 
 Если хотя бы один ответ отрицательный, сначала исправляется спецификация.
