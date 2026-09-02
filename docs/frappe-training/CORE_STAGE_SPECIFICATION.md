@@ -1,30 +1,141 @@
-# CORE — спецификация практических этапов Frappe
+# Исполняемая спецификация CORE-практикума Frappe
 
-Статус: **черновик для архитектурной проверки**.
+Статус: **черновик для финальной методической и инженерной проверки**.
 
-Этот документ фиксирует точный контракт CORE до написания пошаговых инструкций ученика.
-
-Он продолжает:
+Продолжает:
 
 - [`ARCHITECTURE_PASSPORT.md`](ARCHITECTURE_PASSPORT.md);
 - [`REQUIREMENTS_MATRIX.md`](REQUIREMENTS_MATRIX.md);
 - [`STAGE_DEPENDENCY_GRAPH.md`](STAGE_DEPENDENCY_GRAPH.md);
 - [`PRACTICUM_ROADMAP.md`](PRACTICUM_ROADMAP.md).
 
-Задача спецификации — убрать двусмысленность из практикума. После неё автор инструкции не должен заново придумывать поля, naming, роли, контрольные данные или смысл проверки.
+Этот документ фиксирует **что именно должен построить ученик в CORE**: точную модель, поля, naming, контрольные данные, права, тесты и критерий `ГОТОВО / НЕ ГОТОВО`.
+
+Это ещё не инструкция «куда нажать». Подробные практические задания пишутся только после согласования спецификации.
+
+Нормативная база — [`docs/frappe-architecture-standard`](../frappe-architecture-standard/README.md).
 
 ---
 
-# 1. Глобальные фиксированные решения CORE
+# 1. Правило спецификации
+
+Каждый элемент обязан отвечать на требование:
 
 ```text
-App        : rental_training
-Module     : Rental Training
-Site       : rental.localhost
-Frappe     : version 16
+требование
+→ ответственность
+→ штатный механизм Frappe
+→ конкретная конфигурация
+→ контрольные данные
+→ наблюдаемая проверка
 ```
 
-Предметная модель:
+Запрещено добавлять поле, DocType, Script, Workflow, Report или иной механизм только ради знакомства с функцией.
+
+---
+
+# 2. Граница учебной среды
+
+CORE проходит на **отдельном чистом Site Frappe v16**.
+
+До установки учебного App:
+
+```text
+installed apps:
+frappe
+```
+
+После установки:
+
+```text
+installed apps:
+frappe
+rental_training
+```
+
+ERPNext и другие прикладные Apps для CORE не требуются.
+
+Это не ограничение Frappe как Framework. Это граница практикума: ученик должен видеть, что именно предоставляет Frappe и что добавляет его собственный App, без случайных зависимостей от чужих моделей.
+
+---
+
+# 3. Имена учебных объектов
+
+```text
+App       : rental_training
+Module    : Rental Training
+
+DocTypes:
+Equipment
+Customer
+Rental
+Rental Item
+
+Roles:
+Rental Operator
+Rental Manager
+```
+
+Предметная область учебная и нейтральная, не связана с VEQTA.
+
+---
+
+# 4. Naming и отображаемый title
+
+У каждого самостоятельного Document есть системный `name`. В CORE он не строится из изменяемого отображаемого названия.
+
+Используем штатный Expression naming:
+
+```text
+Equipment → EQ-.#####
+Customer  → CUST-.#####
+Rental    → RENT-.#####
+```
+
+Ожидаемый вид:
+
+```text
+EQ-00001
+CUST-00001
+RENT-00001
+```
+
+Для человекочитаемой работы Desk отдельно используются штатные title-настройки:
+
+```text
+Equipment
+  Title Field               = equipment_name
+  Show Title in Link Fields = yes
+
+Customer
+  Title Field               = customer_name
+  Show Title in Link Fields = yes
+```
+
+Ученик должен увидеть разницу:
+
+```text
+name            = стабильная identity Document
+Title Field     = человекочитаемое представление
+equipment_name  = изменяемое название Equipment
+customer_name   = изменяемое имя Customer
+```
+
+Изменение title-поля не должно менять `name` и ломать Link.
+
+`Rental Item` — Child DocType, отдельная naming-стратегия для него не проектируется.
+
+## Не используем
+
+- серийный номер Equipment как `name`;
+- имя Customer как `name`;
+- Python `autoname()` без отдельного требования;
+- UUID только ради демонстрации UUID;
+- отдельный `naming_series` field, когда одного фиксированного Expression достаточно.
+
+---
+
+# 5. CORE-модель
 
 ```text
 Equipment
@@ -41,55 +152,13 @@ Rental Item
 └── equipment       → Link → Equipment
 ```
 
-CORE намеренно не содержит других самостоятельных предметных DocTypes.
+В CORE нет дополнительных самостоятельных DocTypes.
+
+`Rental Item` остаётся Child DocType, потому что `Table MultiSelect` во Frappe хранит выбранные ссылки через child-table модель. Обычный `Table` в CORE не нужен: у строки пока нет ни одного собственного бизнес-атрибута кроме ссылки на Equipment.
 
 ---
 
-# 2. Naming — обязательное решение D00
-
-У каждого самостоятельного Document системный `name` отделён от человекочитаемого title.
-
-```text
-Equipment → EQ-.#####
-Customer  → CUST-.#####
-Rental    → RENT-.#####
-```
-
-Почему:
-
-- `name` является стабильной identity для Links;
-- отображаемое название может измениться;
-- бизнес-поле не делается вечным ID только ради краткости;
-- собственный Python `autoname()` не нужен, пока Expression naming выражает требование.
-
-Для Equipment и Customer используется штатный `Title Field` + `Show Title in Link Fields`, чтобы пользователь работал с понятными названиями, а ссылки сохраняли стабильный `name`.
-
-Не требуется доказывать, что эта naming strategy универсальна для любых приложений. Практикум должен показать, что naming выбирается осознанно при создании DocType.
-
----
-
-# 3. Что намеренно не входит в модель
-
-Без нового требования не добавляются:
-
-```text
-Equipment Type DocType
-Rental Settings
-Rental Status DocType
-Priority
-Rental History
-Rental Comment
-Rental Assignee
-Approval
-Notification Log
-Rental Request
-```
-
-Также в CORE нет полей «на всякий случай», например `active`, если ни один текущий контракт не определяет их поведение.
-
----
-
-# 4. Equipment
+# 6. Equipment
 
 ## DocType
 
@@ -175,7 +244,7 @@ Serial Number  : LTP-30001
 
 ---
 
-# 5. Customer
+# 7. Customer
 
 ## DocType
 
@@ -235,7 +304,7 @@ Email         : mark@example.test
 
 ---
 
-# 6. Rental Item
+# 8. Rental Item
 
 ## DocType
 
@@ -284,7 +353,7 @@ Rental Item существует только как часть Rental, а уч�
 
 ---
 
-# 7. Rental
+# 9. Rental
 
 ## DocType
 
@@ -336,7 +405,7 @@ docstatus = Submitted
 
 ---
 
-# 8. Контрольный набор Rentals
+# 10. Контрольный набор Rentals
 
 Один набор используется в Desk, серверных проверках и тестах.
 
@@ -424,7 +493,7 @@ Items:
 
 ---
 
-# 9. Серверные инварианты
+# 11. Серверные инварианты
 
 CORE содержит ровно три собственных бизнес-правила.
 
@@ -472,11 +541,9 @@ existing.end_date >= current.start_date
 
 и найдено совпадающее Equipment.
 
-При редактировании текущий Rental исключается из поиска по `name`.
+При редактировании текущий Rental исключается из поиска конфликта по `name`.
 
-### Точный путь чтения V03
-
-Проверка выполняется в `Rental.validate()` двумя штатными чтениями:
+Путь чтения V03:
 
 ```text
 current Equipment
@@ -486,13 +553,11 @@ current Equipment
 → conflict / no conflict
 ```
 
-`get_all()` выбран здесь намеренно: это внутренний инвариант целостности, и он не должен пропускать реальный конфликт из-за permission-filtering пользовательского List. Пользовательские выборки при этом остаются permission-aware (`get_list`/обычный Desk).
+`get_all()` здесь выбран намеренно: V03 является внутренним инвариантом целостности и не должен пропустить конфликт только из-за permission-filtering пользовательского List. Это не отменяет правило использовать permission-aware путь (`get_list`, Desk) для пользовательских выборок.
 
-Внутренний validator не должен без необходимости раскрывать пользователю данные конфликтующего Rental, если будущая модель доступа может их скрывать.
+Внутренний validator не должен без необходимости раскрывать пользователю имя/Customer/owner конфликтующего Rental, если будущая модель доступа может скрывать эту запись.
 
-### Проверка V03
-
-Минимум:
+Минимальная проверка:
 
 ```text
 Active 10–12 + Active 11–13 → запрещено
@@ -513,7 +578,7 @@ V03 также должна блокироваться обычным `Document.
 
 ---
 
-# 10. Базовая permission model
+# 12. Базовая permission model
 
 В CORE используются только:
 
@@ -585,7 +650,7 @@ manager@example.test  → Rental Manager
 
 ---
 
-# 11. CORE-тесты
+# 13. CORE-тесты
 
 Тестируются только наши контракты.
 
@@ -617,28 +682,7 @@ Form вообще существует
 
 ---
 
-# 12. Delivery ownership
-
-Обязательное состояние CORE должно иметь явного владельца.
-
-```text
-Standard DocType JSON → App source
-Controller Python     → App source
-Role records          → filtered fixtures
-Default DocPerm       → Standard DocType metadata
-training Users        → Site-only data
-runtime Equipment/Customer/Rental → Site data
-```
-
-Изменение Python Controller само по себе не является schema migration и не требует ритуального `bench migrate`.
-
-Изменение metadata/schema синхронизируется штатным `migrate`.
-
-`patch` появляется только когда существующие данные действительно надо преобразовать.
-
----
-
-# 13. CORE-этапы и критерии готовности
+# 14. CORE-этапы и критерии готовности
 
 ## S00 — среда
 
@@ -654,6 +698,8 @@ runtime Equipment/Customer/Rental → Site data
 
 Если практикум зависит от ERPNext, ручной правки Frappe core или неизвестной локальной настройки.
 
+---
+
 ## S01 — App
 
 ### ГОТОВО
@@ -664,139 +710,207 @@ runtime Equipment/Customer/Rental → Site data
 - Module существует внутри App;
 - исходники находятся в Git.
 
+---
+
 ## S02 — Equipment
 
 ### ГОТОВО
 
-- схема соответствует разделу 4;
+- схема соответствует разделу 6;
 - naming и Title Field разделены;
 - контрольные записи создаются;
 - `equipment_type` остаётся Select.
+
+---
 
 ## S03 — Customer
 
 ### ГОТОВО
 
-- схема соответствует разделу 5;
+- схема соответствует разделу 7;
 - naming и Title Field разделены;
-- Data Email/Phone используют штатную типизацию;
-- Customer существует независимо от Rental.
+- Link позже использует настоящий Customer Document.
+
+---
 
 ## S04 — Rental composition
 
 ### ГОТОВО
 
-- `Rental Item` — Child DocType;
-- `equipment` — Link + In List View;
-- `Rental.items` — Table MultiSelect;
-- `Rental.customer` — Link;
-- child ownership подтверждён;
-- обычный Table не введён без атрибутов строки.
+- Rental соответствует разделу 9;
+- Rental Item — Child DocType;
+- связи реализованы Link;
+- набор Equipment реализован Table MultiSelect;
+- один Rental содержит минимум два Equipment.
+
+---
 
 ## S05A — status
 
 ### ГОТОВО
 
-- status = Planned/Active/Returned;
+- `Planned / Active / Returned` — обычный предметный status;
 - Workflow отсутствует;
-- Is Submittable отсутствует;
-- Returned Document остаётся docstatus 0.
+- Rental не Submittable.
+
+---
 
 ## S05B — Desk
 
 ### ГОТОВО
 
-Полный сценарий Equipment → Customer → Rental проходит через Desk Form/List без собственного frontend, а runtime Documents не меняют Git App.
+Equipment → Customer → Rental полностью проходит стандартными Form/List; человек видит title связанных Documents, а Link хранит их `name`.
 
-## S05C — локальные инварианты
+---
+
+## S05C — local invariants
 
 ### ГОТОВО
 
-V01/V02 блокируются и через Desk, и обычным `Document.insert()`; Controller не содержит ручного `commit`.
+- Rental C и D отвергаются серверным `Document` path;
+- корректные Documents сохраняются;
+- V01 и V02 проверены через обычный `Document.insert()` без зависимости от Form/Client Script;
+- Controller не выполняет ручной `commit`.
+
+---
 
 ## S05D — permissions
 
 ### ГОТОВО
 
-Operator/Manager имеют ожидаемую CRUD-матрицу при реальных server-side операциях; обязательные Role/DocPerm воспроизводимы из App, а Users остаются Site-local.
+- Operator и Manager имеют разные реальные серверные права;
+- Role входят в переносимое состояние App;
+- Users остаются Site-local.
+
+---
 
 ## S06 — cross-document invariant
 
 ### ГОТОВО
 
-V03 соответствует включительной формуле дат, учитывает только Active, исключает self, не зависит от permission-filtered List и блокируется обычным `Document.insert()`. Граница с concurrency названа явно.
+- Active overlap блокируется по включительной формуле дат;
+- непересекающийся Active Rental сохраняется;
+- Planned/Returned не блокируют по CORE-семантике;
+- Planned → Active при конфликте блокируется;
+- текущий Rental исключается из self-conflict;
+- V03 проверена через обычный `Document.insert()`;
+- внутренний invariant не зависит от permission-filtered List;
+- граница concurrency сформулирована явно.
+
+---
 
 ## S07 — tests
 
 ### ГОТОВО
 
-Автоматически проверяются три инварианта и обязательные permission-контракты.
+- обязательный набор проходит через Bench test runner;
+- намеренная поломка собственного правила валит соответствующий тест.
+
+---
 
 ## S08 — delivery audit
 
 ### ГОТОВО
 
-Для каждого обязательного элемента известно: владелец, source of truth и механизм доставки на другой Site.
+Для каждого обязательного элемента указан источник восстановления:
+
+```text
+DocType schema + permissions  → App JSON/source
+Controller                    → App source
+Role                          → fixture
+Users                         → Site-local data
+изменение существующих данных → patch, только если реально понадобится
+```
+
+Нет обязательного ручного SQL и списка «после установки докликайте ещё настройки».
+
+---
 
 ## S09 — clean install
 
 ### ГОТОВО
 
-```text
-clean compatible Frappe Site
-+ rental_training from Git
-+ install-app
-+ migrate
-+ tests
-+ main Desk scenario
-```
+На новом чистом совместимом Site:
 
-работают без скрытой ручной реконструкции App state.
+1. до установки есть только `frappe`;
+2. `rental_training` устанавливается;
+3. migrate проходит;
+4. Standard DocTypes появляются из App;
+5. обязательные Role появляются из fixture;
+6. тесты проходят;
+7. создаются Site-local учебные Users и контрольные бизнес-данные;
+8. валидный Rental сохраняется;
+9. невалидные сценарии блокируются;
+10. permissions соответствуют спецификации.
 
 ---
 
-# 14. Явные исключения CORE
+# 15. Что остаётся вне CORE
 
-CORE не расширяется ради покрытия возможностей Framework.
-
-Без отдельного требования не вводятся:
+CORE **не получает автоматически**:
 
 ```text
-Single DocType
+Single DocType / Rental Settings
+Track Changes / Comment / Attach
 Permission Level
-Permission Type
-If Owner
-User Permission
-Share
+Assignment / ToDo
 Workspace
 Calendar
 Print Format
 Report Builder
 Workflow
-Is Submittable
+docstatus / Is Submittable
+Equipment Type DocType
 Web Form
 Notification
 REST integration
+Webhook
 Background Jobs
-Scheduler
+Server Script
 custom frontend
-custom ACL
-reservation service
-manual SQL locks
 ```
+
+Это NEXT/GATE/EXT и требует отдельного принятого требования.
 
 ---
 
-# 15. Финальный контракт CORE
+# 16. Запрещённые упрощения будущих инструкций
+
+Пошаговый практикум не должен:
+
+- создавать обязательные модели через Customize Form вместо Standard DocType учебного App;
+- предлагать ручной SQL вместо обычного Document/migrate-пути;
+- делать бизнес-инвариант только Client Script;
+- проверять permissions только под Administrator;
+- использовать `ignore_permissions=True` как способ обойти неправильные права;
+- создавать отдельные DocTypes для статуса, комментариев, истории или вложений без требования;
+- превращать `Returned` в Submitted без транзакционной семантики;
+- создавать собственный CRUD API в CORE;
+- менять Frappe core;
+- поставлять реальные Users/пароли как fixtures;
+- требовать скрытых ручных действий после clean install.
+
+---
+
+# 17. Контроль перед написанием пошаговых заданий
+
+На все вопросы должен быть ответ `да`:
 
 ```text
-clean compatible Frappe Site
-+ training App from Git
-+ install-app
-+ migrate
-+ tests
-+ main user scenario
-= CORE practicum passed
+1. Поля минимальны и имеют предметный смысл?
+2. Не осталось ли поля, семантика которого нигде не используется?
+3. Naming отделён от изменяемого title?
+4. Child DocType действительно является составом Rental?
+5. status не перепутан с Workflow/docstatus?
+6. Три собственных инварианта имеют серверного владельца?
+7. Междокументный invariant не зависит случайно от permission-filtered List?
+8. Concurrency boundary V03 названа честно?
+9. Permission model остаётся штатной и минимальной?
+10. Обязательные Role воспроизводятся из App, а Users остаются Site-local?
+11. Контрольные данные однозначно проверяют happy path и ошибки?
+12. Тесты проверяют наши контракты, а не Frappe ради coverage?
+13. CORE не содержит NEXT/GATE/EXT ради знакомства?
+14. Финальный критерий — clean install, а не «работает на моём dev-site»?
 ```
 
-До S07 этот критерий ещё не доказан: ручные проверки должны стать автоматическими контрактами.
+Если хотя бы один ответ отрицательный, сначала исправляется спецификация.
