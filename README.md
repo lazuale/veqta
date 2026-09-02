@@ -98,10 +98,6 @@ CHECK: New → In Progress → Review → Done
 
 **`docs/frappe-practicum/README.md`** — самостоятельный учебный курс по **Frappe Framework 16**. Он хранится в этом репозитории отдельно от документации продукта и использует собственные учебные app, site и сценарии.
 
-## Универсальный архитектурный стандарт Frappe
-
-**`docs/frappe-architecture-standard/README.md`** — отдельное исследование и design standard по Frappe Framework 16: как выбирать нативные primitives, где проходит граница custom code, как проектировать permissions, lifecycle, transactions, integrations, extensions, migrations и tests. Документ не описывает VEQTA и не является частью её предметной модели.
-
 ## Термины
 
 - **Frappe Framework** — платформа, на которой запускается VEQTA.
