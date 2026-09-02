@@ -76,10 +76,12 @@ Frappe Desk читает metadata DocType и предоставляет стан
 Нас интересует не факт существования экранов, а законченный пользовательский результат:
 
 ```text
-найти Equipment
-→ найти Customer
+создать Equipment
+→ найти его в Equipment List
+→ создать Customer
+→ найти его в Customer List
 → создать Rental
-→ выбрать существующие Documents через Links
+→ выбрать созданные/существующие Documents через Links
 → сохранить Rental
 → найти его в List
 → отфильтровать список
@@ -216,7 +218,7 @@ http://rental.localhost:8000/app
 
 ---
 
-# 5. Проверить Equipment как обычный реестр
+# 5. Создать Equipment через стандартный Form
 
 Через поиск Desk откройте:
 
@@ -224,7 +226,7 @@ http://rental.localhost:8000/app
 Equipment
 ```
 
-Нужно попасть в List View Equipment.
+Сначала вы попадёте в обычный Equipment List.
 
 Проверьте, что доступны контрольные записи S02, например:
 
@@ -240,7 +242,7 @@ Lenovo ThinkPad E14
 EQ-#####
 ```
 
-## Проверить фильтр
+## 5.1. Проверить фильтр существующего реестра
 
 Добавьте стандартный фильтр:
 
@@ -252,6 +254,44 @@ Equipment Type = Camera
 
 Снимите фильтр.
 
+## 5.2. Создать новое Equipment специально для вертикального сценария
+
+Нажмите создание нового Equipment.
+
+Заполните:
+
+```text
+Equipment Name : Makita DDF487
+Equipment Type : Tool
+Serial Number  : S05B-MK-0001
+```
+
+Сохраните.
+
+Ожидается новый `name` вида:
+
+```text
+EQ-#####
+```
+
+Запомните его фактический номер.
+
+Вернитесь в Equipment List и найдите запись:
+
+```text
+Makita DDF487
+```
+
+### Если вы повторно проходите S05B
+
+Не создавайте второй Document с тем же учебным смыслом вслепую. Можно удалить именно свою предыдущую runtime-запись S05B либо использовать явно другой тестовый серийный номер, например:
+
+```text
+S05B-MK-0002
+```
+
+Критерий этапа — пройти создание через стандартный Form, а не накопить дубли тестовых данных.
+
 ### Что здесь важно
 
 Мы не создавали:
@@ -262,11 +302,11 @@ Equipment SPA
 Equipment search service
 ```
 
-Обычный реестр уже существует как List View.
+Обычные Create / Form / List уже предоставлены Desk.
 
 ---
 
-# 6. Проверить Customer как второй независимый реестр
+# 6. Создать Customer через стандартный Form
 
 Через поиск Desk откройте:
 
@@ -274,20 +314,42 @@ Equipment search service
 Customer
 ```
 
-Проверьте наличие:
+Проверьте наличие контрольных записей S03:
 
 ```text
 Anna Petrova
 Mark de Vries
 ```
 
-Откройте `Anna Petrova`.
+Теперь создайте нового Customer для вертикального сценария:
+
+```text
+Customer Name : Sofia Jansen
+Phone         : +31 6 10000003
+Email         : sofia@example.test
+```
+
+Сохраните.
+
+Ожидается `name` вида:
+
+```text
+CUST-#####
+```
+
+Вернитесь в Customer List и найдите:
+
+```text
+Sofia Jansen
+```
+
+Откройте её повторно.
 
 На Form ученик должен уметь различить:
 
 ```text
-системный name    → CUST-#####
-отображаемый title → Anna Petrova
+системный name     → CUST-#####
+отображаемый title → Sofia Jansen
 ```
 
 Вернитесь в Customer List.
@@ -314,23 +376,33 @@ Rental
 Создайте контрольный Rental S05B:
 
 ```text
-Customer   : Anna Petrova
+Customer   : Sofia Jansen
 Start Date : 2026-09-25
 End Date   : 2026-09-27
 Status     : Planned
 Equipment  :
-- Bosch GBH 2-26
+- Makita DDF487
 - Canon EOS R50
 ```
 
-## Customer
-
-В поле Customer выбирайте существующую запись через `Link`.
-
-Пользователь может видеть человекочитаемый title:
+Так один вертикальный сценарий использует:
 
 ```text
-Anna Petrova
+Customer, созданного прямо на S05B
+Equipment, созданный прямо на S05B
+ещё один ранее существующий Equipment
+```
+
+Это показывает, что Rental одинаково работает с любыми существующими Documents подходящего DocType.
+
+## Customer
+
+В поле Customer выбирайте `Sofia Jansen` через `Link`.
+
+Пользователь видит человекочитаемый title:
+
+```text
+Sofia Jansen
 ```
 
 но связь относится к настоящему Customer Document с `name` вида:
@@ -343,10 +415,10 @@ CUST-#####
 
 ## Equipment
 
-В `Equipment` через `Table MultiSelect` выберите две существующие единицы:
+В `Equipment` через `Table MultiSelect` выберите:
 
 ```text
-Bosch GBH 2-26
+Makita DDF487
 Canon EOS R50
 ```
 
@@ -457,7 +529,7 @@ Status = Planned
 Затем добавьте второй фильтр:
 
 ```text
-Customer = Anna Petrova
+Customer = Sofia Jansen
 ```
 
 Если в control показывается title, всё равно выбирается настоящий Customer Link.
@@ -497,11 +569,11 @@ open existing Document
 Убедитесь, что снова видны:
 
 ```text
-Customer   : Anna Petrova
+Customer   : Sofia Jansen
 Start Date : 2026-09-25
 End Date   : 2026-09-27
 Status     : Planned
-Equipment  : Bosch GBH 2-26, Canon EOS R50
+Equipment  : Makita DDF487, Canon EOS R50
 ```
 
 То есть Form показывает уже сохранённое состояние Document, а не одноразовую форму ввода.
@@ -589,8 +661,8 @@ Planned
 Пользователь должен работать с человекочитаемыми значениями:
 
 ```text
-Anna Petrova
-Bosch GBH 2-26
+Sofia Jansen
+Makita DDF487
 Canon EOS R50
 ```
 
@@ -616,15 +688,13 @@ Rental Item.equipment
 
 # 16. Проверить границу Child DocType в UI
 
-Попробуйте через Awesomebar открыть отдельный реестр:
+Попробуйте через Awesomebar найти:
 
 ```text
 Rental Item
 ```
 
-`Rental Item` не должен восприниматься как самостоятельный пользовательский объект аналогично Equipment, Customer или Rental.
-
-Он существует как техническая/модельная часть родительского Rental.
+У Child DocType нет обычного самостоятельного List View, как у Equipment, Customer или Rental. Frappe генерирует List View для обычных DocTypes, но не для Child Tables и Single DocTypes.
 
 Нормальная пользовательская операция:
 
@@ -657,8 +727,10 @@ Rental Item = child ownership
 За время этапа мы:
 
 - открывали списки;
-- создавали Rental;
-- меняли поля;
+- создали новое Equipment;
+- создали нового Customer;
+- создали Rental;
+- меняли поля Rental;
 - меняли status;
 - работали с Customer и Equipment Links.
 
@@ -703,9 +775,9 @@ DocType metadata / controller / обязательная config
 После S05B может возникнуть соблазн экспортировать созданные:
 
 ```text
-Equipment
-Customer
-Rental
+Makita DDF487
+Sofia Jansen
+RENT-#####
 ```
 
 как fixtures, чтобы на следующем Site «всё сразу было заполнено».
@@ -851,16 +923,16 @@ Authorization проверяется отдельно на S05D.
 
 # 23. Три правильных решения
 
-## Правильно 1. Form для одного Rental
+## Правильно 1. Form для одного Document
 
-Rental — один Document, поэтому стандартный Form является естественным первым представлением.
+Equipment, Customer и Rental — самостоятельные Documents, поэтому стандартный Form является естественным первым представлением каждого из них.
 
-## Правильно 2. List для реестра Rentals
+## Правильно 2. List для реестра Documents
 
 Требование:
 
 ```text
-найти и отфильтровать операции
+найти и отфильтровать записи
 ```
 
 сначала проверяется штатным List.
@@ -870,7 +942,7 @@ Rental — один Document, поэтому стандартный Form явл�
 Пользователь видит:
 
 ```text
-Anna Petrova
+Sofia Jansen
 ```
 
 но модель сохраняет Link на стабильный:
@@ -890,12 +962,16 @@ UI остаётся удобным без разрушения identity моде
 ```text
 [ ] открыть Equipment List
 [ ] отфильтровать Equipment
+[ ] создать новое Equipment через Form
+[ ] найти созданное Equipment в List
 [ ] открыть Customer List
-[ ] открыть существующего Customer
+[ ] создать нового Customer через Form
+[ ] найти созданного Customer в List
+[ ] открыть Customer повторно
 [ ] открыть Rental List
 [ ] создать Rental
-[ ] выбрать Customer через Link
-[ ] выбрать два Equipment через Table MultiSelect
+[ ] выбрать созданного Customer через Link
+[ ] выбрать созданный и существующий Equipment через Table MultiSelect
 [ ] сохранить Rental
 [ ] найти его в List
 [ ] отфильтровать Rental по status
@@ -918,11 +994,15 @@ S05B принят, если одновременно выполнено всё �
 Через стандартный Desk можно выполнить:
 
 ```text
-Equipment
+Create Equipment
    ↓
-Customer
+Equipment List
    ↓
-Rental
+Create Customer
+   ↓
+Customer List
+   ↓
+Create Rental
    ├── Customer Link
    ├── Date fields
    ├── status
@@ -987,6 +1067,7 @@ Portal
 
 S05B не принят, если:
 
+- полный сценарий нельзя пройти Equipment → Customer → Rental стандартными Form/List;
 - основной сценарий требует ручного SQL;
 - Customer или Equipment копируются в Rental текстом вместо Link;
 - для обычного CRUD пришлось писать собственный frontend без отдельного требования;
@@ -1010,7 +1091,13 @@ Rental
 
 App source после принятого S05A тоже не изменился.
 
-Изменились только runtime Documents учебного Site.
+На учебном Site появились только новые runtime Documents S05B:
+
+```text
+Equipment: Makita DDF487
+Customer : Sofia Jansen
+Rental   : RENT-##### [Planned]
+```
 
 Главный результат:
 
