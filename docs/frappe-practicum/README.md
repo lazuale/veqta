@@ -1,7 +1,7 @@
 # Инженерный практикум Frappe Framework 16
 
-Практикум учит собирать реальные Frappe-приложения и понимать, **какой слой Framework
-должен владеть конкретной ответственностью**.
+Практикум учит собирать реальные Frappe-приложения и понимать, какой слой Framework
+должен владеть конкретной ответственностью.
 
 Он рассчитан на взрослого новичка. До начала не требуется знать Linux, Git, Python,
 JavaScript, SQL, HTTP или внутреннее устройство Frappe. Термины вводятся до первого
@@ -49,7 +49,7 @@ JavaScript, SQL, HTTP или внутреннее устройство Frappe. �
 
 ### Уровень B — Frappe Engineering Bridge
 
-После принятого P3 продолжается **тот же `service_intake`**, а не создаётся четвёртый
+После принятого P3 продолжается тот же `service_intake`, а не создаётся четвёртый
 учебный продукт.
 
 Появляется реальное требование, которое metadata уже не выражает целиком:
@@ -64,14 +64,14 @@ Accepted Service Intake
 На этом требовании изучаются:
 
 ```text
-Controller / validate
+Controller / before_insert
 Document lifecycle
 whitelisted Document method
 permission-aware Document API
 request transaction / rollback
 patches + bench migrate
-integration tests
-Background Jobs / after_commit / Webhook как decision boundary
+IntegrationTestCase на отдельном test site
+Background Jobs / enqueue_after_commit / Webhook как decision boundary
 ```
 
 Маршрут: [engineering/LABS.md](engineering/LABS.md).
@@ -104,7 +104,7 @@ hooks, API, jobs, patches и tests. Поэтому P1–P3 не объявляю
 Проекты независимы по данным и исходникам. Знания накапливаются, но P2 не зависит от
 `equipment_register`, а P3 — от `purchase_requests`.
 
-Engineering Bridge расширяет P3 **после** его clean-site acceptance, потому что именно в
+Engineering Bridge расширяет P3 после его clean-site acceptance, потому что именно в
 этом продукте появляется естественная программная ответственность.
 
 ## Общий стенд
@@ -126,15 +126,18 @@ frappe-practicum-bench/
 продукт существует в исходниках и переносимой конфигурации, а не только в базе
 разработчика.
 
-Engineering Bridge добавляет вторую проверку поставки:
+Engineering Bridge добавляет ещё две проверки:
 
 ```text
-clean install
-≠ upgrade existing site
+upgrade existing intake.localhost
++
+run automated suite on intake-test.localhost
++
+clean install new version
 ```
 
-Patch должен корректно обработать старый `intake.localhost`, а новая установка должна
-работать и без исторических данных.
+Рабочий site, test site и clean-install site решают разные задачи и не подменяют друг
+друга.
 
 ## Как устроен проектный шаг
 
@@ -165,12 +168,16 @@ Patch должен корректно обработать старый `intake.
 конкретный исполнитель
 → Assign To / ToDo
 
-инвариант между двумя Documents
-→ Controller validation
+creation invariant между двумя Documents
+→ Controller.before_insert
 
-предметное действие поверх одного Document
+предметное действие одного Document
 → whitelisted Document method
 ```
+
+Курс отдельно показывает, что недостаточно выбрать правильный Controller: нужно выбрать
+и правильную фазу lifecycle. Правило создания не должно без причины выполняться на
+каждом последующем save.
 
 Функция Framework не добавляется в продукт только ради процента покрытия.
 
@@ -184,7 +191,7 @@ Patch должен корректно обработать старый `intake.
 | отрицательный сценарий | запрет обеспечивается реальным enforcement layer |
 | source check | понятно, что принадлежит app |
 | clean-site / upgrade check | результат воспроизводим и обновляем |
-| объяснение границы | понятно, чего механизм **не** гарантирует |
+| объяснение границы | понятно, чего механизм не гарантирует |
 
 Фраза «кнопки нет» не доказывает server-side запрет. Фраза «код работает» не доказывает,
 что код находится в правильном архитектурном слое.
@@ -200,7 +207,7 @@ Patch должен корректно обработать старый `intake.
 Справочные документы:
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — архитектура курса и ownership решений;
-- [SCOPE.md](SCOPE.md) — границы Core и Engineering Bridge;
+- [SCOPE.md](SCOPE.md) — границы Metadata Track и Engineering Bridge;
 - [ROADMAP.md](ROADMAP.md) — последовательность;
 - [MATRIX.md](MATRIX.md) — фактическое покрытие;
 - [ACCEPTANCE.md](ACCEPTANCE.md) — инженерная приёмка;
