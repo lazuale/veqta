@@ -24,7 +24,7 @@
 
 ```bash
 bench new-app equipment_register
-bench new-site equipment.localhost
+bench new-site equipment.localhost --db-root-username frappe_admin
 bench --site equipment.localhost install-app equipment_register
 bench --site equipment.localhost set-config developer_mode 1
 bench --site equipment.localhost clear-cache
@@ -185,10 +185,7 @@ Git source  = модель и переносимые метаданные app
 
 ### List и Form
 
-В List должны быть видны Asset Code, Equipment Name, Category, Location и Status. Проверить стандартный поиск, фильтры, сортировку и сохранённый пользовательский filter.
-
-Добавить к одному Equipment Comment и Tag, затем посмотреть Timeline. Comment и Tag —
-штатные средства совместной работы и классификации, а не новые поля реестра.
+В List должны быть видны Asset Code, Equipment Name, Category, Location и Status. Проверить стандартный поиск, фильтры и сортировку.
 
 ### Kanban
 
@@ -203,7 +200,6 @@ Git source  = модель и переносимые метаданные app
 Создать:
 
 - Number Card `Active Equipment`;
-- при необходимости Dashboard Chart `Equipment by Status`;
 - public Workspace `Equipment Register` с shortcut на Equipment, report и card.
 
 В Frappe v16 проверить не только Workspace, но и его место в Apps Page/Workspace Sidebar.
@@ -219,8 +215,8 @@ git diff --check
 git diff
 ```
 
-Нужно найти файлы четырёх DocType и standard-объектов интерфейса. Saved Filter и рабочие
-Equipment не входят в исходники app.
+Нужно найти файлы четырёх DocType и standard-объектов интерфейса. Рабочие Equipment не
+входят в исходники app.
 
 Три учебные Role и общий Kanban Board зафиксировать fixtures с фильтром по точным
 именам. Не экспортировать весь `Role` или `Kanban Board`. Финальные permission rows
@@ -249,7 +245,7 @@ git commit -m "Build equipment register practicum app"
 Из bench:
 
 ```bash
-bench new-site equipment-clean.localhost
+bench new-site equipment-clean.localhost --db-root-username frappe_admin
 bench --site equipment-clean.localhost install-app equipment_register
 bench --site equipment-clean.localhost migrate
 bench --site equipment-clean.localhost clear-cache
