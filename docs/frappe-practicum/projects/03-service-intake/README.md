@@ -44,7 +44,7 @@ bench --site intake.localhost list-apps
 
 | Label | Fieldname | Type | Правила |
 |---|---|---|---|
-| Category Name | `category_name` | Data | Mandatory, Unique |
+| Category Name | `category_name` | Data | Mandatory, Set Only Once |
 | Description | `description` | Small Text | Optional |
 | Disabled | `disabled` | Check | Default 0 |
 
@@ -58,11 +58,11 @@ Standard DocType, Track Changes включён.
 |---|---|---|---|
 | Reporter Name | `reporter_name` | Data | Mandatory |
 | Reporter Email | `reporter_email` | Data | Mandatory, Options: Email |
-| Topic | `topic` | Select | Mandatory; короткий публичный список без Link |
+| Topic | `topic` | Select | Mandatory; `Access`, `Equipment`, `Data issue`, `Other`; публичный список без Link |
 | Subject | `subject` | Data | Mandatory, In List View |
 | Description | `description` | Text | Mandatory |
-| Contact Consent | `contact_consent` | Check | Mandatory |
-| Triage Status | `triage_status` | Select | `New`, `Accepted`, `Rejected`; Default `New`, Read Only для внешней формы |
+| Contact Consent | `contact_consent` | Select | Mandatory; единственная option `I consent to be contacted`; без default |
+| Triage Status | `triage_status` | Select | `New`, `Accepted`, `Rejected`; Default `New`; не Read Only в DocType |
 | Internal Notes | `internal_notes` | Small Text | Permission Level 1 |
 
 Naming: `format:INT-{YYYY}-{#####}`. Title Field: `subject`.
@@ -70,6 +70,20 @@ Naming: `format:INT-{YYYY}-{#####}`. Title Field: `subject`.
 Публичная версия не принимает Attachment. Добавление upload меняет abuse, storage и privacy model и должно проходить отдельную security-проверку.
 
 Значение `reporter_email` — сообщённый гостем контакт, а не подтверждённая личность. Оно не используется для авторизации или автоматической выдачи доступа.
+
+Mandatory Check не используется для согласия: сервер Frappe считает `0` допустимым
+значением Check. Обязательный Select без default требует явного выбора.
+
+Публичная и внутренняя классификации связаны явным правилом:
+
+| Public Topic | Service Category |
+|---|---|
+| Access | Access |
+| Equipment | Equipment |
+| Data issue | Data |
+| Other | Other |
+
+Triage выбирает внутреннюю Category по этой таблице. Автоматического преобразования нет.
 
 ### `Service Case`
 
@@ -95,13 +109,17 @@ Unique на `source_intake` выражает правило «одно прин�
 
 - `Service Triage`;
 - `Service Agent`;
-- `Service Manager`.
+- `Service Manager`;
+- `Service API Reader`.
 
 | DocType | Triage | Agent | Manager |
 |---|---|---|---|
-| Service Intake | Read/Write/Create, no Delete | No access | Read/Write, no Delete |
+| Service Intake | Read/Write, no Create/Delete | No access | Read/Write, no Create/Delete |
 | Service Case | Read/Create | Read/Write | Read/Write/Create, no Delete |
 | Service Category | Read | Read | Manage |
+
+`Service API Reader` получает только Read на `Service Category`. API user не получает
+доступ к Intake или Case.
 
 Level 1 Internal Notes читают/меняют только Triage и Manager. Website User и Guest не получают Desk role.
 
@@ -129,7 +147,6 @@ Resolved --Reopen/Manager--> In Progress
 | Route | `report-service-issue` |
 | Login Required | No |
 | Anonymous | No |
-| Allow Multiple | Yes |
 | Allow Editing After Submit | No |
 | Allow Delete | No |
 | Show List | No |
@@ -148,8 +165,10 @@ contact_consent
 ```
 
 `triage_status` получает default `New` из DocType. `internal_notes` отсутствует в form allow-list.
+Сам `triage_status` не делается Read Only в DocType: иначе сотрудник Triage не сможет его
+изменить. Внешний запрет обеспечивается отсутствием поля в Web Form.
 
-## 6. Доказать Web Form boundary
+## 6. Проверить границу Web Form
 
 Открыть route в приватном окне браузера и отправить две записи.
 
@@ -159,10 +178,12 @@ contact_consent
 2. Guest не получает Desk access.
 3. После отправки нельзя открыть список всех Intake.
 4. Отправленный Intake нельзя редактировать или удалить через Web Form.
-5. В запросе нельзя штатно задать поля, отсутствующие в Web Form fields.
+5. В запросе нельзя штатно задать поля, отсутствующие в списке полей Web Form.
 6. `Service Case` не создаётся автоматически.
 
-Затем временно включить `Login Required`, создать Website User и повторить отправку. Зафиксировать различие authentication boundary, после чего вернуть принятую финальную настройку Guest form.
+Затем временно включить `Login Required`, создать Website User и повторить отправку.
+Зафиксировать различие аутентификации, после чего вернуть финальную публичную форму в
+режим Guest.
 
 Критическая модель `v16.32.0`:
 
@@ -204,12 +225,13 @@ Agent работает с `case_description` и не получает Read на 
 
 ## 9. Стандартный REST API
 
-Создать отдельного System User `api.service@example.com` и роль с минимальным Read/Create только на заранее выбранный DocType. Не использовать Administrator token.
+Создать отдельного System User `api.service@example.com` и выдать только роль
+`Service API Reader`. Не использовать Administrator token.
 
 Сгенерировать API Key/Secret в User и выполнить два запроса по официальному REST API:
 
-- разрешённый запрос к выбранному DocType;
-- запрещённый запрос к внутреннему DocType без Read.
+- разрешённый Read `Service Category`;
+- запрещённый Read `Service Intake` без выданного права.
 
 Authorization header имеет форму:
 
@@ -219,9 +241,13 @@ Authorization: token <api_key>:<api_secret>
 
 Secret хранится только на время опыта. Не помещать его в Markdown, `hooks.py`, `.env` внутри app, screenshots, shell history или Git. Custom API method не создаётся.
 
-## 10. Поставка и clean site
+## 10. Поставка и чистый site
 
 Standard Web Form и Notification должны экспортироваться в app при Developer Mode и `Is Standard`.
+
+Number Card и Dashboard Chart сохраняются с `Is Standard = Yes` и Module app. Workspace
+должен быть Public и принадлежать Module app. В `hooks.py` добавляется
+`add_to_apps_screen` для навигации Frappe v16.
 
 Workflow и Roles экспортируются узкими fixtures по точным именам. В фильтры также входят используемые `Workflow State` и `Workflow Action Master`. Users, Website Users, API credentials, Assignment Rule с конкретными Users, SMTP и рабочие Intake/Case не экспортируются.
 
@@ -243,7 +269,9 @@ bench --site intake-clean.localhost migrate
 bench --site intake-clean.localhost clear-cache
 ```
 
-На clean site проверить route `/report-service-issue`, Guest submission, отсутствие list/edit, ручной triage и создание Case. API user создаётся заново: credentials не должны приезжать с app.
+На чистом site проверить маршрут `/report-service-issue`, отправку Guest, отсутствие
+списка и редактирования, ручной триаж и создание Case. API user создаётся заново: его
+учётные данные не входят в app.
 
 ## 11. Готовность проекта
 
@@ -253,7 +281,9 @@ bench --site intake-clean.localhost clear-cache
 - почему Login Required не равен role authorization;
 - почему `Apply Document Permissions` не превращает new Web Form insert в обычный Desk Create;
 - почему закрытые Link options не публикуются;
-- почему автоматическое преобразование осталось за границей no-code core;
+- почему автоматическое преобразование не вошло в базовый маршрут без кода;
 - почему API keys относятся к site secrets, а не к app source.
 
 После этого выполнить финальный аудит из [ROADMAP.md](../../ROADMAP.md).
+
+Пошаговое выполнение: [LABS.md](LABS.md).

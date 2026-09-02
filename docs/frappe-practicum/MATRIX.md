@@ -20,9 +20,9 @@
 | Apps Page / Workspace Sidebar v16 | ● | ↺ | ↺ | app и рабочая область доступны в Desk |
 | `migrate` / clear cache | ● | ↺ | ↺ | изменения применяются предсказуемо |
 | Git | ● | ↺ | ↺ | commit после законченного состояния |
-| clean-site install | ● | ↺ | ↺ | app устанавливается без копии исходной БД |
-| fixtures | ○ | ● | ↺ | Workflow/Roles восстанавливаются на clean site |
-| exported customizations | ○ | ○ | ○ | только при фактическом использовании Customize Form |
+| установка на чистый site | ● | ↺ | ↺ | app устанавливается без копии исходной БД |
+| fixtures | ● | ↺ | ↺ | роли, Kanban/Calendar и Workflow восстанавливаются на чистом site |
+| exported customizations | ○ | ○ | ○ | только при расширении DocType другого app |
 
 ## Модель данных
 
@@ -34,13 +34,13 @@
 | Link | ● | ↺ | ↺ | справочная целостность |
 | Child Table | ● | ↺ | — | зависимые строки внутри родителя |
 | Tree DocType | ● | — | — | иерархия мест |
-| naming по полю | ● | — | — | стабильный код оборудования |
+| naming по полю / Set Only Once | ● | ↺ | ↺ | код не расходится с системным `name` |
 | naming series / format | — | ● | ↺ | номера деловых документов |
-| Mandatory / Unique | ● | ↺ | ↺ | ограничения данных |
+| Mandatory / Unique | ● | ↺ | ↺ | серверные ограничения, включая границы Check |
 | Track Changes | ● | ↺ | ↺ | фактическая история изменений |
 | submittable / `docstatus` | — | ● | ○ | фиксация Approved документа |
 | Single DocType | ○ | — | ○ | область применения без искусственной сущности |
-| Dynamic Link | ○ | — | — | сравнение с конкретным Link; в core не нужен |
+| Dynamic Link | ○ | — | — | сравнение с конкретным Link; в основном маршруте не нужен |
 
 ## Данные и интерфейс
 
@@ -48,7 +48,7 @@
 |---|:---:|:---:|:---:|---|
 | Form View | ● | ↺ | ↺ | реальная рабочая форма |
 | List View / filters / sorting | ● | ↺ | ↺ | ежедневная очередь данных |
-| Saved Filter | ● | ↺ | ↺ | персональная настройка не выдается за source app |
+| Saved Filter | ● | ↺ | ↺ | персональная настройка не выдаётся за исходник app |
 | Data Import | ● | ↺ | ○ | загрузка справочников и начальных данных |
 | Data Export | ● | ↺ | ↺ | перенос данных не смешивается с переносом app |
 | Bulk Edit | ● | ○ | ○ | только для полей, где массовая правка безопасна |
@@ -65,14 +65,15 @@
 |---|:---:|:---:|:---:|---|
 | User / System User | ● | ↺ | ↺ | пользователь Desk и его роли |
 | Website User / Guest | — | — | ● | внешний канал не равен System User |
-| Role Permission Manager | ● | ↺ | ↺ | базовый доступ к DocType |
+| Permissions Standard DocType | ● | ↺ | ↺ | базовый доступ хранится в source DocType |
+| Role Permission Manager | ○ | ○ | ○ | просмотр матрицы без второго Custom DocPerm слоя |
 | Read / Write / Create / Delete | ● | ↺ | ↺ | независимые permission types |
 | Submit / Cancel / Amend | — | ● | ○ | права submittable document |
 | If Owner | ● | ↺ | ↺ | ограничение собственными документами |
 | Permission Level | ○ | ● | ↺ | доступ к группам полей, не к строкам |
 | User Permission | ● | ↺ | ○ | сужение по Link-значениям |
 | Share | ○ | ● | ○ | точечный доступ и его отличие от роли |
-| отрицательные permission tests | ● | ↺ | ↺ | вход под каждой ролью |
+| отрицательные проверки прав | ● | ↺ | ↺ | вход под каждой ролью |
 
 ## Процесс и совместная работа
 
@@ -98,7 +99,7 @@
 | Allow Edit / Show List | — | — | ● | финальный Guest intake не позволяет list/edit |
 | Link options disclosure | — | — | ● | закрытые справочники не вынесены в публичную форму |
 | Attachments | ● | ↺ | ○ | права File и последствия публичной загрузки |
-| стандартный REST API | ○ | ○ | ● | отдельный API user, token, минимальные права |
+| стандартный REST API | ○ | ○ | ● | отдельный API user, разрешённый и запрещённый Read |
 | custom endpoint | — | — | — | находится за границей курса |
 | Webhook / внешний сервис | — | — | ○ | область применения без обязательной инфраструктуры |
 
@@ -110,7 +111,7 @@
 |---|---|
 | Auto Repeat | разобрать область применения; не делать заявки или оборудование «повторяемыми» ради упражнения |
 | Gantt | использовать только при реальных start/end и планировании работ |
-| Geolocation / Signature / Barcode | проверить как специализированные поля после core, не засоряя модель |
+| Geolocation / Signature / Barcode | проверить как специализированные поля после основного маршрута, не засоряя модель |
 | Table MultiSelect | применять, когда нужна самостоятельная link-таблица, а не обычный Child Table |
 | Server Script | показать границу low-code; в основной маршрут не включать |
 | Client Script | показать границу UX-логики; в основной маршрут не включать |
@@ -128,7 +129,7 @@ app и metadata
 → права
 → workflow и collaboration
 → automation и reporting
-→ web boundary и REST
+→ граница web-контура и REST
 → packaging и clean install
 ```
 

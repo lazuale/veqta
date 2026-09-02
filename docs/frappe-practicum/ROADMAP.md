@@ -1,6 +1,7 @@
 # Дорожная карта
 
-Практикум идёт последовательно. Переход к следующему проекту разрешён только после clean-site gate текущего.
+Практикум идёт последовательно. Переход к следующему проекту разрешён только после
+проверки текущего app на чистом site.
 
 ## Этап 0. Подготовить платформу
 
@@ -14,6 +15,10 @@
 
 Маршрут установки: [SETUP_WSL2.md](SETUP_WSL2.md).
 
+После установки выполнить [FOUNDATIONS.md](FOUNDATIONS.md). Переход к P1 разрешён,
+когда ученик может объяснить Bench, site, app, Module, DocType и Document и умеет
+находить объекты через Awesomebar.
+
 Контроль:
 
 ```bash
@@ -24,7 +29,7 @@ node --version
 
 ## Этап 1. Реестр оборудования
 
-Подробный сценарий: [projects/01-equipment-register/README.md](projects/01-equipment-register/README.md).
+Пошаговый маршрут: [projects/01-equipment-register/LABS.md](projects/01-equipment-register/LABS.md).
 
 ### P1.1. Контейнер продукта
 
@@ -38,7 +43,7 @@ node --version
 
 - зафиксировать границы реестра;
 - создать `Equipment Location`, `Equipment Category`, `Equipment Identifier`, `Equipment`;
-- настроить naming, Mandatory, Unique, Link и Child Table;
+- настроить naming, Set Only Once, Mandatory, Link и Child Table;
 - проверить Tree и системные поля Document.
 
 ### P1.3. Рабочие данные
@@ -46,7 +51,7 @@ node --version
 - создать минимальный набор вручную;
 - импортировать второй набор;
 - проверить ошибки обязательности, уникальности и Link;
-- сравнить Data Export с source app.
+- сравнить Data Export с исходниками app.
 
 ### P1.4. Доступ
 
@@ -69,19 +74,19 @@ node --version
 - очистить случайные site-only настройки;
 - сделать Git commit;
 - установить app на `equipment-clean.localhost`;
-- пройти приёмку без копирования Equipment records.
+- пройти приёмку без копирования записей Equipment.
 
 Gate P1: реестр работает как самостоятельный продукт и переносится на чистый site.
 
 ## Этап 2. Заявки на закупку
 
-Подробный сценарий: [projects/02-purchase-requests/README.md](projects/02-purchase-requests/README.md).
+Пошаговый маршрут: [projects/02-purchase-requests/LABS.md](projects/02-purchase-requests/LABS.md).
 
 ### P2.1. Новый независимый app
 
 - создать `purchase_requests` и `purchase.localhost`;
 - не копировать DocType и роли из P1;
-- зафиксировать business scenario и state machine.
+- зафиксировать сценарий продукта и схему состояний.
 
 ### P2.2. Транзакционный документ
 
@@ -117,13 +122,13 @@ Gate P1: реестр работает как самостоятельный п�
 ### P2.6. Результат и контроль
 
 - собрать Calendar по `required_by`;
-- создать reports, chart и Workspace;
+- создать отчёт, Dashboard Chart и Workspace;
 - сделать Print Format для Approved;
 - получить PDF под ролью с Print permission.
 
 ### P2.7. Поставка
 
-- классифицировать standard metadata, fixtures и site-specific records;
+- классифицировать standard metadata, fixtures и локальные записи site;
 - экспортировать только переносимую конфигурацию;
 - установить app на `purchase-clean.localhost`;
 - повторить полный Workflow всеми ролями.
@@ -132,13 +137,13 @@ Gate P2: state machine и docstatus воспроизводятся на чист
 
 ## Этап 3. Внешняя приёмная
 
-Подробный сценарий: [projects/03-service-intake/README.md](projects/03-service-intake/README.md).
+Пошаговый маршрут: [projects/03-service-intake/LABS.md](projects/03-service-intake/LABS.md).
 
-### P3.1. Спроектировать trust boundary
+### P3.1. Спроектировать границу доверия
 
 - создать `service_intake` и `intake.localhost`;
 - разделить недоверенный `Service Intake` и внутренний `Service Case`;
-- определить минимальный публичный payload;
+- определить минимальный набор публичных полей;
 - запретить внешнему каналу служебные поля и закрытые Link-каталоги.
 
 ### P3.2. Внутреннее ядро
@@ -162,14 +167,14 @@ Gate P2: state machine и docstatus воспроизводятся на чист
 - вручную создать Case из проверенного Intake;
 - назначить Agent;
 - настроить Notification и контроль очереди;
-- собрать reports/cards/chart/Workspace.
+- собрать отчёты, Number Card, Dashboard Chart и Workspace.
 
 ### P3.5. Стандартный REST API
 
 - создать отдельного API user;
 - выдать минимальную роль;
 - сгенерировать token локально;
-- выполнить разрешённый read/create по стандартному API;
+- выполнить разрешённый Read по стандартному API;
 - доказать запрещённый доступ;
 - не сохранять secret в shell history, документах или Git.
 
@@ -197,4 +202,5 @@ Gate P3: внешний канал работает, но не пересека�
 9. почему Data Export не является поставкой app;
 10. как доказать переносимость на чистом site.
 
-Финальная работа принимается только при наличии трёх независимых Git-репозиториев app и трёх clean-site протоколов.
+Финальная работа принимается только при наличии трёх независимых Git-репозиториев app и
+трёх протоколов проверки на чистом site.

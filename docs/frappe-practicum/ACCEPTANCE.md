@@ -16,23 +16,24 @@
 
 Фраза «кнопка не видна» не доказывает server-side запрет. Permission test выполняется штатным действием под целевой ролью и, где уместно, через стандартный API.
 
-## 2. Четыре gate каждого проекта
+## 2. Четыре проверки каждого проекта
 
-### Functional gate
+### Рабочий сценарий
 
 Положительный пользовательский сценарий проходит от начала до конца на реалистичных данных.
 
-### Permission gate
+### Права
 
 Минимум один разрешённый и один запрещённый сценарий проверены для каждой роли. Administrator не используется как доказательство прав рабочей роли.
 
-### Source gate
+### Исходники
 
 Ученик может показать, какой файл app изменился после сохранения Standard metadata, и объяснить, какие настройки остались только в базе site.
 
-### Clean-site gate
+### Чистый site
 
-App устанавливается на новый site без копирования исходной базы. На нём повторяются ключевой сценарий и permission tests.
+App устанавливается на новый site без копирования исходной базы. На нём повторяются
+ключевой сценарий и проверки прав.
 
 ## 3. Общий source checklist
 
@@ -88,19 +89,21 @@ Clean site не получает database restore исходного site. Те�
 - Viewer читает List и Report, но не меняет документ.
 - импорт корректного файла создаёт записи.
 - Kanban меняет обычный `status`.
+- глобальный поиск по дочернему идентификатору открывает правильный Equipment.
 
 ### Отрицательные проверки
 
 - отсутствующий mandatory field блокирует сохранение;
-- дублирующий `asset_code` блокируется Unique;
+- дублирующий `asset_code` блокируется конфликтом системного `name`;
 - Link не принимает несуществующую Category;
 - Viewer не создаёт и не изменяет Equipment;
 - Operator не удаляет Equipment в финальной матрице;
 - User Permission действительно сужает видимые Location и связанные документы, затем опыт откатывается или фиксируется как осознанная политика.
 
-### Clean-site proof
+### Проверка на чистом site
 
-После установки существуют DocType, роли, Report и Workspace. Рабочих Equipment нет до ручного создания или импорта.
+После установки существуют DocType, роли, Report, Number Card, Workspace и общий Kanban
+Board. Рабочих Equipment нет до ручного создания или импорта.
 
 ## 6. P2 — заявки на закупку
 
@@ -114,6 +117,7 @@ Clean site не получает database restore исходного site. Те�
 - Assign To создаёт ToDo нужному пользователю;
 - Notification приходит по выбранному каналу;
 - Approved печатается утверждённым Print Format.
+- Calendar View показывает заявки по `required_by`.
 
 ### Отрицательные проверки
 
@@ -125,20 +129,23 @@ Clean site не получает database restore исходного site. Те�
 - state не меняется прямой правкой поля или Kanban drag;
 - после submit запрещённые поля не редактируются обычным save.
 
-### Clean-site proof
+### Проверка на чистом site
 
-Workflow, roles и permission matrix присутствуют после установки app. Полный переход Draft → Approved повторяется новыми тестовыми Users.
+После установки app присутствуют Workflow, роли, Calendar View, отчёт, Number Card,
+Dashboard Chart, Workspace, Notifications и Print Format. Полный переход Draft →
+Approved повторяется с новыми тестовыми Users.
 
 ## 7. P3 — внешняя приёмная
 
 ### Положительные проверки
 
 - Guest отправляет разрешённые поля Web Form;
+- отправка без явного Contact Consent блокируется;
 - в Desk появляется `Service Intake` со значениями только из публичного allow-list;
 - Triage принимает обращение и создаёт связанный `Service Case`;
 - Agent работает с назначенным Case;
 - Manager видит общую очередь и отчётность;
-- API user выполняет только разрешённую операцию стандартного REST API.
+- API user читает только разрешённый справочник стандартным REST API.
 
 ### Отрицательные проверки
 
@@ -151,16 +158,19 @@ Workflow, roles и permission matrix присутствуют после уст�
 - API user не читает DocType без выданного Read;
 - API secret отсутствует в Git и протоколе приёмки.
 
-### Clean-site proof
+### Проверка на чистом site
 
-После установки доступен заданный route Standard Web Form. Guest submission создаёт только `Service Intake`; внутренний Case появляется только после действия Triage user.
+После установки доступны заданный маршрут Standard Web Form, Workflow, отчёты, Number
+Card, Dashboard Chart, Workspace и Notifications. Отправка Guest создаёт только
+`Service Intake`; внутренний Case появляется только после действия Triage user.
 
 ## 8. Протокол ошибки
 
-Если clean site не воспроизводит рабочий site:
+Если чистый site не воспроизводит рабочий site:
 
 1. не копировать базу и не создавать недостающий объект вручную молча;
-2. определить его тип: standard metadata, fixture, customization, local config или working data;
+2. определить его тип: standard metadata, fixture, customization, локальная настройка
+   или рабочие данные;
 3. исправить слой поставки;
 4. обновить app source и commit;
 5. пересоздать чистую проверку;

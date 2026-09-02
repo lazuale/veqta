@@ -97,6 +97,7 @@ sudo apt install -y \
   curl \
   ca-certificates \
   rsync \
+  ripgrep \
   pkg-config \
   redis-server \
   mariadb-server \
@@ -295,7 +296,8 @@ http://platform-check.localhost:8000
 bench setup-chrome
 ```
 
-Команда использует штатный Chromium PDF generator Frappe v16. Если она завершилась ошибкой, Print view можно проверять отдельно, но PDF gate не считать пройденным.
+Команда использует штатный генератор PDF через Chromium в Frappe v16. Если она
+завершилась ошибкой, Print View можно проверить отдельно, но проверка PDF не пройдена.
 
 ## 11. Финальная проверка стенда
 

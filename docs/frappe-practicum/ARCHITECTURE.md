@@ -36,7 +36,8 @@ purchase-clean.localhost
 intake-clean.localhost
 ```
 
-Ни один учебный app не объявляет другой обязательной зависимостью. Это сохраняет ясность `framework → app → site` и делает clean-site proof честным.
+Ни один учебный app не объявляет другой обязательной зависимостью. Поэтому проверка
+установки на чистый site действительно проверяет один продукт.
 
 ## 3. Единица обучения
 
@@ -48,7 +49,7 @@ intake-clean.localhost
 → настройка Frappe
 → рабочий пример
 → отрицательная проверка
-→ проверка source/site boundary
+→ проверка границы между исходниками app и данными site
 ```
 
 Например, Link изучается не как тип поля сам по себе. Сначала появляется Equipment, которому нужна существующая Category; затем создаётся Link; затем проверяется невозможность сохранить несуществующую Category; затем смотрится, какие данные действительно записаны в Document.
@@ -78,7 +79,8 @@ Equipment Location (Tree) ◄──── Equipment ────► Equipment Ca
 - `Equipment Location` — Tree, потому что место естественно имеет иерархию.
 - `Equipment Category` — отдельный справочник, потому что значение переиспользуется и должно иметь собственную целостность.
 - `Equipment Identifier` — Child Table, потому что строки не имеют самостоятельной жизни вне Equipment.
-- `asset_code` управляет naming Equipment и помечен Unique.
+- `asset_code` управляет naming Equipment и помечен Set Only Once. Отдельный Unique
+  не нужен: при `field:asset_code` уникальность обеспечивает системный `name`.
 - `status` — обычный Select. Workflow здесь не нужен: смена состояния не является согласованием.
 - Kanban допустим по `status`, потому что это обычное изменяемое поле, а не workflow state.
 
@@ -133,7 +135,8 @@ Approved ── Cancel ─► Cancelled (docstatus 2)
 - Role Permission определяет базовый доступ к DocType независимо от Workflow.
 - Assign To/ToDo фиксирует конкретного ответственного, но не используется как ACL.
 - Kanban не применяется для перетаскивания workflow state: переход выполняется Workflow Action.
-- Workflow переносится не как рабочие данные, а как конфигурация app с отдельной clean-site проверкой.
+- Workflow переносится не как рабочие данные, а как конфигурация app с отдельной
+  проверкой на чистом site.
 
 ### Финальная гарантия
 
@@ -186,7 +189,7 @@ Service Case          внутренний документ
    DocType, Workspace, standard Report, Web Form, Notification
 
 2. Переносимая конфигурация
-   Role, Workflow и связанные записи
+   Role, Workflow, Calendar View, общий Kanban Board и связанные записи
 
 3. Локальная конфигурация site
    Users, Assignment Rule с конкретными Users, User Permission, SMTP, API keys
@@ -196,6 +199,10 @@ Service Case          внутренний документ
 ```
 
 Git должен содержать первый слой и явно выбранную часть второго. Третий и четвёртый слои не выдаются за содержимое продукта.
+
+Permissions собственных Standard DocType относятся к первому слою: строки DocPerm
+хранятся в JSON DocType. Export Customizations нужен только при осознанном расширении
+DocType, принадлежащего другому app.
 
 ## 8. Повторяемый цикл проекта
 

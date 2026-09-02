@@ -48,6 +48,11 @@ Moving branch не используется для доказательства 
 
 Штатные Python expressions в Conditions и конфигурация `hooks.py` для fixtures считаются конфигурацией платформы, а не собственной business logic.
 
+Для DocType, принадлежащих учебному app, финальные permissions задаются в таблице
+Permissions самого Standard DocType и хранятся в его JSON. Role Permission Manager
+используется для просмотра эффективной матрицы и знакомства с инструментом, но не
+создаёт второй слой Custom DocPerm для собственных DocType.
+
 ## Что не используется в основном маршруте
 
 - ERPNext, CRM, HRMS, Helpdesk и другие Frappe apps;
@@ -110,7 +115,7 @@ Web Form не создаёт внутренний `Service Case` напряму�
 |---|---|---|
 | стандартные метаданные | DocType, Report, Workspace, Web Form, Notification | исходники app |
 | конфигурационные записи | Role, Workflow и связанные записи | fixtures или другой явно проверенный штатный экспорт |
-| exported customizations | Custom Field, Property Setter, Custom DocPerm | Export Customizations, только когда они действительно применялись |
+| exported customizations | Custom Field, Property Setter, Custom DocPerm | только при расширении DocType другого app |
 
 Не переносятся как часть универсального app:
 
@@ -132,6 +137,8 @@ Web Form не создаёт внутренний `Service Case` напряму�
 6. Web Form — отдельный канал доступа. Создание нового target document в `v16.32.0` выполняется с `ignore_permissions=True`.
 7. Публичная Web Form не должна принимать внутреннее состояние, исполнителя, закрытые Link-каталоги или другие служебные поля.
 8. API user получает отдельную роль и минимальные права; ключи не попадают в Git.
+9. Обязательный Check не доказывает согласие: для явного подтверждения используется
+   обязательный Select без значения по умолчанию.
 
 ## Критерий завершения программы
 

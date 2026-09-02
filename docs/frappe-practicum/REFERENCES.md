@@ -35,7 +35,7 @@ Node >=24
 - Workspace source: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/workspace
 - Module Def: https://github.com/frappe/frappe/tree/v16.32.0/frappe/core/doctype/module_def
 
-Frappe v16 использует Apps Page, постоянный Workspace Sidebar и Workspace. Поэтому UI-проверка app не ограничивается существованием старой workspace page.
+Frappe v16 использует Apps Page, постоянный Workspace Sidebar и Workspace. Поэтому UI-проверка app не ограничивается существованием старой workspace page. Для custom app Apps Page настраивается через `add_to_apps_screen` в `hooks.py`.
 
 ## DocType и модель данных
 
@@ -49,6 +49,11 @@ Frappe v16 использует Apps Page, постоянный Workspace Sideba
 - DocField schema: https://github.com/frappe/frappe/blob/v16.32.0/frappe/core/doctype/docfield/docfield.json
 - Document lifecycle: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py
 - BaseDocument: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/base_document.py
+- Global Search: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/global_search.py
+
+Серверная mandatory-проверка не требует истинного значения Check: значение `0`
+допустимо. Поэтому явное согласие в P3 выражено обязательным Select без default. Global
+Search индексирует child values только у полей, включённых в global search.
 
 ## Данные и стандартные views
 
@@ -58,11 +63,12 @@ Frappe v16 использует Apps Page, постоянный Workspace Sideba
 - Data Import: https://github.com/frappe/frappe/tree/v16.32.0/frappe/core/doctype/data_import
 - Data Export: https://github.com/frappe/frappe/tree/v16.32.0/frappe/core/doctype/data_export
 - Kanban Board: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/kanban_board
-- Calendar View: https://github.com/frappe/frappe/tree/v16.32.0/frappe/public/js/frappe/views/calendar
+- Calendar View schema: https://github.com/frappe/frappe/blob/v16.32.0/frappe/desk/doctype/calendar_view/calendar_view.json
+- Calendar View implementation: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/views/calendar/calendar.js
 - Number Card: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/number_card
 - Dashboard Chart: https://github.com/frappe/frappe/tree/v16.32.0/frappe/desk/doctype/dashboard_chart
 
-Kanban меняет поле карточки как обычное значение. В проекте 2 он не используется как альтернативный путь Workflow Action.
+Kanban меняет поле карточки как обычное значение. В проекте 2 он не используется как альтернативный путь Workflow Action. Calendar View и Kanban Board — записи site без собственного standard/module export path; необходимые общие представления поставляются fixtures.
 
 ## Пользователи и права
 
@@ -87,7 +93,8 @@ Kanban меняет поле карточки как обычное значен
 - Workflow Transition: https://github.com/frappe/frappe/tree/v16.32.0/frappe/workflow/doctype/workflow_transition
 - Client workflow model: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/model/workflow.js
 
-Workflow schema не имеет собственного `is_standard`/Module export path, поэтому проект 2 требует явной стратегии fixtures и clean-site проверки.
+Workflow schema не имеет собственного `is_standard` или экспорта через Module, поэтому
+проект 2 использует fixtures и отдельную проверку на чистом site.
 
 ## Assignment, ToDo и уведомления
 

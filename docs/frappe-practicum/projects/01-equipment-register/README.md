@@ -57,12 +57,13 @@ Standard DocType, `Is Tree = Yes`.
 
 | Label | Fieldname | Type | Правила |
 |---|---|---|---|
-| Location Code | `location_code` | Data | Mandatory, Unique |
+| Location Code | `location_code` | Data | Mandatory, Set Only Once |
 | Location Name | `location_name` | Data | Mandatory, In List View |
 | Is Group | `is_group` | Check | служебная семантика Tree |
 | Parent Equipment Location | `parent_equipment_location` | Link | Options: Equipment Location; штатное parent-поле Tree |
 
-Naming: `field:location_code`. Title Field: `location_name`.
+Naming: `field:location_code`. Title Field: `location_name`. Отдельный Unique для кода не
+нужен, потому что код становится системным `name`.
 
 После включения Tree сверить фактически созданные tree-поля с формой DocType. Не добавлять вручную второй parent или `lft/rgt`.
 
@@ -72,7 +73,7 @@ Standard DocType.
 
 | Label | Fieldname | Type | Правила |
 |---|---|---|---|
-| Category Name | `category_name` | Data | Mandatory, Unique, In List View |
+| Category Name | `category_name` | Data | Mandatory, Set Only Once, In List View |
 | Description | `description` | Small Text | Optional |
 | Disabled | `disabled` | Check | Default 0 |
 
@@ -85,7 +86,7 @@ Standard DocType, `Is Child Table = Yes`.
 | Label | Fieldname | Type | Правила |
 |---|---|---|---|
 | Identifier Type | `identifier_type` | Select | Mandatory; `Serial Number`, `Inventory Number`, `Network Address`, `Other` |
-| Identifier Value | `identifier_value` | Data | Mandatory, In List View |
+| Identifier Value | `identifier_value` | Data | Mandatory, In List View, In Global Search |
 | Note | `note` | Small Text | Optional |
 
 Строка Identifier не получает собственную роль, naming или отдельный Workspace: её жизненный цикл полностью принадлежит Equipment.
@@ -96,7 +97,7 @@ Standard DocType, Track Changes включён.
 
 | Label | Fieldname | Type | Правила |
 |---|---|---|---|
-| Asset Code | `asset_code` | Data | Mandatory, Unique, In List View, In Global Search |
+| Asset Code | `asset_code` | Data | Mandatory, Set Only Once, In List View, In Global Search |
 | Equipment Name | `equipment_name` | Data | Mandatory, In List View |
 | Category | `category` | Link | Mandatory, Options: Equipment Category, In List View |
 | Location | `location` | Link | Mandatory, Options: Equipment Location, In List View |
@@ -121,10 +122,12 @@ Naming: `field:asset_code`. Title Field: `equipment_name`. Default Status: `In S
 Обязательные опыты:
 
 1. Сохранить Equipment без Category — сохранение должно быть заблокировано.
-2. Создать второй Equipment с тем же `asset_code` — Unique должен сработать.
+2. Создать второй Equipment с тем же `asset_code` — конфликт системного `name` должен
+   заблокировать сохранение.
 3. Ввести в Link несуществующую Category — должна потребоваться существующая запись.
 4. Переименовать отображаемое имя Equipment — `name` остаётся равен устойчивому `asset_code`.
 5. Изменить Location и посмотреть Timeline при включённом Track Changes.
+6. Найти Equipment через глобальный поиск по `identifier_value` из дочерней строки.
 
 ## 5. Импорт и экспорт данных
 
@@ -184,7 +187,8 @@ Git source  = модель и переносимые метаданные app
 
 В List должны быть видны Asset Code, Equipment Name, Category, Location и Status. Проверить стандартный поиск, фильтры, сортировку и сохранённый пользовательский filter.
 
-Добавить к одному Equipment Comment и Tag, затем посмотреть Timeline. Comment и Tag — штатные средства совместной работы и классификации, а не новые business fields реестра.
+Добавить к одному Equipment Comment и Tag, затем посмотреть Timeline. Comment и Tag —
+штатные средства совместной работы и классификации, а не новые поля реестра.
 
 ### Kanban
 
@@ -204,7 +208,7 @@ Git source  = модель и переносимые метаданные app
 
 В Frappe v16 проверить не только Workspace, но и его место в Apps Page/Workspace Sidebar.
 
-## 8. Source gate
+## 8. Проверка исходников
 
 Из app repository:
 
@@ -215,9 +219,17 @@ git diff --check
 git diff
 ```
 
-Нужно найти source-файлы четырёх DocType и standard UI-объектов. Saved Filter и рабочие Equipment не должны выдаваться за универсальный source app.
+Нужно найти файлы четырёх DocType и standard-объектов интерфейса. Saved Filter и рабочие
+Equipment не входят в исходники app.
 
-Три учебные Role зафиксировать fixtures с фильтром по их точным именам. Не экспортировать весь `Role` DocType. Если права на Standard DocType создавались как Custom DocPerm, использовать Export Customizations и проверить полученный JSON; если permission rows находятся в standard DocType source, не создавать второй конкурирующий слой прав.
+Три учебные Role и общий Kanban Board зафиксировать fixtures с фильтром по точным
+именам. Не экспортировать весь `Role` или `Kanban Board`. Финальные permission rows
+настроить в Standard DocType и проверить в его JSON. Не создавать Custom DocPerm для
+DocType этого app.
+
+Number Card должен иметь `Is Standard = Yes` и Module app. Workspace должен быть Public
+и принадлежать Module app. В `hooks.py` добавить штатный `add_to_apps_screen`, чтобы app
+появлялся в навигации Frappe v16.
 
 Выполнить:
 
@@ -232,7 +244,7 @@ git commit -m "Build equipment register practicum app"
 
 Перед `git add .` ещё раз убедиться, что в app нет secrets или файлов рабочих вложений.
 
-## 9. Clean-site gate
+## 9. Проверка на чистом site
 
 Из bench:
 
@@ -253,7 +265,8 @@ bench --site equipment-clean.localhost list-apps
 - Manager может создать полный объект;
 - Viewer не может его изменить.
 
-Если роли или права исчезли, не создавать их молча вручную. Определить, являются ли они standard metadata, fixtures или customizations, исправить поставку app и повторить clean-site gate.
+Если роли или права исчезли, не создавать их молча вручную. Определить их слой,
+исправить поставку app и повторить проверку на чистом site.
 
 ## 10. Готовность проекта
 
@@ -262,7 +275,9 @@ bench --site equipment-clean.localhost list-apps
 - почему Category — Link, а Identifier — Child Table;
 - почему Location — Tree;
 - чем `name` отличается от Title Field;
-- что хранится в app source, а что остаётся working data site;
+- что хранится в исходниках app, а что остаётся рабочими данными site;
 - почему Workflow в этом реестре не нужен.
 
 Дальше: [проект 2 — «Заявки на закупку»](../02-purchase-requests/README.md).
+
+Пошаговое выполнение: [LABS.md](LABS.md).

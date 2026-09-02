@@ -44,7 +44,7 @@ Purchase Department ◄──── Purchase Request
 | Label | Fieldname | Type | Правила |
 |---|---|---|---|
 | Department Name | `department_name` | Data | Mandatory, Unique, In List View |
-| Department Code | `department_code` | Data | Mandatory, Unique |
+| Department Code | `department_code` | Data | Mandatory, Set Only Once |
 | Disabled | `disabled` | Check | Default 0 |
 
 Naming: `field:department_code`. Title Field: `department_name`.
@@ -58,7 +58,7 @@ Child DocType.
 | Item Name | `item_name` | Data | Mandatory, In List View |
 | Specification | `specification` | Small Text | Optional |
 | Quantity | `quantity` | Float | Mandatory, Default 1, In List View |
-| UOM | `uom` | Data | Mandatory, In List View |
+| UOM | `uom` | Select | Mandatory; `pcs`, `set`, `license`, `month`; In List View |
 | Comment | `comment` | Small Text | Optional |
 
 Стоимость и автоматический итог не добавляются: без отдельной расчётной логики приложение не должно обещать финансовую точность.
@@ -188,13 +188,22 @@ Assignment Rule допустимо настроить как опыт на ра�
 - Workspace `Purchase Requests`;
 - Standard Print Format `Approved Purchase Request`.
 
+Calendar View — переносимая конфигурация продукта, поэтому он входит в fixtures по
+точному имени. Number Card и Dashboard Chart сохраняются с `Is Standard = Yes` и Module
+app. Workspace должен быть Public и принадлежать Module app. Для Apps Page в `hooks.py`
+добавляется `add_to_apps_screen`.
+
 Print Format должен показывать номер, дату, подразделение, системного Owner как инициатора, justification, items и состояние. PDF проверить под Procurement Officer и Auditor, если их Print permission различается — под каждой ролью.
 
 ## 8. Поставка Workflow и ролей
 
-Standard DocType, standard Report/Workspace/Notification и Print Format должны находиться в source app.
+Standard DocType, standard Report, Workspace, Notification и Print Format должны
+находиться в исходниках app.
 
-Workflow и Role — конфигурационные records. Зафиксировать их как fixtures с узкими фильтрами по точным именам. Вместе с целевым Workflow включить используемые `Workflow State` и `Workflow Action Master`, иначе clean site может получить ссылки на отсутствующие записи. Не экспортировать все Roles, states, actions или Workflows site.
+Workflow и Role — конфигурационные записи. Зафиксировать их как fixtures с узкими
+фильтрами по точным именам. Вместе с Workflow включить используемые `Workflow State` и
+`Workflow Action Master`, иначе чистый site получит ссылки на отсутствующие записи. Не
+экспортировать все роли, состояния, действия или Workflow site.
 
 После настройки fixtures:
 
@@ -205,9 +214,11 @@ bench --site purchase.localhost migrate
 
 Проверить fixture JSON вручную: в нём нет Users, email, паролей, API keys, Assignment Rule с локальными людьми и рабочих Purchase Request.
 
-Если права создавались как Custom DocPerm через Role Permission Manager, применить штатный Export Customizations для целевого DocType и проверить созданный `custom` JSON. Помнить: синхронизация exported customizations заменяет соответствующие Custom Field, Property Setter и custom permissions на целевом site.
+Финальные permissions собственных Standard DocType настроить в таблице Permissions
+самого DocType. Они должны находиться в JSON DocType. Не создавать Custom DocPerm и не
+использовать Export Customizations для DocType этого app.
 
-## 9. Git и clean site
+## 9. Git и чистый site
 
 ```bash
 cd apps/purchase_requests
@@ -224,7 +235,7 @@ bench --site purchase-clean.localhost migrate
 bench --site purchase-clean.localhost clear-cache
 ```
 
-На clean site заново создать тестовых Users и Departments. Затем пройти:
+На чистом site заново создать тестовых Users и Departments. Затем пройти:
 
 ```text
 Draft
@@ -248,3 +259,5 @@ Draft
 - почему рабочие заявки не входят в поставку app.
 
 Дальше: [проект 3 — «Внешняя приёмная»](../03-service-intake/README.md).
+
+Пошаговое выполнение: [LABS.md](LABS.md).
