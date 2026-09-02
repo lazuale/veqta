@@ -251,7 +251,7 @@ Custom frontend оправдан, если требование действит
 consumer-facing UX;
 mobile-first product;
 визуальный редактор;
-realtime dashboard;
+реaltime dashboard;
 нестандартная навигационная модель.
 ```
 
