@@ -3,7 +3,7 @@
 ## Цель
 
 Научить новичка проектировать, собирать, расширять и переносить небольшие приложения на
-Frappe Framework, используя **минимальный механизм, чья семантика совпадает с задачей**.
+Frappe Framework, используя минимальный механизм, чья семантика совпадает с задачей.
 
 Базовая привычка курса:
 
@@ -11,6 +11,7 @@ Frappe Framework, используя **минимальный механизм, 
 сначала смысл и требуемая гарантия
 → затем владелец ответственности
 → затем штатный primitive / extension point Frappe
+→ затем правильная lifecycle phase
 → затем проверка реального enforcement layer
 ```
 
@@ -64,7 +65,8 @@ business logic.
 Практически применяются:
 
 - собственный DocType Controller;
-- `validate` как server invariant;
+- `before_insert` как creation-only server invariant;
+- различие `before_insert` и общего `validate` по lifecycle semantics;
 - permission-aware `Document` API;
 - `@frappe.whitelist(methods=["POST"])` на Document method;
 - REST API v2 для semantic document method;
@@ -73,10 +75,10 @@ business logic.
 - schema evolution через Standard metadata;
 - `patches.txt`, post-model-sync patch, `bench migrate`;
 - deliberate direct DB update внутри one-off data migration;
-- `IntegrationTestCase` и `bench run-tests`;
+- `IntegrationTestCase` и `bench run-tests` на отдельном test site;
 - `enqueue_after_commit`, Background Jobs и Webhook как decision boundary.
 
-Background Job **не добавляется** в `service_intake`, пока в продукте нет реальной долгой
+Background Job не добавляется в `service_intake`, пока в продукте нет реальной долгой
 или внешней операции. Курс учит и применять механизм, и не применять его без задачи.
 
 ---
@@ -93,6 +95,7 @@ Background Job **не добавляется** в `service_intake`, пока в 
 - raw SQL для обычного business CRUD;
 - `ignore_permissions=True` как shortcut;
 - Client Script как единственная server/business гарантия;
+- слишком широкий lifecycle hook, если правило относится только к insert/submit/cancel;
 - core patch/fork;
 - custom frontend без отдельной UX-причины.
 
@@ -137,7 +140,7 @@ Service Category
 ```
 
 Web Form не создаёт внутренний Case напрямую. P3 заканчивается ручной конвертацией после
-триажа — это сознательная граница no-code уровня.
+триажа — это сознательная граница metadata/configuration уровня.
 
 ## Engineering Bridge
 
@@ -151,8 +154,11 @@ Accepted Intake
 → one request transaction
 ```
 
-Здесь код появляется не ради «продвинутого уровня», а потому что только metadata уже не
-выражает cross-document invariant и атомарное business action.
+Creation rule принадлежит `ServiceCase.before_insert`: Agent после создания Case не
+должен получать Read на Intake только ради последующих save.
+
+Здесь код появляется не ради «продвинутого уровня», а потому что metadata уже не
+выражает cross-document creation invariant и атомарное business action.
 
 ---
 
@@ -174,7 +180,8 @@ Accepted Intake
 | конкретный исполнитель | Assign To / ToDo |
 | внешний простой intake | Web Form |
 | generic CRUD integration | built-in REST |
-| server invariant собственного Document | Controller lifecycle |
+| creation invariant собственного Document | Controller `before_insert` |
+| invariant каждого save | Controller `validate`, только когда семантика действительно такая |
 | предметное действие одного Document | whitelisted Document method |
 | request atomicity | Framework transaction boundary |
 | эволюция существующих данных | patch |
@@ -184,7 +191,7 @@ Accepted Intake
 
 ---
 
-# 5. Поставка app
+# 5. Поставка app и проверочные site
 
 Различаются четыре слоя:
 
@@ -198,12 +205,20 @@ Accepted Intake
 Для DocType, принадлежащих учебному app, permissions задаются в Standard DocType JSON.
 Export Customizations не используется как второй permission layer для своих DocType.
 
-Engineering Bridge добавляет ещё одну ось поставки:
+Engineering Bridge разделяет три эксплуатационные проверки:
 
 ```text
-fresh install
-≠ upgrade existing site
+intake.localhost
+→ upgrade existing working data
+
+intake-test.localhost
+→ automated integration tests
+
+intake-engineering-clean.localhost
+→ fresh install without historical working data
 ```
+
+Рабочий site не используется как test database.
 
 Schema JSON отвечает за структуру, patch — за одноразовую миграцию существующих данных.
 
@@ -221,6 +236,7 @@ Schema JSON отвечает за структуру, patch — за однор�
 8. API user получает отдельную минимальную роль; secrets не попадают в Git.
 9. `case.insert()` в semantic command остаётся permission-aware; custom command не получает `ignore_permissions=True`.
 10. Uncaught exception в write request должна приводить к rollback; manual commit не дробит business operation.
+11. Agent не получает Read на Intake только для обслуживания слишком широкого controller hook.
 
 ---
 
@@ -254,8 +270,10 @@ Schema JSON отвечает за структуру, patch — за однор�
 ```text
 почему metadata перестало хватать?
 какой lifecycle/extension point владеет новой гарантией?
+почему выбрана именно эта lifecycle phase?
 где проходит transaction boundary?
 как существующий site получает новую модель данных?
+почему tests выполняются на отдельном site?
 что именно должно быть покрыто tests?
 ```
 
