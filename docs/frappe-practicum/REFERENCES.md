@@ -254,11 +254,12 @@ DocStatus Draft / Submitted / Cancelled
 
 ---
 
-# 11. DocType Layout [v16+]
+# 11. DocType Layout — версионная граница текущего курса
 
-- Docs: https://docs.frappe.io/framework/doctypes/doctype-layout
+- Current docs: https://docs.frappe.io/framework/doctypes/doctype-layout
+- Current repository path: https://github.com/frappe/frappe/tree/develop/frappe/core/doctype/doctype_layout
 
-Архитектурный смысл:
+Архитектурный смысл механизма:
 
 ```text
 один business object
@@ -269,9 +270,21 @@ DocStatus Draft / Submitted / Cancelled
 
 Не создавать второй `DocType` только ради другой компоновки формы.
 
-Статус в практикуме: **Lab F** после проверки наличия механизма на закреплённой версии стенда.
+Но в exact tag `v16.32.0` путь:
 
-Layout меняет presentation и не заменяет permissions/Workflow.
+```text
+frappe/core/doctype/doctype_layout/doctype_layout.json
+```
+
+отсутствует. Прямое чтение raw-файла возвращает `404`, поэтому текущий исполняемый курс **не объявляет DocType Layout изученным** и не включает его в Lab F.
+
+Статус:
+
+```text
+Later / future baseline
+```
+
+После обновления базовой версии нужно отдельно повторить практическую проверку и только затем добавить лабораторию.
 
 ---
 
