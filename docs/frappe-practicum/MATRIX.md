@@ -1,146 +1,229 @@
 # Матрица покрытия Frappe
 
-Матрица проверяет уже спроектированные проекты. Она не определяет их предметную модель.
+Матрица **проверяет уже спроектированный курс**, а не генерирует предметную модель.
 
 Обозначения:
 
-- **●** — механизм впервые реально выполняется и проверяется в LABS;
-- **↺** — механизм снова реально применяется в более сложном контексте;
-- **○** — механизм только наблюдается, сравнивается или используется как граница; это не считается освоением;
-- **—** — в основном маршруте не нужен.
-
-Для каждого **●** и **↺** указана конкретная лабораторная. Если практического действия в
-LABS нет, механизм не помечается как освоенный только ради полноты списка.
-
-## Платформа и поставка
-
-| Возможность | P1 Реестр | P2 Закупки | P3 Приёмная | Где проверяется |
-|---|:---:|:---:|:---:|---|
-| Bench / site | ● | ↺ | ↺ | P1.1, P2.1, P3.1 |
-| `bench new-app` | ● | ↺ | ↺ | P1.1, P2.1, P3.1 |
-| Module | ● | ↺ | ↺ | P1.1–P1.2, P2.1–P2.2, P3.1–P3.2 |
-| Developer Mode | ● | ↺ | ↺ | P1.1, P2.1, P3.1 |
-| Apps Page / Workspace Sidebar v16 | ● | ↺ | ↺ | P1.1/P1.5, P2.1/P2.6, P3.1/P3.5 |
-| `migrate` / clear cache | ● | ↺ | ↺ | P1.6, P2.7, P3.7 |
-| Git | ● | ↺ | ↺ | P1.6, P2.7, P3.7 |
-| установка на чистый site | ● | ↺ | ↺ | P1.6, P2.7, P3.7 |
-| fixtures | ● | ↺ | ↺ | P1.6, P2.7, P3.7 |
-| exported customizations | ○ | — | — | область применения разбирается как отдельный механизм, но не нужен этим трём app |
-
-## Модель данных
-
-| Возможность | P1 | P2 | P3 | Где проверяется |
-|---|:---:|:---:|:---:|---|
-| Standard DocType | ● | ↺ | ↺ | P1.2, P2.2, P3.2 |
-| Document и системные поля | ● | ↺ | ↺ | P1.3, P2.3, P3.2–P3.5 |
-| Data / Select / Date / Text / Check | ● | ↺ | ↺ | модели P1.2, P2.2, P3.2 |
-| Link | ● | ↺ | ↺ | P1.2–P1.3, P2.2, P3.2/P3.5 |
-| Child Table | ● | ↺ | — | P1.2–P1.3, P2.2–P2.3 |
-| Tree DocType | ● | — | — | P1.2–P1.3 |
-| naming по полю / Set Only Once | ● | — | ↺ | P1.2–P1.3, P3.2 |
-| naming format | — | ● | ↺ | P2.2–P2.3, P3.2 |
-| Mandatory / Unique | ● | ↺ | ↺ | P1.3, P2.2, P3.2/P3.5 |
-| Track Changes | ● | ↺ | ↺ | P1.2/P1.5, P2.2/P2.6, P3.2/P3.5 |
-| submittable / `docstatus` | — | ● | — | P2.2–P2.5 |
-| Single DocType | ○ | — | ○ | рассматривается как вариант модели, но не создаётся в основном маршруте |
-| Dynamic Link | ○ | — | — | сравнивается с обычным Link; в продукте не нужен |
-
-## Данные и интерфейс
-
-| Возможность | P1 | P2 | P3 | Где проверяется |
-|---|:---:|:---:|:---:|---|
-| Form View | ● | ↺ | ↺ | весь рабочий сценарий каждого проекта |
-| List View / filters / sorting | ● | ↺ | ↺ | P1.5, P2.6, P3.5 |
-| Saved Filter | ○ | — | — | полезная персональная настройка, но отдельного упражнения в основном маршруте нет |
-| Data Import | ● | — | — | P1.3 |
-| Data Export | ● | — | — | P1.3 |
-| Bulk Edit | ○ | ○ | — | в P2.5 используется только как пример недопустимого обхода workflow state |
-| Kanban | ● | — | — | P1.5; для workflow state специально не применяется |
-| Calendar | — | ● | — | P2.6 |
-| Report Builder | ● | ↺ | ↺ | P1.5, P2.6, P3.5 |
-| Number Card | ● | ↺ | ↺ | P1.5, P2.6, P3.5 |
-| Dashboard Chart | — | ● | ↺ | P2.6, P3.5 |
-| Workspace | ● | ↺ | ↺ | P1.5, P2.6, P3.5 |
-
-## Пользователи и права
-
-| Возможность | P1 | P2 | P3 | Где проверяется |
-|---|:---:|:---:|:---:|---|
-| User / System User | ● | ↺ | ↺ | P1.4, P2.4, P3.5/P3.6 |
-| Website User / Guest | — | — | ● | P3.4 |
-| Permissions Standard DocType | ● | ↺ | ↺ | P1.2/P1.4, P2.2/P2.4, P3.2/P3.5 |
-| Role Permission Manager | ○ | ○ | — | P1.4, P2.4: просмотр эффективной матрицы без создания Custom DocPerm |
-| Read / Write / Create / Delete | ● | ↺ | ↺ | P1.4, P2.4, P3.2/P3.5 |
-| Submit / Cancel / Amend | — | ● | — | P2.3–P2.5 |
-| If Owner | ● | ↺ | — | временный опыт P1.4, рабочая политика P2.2/P2.4 |
-| Permission Level | — | ● | ↺ | P2.2/P2.4, P3.2/P3.5 |
-| User Permission | ● | ↺ | — | временный опыт P1.4, рабочее ограничение P2.4 |
-| Share | ● | — | — | временный опыт P1.4 |
-| отрицательные проверки прав | ● | ↺ | ↺ | P1.4, P2.4–P2.5, P3.4–P3.6 |
-
-## Процесс и совместная работа
-
-| Возможность | P1 | P2 | P3 | Где проверяется |
-|---|:---:|:---:|:---:|---|
-| Timeline / история изменений | ● | ↺ | ↺ | P1.5, P2.6, P3.5 |
-| Comments | ○ | — | — | штатный механизм обсуждения; отдельного обязательного упражнения нет |
-| Tags | ○ | — | — | штатная свободная классификация; в модель продуктов не встраивается |
-| Assign To / ToDo | — | ● | ↺ | P2.6, P3.5 |
-| Workflow | — | ● | ↺ | P2.5, P3.3/P3.5 |
-| Workflow Action | — | ● | ↺ | P2.5, P3.3/P3.5 |
-| Workflow + docstatus | — | ● | — | P2.5 |
-| Notification | — | ● | ↺ | P2.6, P3.5 |
-| Assignment Rule | — | ○ | — | P2.6 как временный опыт; не часть переносимого продукта |
-| Print Format / PDF | — | ● | — | P2.6 |
-
-## Внешний контур и интеграции
-
-| Возможность | P1 | P2 | P3 | Где проверяется |
-|---|:---:|:---:|:---:|---|
-| Web Form | — | — | ● | P3.4 |
-| Published / route | — | — | ● | P3.4 |
-| Login Required | — | — | ● | P3.4 |
-| Allow Edit / Show List | — | — | ● | P3.4 |
-| Link options disclosure | — | — | ● | P3.4 |
-| Attachments / File | — | ○ | — | поле Attach есть в P2.2, но жизненный цикл File отдельно не принимается |
-| стандартный REST API | — | — | ● | P3.6 |
-| custom endpoint | — | — | — | за границей курса |
-| Webhook / внешний сервис | — | — | ○ | область применения разбирается без обязательной внешней инфраструктуры |
-
-## Рассматривается, но не встраивается искусственно
-
-Следующие штатные возможности не являются базовой обязанностью трёх продуктов:
-
-| Возможность | Решение |
-|---|---|
-| Auto Repeat | разобрать область применения; не делать заявки или оборудование «повторяемыми» ради упражнения |
-| Gantt | использовать только при реальных start/end и планировании работ |
-| Geolocation / Signature / Barcode | разобрать специализированные поля после основного маршрута, не засоряя модель |
-| Table MultiSelect | применять, когда нужна самостоятельная link-таблица, а не обычный Child Table |
-| Saved Filter | знать, что это пользовательская настройка представления; отдельный продуктовый сценарий не выдумывать |
-| Tags | знать отличие свободной метки от справочника; не добавлять обязательные теги без задачи |
-| Comments | применять, когда в сценарии действительно требуется обсуждение документа |
-| Server Script | показать границу low-code; в основной маршрут не включать |
-| Client Script | показать границу UX-логики; в основной маршрут не включать |
-| Query/Script Report | следующий уровень после ограничения Report Builder |
-| Virtual DocType | следующий уровень интеграционной архитектуры |
-| exported customizations | применять при расширении DocType другого app, а не для собственных Standard DocType |
-
-## Итог аудита покрытия
-
-Три проекта закрывают фундаментальный практический путь Frappe:
+- **●** — механизм впервые выполняется и проверяется;
+- **↺** — снова применяется в более сложном контексте;
+- **○** — рассматривается/сравнивается как граница, но не внедряется в продукт;
+- **—** — в текущем маршруте не нужен.
 
 ```text
-app и metadata
-→ документы и связи
-→ данные и views
-→ права
-→ workflow и collaboration
-→ automation и reporting
-→ граница web-контура и REST
-→ packaging и clean install
+mechanism known
+≠ mechanism must be used
 ```
 
-Матрица намеренно не выдаёт знакомство с меню за освоение. Неприменённая функция не
-считается пробелом, если ученик понимает её назначение и может объяснить, почему она не
-нужна выбранной модели.
+---
+
+# 1. Platform / app / deployment
+
+| Возможность | P1 | P2 | P3 | Engineering | Где |
+|---|:---:|:---:|:---:|:---:|---|
+| Bench / site | ● | ↺ | ↺ | ↺ | P1.1, P2.1, P3.1, E9 |
+| `bench new-app` | ● | ↺ | ↺ | — | P1.1, P2.1, P3.1 |
+| Module | ● | ↺ | ↺ | ↺ | project setup/source |
+| Developer Mode | ● | ↺ | ↺ | ↺ | P1.1, P2.1, P3.1 |
+| Apps Page / Workspace Sidebar | ● | ↺ | ↺ | — | project workspace labs |
+| Git | ● | ↺ | ↺ | ↺ | every delivery gate |
+| clean `install-app` | ● | ↺ | ↺ | ↺ | P1.6, P2.7, P3.7, E9 |
+| upgrade existing site | — | — | — | ● | E6/E9 |
+| `bench migrate` | ● | ↺ | ↺ | ↺ | delivery + E6/E9 |
+| fixtures | ● | ↺ | ↺ | ↺ | P1.6, P2.7, P3.7 |
+| exported customizations | ○ | — | — | — | область применения, не нужна своим Standard DocType |
+| `patches.txt` / data patch | — | — | — | ● | E6 |
+
+---
+
+# 2. Data model
+
+| Возможность | P1 | P2 | P3 | Engineering | Где |
+|---|:---:|:---:|:---:|:---:|---|
+| Standard DocType | ● | ↺ | ↺ | ↺ | P1.2, P2.2, P3.2, E2 |
+| Document/system fields | ● | ↺ | ↺ | ↺ | all projects |
+| Data / Select / Date / Text / Check | ● | ↺ | ↺ | ↺ | project models |
+| Link | ● | ↺ | ↺ | ↺ | project models/E1 |
+| Child Table | ● | ↺ | — | — | P1.2, P2.2 |
+| Tree DocType | ● | — | — | — | P1.2 |
+| naming by field / Set Only Once | ● | — | ↺ | ↺ | P1/P3 |
+| naming format | — | ● | ↺ | ↺ | P2/P3 |
+| Mandatory / Unique | ● | ↺ | ↺ | ↺ | project models/E1–E3 |
+| Track Changes / Timeline history | ● | ↺ | ↺ | ↺ | P1/P2/P3/E3 |
+| submittable / docstatus | — | ● | — | — | P2.2–P2.5 |
+| Single DocType | ○ | — | ○ | — | model comparison only |
+| Dynamic Link | ○ | — | — | — | ordinary Link preferred when target known |
+| Virtual DocType | — | — | ○ | — | next integration level |
+
+Architecture gate:
+
+```text
+DocType / Link / Child / Tree
+chosen by identity/lifecycle/reference semantics
+not by noun counting
+```
+
+---
+
+# 3. Views / data operations / reporting
+
+| Возможность | P1 | P2 | P3 | Engineering | Где |
+|---|:---:|:---:|:---:|:---:|---|
+| Form | ● | ↺ | ↺ | ↺ | all projects |
+| List / filters / sorting | ● | ↺ | ↺ | ↺ | working scenarios |
+| Data Import | ● | — | — | — | P1.3 |
+| Data Export | ● | — | — | — | P1.3 |
+| Kanban | ● | — | — | — | P1.5; not Workflow bypass |
+| Calendar | — | ● | — | — | P2.6 |
+| Report Builder | ● | ↺ | ↺ | — | P1.5, P2.6, P3.5 |
+| Number Card | ● | ↺ | ↺ | — | P1.5, P2.6, P3.5 |
+| Dashboard Chart | — | ● | ↺ | — | P2.6, P3.5 |
+| Workspace | ● | ↺ | ↺ | — | all project workplace labs |
+| Print Format / PDF | — | ● | — | — | P2.6 |
+| Query Report | — | — | ○ | — | later when Report Builder semantics are insufficient |
+| Script Report | — | — | ○ | — | later procedural reporting |
+
+---
+
+# 4. Permissions
+
+| Возможность | P1 | P2 | P3 | Engineering | Где |
+|---|:---:|:---:|:---:|:---:|---|
+| User / System User | ● | ↺ | ↺ | ↺ | permission labs/API test |
+| Website User / Guest | — | — | ● | — | P3.4 |
+| Standard DocType permissions | ● | ↺ | ↺ | ↺ | P1.2/P2.2/P3.2 |
+| Role Permission Manager | ○ | ○ | — | — | effective matrix observation |
+| Read/Write/Create/Delete | ● | ↺ | ↺ | ↺ | P1.4/P2.4/P3/E3 |
+| Submit/Cancel/Amend | — | ● | — | — | P2.3–P2.5 |
+| If Owner | ● | ↺ | — | — | P1/P2 |
+| Permission Level | — | ● | ↺ | ↺ | P2/P3/E2 |
+| User Permission | ● | ↺ | — | — | P1/P2 |
+| Share | ● | — | — | — | P1.4 temporary |
+| `doc.check_permission` | — | — | — | ● | E1/E3 |
+| permission-aware `insert/save` | ○ | ○ | ○ | ● | E3 |
+| `ignore_permissions=True` boundary | ○ | ○ | ● Web Form fact | ↺ tests only | P3 architecture/E7 helpers |
+| custom permission hooks | — | — | — | ○ | next level, no product need |
+| Permission Types | — | — | — | ○ | next action-specific permission scenario |
+
+Important:
+
+```text
+permission-aware Document API
+≠ ignore_permissions bypass
+```
+
+Engineering command intentionally keeps ordinary permission enforcement.
+
+---
+
+# 5. Lifecycle / state / collaboration
+
+| Возможность | P1 | P2 | P3 | Engineering | Где |
+|---|:---:|:---:|:---:|:---:|---|
+| ordinary Select state | ● | ○ | — | — | P1 status |
+| Document save/submit/cancel/amend | ○ | ● | ○ | ↺ | P2.3/E controller lifecycle |
+| Workflow | — | ● | ↺ | — | P2.5/P3.3 |
+| Workflow Action | — | ● | ↺ | — | P2/P3 |
+| Workflow + docstatus | — | ● | — | — | P2.5 |
+| Assign To / ToDo | — | ● | ↺ | — | P2.6/P3.5 |
+| Comments / Timeline | ○ | ↺ | ↺ | ● via `add_comment` | E3 |
+| Notification | — | ● | ↺ | — | P2.6/P3.5 |
+| Assignment Rule | — | ○ | — | — | comparison only |
+| Controller `validate` | — | — | — | ● | E1 |
+| whitelisted Document method | — | — | — | ● | E3/E4 |
+
+Key separation:
+
+```text
+status value
+≠ Workflow transition
+≠ docstatus
+≠ assignment
+≠ permission
+```
+
+---
+
+# 6. Web / API / integration
+
+| Возможность | P1 | P2 | P3 | Engineering | Где |
+|---|:---:|:---:|:---:|:---:|---|
+| Web Form | — | — | ● | — | P3.4 |
+| Guest/public route | — | — | ● | — | P3.4 |
+| Login Required comparison | — | — | ● | — | P3.4 |
+| Web Form create-path boundary | — | — | ● | ↺ | P3 architecture/E reasoning |
+| built-in Document REST CRUD | — | — | ● read | ↺ | P3.6/E4 comparison |
+| REST API v2 document method | — | — | — | ● | E4 |
+| custom semantic command | — | — | — | ● | E3/E4 |
+| duplicate CRUD endpoint | — | — | — | rejected | E3 architecture |
+| Webhook | — | — | ○ | ○ | E8 decision lab |
+| custom integration service | — | — | — | ○ | only when orchestration/protocol appears |
+
+---
+
+# 7. Transactions / async
+
+| Возможность | P1 | P2 | P3 | Engineering | Где |
+|---|:---:|:---:|:---:|:---:|---|
+| Framework request transaction | ○ | ○ | ○ | ● | E5 |
+| uncaught exception rollback | — | — | — | ● | E5 rollback probe |
+| manual `frappe.db.commit()` | — | — | — | rejected | E5 |
+| `frappe.db.after_commit` concept | — | — | — | ○ | E8 |
+| `frappe.enqueue` | — | — | — | ○ | E8 |
+| `enqueue_after_commit=True` | — | — | — | ○ | E8 |
+| job id / deduplicate | — | — | — | ○ | E8 |
+| custom Background Job in product | — | — | — | — | no real long-running responsibility |
+
+Not using a job is intentional architecture, not missing knowledge.
+
+---
+
+# 8. Migrations / tests
+
+| Возможность | P1 | P2 | P3 | Engineering | Где |
+|---|:---:|:---:|:---:|:---:|---|
+| schema sync from DocType JSON | ● | ↺ | ↺ | ↺ | delivery/E2/E6 |
+| `patches.txt` | — | — | — | ● | E6 |
+| pre/post model sync distinction | — | — | — | ● | E6 |
+| one-off direct DB migration | — | — | — | ● | E6 |
+| Patch Log / one-time execution | — | — | — | ● | E6 |
+| `IntegrationTestCase` | — | — | — | ● | E7 |
+| `bench run-tests --app` | — | — | — | ● | E7/E9 |
+| permission acceptance outside unit helper | ● | ↺ | ↺ | ↺ | P1–P3/E4 |
+| clean install test | ● | ↺ | ↺ | ↺ | project gates/E9 |
+| upgrade test | — | — | — | ● | E6/E9 |
+
+Tests cover **application-owned behavior**. They do not re-prove that Frappe Link or
+Mandatory generally work.
+
+---
+
+# 9. Extension mechanisms deliberately not forced into these products
+
+| Механизм | Решение курса |
+|---|---|
+| Client Script | next UX-specific requirement; never sole server guarantee |
+| Server Script | site/runtime customization boundary; not source-owned app logic here |
+| `doc_events` | use when reacting to another DocType/app; current own DocType uses controller |
+| `extend_doctype_class` | extension seam for another app when exact pinned version/scenario requires it |
+| full controller override | exceptional, composition/conflict cost must be justified |
+| service/domain module | valid only for real cross-document/reusable/integration complexity |
+| Virtual DocType | next external-data-as-Document scenario |
+| Realtime | next live-update scenario |
+| Query/Script Report | next reporting requirement beyond Report Builder |
+| Auto Repeat | not imposed on equipment/requests merely for exercise |
+| Gantt | only with real start/end planning semantics |
+| specialized fields | Geolocation/Signature/Barcode only when product requires them |
+
+---
+
+# Итог
+
+Полный маршрут теперь закрывает две разные способности:
+
+```text
+A. выбрать и собрать правильный metadata-driven Frappe solution
+B. распознать момент, когда требуется native programmatic extension
+```
+
+Курс принят архитектурно, если ученик умеет объяснить не только **как** применить
+механизм, но и **почему соседний механизм здесь не является владельцем ответственности**.
