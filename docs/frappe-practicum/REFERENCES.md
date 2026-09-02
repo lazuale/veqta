@@ -59,24 +59,44 @@ Frappe v16 использует Apps Page, Workspace Sidebar и Workspace. Custo
 - NestedSet: https://github.com/frappe/frappe/blob/v16.32.0/frappe/utils/nestedset.py
 
 P1–P3 используют metadata guarantees там, где они совпадают с требованием. Engineering
-E1 добавляет Controller только для cross-document state invariant, которого Link/Unique/
-Set Only Once не выражают.
+E1 добавляет Controller только для creation invariant, которого Link/Unique/Set Only Once
+не выражают.
 
 ---
 
 # Document lifecycle / Controller
 
-Exact controller/lifecycle source:
+Exact source:
 
 - Document: https://github.com/frappe/frappe/blob/v16.32.0/frappe/model/document.py
 - Controller docs: https://docs.frappe.io/framework/user/en/basics/doctypes/controllers
 
-`Document.run_method()` запускает controller method вместе с Framework hooks,
-notifications, webhooks и server-script doc events. Standard save lifecycle вызывает
-server methods вроде `validate`, `before_save`, `on_update` в соответствующих фазах.
+`Document.insert()` в exact `v16.32.0` отдельно выполняет `before_insert`, затем обычные
+before-save methods, включая `validate`, и после этого DB insert / post-insert lifecycle.
 
-Engineering E1 использует `validate`, потому что правило должно действовать на
-permission-aware Document path независимо от конкретного Desk UI.
+Это важно для E1. Требование звучит:
+
+```text
+при СОЗДАНИИ Service Case
+source Intake должен быть Accepted
+```
+
+Поэтому владелец — `ServiceCase.before_insert`, а не общий `validate()`.
+
+Причина не стилистическая: Agent по модели P3 имеет Write на `Service Case`, но не имеет
+Read на `Service Intake`. Если controller загружает Intake при каждом `validate()`,
+последующий Agent-save существующего Case ломается либо вынуждает выдать лишний доступ.
+
+```text
+creation-only invariant
+→ before_insert
+
+invariant каждого save
+→ validate / другая matching lifecycle phase
+```
+
+`Document.run_method()` также запускает controller method вместе с Framework hooks,
+notifications, webhooks и server-script document events.
 
 ---
 
@@ -108,7 +128,9 @@ Kanban используется в P1 только для ordinary Select state.
 - Client permission model: https://github.com/frappe/frappe/blob/v16.32.0/frappe/public/js/frappe/model/perm.js
 
 Engineering command не использует `ignore_permissions=True`: source Intake проверяет
-Write, а `case.insert()` идёт обычным permission-aware Document path.
+Write, `case.insert()` идёт обычным permission-aware Document path, а
+`ServiceCase.before_insert` проверяет право читать выбранный source Intake только на
+creation path.
 
 ---
 
@@ -123,6 +145,10 @@ Write, а `case.insert()` идёт обычным permission-aware Document path
 
 P2 отделяет ordinary submit/cancel/amend lifecycle от Workflow до их объединения.
 P3 показывает business state с `docstatus=0`, когда submit/cancel семантически не нужны.
+
+Exact workflow source также показывает, что новый Document получает первый Workflow state,
+если state field ещё пуст. Это совместимо с созданием нового `Service Case` в initial
+`Open` state без отдельного перехода из несуществующего состояния.
 
 ---
 
@@ -178,8 +204,8 @@ GET/POST/PATCH/DELETE Document routes
 POST /api/v2/document/<doctype>/<name>/method/<method>/
 ```
 
-Document method route проверяет, что method whitelisted, проверяет HTTP method и
-permission на Document, затем запускает controller method через `doc.run_method()`.
+Document method route проверяет whitelisting, HTTP method и permission на Document, затем
+запускает controller method через `doc.run_method()`.
 
 Engineering E3/E4 поэтому различает:
 
@@ -255,13 +281,26 @@ E8 не добавляет fake job в `service_intake`: механизм выб
 # Webhook
 
 - Docs: https://docs.frappe.io/framework/user/en/guides/integration/webhooks
-- Exact source: https://github.com/frappe/frappe/blob/v16.32.0/frappe/integrations/doctype/webhook/webhook.py
+- Queue/after-commit source: https://github.com/frappe/frappe/blob/v16.32.0/frappe/integrations/doctype/webhook/__init__.py
+- Webhook implementation: https://github.com/frappe/frappe/blob/v16.32.0/frappe/integrations/doctype/webhook/webhook.py
 
 Exact Webhook поддерживает DocType event, condition, headers, JSON/form payload, secret
 signature и request log.
 
-E8 использует Webhook как первый кандидат для простого configurable outbound HTTP event,
-а не требует custom integration service заранее.
+Для ordinary DocType events `run_webhooks()` сначала складывает webhook execution в
+transaction-local queue. Framework регистрирует `flush_webhook_execution_queue` через
+`frappe.db.after_commit`; после успешного commit flush ставит фактическую webhook
+execution в Background Job выбранной/default очереди.
+
+Следствие для E8:
+
+```text
+simple configurable outbound event
+→ штатный Webhook уже имеет post-commit/background path
+```
+
+Не нужно вручную создавать второй custom job вокруг обычного Webhook только ради
+асинхронности.
 
 ---
 
@@ -295,14 +334,25 @@ pattern для business CRUD.
 
 - Unit/integration testing guide: https://docs.frappe.io/framework/user/en/guides/automated-testing/unit-testing
 - Test command source: https://github.com/frappe/frappe/blob/v16.32.0/frappe/commands/testing.py
+- Test environment: https://github.com/frappe/frappe/blob/v16.32.0/frappe/testing/environment.py
 - IntegrationTestCase: https://github.com/frappe/frappe/blob/v16.32.0/frappe/tests/classes/integration_test_case.py
 - Test exports: https://github.com/frappe/frappe/blob/v16.32.0/frappe/tests/__init__.py
 
 Exact v16.32 exposes `IntegrationTestCase` through `frappe.tests` and `run-tests` accepts
 an app selector.
 
-Engineering E7 tests application-owned invariants/commands. Он не создаёт suite для
-повторной проверки внутренних гарантий Frappe Link/Mandatory.
+Test environment и `IntegrationTestCase` подготавливают dependencies для suite; setup
+может commit-ить test dependencies. Поэтому Engineering E7 использует отдельный
+`intake-test.localhost`, а не рабочий `intake.localhost`.
+
+Tests проверяют application-owned behavior, включая regression boundary:
+
+```text
+Agent has no Intake Read
+but can save existing Case
+```
+
+Это защищает `before_insert` от случайного возврата к слишком широкому `validate()`.
 
 ---
 
