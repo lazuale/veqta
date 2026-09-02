@@ -1,509 +1,388 @@
-# 09. Deployment and Testing
+# 09. Deployment, Migrations и Testing — архитектура должна воспроизводиться
 
-## 1. Почему deployment — часть архитектуры
+## 1. Архитектура Frappe App существует не только на dev-site
 
-Frappe App — это не только код, который работает на dev-site.
+Система считается спроектированной не тогда, когда она работает на одном настроенном site, а когда обязательное состояние можно воспроизвести.
 
-Нормальный продукт должен воспроизводимо пройти путь:
-
-```text
-repository
-    ↓
-clean compatible site
-    ↓
-install-app / migrate
-    ↓
-required application state
-```
-
-Если после установки обязательная конфигурация существует только в голове разработчика, architecture incomplete.
-
----
-
-## 2. Standard DocType JSON
-
-Standard DocType metadata живёт в source tree App.
-
-Изменение модели:
-
-- добавление поля;
-- изменение field type;
-- child table;
-- naming;
-- is_submittable;
-
-является source-controlled schema/model change.
-
-### Design consequence
-
-Любое изменение модели должно учитывать existing data и upgrade path.
-
----
-
-## 3. bench migrate
-
-Migration синхронизирует schema/metadata и выполняет migration steps/patches.
-
-Это штатный deployment lifecycle Frappe.
-
-Следовательно, production upgrade не должен требовать секретной последовательности ручных SQL-команд, если изменение является обязательной частью App.
-
----
-
-## 4. Schema migration ≠ только создание колонок
-
-Пример изменения:
+Для source-controlled App целевой принцип:
 
 ```text
-old_status → status
+чистый совместимый Frappe site
++ repository App
++ install-app / migrate
+= обязательное состояние приложения
 ```
 
-Недостаточно просто создать новое поле.
+Это **[ARCHITECTURAL INFERENCE]**, основанный на официальных механизмах Apps, DocType JSON, fixtures и migrations.
 
-Нужно решить:
+---
+
+## 2. Standard DocType metadata живёт в source tree
+
+**[FRAPPE DOCS]** При изменении Standard DocType в developer mode Frappe сохраняет DocType JSON в source tree App. При install/migrate schema синхронизируется с JSON.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/guides/deployment/migrations
+
+Это делает metadata частью version-controlled продукта.
+
+### Следствие
+
+Если новый обязательный field существует только потому, что кто-то вручную добавил его на одном site, продукт ещё не воспроизводим.
+
+---
+
+## 3. `bench migrate` — не только изменение таблиц
+
+**[FRAPPE DOCS]** `bench migrate` выполняет целый deployment pipeline, включая:
+
+- before_migrate hooks;
+- application patches;
+- schema/background jobs sync;
+- fixtures sync;
+- dashboards/web pages и другие sync stages;
+- after_migrate hooks.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/bench/reference/migrate
+
+Это показывает, что App lifecycle во Frappe включает не только Python code.
+
+---
+
+## 4. Schema migration нужно проектировать вместе с моделью
+
+**[FRAPPE DOCS]** Frappe synchronizes DocTypes из JSON и отдельно предупреждает, что reverse schema migrations не поддерживаются.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/guides/deployment/migrations
+
+Перед изменением production DocType нужно ответить:
 
 ```text
-как перенести существующие значения?
-что делать с неизвестными values?
-когда удалить old field?
-как rollback/retry?
+Что произойдёт с существующими records?
+Можно ли safely добавить field?
+Меняется ли тип данных?
+Что делать со старым field?
+Как мигрировать значения?
+Есть ли rollback strategy на уровне release?
 ```
 
-Это уже data migration.
+### Red flag
+
+Спроектировать новую schema как будто production data ещё не существует.
 
 ---
 
-## 5. Patches
+## 5. Fields soft-delete и почему это важно
 
-Patches предназначены для one-off migration logic.
+**[FRAPPE DOCS]** При schema sync удалённые fields обычно soft-deleted на уровне metadata: column может сохраняться, чтобы избежать потери данных и позволить migration logic использовать старые значения.
 
-Хорошие примеры:
+Источник:
 
-- преобразовать старые данные;
-- заполнить новое обязательное поле;
-- изменить historical representation;
-- выполнить controlled migration между versions.
+- https://docs.frappe.io/framework/user/en/guides/deployment/migrations
 
-### Плохой подход
-
-README:
-
-```text
-после обновления зайдите в SQL console
-и выполните UPDATE ...
-```
-
-для обязательной migration.
+Это не означает, что старые columns можно бесконечно считать частью application model. Для пользователя field уже не существует.
 
 ---
 
-## 6. Patch должен быть безопасен в upgrade lifecycle
+## 6. Data patches
 
-Нужно учитывать:
+**[FRAPPE DOCS]** Для one-off data migrations Frappe использует Python patches, зарегистрированные в `patches.txt`.
 
-- порядок;
-- повторный запуск/частичный failure;
-- transaction semantics;
-- большие объёмы данных;
-- compatibility со старой schema в момент выполнения.
+Источник:
 
-Patch — production code, а не одноразовый черновик.
-
----
-
-## 7. Fixtures
-
-Fixtures переносят configuration records как часть App.
-
-Подходят, если record действительно является частью продукта.
-
-Не подходят для пользовательских transactional data.
-
-### Review question
-
-> Этот record описывает продукт или состояние конкретного клиента/site?
-
----
-
-## 8. Exported customizations
-
-Custom Fields/Property Setters и другие site-created configuration могут быть экспортированы для доставки с App.
-
-Это полезно, когда изменение создавалось low-code способом, но затем стало частью product source.
-
-Нужно внимательно понимать, что будет происходить с customization на target site.
-
----
-
-## 9. Install hooks
-
-Если App при установке должен создать/настроить специфические данные, можно использовать предусмотренные install hooks.
-
-Но install hook не должен скрывать то, что естественнее выражается DocType JSON/fixtures.
-
-Критерий — responsibility.
-
----
-
-## 10. Reproducibility test
-
-Обязательный архитектурный тест:
-
-```text
-1. создать чистый compatible site
-2. установить App
-3. выполнить migrate
-4. проверить required configuration/model
-```
-
-Если приложение не получается воспроизвести без ручной памяти разработчика, deployment contract нарушен.
-
----
-
-## 11. Site-specific state
-
-Не всё обязано находиться в repository.
-
-Нормально, что конкретный site содержит:
-
-- пользователей;
-- customer data;
-- local settings;
-- secrets;
-- optional customization.
-
-Нужно лишь чётко разделить:
-
-```text
-product-required state
-```
-
-и
-
-```text
-site-owned state
-```
-
----
-
-## 12. Secrets
-
-Пароли, API keys и production secrets не должны попадать в fixtures/source repository только потому, что Integration Settings являются DocType.
-
-Deployment architecture должна отделять configuration structure от secret values.
-
----
-
-## 13. Dependencies
-
-App должен явно понимать зависимости:
-
-- Frappe major version;
-- другие Apps;
-- Python/Node requirements;
-- external services.
-
-Если App расширяет DocType другого App, install/dependency contract должен это отражать.
-
----
-
-## 14. Version-sensitive mechanisms
-
-Документация стандарта должна маркировать возможности, зависящие от major version.
-
-Например:
-
-```text
-extend_doctype_class [v16+]
-```
-
-Не нужно привязывать каждую страницу к patch version, если behavior не менялся.
-
----
-
-## 15. Reverse migrations
-
-Нельзя предполагать, что downgrade автоматически безопасен.
-
-Удаление/изменение schema может быть необратимым без отдельной migration strategy.
-
-Перед destructive migration нужно решить recovery/backup/rollback process.
-
----
-
-## 16. Destructive changes
-
-Особенно тщательно review:
-
-- удаление fields;
-- изменение field type;
-- изменение naming;
-- разделение DocType;
-- слияние DocTypes;
-- изменение child ↔ standalone model;
-- изменение Link target.
-
-Эти изменения могут ломать existing records и references.
-
----
-
-## 17. Tests — часть design contract
-
-Тест нужен не для доказательства, что Frappe вообще умеет сохранять Document.
-
-Тест нужен для наших собственных assumptions/contracts.
+- https://docs.frappe.io/framework/user/en/guides/deployment/migrations
 
 Пример:
 
 ```text
-Closed Inspection cannot be edited by Operator
+раньше status = "Open"
+теперь модель использует status = "New"
 ```
 
-Это наш business contract — он должен быть проверяем.
+Если existing records должны быть преобразованы, это migration responsibility App.
 
----
+### Неправильно
 
-## 18. Unit/domain tests
-
-Хорошие кандидаты:
-
-- validation/invariants;
-- calculations;
-- pure domain functions;
-- service behavior;
-- state transitions.
-
-Чем меньше dependency на UI, тем проще и быстрее такой тест.
-
----
-
-## 19. Document lifecycle tests
-
-Проверять:
+После deploy написать в инструкции:
 
 ```text
-insert
-save
-submit
-cancel
-update-after-submit
+откройте MariaDB
+выполните UPDATE ... вручную
 ```
 
-там, где App добавляет важную behavior.
-
-Особенно если последствия lifecycle создают другие Documents или external events.
+если это обязательная часть release.
 
 ---
 
-## 20. Permission tests
+## 7. Patch должен быть повторяемо доставляемым изменением
 
-Security нельзя считать корректной только потому, что Administrator всё видит.
+Patch обычно выполняется один раз на site и Frappe отслеживает его выполнение.
 
-Нужно тестировать реальные роли:
+Это позволяет release code и data migration ехать вместе.
+
+### Design review patch
 
 ```text
-allowed user
-denied user
-owner/non-owner
-user permission scopes
-share
-list/direct access
-API
+Patch идемпотентен или безопасен при необычном состоянии?
+Что если часть данных уже мигрирована?
+Есть ли зависимости от schema до/после sync?
+Нужны ли commits внутри patch?
+Как проверить результат?
 ```
 
 ---
 
-## 21. Workflow tests
+## 8. Fixtures — configuration as code
 
-Если Workflow является частью critical process, нужно проверять:
+**[FRAPPE DOCS]** Fixtures — database records, экспортируемые в JSON и синхронизируемые при install/update.
 
-- допустимые transitions;
-- запрещённые transitions;
-- roles;
-- conditions;
-- обход через API/alternative UI.
+Источник:
 
----
+- https://docs.frappe.io/framework/user/en/python-api/hooks#fixtures
 
-## 22. API tests
-
-Для custom domain API проверяются:
-
-- authentication;
-- authorization;
-- validation;
-- contract;
-- idempotency;
-- errors;
-- transaction behavior.
-
-Generic REST Framework не нужно тестировать целиком заново, но наши assumptions о нём — можно.
-
----
-
-## 23. Background job tests
-
-Критические jobs должны проверять:
-
-- repeat execution;
-- partial failure;
-- idempotency;
-- state after success;
-- state after exception;
-- permission/system context, если важно.
-
----
-
-## 24. Migration tests
-
-Если patch преобразует production data, это часть критического code path.
-
-Минимум нужно проверить на representative old state:
+Примеры подходящих fixtures:
 
 ```text
-old schema/data
-    ↓
-patch/migrate
-    ↓
-expected new state
+обязательная Role;
+configuration record;
+Custom Field;
+часть справочника, определяемая продуктом.
 ```
 
----
+### Не использовать fixtures для transactions
 
-## 25. Fresh install vs upgrade
-
-App должен работать в двух разных сценариях:
+Не нужно экспортировать в Git обычные пользовательские:
 
 ```text
-fresh install
+Orders
+Tasks
+Invoices
 ```
 
-и
+только потому, что механизм технически может экспортировать records.
+
+---
+
+## 9. Export Customizations
+
+**[FRAPPE DOCS]** Custom Fields, Property Setters и связанные customizations можно экспортировать в App и синхронизировать при update/migrate.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/guides/app-development/exporting-customizations
+
+Но документация предупреждает о replacement semantics Property Setters/Custom Permissions на target site.
+
+### Архитектурный вопрос
+
+Кто владеет этой configuration:
 
 ```text
-upgrade existing site
+продукт
+или
+локальный администратор site?
 ```
 
-У них разные риски.
-
-Fresh install не доказывает корректность migration старых данных.
+Без этого exported customization может конфликтовать с локальной настройкой.
 
 ---
 
-## 26. Test data
+## 10. Install hooks и migrate hooks
 
-Тестовые данные должны быть минимальными и понятными.
+Frappe имеет lifecycle hooks App/site installation и migration.
 
-Не нужно копировать production database для каждого unit test.
+Источник:
 
-Но integration/migration testing может требовать realistic fixtures/scenarios.
+- https://docs.frappe.io/framework/user/en/python-api/hooks
+
+Они подходят для специальных действий, которые нельзя выразить metadata/fixtures/patches.
+
+Но hook не должен заменять понятный fixture/patch только потому, что «Python проще написать».
 
 ---
 
-## 27. Manual prototype ≠ deployment
+## 11. Dependencies App
 
-На этапе исследования допустимо накликать Workflow или Custom Field вручную, чтобы проверить гипотезу.
+App может зависеть от других Apps. Extension другого App должен учитывать его наличие и совместимость.
 
-После принятия решения нужно определить, как accepted state попадёт в source/deployment model.
-
-Это важная граница между:
+При архитектуре нужно явно фиксировать:
 
 ```text
-experiment
+required app;
+minimum/compatible version;
+ownership extended DocTypes;
+hook dependencies.
 ```
 
-и
+Это особенно важно для Apps, расширяющих ERPNext или HRMS.
+
+---
+
+## 12. Version-sensitive architecture
+
+Стандарт ориентирован на Frappe v16, но отдельные capabilities имеют version boundaries.
+
+Примеры:
 
 ```text
-product architecture
+extend_doctype_class → v16+
+Packages             → v14+
+Server Script default restrictions → v15+
 ```
 
----
+### Правило
 
-## 28. Upgrade compatibility
+Version-sensitive архитектурное решение должно иметь пометку в documentation и dependency metadata App.
 
-Extension другого App должен проверяться при major upgrades.
-
-Особенно:
-
-- overrides;
-- internal APIs;
-- custom JS against Desk internals;
-- monkey patches;
-- direct DB schema assumptions.
-
-Чем сильнее coupling к internal implementation, тем выше upgrade cost.
+Нельзя рассчитывать на capability v16, заявляя совместимость с v15.
 
 ---
 
-## 29. Public API dependency
+## 13. Testing — часть architecture contract
 
-Зависимость от documented/public Framework API обычно стабильнее зависимости от внутренней функции, которая случайно доступна для import.
+**[FRAPPE DOCS]** Frappe предоставляет test runner, `FrappeTestCase`, test site semantics и команды `bench run-tests`.
 
-Это должно учитываться при code review.
+Источники:
+
+- https://docs.frappe.io/framework/user/en/testing
+- https://docs.frappe.io/framework/user/en/guides/automated-testing/unit-testing
+
+Frappe может автоматически создавать test records для dependent DocTypes, обнаруженных по Link fields.
 
 ---
 
-## 30. Deployment decision track
+## 14. Что тестировать
+
+Тестируем не сам факт существования стандартных возможностей Frappe, а **наши contracts поверх них**.
+
+### Document invariants
 
 ```text
-Standard model change?
-        → source DocType metadata
-
-Нужно преобразовать existing data?
-        → Patch
-
-Configuration record — часть App?
-        → Fixture/export/install setup
-
-Изменение принадлежит только site?
-        → site customization
-
-После clean install нужно ручное действие?
-        → проверить, действительно ли оно site-owned
-
-Есть destructive schema change?
-        → migration/recovery plan
+invalid state нельзя сохранить
 ```
 
----
-
-## 31. Testing decision track
+### Lifecycle
 
 ```text
-Наш business invariant?
-        → automated test
+submit создаёт нужный эффект
+cancel корректно обращает его
+```
 
-Custom permission policy?
-        → permission matrix test
+### Permissions
 
-Critical workflow?
-        → transition tests
+```text
+Employee не видит restricted Document
+Manager видит
+```
 
-Custom external API?
-        → contract/security/idempotency tests
+### Workflow/domain transitions
 
-Data patch?
-        → migration test
+```text
+недопустимый переход отвергается
+```
 
-Background operation?
-        → retry/idempotency/failure tests
+### Services
+
+```text
+сложный расчёт даёт ожидаемый результат
+```
+
+### API
+
+```text
+command проверяет authorization и идемпотентность
+```
+
+### Migration
+
+```text
+старое состояние данных превращается в новое корректно
 ```
 
 ---
 
-## 32. Design review checklist
+## 15. Что не нужно бессмысленно тестировать
 
-- [ ] Clean install воспроизводит required product state.
-- [ ] Upgrade path существующих данных определён.
-- [ ] Schema changes не полагаются на ручной SQL.
-- [ ] Required configuration доставляется штатным механизмом.
-- [ ] Site-specific data не случайно попали в fixtures.
-- [ ] Secrets не хранятся в repository.
-- [ ] Dependencies объявлены.
-- [ ] Destructive migrations имеют recovery plan.
-- [ ] Critical domain logic покрыта тестами.
-- [ ] Permissions тестируются не под Administrator.
-- [ ] Critical Workflow проверяется через альтернативные paths.
-- [ ] Migration patches тестируются на old-state scenario.
-- [ ] Fresh install и upgrade рассматриваются отдельно.
+Не требуется писать собственный тест только чтобы доказать:
+
+```text
+Frappe Link field работает;
+frappe.get_doc умеет загружать Document;
+стандартный REST endpoint существует.
+```
+
+Это ответственность Framework.
+
+Но если наше App использует capability особым способом и от него зависит critical flow, integration test может быть оправдан.
+
+---
+
+## 16. Tests и transactions
+
+**[FRAPPE DOCS]** `FrappeTestCase` предоставляет Frappe-specific test setup и transaction isolation behaviour.
+
+Источник:
+
+- https://docs.frappe.io/framework/user/en/guides/automated-testing/unit-testing
+
+Это важно для тестов lifecycle и persistence.
+
+---
+
+## 17. Upgrade test
+
+Для App, который расширяет Frappe/ERPNext, обычных unit tests недостаточно.
+
+Нужны проверки:
+
+```text
+чистая установка;
+migrate с предыдущей supported version;
+совместимость hooks/overrides;
+fixtures/customization sync;
+критические permissions;
+critical user flows.
+```
+
+Иначе система может работать на давно настроенном dev-site, но не устанавливаться заново.
+
+---
+
+## 18. Воспроизводимость — обязательный acceptance criterion
+
+Для app-owned состояния нельзя принимать результат, который существует только как набор ручных действий.
+
+Плохая release инструкция:
+
+```text
+1. install app
+2. откройте Customize Form
+3. создайте 14 fields
+4. измените permissions
+5. создайте Workflow
+6. добавьте Notification
+```
+
+Если эти элементы обязательны на каждом site, они должны быть доставляемы штатным механизмом App/fixtures/customizations/migrations.
+
+---
+
+## 19. Deployment/test design review
+
+```text
+1. Всё обязательное состояние App существует в Git или штатно экспортируется?
+2. Можно ли установить App на чистый site без ручного накликивания?
+3. Какие fixtures являются частью продукта?
+4. Какие customizations принадлежат site, а какие App?
+5. Какие schema/data migrations нужны?
+6. Есть ли manual production SQL? Почему?
+7. Какие version-specific features используются?
+8. Какие tests защищают собственные invariants?
+9. Проверяется ли clean install?
+10. Проверяется ли migrate с предыдущей версии?
+```
