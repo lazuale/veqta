@@ -199,7 +199,7 @@ bench --site rental.localhost show-config | grep allow_tests
 Если параметр отсутствует или выключен:
 
 ```bash
-bench --site rental.localhost set-config allow_tests true --parse
+bench --site rental.localhost set-config allow_tests 1 --parse
 ```
 
 Проверьте:
@@ -211,7 +211,7 @@ bench --site rental.localhost show-config | grep allow_tests
 Ожидаемый смысл:
 
 ```text
-allow_tests = true
+allow_tests = 1
 ```
 
 После этого:
@@ -804,7 +804,7 @@ concurrency race test
 
 ```text
 S06 честно не обещает race-condition protection
-→ S07 не должен писать тест,
+→ S07 не должен писать test,
   который делает вид, что такая гарантия уже существует
 ```
 
