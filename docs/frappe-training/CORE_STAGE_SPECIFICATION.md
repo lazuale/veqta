@@ -146,13 +146,15 @@ Rental
 ├── start_date      → Date
 ├── end_date        → Date
 ├── status          → Select
-└── items           → Table → Rental Item
+└── items           → Table MultiSelect → Rental Item
 
 Rental Item
 └── equipment       → Link → Equipment
 ```
 
 В CORE нет дополнительных самостоятельных DocTypes.
+
+`Rental Item` остаётся Child DocType, потому что `Table MultiSelect` во Frappe хранит выбранные ссылки через child-table модель. Обычный `Table` в CORE не нужен: у строки пока нет ни одного собственного бизнес-атрибута кроме ссылки на Equipment.
 
 ---
 
@@ -317,9 +319,11 @@ Submittable: no
 
 ## Fields
 
-| Label | Fieldname | Type | Required | Options |
-|---|---|---|---:|---|
-| Equipment | `equipment` | Link | yes | `Equipment` |
+| Label | Fieldname | Type | Required | Options | Дополнительно |
+|---|---|---|---:|---|---|
+| Equipment | `equipment` | Link | yes | `Equipment` | In List View = yes |
+
+`In List View` для `equipment` обязателен в этой модели: `Table MultiSelect` определяет целевой Link через Link-поле Child DocType, отмеченное для list view.
 
 В строке намеренно нет:
 
@@ -332,11 +336,20 @@ return_date
 comment
 ```
 
-Одна строка означает одну конкретную единицу Equipment. Новые поля появятся только после новых требований.
+Одна строка означает одну выбранную конкретную единицу Equipment. Новые поля появятся только после новых требований.
+
+Почему `Table MultiSelect`, а не обычный `Table`:
+
+```text
+текущее требование = выбрать несколько существующих Equipment
+строка отношения   = только Link → Equipment
+```
+
+У обычного `Table` появится основание, если строка начнёт хранить собственные данные отношения, например состояние при выдаче или цену на момент проката.
 
 ## ГОТОВО
 
-Rental Item существует только как часть Rental, а ученик может объяснить смысл `parent`, `parenttype`, `parentfield` и почему строке не нужен самостоятельный CRUD.
+Rental Item существует только как часть Rental, а ученик может объяснить смысл `parent`, `parenttype`, `parentfield`, `idx`, почему строке не нужен самостоятельный CRUD и почему текущему требованию точнее соответствует `Table MultiSelect`.
 
 ---
 
@@ -362,7 +375,7 @@ Track Changes: не требуется для CORE
 | Start Date | `start_date` | Date | yes | — | In List View |
 | End Date | `end_date` | Date | yes | — | In List View |
 | Status | `status` | Select | yes | `Planned\nActive\nReturned` | In List View |
-| Equipment | `items` | Table | yes | `Rental Item` | — |
+| Equipment | `items` | Table MultiSelect | yes | `Rental Item` | — |
 
 ## Default
 
@@ -501,6 +514,8 @@ Client Script не является единственной гарантией.
 Для одного `Rental.items` значения `equipment` должны быть уникальны.
 
 Владелец: `Rental` Controller.
+
+`Table MultiSelect` является подходящим UI/control для выбора набора, но серверный инвариант не делегируется клиентскому поведению.
 
 Отдельный Rule Engine не создаётся.
 
@@ -694,9 +709,11 @@ Form вообще существует
 ### ГОТОВО
 
 - Rental соответствует разделу 9;
-- Rental Item — Child DocType;
-- связи реализованы Link;
-- один Rental содержит минимум два Equipment.
+- Rental Item — минимальный Child DocType;
+- Customer реализован через `Link`;
+- набор Equipment реализован через `Table MultiSelect → Rental Item → Link → Equipment`;
+- один Rental содержит минимум два Equipment;
+- ученик объясняет, почему обычный `Table` пока не нужен.
 
 ---
 
@@ -845,7 +862,7 @@ custom frontend
 1. Поля минимальны и имеют предметный смысл?
 2. Не осталось ли поля, семантика которого нигде не используется?
 3. Naming отделён от изменяемого title?
-4. Child DocType действительно является составом Rental?
+4. Child DocType действительно является составом Rental, а Table MultiSelect соответствует текущей семантике набора ссылок?
 5. status не перепутан с Workflow/docstatus?
 6. Три собственных инварианта имеют серверного владельца?
 7. Permission model остаётся штатной и минимальной?
