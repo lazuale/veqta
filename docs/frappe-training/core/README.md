@@ -27,8 +27,8 @@
 | [`S02`](S02_EQUIPMENT_DOCTYPE.md) | `Equipment` как самостоятельный Standard DocType | написан |
 | [`S03`](S03_CUSTOMER_DOCTYPE.md) | `Customer` как второй самостоятельный Document | написан |
 | [`S04`](S04_RENTAL_COMPOSITION.md) | `Rental` + `Rental Item` + Link + Table MultiSelect | написан |
-| S05A | предметный status | следующий |
-| S05B | полный сценарий через Desk | запланирован |
+| [`S05A`](S05A_RENTAL_STATUS.md) | предметный `status` без Workflow/docstatus | написан |
+| S05B | полный сценарий через Desk | следующий |
 | S05C | серверные инварианты одного Rental | запланирован |
 | S05D | Roles / DocType Permissions | запланирован |
 | S06 | правило пересекающихся Active Rentals | запланирован |
@@ -40,75 +40,46 @@
 
 ## Текущая точка
 
-После успешного S04 приложение впервые содержит саму операцию проката:
-
-```text
-rental_training [App]
-└── Rental Training [Module]
-    ├── Equipment [DocType]
-    ├── Customer [DocType]
-    ├── Rental [DocType]
-    └── Rental Item [Child DocType]
-```
-
-Связи:
+После S05A центральная модель уже содержит предметное состояние:
 
 ```text
 Rental
-├── customer → Link → Customer
-├── start_date
-├── end_date
-└── items → Table MultiSelect → Rental Item
-                              └── equipment → Link → Equipment
+├── customer   → Link → Customer
+├── start_date → Date
+├── end_date   → Date
+├── status     → Select
+│                ├── Planned
+│                ├── Active
+│                └── Returned
+└── items      → Table MultiSelect → Rental Item
+                                     └── equipment → Link → Equipment
 ```
 
-S04 специально использует `Table MultiSelect`, а не обычный `Table`.
-
-Причина архитектурная, а не учебная:
+При этом S05A специально доказывает три разные ответственности:
 
 ```text
-текущее требование
-= выбрать несколько существующих Equipment
+business status
+= что сейчас происходит с Rental
+= Planned / Active / Returned
 
-Rental Item
-= только Link → Equipment
+Workflow
+= политика разрешённых переходов
+= пока отсутствует
+
+docstatus
+= системный Draft / Submitted / Cancelled lifecycle
+= для Rental остаётся 0 Draft
 ```
 
-Обычный `Table` появится только если у строки появятся собственные бизнес-атрибуты отношения. Мы не добавляем такие поля заранее ради знакомства с grid.
-
-Через `bench console` ученик уже должен увидеть, что компактный Table MultiSelect всё равно хранится как дочерние Documents с:
+Ученик должен руками увидеть через серверный API/console, что возможна запись:
 
 ```text
-parent
-parenttype
-parentfield
-idx
+status    = Returned
+docstatus = 0
 ```
 
-И уметь объяснить:
+и объяснить, почему это не противоречие.
 
-```text
-Rental = самостоятельный Document
-Rental Item = часть одного Rental
-Customer = живая Link-ссылка
-Equipment = живая Link-ссылка
-Table MultiSelect = набор Links через child-table модель
-обычный Table = пока не требуется текущей семантикой
-```
+Также S05A впервые изменяет уже существующий tracked Standard DocType: `rental.json` виден обычным `git diff`, после чего изменение фиксируется отдельным Git checkpoint.
 
-После S04 в `Rental` **ещё нет status**.
-
-Следующее реальное требование:
-
-> отличать запланированный прокат от активного и возвращённого.
-
-Оно приводит к S05A и обычному предметному полю:
-
-```text
-status → Select
-Planned
-Active
-Returned
-```
-
-без автоматического Workflow и без `Is Submittable`.
+После P04 ветки UI, status, серверные инварианты и permissions архитектурно независимы. В исполняемом маршруте следующей пишется S05B — проверка полного вертикального сценария через стандартный Desk, без собственного frontend.
