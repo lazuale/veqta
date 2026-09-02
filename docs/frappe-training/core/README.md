@@ -31,8 +31,8 @@
 | [`S05B`](S05B_DESK_VERTICAL_SCENARIO.md) | полный сценарий через стандартный Desk | написан |
 | [`S05C`](S05C_RENTAL_LOCAL_INVARIANTS.md) | серверные инварианты одного Rental | написан |
 | [`S05D`](S05D_ROLES_AND_PERMISSIONS.md) | `Rental Operator` / `Rental Manager` через Role + DocType Permissions | написан |
-| S06 | правило пересекающихся Active Rentals | следующий |
-| S07 | автоматические тесты контрактов | запланирован |
+| [`S06`](S06_ACTIVE_RENTAL_CONFLICT.md) | междокументный инвариант пересекающихся Active Rentals | написан |
+| S07 | автоматические тесты контрактов | следующий |
 | S08 | аудит App-owned состояния и миграций | запланирован |
 | S09 | чистая установка и финальная приёмка | запланирован |
 
@@ -40,21 +40,18 @@
 
 ## Текущая точка
 
-После S05D CORE уже имеет две независимые серверные гарантии.
-
-### Допустимость данных
+После S06 CORE имеет три бизнес-инварианта и базовую authorization model.
 
 ```text
-Rental
-      ↓
-Controller.validate()
-├── V01 end_date >= start_date
-└── V02 Equipment не повторяется внутри одного Rental
-```
+Rental.validate()
+├── V01 local
+│   └── end_date >= start_date
+├── V02 local
+│   └── Equipment не повторяется внутри Rental
+└── V03 cross-document
+    └── одно Equipment не может находиться
+        в пересекающихся Active Rentals
 
-### Авторизация
-
-```text
 User
   ↓ roles
 Rental Operator / Rental Manager
@@ -62,62 +59,40 @@ Rental Operator / Rental Manager
 Equipment / Customer / Rental
 ```
 
-S05D специально доказывает права не только через кнопки Desk, но и настоящими server-side операциями под `operator@example.test` и `manager@example.test`.
-
-Базовая матрица:
+Для V03 зафиксирована включительная семантика дат:
 
 ```text
-Rental Operator
-Equipment → Read
-Customer  → Read/Create/Write
-Rental    → Read/Create/Write
-
-Rental Manager
-Equipment → CRUD
-Customer  → CRUD
-Rental    → CRUD
+10–12 + 12–14 → конфликт
+10–12 + 13–14 → допустимо
 ```
 
-Обязательная permission model разделена по ownership:
+и предметная семантика статусов:
 
 ```text
-Role records
-→ fixtures App
-
-DocType default permissions
-→ Standard DocType JSON
-
-конкретные учебные Users
-→ Site only
+Planned  → не блокирует
+Active   → блокирует
+Returned → не блокирует
 ```
 
-Именно поэтому после S05D чистая установка не должна требовать вручную создавать `Rental Operator` / `Rental Manager` или заново накликивать default CRUD matrix.
+Внутренний validator использует `frappe.get_all()` намеренно, потому что целостность данных не должна зависеть от того, какие другие Rentals текущий пользователь видит в List. Пользовательские выборки при этом продолжают использовать permission-aware путь.
 
-Без требования не добавлены:
+S06 отдельно фиксирует границу:
 
 ```text
-Permission Level
-Permission Type
-If Owner
-User Permission
-Share
-permission_query_conditions
-has_permission hook
-custom ACL
-ignore_permissions=True
+последовательная validate-проверка
+≠
+полная concurrency/locking strategy
 ```
 
-Следующий этап — S06. Он соединит две уже готовые части модели:
+SQL-locks, reservation service и другие production-механизмы не добавляются без отдельного требования.
+
+Следующий этап — S07. На нём ручные проверки S05C, S05D и S06 должны превратиться в повторяемые автоматические контракты Frappe test runner:
 
 ```text
-status = Active
-+
-локально корректный Rental
-+
-поиск других Rentals
-        ↓
-V03: один Equipment не может находиться
-     в двух пересекающихся Active Rentals
+valid Rental
+invalid dates
+duplicate Equipment
+overlapping Active Rental
+non-overlapping Active Rental
+permissions
 ```
-
-Это будет первый междокументный инвариант CORE.
