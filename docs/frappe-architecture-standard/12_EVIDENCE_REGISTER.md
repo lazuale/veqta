@@ -619,20 +619,40 @@ https://docs.frappe.io/framework/user/en/guides/app-development/exporting-custom
 
 ---
 
-## 32. Тестирование
+## 32. Тестирование Frappe v16
 
 ### Источники
 
 - https://docs.frappe.io/framework/user/en/testing
-- https://docs.frappe.io/framework/user/en/guides/automated-testing/unit-testing
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/boilerplate/test_controller._py
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/tests/classes/integration_test_case.py
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/tests/classes/unit_test_case.py
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/tests/classes/context_managers.py
+- https://github.com/frappe/frappe/wiki/Migrating-to-version-16#tests
 
 ### Тип
 
-**[ДОКУМЕНТАЦИЯ FRAPPE]**
+**[ДОКУМЕНТАЦИЯ FRAPPE] + [ИСХОДНЫЙ КОД] + [РЕЛИЗ FRAPPE / MIGRATION GUIDE]**
 
 ### Что подтверждает
 
-Test runner Frappe, `FrappeTestCase`, тестовые сайты, тестовые записи и `bench run-tests`.
+- Frappe имеет штатный test runner и `bench --site ... run-tests`;
+- current v16 Standard DocType boilerplate использует `IntegrationTestCase`;
+- `IntegrationTestCase` предназначен для tests, взаимодействующих с БД/Documents, и предоставляет test DB setup/teardown;
+- `UnitTestCase` подходит для логики без БД;
+- boilerplate поддерживает `EXTRA_TEST_RECORD_DEPENDENCIES` и `IGNORE_TEST_RECORD_DEPENDENCIES`;
+- `self.set_user(user)` временно меняет user context и восстанавливает предыдущего пользователя;
+- старый `FrappeTestCase` deprecated в v16 и должен быть заменён перед v17.
+
+### Архитектурное следствие
+
+Для нового App на v16 DB/Document tests должны начинаться с актуального `IntegrationTestCase`, а не со старого примера `FrappeTestCase`. Тесты должны защищать собственные контракты App и не зависеть от случайно существующих ручных данных dev-site.
+
+### Что НЕ подтверждает
+
+- любой test обязан быть integration test;
+- ручной `commit` нужен в каждом test;
+- зелёный integration suite автоматически доказывает отсутствующую concurrency guarantee.
 
 ---
 
