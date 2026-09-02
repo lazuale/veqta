@@ -29,8 +29,8 @@
 | [`S04`](S04_RENTAL_COMPOSITION.md) | `Rental` + `Rental Item` + Link + Table MultiSelect | написан |
 | [`S05A`](S05A_RENTAL_STATUS.md) | предметный `status` без Workflow/docstatus | написан |
 | [`S05B`](S05B_DESK_VERTICAL_SCENARIO.md) | полный сценарий через стандартный Desk | написан |
-| S05C | серверные инварианты одного Rental | следующий |
-| S05D | Roles / DocType Permissions | запланирован |
+| [`S05C`](S05C_RENTAL_LOCAL_INVARIANTS.md) | серверные инварианты одного Rental | написан |
+| S05D | Roles / DocType Permissions | следующий |
 | S06 | правило пересекающихся Active Rentals | запланирован |
 | S07 | автоматические тесты контрактов | запланирован |
 | S08 | аудит App-owned состояния и миграций | запланирован |
@@ -40,64 +40,71 @@
 
 ## Текущая точка
 
-После S05B центральная модель уже доказала не только структуру, но и пригодность для реальной внутренней работы через штатный Desk:
+После S05C центральная модель впервые защищает себя на серверном Document path:
 
 ```text
-Equipment List / Form
-        ↓
-Customer List / Form
-        ↓
-Rental Form
-├── Customer Link
-├── Date fields
+Rental
+├── customer
+├── start_date
+├── end_date
 ├── status
-└── Equipment Table MultiSelect
-        ↓
-Save
-        ↓
-Rental List
-├── filters
-├── reopen
-└── edit
+└── items
+      ↓
+Controller.validate()
+├── validate_date_range()
+└── validate_duplicate_equipment()
 ```
 
-При этом никакой новый UI-слой не появился:
+Зафиксированы два локальных инварианта:
 
 ```text
-Workspace        → не требуется текущему сценарию
-Client Script    → не требуется
-custom List JS   → не требуется
-custom Page      → не требуется
-SPA              → не требуется
+V01  end_date >= start_date
+V02  Equipment не повторяется внутри одного Rental
 ```
 
-Ключевая проверка S05B — после обычной работы с бизнес-записями:
+Они проверяются не только через Form, но и через обычный серверный:
 
-```bash
-git -C apps/rental_training status --short
+```python
+Document.insert()
 ```
 
-остаётся пустым.
-
-Ученик должен объяснить границу:
+Это принципиальная граница:
 
 ```text
-DocType metadata / controller / обязательная config
-= App-owned state
-= source + Git
+Client Script
+= удобство конкретного UI
 
-конкретные Equipment / Customer / Rental
-= runtime data конкретного Site
-= не source App
+Controller.validate()
+= обязательное поведение собственного Rental на обычном Document path
 ```
 
-S05B выполняется под Administrator только для проверки UI-сценария. Это **не** считается доказательством корректных permissions — роли и реальные серверные ограничения проверяются отдельно на S05D.
+S05C не меняет DocType schema: меняется только App-owned `rental.py`. Поэтому этап специально не приучает выполнять `bench migrate` после любого Python-изменения.
 
-После P04 ветки UI, status, серверные инварианты и permissions архитектурно независимы. В исполняемом маршруте следующей пишется S05C: два настоящих инварианта одного Rental должны впервые привести нас к серверному Python Controller:
+В Controller нет:
 
 ```text
-end_date >= start_date
-Equipment не повторяется внутри одного Rental
+frappe.db.commit()
+ignore_permissions=True
+ручного SQL
+Rule Engine
+Server Script
+проверки других Rentals
 ```
 
-Собственный код появляется не как очередная ступень курса, а потому что возникла новая ответственность, которую metadata сама по себе не гарантирует.
+Последний пункт оставлен S06: междокументный конфликт — отдельная ответственность.
+
+После P04 ветки UI, status, локальные инварианты и permissions архитектурно независимы. Следующая исполняемая ветка — S05D:
+
+```text
+Rental Operator
+Rental Manager
+      ↓
+Role + DocType Permissions
+```
+
+Она должна доказать уже другой контракт:
+
+```text
+S05C → какие Documents допустимы
+S05D → кто какие операции может выполнять
+```
