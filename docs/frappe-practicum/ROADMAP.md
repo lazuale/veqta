@@ -9,7 +9,7 @@ Site:   facility-ops.localhost
 Module: Facility Operations
 ```
 
-Core:
+Предметное ядро:
 
 ```text
 Facility Location
@@ -17,11 +17,9 @@ Equipment
 Service Request
 ```
 
-Формальные гарантии: [INVARIANTS.md](INVARIANTS.md).
-
 ---
 
-# Последовательность
+# 1. Последовательность
 
 ```text
 L0 платформа
@@ -33,18 +31,54 @@ L0 платформа
 → L6 collaboration
 → L7 Workflow
 → L8 control
-→ L9 automation
+→ L9 standard automation
 → L10 Web Form intake
 → L11 portability
 ```
+
+Каждый следующий урок использует результат предыдущего:
 
 ```text
 OUTPUT(Ln) ⊇ PRECONDITIONS(Ln+1)
 ```
 
+Но курс не пытается добавить в основное приложение каждую возможность Frappe. Механизмы без естественного места в `facility_ops` уходят в Labs или Later.
+
 ---
 
-# Финальная security model
+# 2. Методический цикл урока
+
+Новый механизм появляется только после требования:
+
+```text
+задача
+→ какая ответственность нужна
+→ штатный механизм Frappe
+→ практическая настройка
+→ положительная проверка
+→ отрицательная проверка
+→ граница механизма
+→ итоговое состояние
+```
+
+Пример:
+
+```text
+нужна иерархия мест
+→ Tree DocType
+
+нужно назначить конкретного пользователя
+→ Assign To / ToDo
+
+нужно ограничить переходы статуса
+→ Workflow
+```
+
+---
+
+# 3. Итоговая модель доступа `Service Request`
+
+Это решение конкретного учебного приложения, а не обязательный шаблон Frappe.
 
 ## Level 0 — Document
 
@@ -54,9 +88,9 @@ Technician  → Read/Write; Create/Delete No
 Supervisor  → Read/Write/Create; Delete No; Report/Export
 ```
 
-## Level 1 — Business content
+## Permission Level 1 — business content
 
-Fields:
+Поля:
 
 ```text
 subject
@@ -68,50 +102,45 @@ target_date
 attachment
 ```
 
-Permissions:
-
 ```text
 Requester   → Read/Write
 Technician  → Read only
 Supervisor  → Read/Write
 ```
 
-## Level 2 — Process state
+## Status
 
-Field:
+До L7:
 
 ```text
-status
+status = обычный Select на Permission Level 0
 ```
 
-Permissions:
+После L7:
 
 ```text
-Requester   → Read only
-Technician  → Read/Write
-Supervisor  → Read/Write
+Workflow = transition authority
+status Read Only = UI guard
 ```
 
-## После L7
+## Assignment
 
 ```text
-Workflow Allowed Role / Condition
-→ дополнительный server transition gate
+Assignment / ToDo = responsibility
 ```
 
 Итог:
 
 ```text
-Level 0 = document authority
-Level 1 = business-content authority
-Level 2 = process-state field authority
-Workflow = concrete transition authority
-Assignment = responsibility only
+Role Permission    = Document authority
+Permission Level 1 = content-field authority
+Workflow           = transition authority
+Assignment         = responsibility
 ```
 
 ---
 
-# Общие data invariants
+# 4. Общие data invariants
 
 Mandatory:
 
@@ -136,7 +165,7 @@ Closed
 Accepted ≠ Assigned To
 ```
 
-Location:
+Location semantics:
 
 ```text
 Service Request.location = historical event location
@@ -145,102 +174,138 @@ Equipment.location       = current location
 
 ---
 
-# L0. Основа
+# L0. Основа приложения
 
-Bench, app, site, Module, Developer Mode, Desk, Git.
+Изучаем:
+
+```text
+Bench
+App
+Site
+Module
+Developer Mode
+Desk
+Git
+Standard DocType metadata
+Document data
+```
+
+Scheduler/workers только наблюдаются как часть платформы. Собственные фоновые задачи здесь не проектируются.
+
+Ключевой результат:
+
+```text
+Standard metadata → app source / Git
+Document          → site database
+```
 
 ---
 
 # L1. Facility Location
 
-Tree структуры мест.
+Задача: представить иерархию мест.
+
+Выбор:
+
+```text
+Tree DocType
+```
+
+Не создаём отдельные `Building`, `Floor`, `Room` только потому, что в предметной речи это разные слова.
+
+Изучаем Naming и отрицательный сценарий одинаковых `name`.
 
 ---
 
 # L2. Equipment
 
-Category:
+Добавляем самостоятельный `Equipment` и связываем его с местом через `Link`.
+
+Ключевая граница:
 
 ```text
-HVAC
-Electrical
-IT
-Other
+Link
+= ссылка на самостоятельный Document
 ```
 
-Status:
-
-```text
-Active
-Out of Service
-Retired
-```
+Track Changes используется как штатная история изменений, а не создаётся свой history registry.
 
 ---
 
 # L3. Data operations
 
-Filters, Sorting, Saved Filters, Data Import, negative import, Export, Bulk Edit.
+```text
+Filters
+Sorting
+Saved Filters
+Data Import
+negative import
+Export
+Bulk Edit
+```
 
-Импортировать 10 дополнительных Equipment.
+Изменяем рабочие Documents, а не схему приложения.
 
 ---
 
 # L4. Service Request
 
-Создать третий core DocType.
+Создаём третий и последний постоянный предметный `DocType`.
 
-До L5 fields ещё на baseline metadata permission level; permission architecture вводится следующим уроком.
+Ключевые решения:
 
-До L7 Status — обычный Select.
+```text
+Location обязательна
+Equipment optional
+Attach используется для файла
+Track Changes используется для истории
+Status пока обычный Select
+Assignment ещё отсутствует
+```
+
+Отдельно доказываем:
+
+```text
+Select ≠ state machine
+```
+
+До L7 пользователь с обычным `Document Write` может сделать нелогичный переход, например `New → Closed`. Это не баг урока, а подготовка к пониманию Workflow.
 
 ---
 
-# L5. Permissions
+# L5. Users and Permissions
 
-Создать роли и основных Users.
+Создаём роли и пользователей.
 
-Перестроить `Service Request`:
+`Permission Level 1` вводится **не как универсальная схема**, а чтобы решить конкретное требование:
 
 ```text
-business fields → Permission Level 1
-status          → Permission Level 2
+Technician должен работать с заявкой
+но не переписывать исходное содержание
 ```
 
-Создать exact Level 0/1/2 Role Permission rows.
-
-Ключевые proofs:
+Поэтому:
 
 ```text
-Requester
-→ заполняет новый Level1 content
-→ Status видит как New, но не выбирает произвольный Level2 state
-→ после insert не save existing Document
-
-Technician
-→ Level0 document Write
-→ Level1 content read-only
-→ Level2 status Write
-
-Supervisor
-→ Level1 + Level2 Write
-→ no Delete
+business content → Permission Level 1
+status           → Permission Level 0
 ```
 
-Temporary:
+Временно изучаем и откатываем:
 
 ```text
-Supervisor Delete Yes → test → No
-Restricted Technician
+Delete
 User Permission
 Share
 ```
 
-Все откатываются до L6.
+L5 сознательно **не решает допустимость переходов Status**. Эту ответственность получает Workflow только в L7.
 
 ---
 
 # L6. Collaboration
+
+Изучаем:
 
 ```text
 Assign To
@@ -251,23 +316,29 @@ Tags
 Kanban
 ```
 
-До Workflow:
+Главные отрицательные выводы:
 
 ```text
-Technician/Supervisor
-→ могут менять Level2 Status как обычный Select
-
-Requester
-→ Level2 Write не имеет
+Assignment ≠ authorization
+Assignment ≠ Status
+ToDo Closed ≠ Service Request Closed
+Form/List/Kanban ≠ разные permission models
 ```
 
-Так доказательство `Select ≠ state machine` не требует давать Requester state authority.
-
-Assignment не меняет Level 1/2 permissions.
+До L7 `status` остаётся обычным Select для Technician/Supervisor с `Document Write`.
 
 ---
 
 # L7. Workflow
+
+Проблема предыдущего состояния:
+
+```text
+Select допускает любые значения
+но не описывает допустимые переходы
+```
+
+Добавляем Workflow:
 
 ```text
 New --Accept/Supervisor--> Accepted
@@ -276,78 +347,90 @@ In Progress --Resolve/Technician--> Resolved
 Resolved --Close/Supervisor--> Closed
 ```
 
-`status` остаётся Level 2 и становится Read Only в Desk.
-
-Теперь для смены state нужны одновременно:
+Используем существующее поле:
 
 ```text
-Level 0 Write
-Level 2 Write
-valid Workflow transition
+Workflow State Field = status
 ```
 
-Technician при этом Level 1 Write не получает.
+Не создаём второе `workflow_state` только ради Workflow.
 
-Desk edit roles:
+После включения:
 
 ```text
-New         → Supervisor
-Accepted    → Technician
-In Progress → Technician
-Resolved    → Supervisor
-Closed      → Supervisor
+Workflow validation
+→ server transition boundary
+
+status Read Only
+→ UI guard
+
+Only Allow Edit For
+→ Desk state guard
 ```
 
-Kanban после сравнения удалить.
+`Permission Level 1` продолжает отдельно защищать content Technician.
 
 ---
 
 # L8. Control
 
+Создаём:
+
 ```text
-Service Requests Overview
-Open Requests
-High Priority Requests
-Closed Requests
-Service Requests by Status
-Facility Operations Control
+Report Builder
+Number Cards
+Dashboard Chart
+Workspace
 ```
 
-Analytics не создаёт permission exceptions.
+Главный выбор:
+
+```text
+те же Service Request
+→ разные представления и агрегаты
+```
+
+Не создаём отдельные `Analytics Request`, `Summary Table` или `Dashboard Data` ради простого контроля.
 
 ---
 
-# L9. Automation
+# L9. Standard automation
 
-Создать `technician.two@example.com`.
-
-Notifications:
+Изучаем штатные декларативные автоматизации:
 
 ```text
-New Service Request
-Service Request One Day Overdue
-```
-
-Assignment Rule:
-
-```text
+Notification
+Assignment Rule
 Round Robin
-Technician One / Technician Two
+scheduler-triggered date behavior
 ```
 
-Automation не расширяет Level 1/2 authority.
+Создаём второго Technician только здесь, когда он нужен для Round Robin.
 
-Target Date = Level 1 conditional input.
+Ключевые границы:
 
-Assignment Rule site-specific.
+```text
+Automation ≠ permission escalation
+Assignment Rule ≠ Workflow
+Target Date remains content field
+```
+
+Core не пишет собственную Background Job. `frappe.enqueue`, `enqueue_after_commit` и программная идемпотентность относятся к Later.
 
 ---
 
 # L10. Web Form
 
-`Report a Facility Issue`.
+`Report a Facility Issue` работает поверх того же `Service Request`.
 
-Final:
+Главная идея:
+
+```text
+канал представления/создания
+≠ новая бизнес-сущность
+```
+
+Финал:
 
 ```text
 Published = Yes
@@ -358,93 +441,113 @@ Allow Edit = No
 Apply Document Permissions = No
 ```
 
-Desk create и Web Form insert — разные paths.
+Различаем:
 
-Web Form new insert использует `ignore_permissions=True`, поэтому не является proof Level 0/1/2 permissions.
+```text
+Desk create
+→ ordinary Role Permission path
 
-`Status` в Web Form отсутствует; новый Document получает default `New`.
+Web Form create
+→ separate Web Form capability
+```
 
-Final `Allow Edit = No` закрывает bypass update path поверх Level 1/2 protection.
+`Login Required` означает authentication, а не специальное business permission.
+
+Подробности exact `ignore_permissions=True` нужны для доказательства границы механизма, но ученик прежде всего должен удержать именно эту ментальную модель.
 
 ---
 
 # L11. Portability
 
+Разделяем:
+
+```text
+Standard source
+universal app configuration
+site-specific configuration
+working data
+```
+
 Поставляются:
 
 ```text
 Standard source
-→ field permlevels 1/2
+→ DocTypes + field permlevel + Standard UI/config
 
 fixtures
 → Roles + Workflow
 
-exported Custom DocPerm
-→ Level 0 + Level 1 + Level 2
+exported customizations
+→ Custom DocPerm Level 0/1
 ```
 
-Clean-site proofs:
+На clean site вручную проверяются:
 
 ```text
-Requester Desk
-→ Level0 Create + Level1 input + Level2 New/read-only + no post-save Write
-
-Technician
-→ Level1 read-only + Level2 Write + Workflow works
-
-Supervisor
-→ Level1/2 Write + no Delete
-
-Website User
-→ separate Web Form intake
+Requester Desk create/read-own/no-write
+Technician Level 1 content read-only + Workflow
+Supervisor content/process authority + no Delete
+Website User Web Form intake
 ```
 
-После проверки:
-
-```bash
-bench use facility-ops.localhost
-```
+Это проверка воспроизводимости приложения. Automated Frappe tests — Later.
 
 ---
 
 # Labs A–F
 
-Labs не должны ослаблять:
+Labs не должны менять архитектуру только ради покрытия функций.
+
+```text
+A → Child Table
+B → DocStatus
+C → Auto Repeat
+D → Customize Form / Custom Field / Property Setter
+E → Print / PDF
+F → special fields/views + DocType Layout [v16+]
+```
+
+Если Lab меняет `Service Request`, после rollback сохраняются:
 
 ```text
 Level 0 matrix
-Level 1 matrix
-Level 2 matrix
+Permission Level 1 matrix
 Workflow
 ```
 
-Временный business-content field/table получает явный Permission Level и rollback.
+---
+
+# Later
+
+Следующий блок курса может начинаться только после основного маршрута:
+
+```text
+Controller / validation
+Client Script / Server Script
+Permission Types [v16+]
+custom permission hooks
+REST / whitelisted methods / Webhooks
+Background Jobs / enqueue_after_commit
+Realtime API
+Query / Script Reports
+Virtual DocType
+automated Frappe tests
+```
+
+Эти механизмы не являются «нештатными». Они просто требуют ответственности, которой в базовом no-code приложении ещё нет.
 
 ---
 
 # Финальный gate
 
+Ученик проходит Core, если может на новом требовании объяснить:
+
 ```text
-L5
-→ exact Level0/1/2 model
-
-L6
-→ assignment не меняет authority
-→ Requester не получает Status Write
-
-L7
-→ Level2 field authority + Workflow transition authority разделены
-→ Technician state transitions работают без Level1 content Write
-
-L9
-→ automation не повышает permissions
-
-L10
-→ Web Form bypass create отделён от Desk permissions
-→ final update Off
-
-L11
-→ Level0/1/2 metadata + Custom DocPerm восстановлены на clean site
+1. Какую ответственность нужно реализовать?
+2. Какой штатный механизм Frappe соответствует её смыслу?
+3. Что этот механизм реально гарантирует?
+4. Что он НЕ гарантирует?
+5. Принадлежит результат App, Site или working data?
 ```
 
-После design consistency выполняется execution-аудит на фактическом `v16.32.0` стенде.
+Если ученик умеет только воспроизвести настройки `facility_ops`, но не может сделать этот выбор для новой задачи, практикум методически не принят.
