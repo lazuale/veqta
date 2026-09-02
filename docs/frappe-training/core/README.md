@@ -28,8 +28,8 @@
 | [`S03`](S03_CUSTOMER_DOCTYPE.md) | `Customer` как второй самостоятельный Document | написан |
 | [`S04`](S04_RENTAL_COMPOSITION.md) | `Rental` + `Rental Item` + Link + Table MultiSelect | написан |
 | [`S05A`](S05A_RENTAL_STATUS.md) | предметный `status` без Workflow/docstatus | написан |
-| S05B | полный сценарий через Desk | следующий |
-| S05C | серверные инварианты одного Rental | запланирован |
+| [`S05B`](S05B_DESK_VERTICAL_SCENARIO.md) | полный сценарий через стандартный Desk | написан |
+| S05C | серверные инварианты одного Rental | следующий |
 | S05D | Roles / DocType Permissions | запланирован |
 | S06 | правило пересекающихся Active Rentals | запланирован |
 | S07 | автоматические тесты контрактов | запланирован |
@@ -40,46 +40,64 @@
 
 ## Текущая точка
 
-После S05A центральная модель уже содержит предметное состояние:
+После S05B центральная модель уже доказала не только структуру, но и пригодность для реальной внутренней работы через штатный Desk:
 
 ```text
-Rental
-├── customer   → Link → Customer
-├── start_date → Date
-├── end_date   → Date
-├── status     → Select
-│                ├── Planned
-│                ├── Active
-│                └── Returned
-└── items      → Table MultiSelect → Rental Item
-                                     └── equipment → Link → Equipment
+Equipment List / Form
+        ↓
+Customer List / Form
+        ↓
+Rental Form
+├── Customer Link
+├── Date fields
+├── status
+└── Equipment Table MultiSelect
+        ↓
+Save
+        ↓
+Rental List
+├── filters
+├── reopen
+└── edit
 ```
 
-При этом S05A специально доказывает три разные ответственности:
+При этом никакой новый UI-слой не появился:
 
 ```text
-business status
-= что сейчас происходит с Rental
-= Planned / Active / Returned
-
-Workflow
-= политика разрешённых переходов
-= пока отсутствует
-
-docstatus
-= системный Draft / Submitted / Cancelled lifecycle
-= для Rental остаётся 0 Draft
+Workspace        → не требуется текущему сценарию
+Client Script    → не требуется
+custom List JS   → не требуется
+custom Page      → не требуется
+SPA              → не требуется
 ```
 
-Ученик должен руками увидеть через серверный API/console, что возможна запись:
+Ключевая проверка S05B — после обычной работы с бизнес-записями:
+
+```bash
+git -C apps/rental_training status --short
+```
+
+остаётся пустым.
+
+Ученик должен объяснить границу:
 
 ```text
-status    = Returned
-docstatus = 0
+DocType metadata / controller / обязательная config
+= App-owned state
+= source + Git
+
+конкретные Equipment / Customer / Rental
+= runtime data конкретного Site
+= не source App
 ```
 
-и объяснить, почему это не противоречие.
+S05B выполняется под Administrator только для проверки UI-сценария. Это **не** считается доказательством корректных permissions — роли и реальные серверные ограничения проверяются отдельно на S05D.
 
-Также S05A впервые изменяет уже существующий tracked Standard DocType: `rental.json` виден обычным `git diff`, после чего изменение фиксируется отдельным Git checkpoint.
+После P04 ветки UI, status, серверные инварианты и permissions архитектурно независимы. В исполняемом маршруте следующей пишется S05C: два настоящих инварианта одного Rental должны впервые привести нас к серверному Python Controller:
 
-После P04 ветки UI, status, серверные инварианты и permissions архитектурно независимы. В исполняемом маршруте следующей пишется S05B — проверка полного вертикального сценария через стандартный Desk, без собственного frontend.
+```text
+end_date >= start_date
+Equipment не повторяется внутри одного Rental
+```
+
+Собственный код появляется не как очередная ступень курса, а потому что возникла новая ответственность, которую metadata сама по себе не гарантирует.
