@@ -607,15 +607,27 @@ Planned → Active при конфликте              → ошибка
 
 # 12. Этап 7 — зафиксировать контракты автоматическими тестами
 
+**Исполняемая инструкция:** [`core/S07_AUTOMATED_CONTRACT_TESTS.md`](core/S07_AUTOMATED_CONTRACT_TESTS.md).
+
 **Опорный узел:** `P10`.
 
-**Покрывает:** обязательные инварианты CORE.
+**Покрывает:** `R23` и обязательные инварианты/permissions CORE.
 
 **Зависит от:** этапов 5C, 5D и 6.
 
 ## Требование
 
 Критические правила должны проверяться повторяемо без ручного прокликивания.
+
+## Механизм
+
+Для DB/Document/permission сценариев актуального Frappe v16 используется Frappe-aware integration test:
+
+```python
+from frappe.tests import IntegrationTestCase
+```
+
+и штатный Bench test runner.
 
 ## Тестируем минимум
 
@@ -624,18 +636,22 @@ Planned → Active при конфликте              → ошибка
 end_date < start_date запрещён
 дубликат Equipment в одном Rental запрещён
 пересекающийся Active Rental запрещён
-непересекающийся Rental разрешён
+общая граничная дата считается конфликтом
+непересекающийся Active Rental разрешён
+Planned overlap разрешён
+self-save Active Rental разрешён
+Operator не может создавать Equipment
+Operator может create/write Rental и не может delete
+Manager может CRUD Equipment
 ```
 
-Permission-сценарии добавляются там, где они являются контрактом приложения и могут быть стабильно проверены.
-
-## Механизм
-
-Frappe test runner и Frappe-aware tests.
+Тестовые Customer/Equipment/Users создаются самим test case и не зависят от вручную заполненного dev-site.
 
 ## Проверка
 
-Тесты запускаются штатной командой Bench и проходят на учебном Site.
+1. Полный App suite проходит через `bench --site ... run-tests --app rental_training`.
+2. Ученик намеренно ломает одно собственное правило и получает красный test.
+3. После восстановления правила suite снова зелёный.
 
 ## Архитектурный вывод
 
@@ -645,39 +661,51 @@ Frappe test runner и Frappe-aware tests.
 
 # 13. Этап 8 — аудит владения и доставки состояния App
 
+**Исполняемая инструкция:** [`core/S08_APP_STATE_DELIVERY_AUDIT.md`](core/S08_APP_STATE_DELIVERY_AUDIT.md).
+
 **Опорный узел:** `P11`.
 
-**Зависит от:** сформированной модели и permissions.
+**Покрывает:** `R21`, `R22`.
+
+**Зависит от:** сформированной CORE-модели, permissions и этапа 7 как контрольной проверки поведения.
 
 ## Требование
 
-Всё обязательное состояние приложения должно быть понятно откуда берётся и как попадает на другой Site.
+Всё обязательное состояние приложения должно иметь понятного владельца, source of truth и штатный путь доставки на другой Site.
 
-## Ученик классифицирует каждый элемент
-
-```text
-Standard metadata
-source code
-fixture/config
-site-local customization
-runtime/transaction data
-```
-
-## Проверка
-
-Для каждого обязательного элемента ответить:
+## Ученик строит delivery manifest
 
 ```text
-кто владелец?
-где source of truth?
-как попадает на чистый Site?
+Module                    → modules.txt
+Standard DocTypes         → DocType JSON
+fields/naming/default ACL → Standard metadata
+V01/V02/V03               → rental.py
+Role                      → hooks.py + fixtures/role.json
+tests                     → test_rental.py
+
+Users/business records    → Site database
+developer_mode/allow_tests→ Site config
 ```
 
-Если ответ: «после установки надо ещё вручную накликать вот это обязательное поле», этап не принят.
+## Проверки
+
+1. Все обязательные App-owned файлы находятся в Git.
+2. Для CORE DocTypes отсутствует скрытая обязательная зависимость от `Custom Field`, `Property Setter` и `Custom DocPerm`.
+3. `export-fixtures` повторно даёт тот же committed Role fixture и не оставляет необъяснённый Git diff.
+4. Users и business Documents не экспортированы fixtures.
+5. `bench migrate` проходит без ручного SQL и повторного накликивания обязательной модели.
+6. После migrate автоматические tests остаются зелёными.
+7. App Git снова clean.
+
+## Почему patch пока не нужен
+
+CORE формирует первый baseline приложения. Dev/test Site, на котором модель менялась во время обучения, не объявлен поддерживаемой предыдущей production-версией. Поэтому patch не создаётся только ради демонстрации механизма.
+
+Patch становится обязательным, когда реальная новая версия требует одноразово преобразовать существующие данные поддерживаемой старой версии.
 
 ## Архитектурный вывод
 
-Воспроизводимость — часть архитектуры приложения, а не последняя DevOps-операция.
+Воспроизводимость — часть архитектуры App. `migrate`, fixtures и patches имеют разные ответственности и не заменяют друг друга.
 
 ---
 
@@ -707,10 +735,12 @@ runtime/transaction data
 + repository rental_training
 + install-app
 + migrate
-= обязательная структура приложения
++ tests
++ основной сценарий
+= воспроизводимый CORE
 ```
 
-После этого основные операции работают без ручного восстановления схемы через UI.
+После установки обязательная модель, Role и permissions существуют без ручного восстановления схемы через UI.
 
 ## Архитектурный вывод
 
