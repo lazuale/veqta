@@ -367,19 +367,34 @@ Scheduler/background job появляется только если конкре
 
 Другой Site после установки должен получить те же обязательные элементы.
 
-Первый путь: Standard DocType JSON, fixtures/exported configuration по смыслу, `bench migrate`.
+Source of truth CORE разделён по штатной семантике:
+
+```text
+Module                        → modules.txt
+Standard DocTypes             → DocType JSON
+fields/naming/default DocPerm → Standard metadata
+Controller                    → Python source
+Role                          → filtered fixture
+Users/business data           → Site-local, не fixtures
+```
+
+**Проверка:** у обязательного элемента должен быть понятный owner/source/delivery path; скрытый ручной шаг dev-site не принимается.
 
 ---
 
 ## R22. Изменение модели не требует ручного SQL
 
-Schema sync выполняется через migrate; `patch` применяется, когда существующие данные действительно надо преобразовать.
+Schema sync выполняется через `migrate`; fixture/config синхронизируются штатными механизмами App. `patch` применяется, когда существующие данные поддерживаемой предыдущей версии действительно надо преобразовать.
+
+**Граница:** patch не создаётся ради знакомства с механизмом и не нужен только потому, что на dev-site во время разработки уже были тестовые записи.
 
 ---
 
 ## R23. Критические правила защищены тестами
 
 Тестируются собственные инварианты и permissions, а не Framework ради coverage.
+
+Для DB/Document/permission сценариев v16 используется актуальный `IntegrationTestCase`.
 
 ---
 
@@ -441,9 +456,12 @@ fork Frappe
 8. Concurrency boundary V03 названа честно?
 9. Права начинаются со штатных permissions?
 10. UI следует за моделью?
-11. API не дублирует стандартный CRUD без причины?
-12. App и Site не смешаны?
-13. Финал проверяется на чистом Site?
+11. Обязательное App-owned состояние имеет source of truth и delivery path?
+12. Runtime Users/business data не выданы за fixtures продукта?
+13. Patch появляется только из реальной data migration?
+14. API не дублирует стандартный CRUD без причины?
+15. App и Site не смешаны?
+16. Финал проверяется на чистом Site?
 ```
 
 Если какой-то ответ отрицательный, исправляется архитектура, а не дорожная карта.
