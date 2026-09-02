@@ -143,11 +143,7 @@ Rental.items          → Table MultiSelect → Rental Item
 Rental Item.equipment → Link → Equipment
 ```
 
-`Rental Item.equipment` отмечен `In List View`, потому что Frappe определяет конечный Link Table MultiSelect через Link-поле Child DocType, отмеченное для list view.
-
-Почему не обычный `Table`: в текущем требовании строка содержит только ссылку на Equipment и не несёт собственных бизнес-атрибутов отношения. Если такие атрибуты появятся, выбор пересматривается.
-
-Здесь в одном сценарии естественно встречаются обычный DocType, Child DocType, Link и Table MultiSelect — не потому, что их нужно «пройти», а потому что они выражают разные части модели.
+Текущее требование — выбрать несколько существующих Equipment, а child row содержит только Link. Поэтому `Table MultiSelect` точнее обычного `Table`; если у строки появятся собственные данные отношения, выбор пересматривается.
 
 ---
 
@@ -175,7 +171,7 @@ Returned
 
 **Зависит от:** `P04`.
 
-Проверяются `Form`, `List`, Link controls, Table MultiSelect control и фильтры.
+Проверяются `Form`, `List`, Link controls, Table MultiSelect и фильтры.
 
 Результат: основной сценарий работает без собственного frontend.
 
@@ -194,11 +190,13 @@ end_date >= start_date
 одно Equipment не повторяется дважды в Rental
 ```
 
+Оба правила должны быть доказаны через обычный серверный `Document.insert()`, а не только через Form.
+
 Ключ:
 
 ```text
 Client Script       = UX
-Controller.validate = гарантия модели
+Controller.validate = гарантия модели на обычном Document path
 ```
 
 ---
@@ -259,6 +257,7 @@ permissions
 ```text
 обязательные Standard DocTypes находятся в App
 метаданные под Git
+Controller под Git
 обязательная конфигурация доставляется штатно
 нет скрытых ручных изменений dev-site
 нет ручного SQL как обычного шага релиза
