@@ -41,7 +41,7 @@ Purchase Request
 
 Для `Workflow` и `docstatus` опорными являются:
 
-- [официальная документация Workflow](https://docs.frappe.io/erpnext/user/manual/en/workflows);
+- [официальная документация Workflow](https://docs.frappe.io/erpnext/workflows);
 - [`frappe/model/workflow.py` v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/workflow.py);
 - [`frappe/workflow/doctype/workflow/workflow.py` v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/workflow/doctype/workflow/workflow.py).
 
