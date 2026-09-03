@@ -122,7 +122,9 @@ Email не является условием существования само
 | `PLT Rejected` | 0 | `PLT Requester` |
 | `PLT Approved` | 0 | `PLT Approver` |
 
-Порядок важен: первый state с `docstatus = 0` используется Workflow как начальное состояние для нового local Document.
+Порядок важен: если у нового Document Workflow State ещё не установлен, `validate_workflow()` использует первую строку `states` как начальное состояние. Поэтому `PLT Draft` должен быть первой строкой Workflow.
+
+Источник: [`validate_workflow()` v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/workflow.py).
 
 На этом этапе `PLT Approved` **не Submitted**:
 
