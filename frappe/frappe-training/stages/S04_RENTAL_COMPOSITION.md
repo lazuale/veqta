@@ -33,9 +33,9 @@ Rental.items
 
 - [`S02_EQUIPMENT_DOCTYPE.md`](S02_EQUIPMENT_DOCTYPE.md);
 - [`S03_CUSTOMER_DOCTYPE.md`](S03_CUSTOMER_DOCTYPE.md);
-- [`../CORE_STAGE_SPECIFICATION.md`](../CORE_STAGE_SPECIFICATION.md);
-- [`../REQUIREMENTS_MATRIX.md`](../REQUIREMENTS_MATRIX.md);
-- [`../PRACTICUM_ROADMAP.md`](../PRACTICUM_ROADMAP.md).
+- [`../APPLICATION_MODEL.md`](../APPLICATION_MODEL.md);
+- [`../REQUIREMENTS.md`](../REQUIREMENTS.md);
+- [`../ROADMAP.md`](../ROADMAP.md).
 
 ---
 
@@ -60,7 +60,7 @@ frappe
 rental_training
 ```
 
-Проверьте, что metadata Equipment и Customer уже принадлежат App:
+Проверьте, что метаданные Equipment и Customer уже принадлежат App:
 
 ```bash
 test -f \
@@ -85,9 +85,9 @@ Customer: OK
 git -C apps/rental_training status --short
 ```
 
-После принятого S03 рабочее дерево должно быть чистым.
+После S03 рабочее дерево должно быть чистым.
 
-Если там остались незакоммиченные изменения S02/S03, сначала закончите предыдущую контрольную точку.
+Если там остались незакоммиченные изменения S02/S03, сначала закончите предыдущий этап.
 
 ---
 
@@ -96,7 +96,7 @@ git -C apps/rental_training status --short
 Нам нужны четыре факта:
 
 ```text
-Rental имеет собственную identity
+Rental имеет собственный идентификатор
 Rental ссылается на одного Customer
 Rental хранит период
 Rental выбирает несколько Equipment
@@ -163,7 +163,7 @@ Rental должен ссылаться на существующий Equipment D
 
 На этом месте легко автоматически выбрать обычный `Table` только потому, что «несколько строк = таблица».
 
-Но сначала смотрим на семантику строки.
+Но сначала смотрим на смысл строки.
 
 Текущее требование к одной позиции Rental:
 
@@ -190,9 +190,9 @@ comment
 
 > выбрать несколько существующих Equipment.
 
-Frappe предоставляет для этого `Table MultiSelect` — fieldtype, объединяющий Link-выбор с child-table хранением.
+Frappe предоставляет для этого `Table MultiSelect` — fieldtype, объединяющий выбор Link с хранением через Child DocType.
 
-Поэтому CORE использует:
+Поэтому практикум использует:
 
 ```text
 Rental.items
@@ -224,7 +224,7 @@ Rental Item
 └── equipment → Link → Equipment
 ```
 
-Child rows получают служебную связь с родителем:
+Дочерние строки получают служебную связь с родителем:
 
 ```text
 parent
@@ -236,10 +236,10 @@ idx
 Официальная документация Child DocType определяет их так:
 
 ```text
-parent     = name родительского Document
-parenttype = DocType родителя
-parentfield= поле родителя, которому принадлежит строка
-idx        = порядок строки
+parent      = name родительского Document
+parenttype  = DocType родителя
+parentfield = поле родителя, которому принадлежит строка
+idx         = порядок строки
 ```
 
 То есть `Rental Item` — не самостоятельная карточка проката оборудования.
@@ -254,7 +254,7 @@ idx        = порядок строки
 
 Сначала создаём тип дочерней строки, потому что позже поле `Table MultiSelect` должно ссылаться на уже определённый Child DocType.
 
-Запустите dev server, если он ещё не работает:
+Запустите сервер разработки, если он ещё не работает:
 
 ```bash
 cd ~/frappe/rental-training-bench
@@ -287,7 +287,7 @@ Custom?        : OFF
 Is Child Table : ON
 ```
 
-Для Child DocType отдельный пользовательский lifecycle не проектируется.
+Для Child DocType отдельный пользовательский жизненный цикл не проектируется.
 
 ---
 
@@ -322,13 +322,13 @@ in_list_view = 1
 In List View = yes
 ```
 
-является частью контракта этой конфигурации.
+является частью этой конфигурации.
 
 Сохраните `Rental Item`.
 
 ---
 
-# 7. Проверить generated source Rental Item
+# 7. Проверить исходники Rental Item
 
 В терминале:
 
@@ -346,7 +346,7 @@ find \
   -maxdepth 1 -type f -printf '%f\n' | sort
 ```
 
-Откройте metadata:
+Откройте метаданные:
 
 ```bash
 sed -n '1,240p' \
@@ -370,7 +370,7 @@ sed -n '1,240p' \
 ```text
 Child DocType создан через Desk
 ↓
-его metadata принадлежит rental_training
+его метаданные находятся в rental_training
 ```
 
 ---
@@ -484,7 +484,7 @@ RENT-00002
 ...
 ```
 
-Rental — самостоятельный Document, поэтому у него есть собственная стабильная identity.
+Rental — самостоятельный Document, поэтому у него есть собственный стабильный идентификатор.
 
 Мы не строим `name` из:
 
@@ -499,7 +499,7 @@ start_date
 
 ---
 
-# 11. Проверить generated source Rental
+# 11. Проверить исходники Rental
 
 В терминале:
 
@@ -517,7 +517,7 @@ find \
   -maxdepth 1 -type f -printf '%f\n' | sort
 ```
 
-Откройте metadata:
+Откройте метаданные:
 
 ```bash
 sed -n '1,300p' \
@@ -584,7 +584,7 @@ EQ-00002
 name = RENT-00001
 ```
 
-Если sequence уже использовалась во время экспериментов, номер может отличаться. Проверяем формат `RENT-#####`, а не искусственный сброс sequence.
+Если счётчик уже использовался во время экспериментов, номер может отличаться. Проверяем формат `RENT-#####`, а не искусственный сброс счётчика.
 
 ### Что произошло
 
@@ -606,7 +606,7 @@ Rental
 
 ---
 
-# 13. Увидеть Link identity и title
+# 13. Увидеть Link, `name` и Title Field
 
 В Form пользователь должен видеть человекочитаемые значения, например:
 
@@ -685,7 +685,7 @@ Frappe загрузил дочерние Documents.
 
 ---
 
-# 15. Увидеть ownership Child Documents
+# 15. Увидеть принадлежность дочерних Documents
 
 В той же console:
 
@@ -709,7 +709,7 @@ EQ-00001 | RENT-00001 | Rental | items | 1
 EQ-00002 | RENT-00001 | Rental | items | 2
 ```
 
-Точные кавычки/формат Python не важны.
+Точные кавычки и формат Python не важны.
 
 Важно увидеть четыре свойства:
 
@@ -720,7 +720,7 @@ parentfield = items
 idx         = порядок строки
 ```
 
-Теперь определение Child DocType становится физически наблюдаемым, а не теоретическим.
+Теперь устройство Child DocType становится физически наблюдаемым, а не теоретическим.
 
 Выйдите из console:
 
@@ -748,7 +748,7 @@ exit()
 
 ```text
 собственного пользователя-владельца процесса
-отдельного lifecycle
+отдельного жизненного цикла
 собственных permissions
 собственной ссылки из других бизнес-документов
 самостоятельного смысла вне Rental
@@ -760,7 +760,7 @@ exit()
 Rental Item = Child DocType
 ```
 
-а не отдельный master/transaction DocType.
+а не отдельный самостоятельный DocType.
 
 ---
 
@@ -768,7 +768,7 @@ Rental Item = Child DocType
 
 Обычный `Table` тоже использует Child DocType и является штатным механизмом Frappe.
 
-Он просто выражает другой пользовательский и модельный акцент: **строка как состав с собственными полями**.
+Он выражает другой акцент: **строка как состав с собственными полями**.
 
 Например, если появится требование:
 
@@ -797,7 +797,7 @@ Table → Rental Item
 
 ---
 
-# 18. Почему не Table MultiSelect без Child DocType
+# 18. Почему Table MultiSelect не обходится без Child DocType
 
 Во Frappe это не отдельный массив ссылок без модели.
 
@@ -806,7 +806,7 @@ Table → Rental Item
 1. берёт `options` поля;
 2. рассматривает его как Child DocType;
 3. внутри Child DocType ищет `Link` с `in_list_view = 1`;
-4. через `options` этого Link определяет конечный linked DocType.
+4. через `options` этого Link определяет конечный связанный DocType.
 
 Для нашей модели:
 
@@ -835,7 +835,7 @@ Rental.phone          : Data
 
 ### Почему плохо
 
-Теряется identity и связь с Customer Document.
+Теряется идентичность и связь с Customer Document.
 
 ---
 
@@ -848,7 +848,7 @@ items : Data
 
 ### Почему плохо
 
-Framework больше не видит отдельные Links и child rows.
+Framework больше не видит отдельные Links и дочерние строки.
 
 ---
 
@@ -898,7 +898,7 @@ Table
 
 ### Почему плохо
 
-Более тяжёлый grid UI выбран не из семантики модели, а ради прохождения функции курса.
+Более тяжёлый табличный интерфейс выбран не из смысла модели, а ради прохождения функции курса.
 
 ---
 
@@ -920,7 +920,7 @@ status
 
 ## Ошибка 7. Rental Item сделан самостоятельной карточкой
 
-Отдельный CRUD/lifecycle/permissions для строки, которая существует только внутри Rental.
+Отдельный CRUD, жизненный цикл и permissions для строки, которая существует только внутри Rental.
 
 ### Почему плохо
 
@@ -928,7 +928,7 @@ status
 
 ---
 
-# 20. Зафиксировать generated source в Git
+# 20. Зафиксировать исходники в Git
 
 Проверьте изменения:
 
@@ -946,7 +946,7 @@ git add \
   rental_training/rental_training/doctype/rental_item
 ```
 
-Посмотрите staged diff:
+Посмотрите подготовленный diff:
 
 ```bash
 git diff --cached -- \
@@ -956,7 +956,7 @@ git diff --cached -- \
 
 Проверьте, что в diff нет случайных изменений Equipment/Customer или чужих настроек.
 
-Зафиксируйте checkpoint:
+Зафиксируйте изменения:
 
 ```bash
 git commit -m "feat: add rental composition"
@@ -1022,7 +1022,7 @@ Report
 
 Правильный смысл:
 
-> операция имеет собственную identity и существует как отдельный Document.
+> операция имеет собственный системный идентификатор и существует как отдельный Document.
 
 ## 2
 
@@ -1046,7 +1046,7 @@ Report
 
 Правильный смысл:
 
-> строка является частью одного Rental и сейчас не имеет самостоятельного бизнес-lifecycle.
+> строка является частью одного Rental и сейчас не имеет самостоятельного бизнес-процесса.
 
 ## 5
 
@@ -1066,23 +1066,23 @@ Report
 
 ## 7
 
-Что хранит `Table MultiSelect` физически с точки зрения Document model?
+Что хранит `Table MultiSelect` с точки зрения модели Document?
 
 Правильный смысл:
 
-> child rows с `parent`, `parenttype`, `parentfield`, `idx` и Link на Equipment.
+> дочерние строки с `parent`, `parenttype`, `parentfield`, `idx` и Link на Equipment.
 
 ---
 
-# 23. ГОТОВО
+# 23. Проверка перед S05A
 
-S04 принят, если одновременно выполняется всё:
+Перед переходом дальше одновременно должно быть верно:
 
 ```text
 [ ] Rental Item = Standard Child DocType rental_training
 [ ] Rental Item.equipment = Link → Equipment
 [ ] Rental Item.equipment имеет In List View = yes
-[ ] Rental = Standard самостоятельный DocType
+[ ] Rental = самостоятельный Standard DocType
 [ ] Rental.customer = Link → Customer
 [ ] Rental.start_date = Date
 [ ] Rental.end_date = Date
@@ -1091,26 +1091,26 @@ S04 принят, если одновременно выполняется вс�
 [ ] status ещё не добавлен
 [ ] один Rental сохранён минимум с двумя Equipment
 [ ] через console видны реальные customer/equipment name
-[ ] через console видны parent/parenttype/parentfield/idx child rows
-[ ] generated metadata находится в App source
-[ ] изменения зафиксированы Git commit
+[ ] через console видны parent/parenttype/parentfield/idx дочерних строк
+[ ] метаданные находятся в исходниках App
+[ ] изменения зафиксированы commit в Git
 [ ] рабочее дерево App чистое
 ```
 
 Ученик может без подсказки объяснить:
 
 ```text
-Document vs Child Document
-Link vs копирование текста
-Table MultiSelect vs обычный Table
-name vs title связанного Document
+Document и Child Document
+Link и копирование текста
+Table MultiSelect и обычный Table
+name и Title Field связанного Document
 ```
 
 ---
 
-# 24. НЕ ГОТОВО
+# 24. Когда не переходить к S05A
 
-Этап не принят, если:
+Сначала исправьте проблему, если:
 
 - Customer или Equipment копируются текстовыми полями вместо Link;
 - Equipment записаны CSV/JSON-строкой;
@@ -1120,8 +1120,8 @@ name vs title связанного Document
 - в Rental Item добавлены выдуманные поля ради оправдания Table;
 - Rental Item сделан самостоятельной бизнес-карточкой без соответствующего требования;
 - `status`, Workflow или Is Submittable добавлены раньше соответствующих этапов;
-- обязательная metadata осталась только локальной настройкой Site;
-- S04 заканчивается незакоммиченным App-owned состоянием.
+- обязательные метаданные остались только локальной настройкой Site;
+- этап заканчивается незакоммиченным состоянием App.
 
 ---
 
@@ -1146,7 +1146,7 @@ Rental.status
 И именно на S05A отдельно проверяется, почему:
 
 ```text
-business status
+предметный status
 ≠ Workflow
 ≠ docstatus
 ```
