@@ -227,7 +227,7 @@ Background Job
 Источники:
 
 - https://docs.frappe.io/framework/notifications
-- https://docs.frappe.io/framework/user/en/webhooks
+- https://github.com/frappe/frappe/blob/version-16/frappe/integrations/doctype/webhook/webhook.py
 - https://docs.frappe.io/framework/user/en/api/background_jobs
 
 Они могут использоваться вместе, но решают разные ответственности. Например, сложная интеграция с повторами и сверкой состояния обычно выходит за пределы простого Webhook.
