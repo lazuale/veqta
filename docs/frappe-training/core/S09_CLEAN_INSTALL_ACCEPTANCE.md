@@ -149,6 +149,8 @@ git -C apps/rental_training rev-parse HEAD
 
 Если Git не clean, S09 не начинается.
 
+Важно: `rental_training` в этом практикуме имеет собственный Git repository внутри Bench. Именно его commit фиксируется как source приложения; Git repository документации VEQTA не заменяет Git-историю самого учебного App.
+
 ---
 
 # 3. Убедиться, что developer mode не протекает на весь Bench
