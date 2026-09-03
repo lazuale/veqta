@@ -1,19 +1,8 @@
 # S00. Подготовить чистую учебную среду Frappe v16
 
-Этот этап поднимает **отдельный локальный dev-стенд для практикума**.
+На первом этапе создаётся отдельная локальная среда для практикума. В ней пока нет учебного приложения, собственных `DocType`, ролей и предметной логики — только Frappe Framework и чистый `Site`.
 
-На нём пока нет учебного App, DocType, ролей и предметной логики. Результат S00 — только работающий Frappe Framework и чистый Site.
-
-Связанные документы:
-
-- [`../CORE_STAGE_SPECIFICATION.md`](../CORE_STAGE_SPECIFICATION.md) — что в итоге строится в CORE;
-- [`../PRACTICUM_ROADMAP.md`](../PRACTICUM_ROADMAP.md) — место этого этапа в общем маршруте.
-
----
-
-## 1. Что должно получиться
-
-После S00 структура выглядит так:
+После S00 структура будет выглядеть так:
 
 ```text
 ~/frappe/
@@ -24,19 +13,13 @@
         └── rental.localhost/
 ```
 
-На `rental.localhost` установлен только Framework:
-
-```text
-frappe
-```
-
-Учебного `rental_training` ещё нет. Он появится только на S01.
+Маршрут всего практикума описан в [`../PRACTICUM_ROADMAP.md`](../PRACTICUM_ROADMAP.md), а модель будущего приложения — в [`../CORE_STAGE_SPECIFICATION.md`](../CORE_STAGE_SPECIFICATION.md).
 
 ---
 
-## 2. Зафиксированный baseline
+## 1. Контрольные версии
 
-Практикум использует конкретную контрольную точку Frappe, чтобы инструкция не менялась посреди обучения:
+Практикум использует конкретные версии Framework и Bench, чтобы команды и ожидаемое поведение оставались воспроизводимыми на протяжении всего курса.
 
 ```text
 Frappe Framework : v16.33.0
@@ -48,13 +31,7 @@ MariaDB            : 11.8.x
 Redis              : 6+
 ```
 
-Почему именно так:
-
-- Frappe v16 требует Python 3.14;
-- Frappe v16 требует Node 24;
-- официальная installation page для v16 указывает MariaDB 11.8 и Yarn 1.22+;
-- `v16.33.0` — зафиксированный release Framework для этого практикума;
-- `5.31.0` — зафиксированный Bench CLI для этого практикума.
+Frappe v16 требует Python 3.14 и Node 24; официальная installation page указывает MariaDB 11.8 и Yarn 1.22+. Для практикума выбран release Frappe `v16.33.0` и Bench `5.31.0`.
 
 Первичные источники:
 
@@ -64,15 +41,13 @@ Redis              : 6+
 - https://github.com/frappe/frappe/blob/v16.33.0/package.json
 - https://github.com/frappe/bench/releases/tag/v5.31.0
 
-### Почему не фиксируем каждую patch-версию системных пакетов
-
-Debian, MariaDB, Node и Python должны оставаться внутри указанной совместимой линии и получать штатные исправления. Нам важно воспроизвести **контракт среды**, а не заморозить весь Linux до последнего пакета.
+Patch-версии системных пакетов отдельно не замораживаются: они остаются внутри совместимой линии и могут получать обычные исправления безопасности и ошибок.
 
 ---
 
-## 3. Какая ОС используется в инструкции
+## 2. Операционная система
 
-Основной путь практикума:
+Основной маршрут практикума:
 
 ```text
 Windows
@@ -80,19 +55,13 @@ Windows
     └── Debian 13
 ```
 
-Frappe официально поддерживает Debian/Ubuntu; для v16 installation page требует Debian 13+ или Ubuntu 24.04+.
+Официальная инструкция Frappe поддерживает Debian/Ubuntu; для текущей линии v16 указаны Debian 13+ и Ubuntu 24.04+.
 
-Если у вас уже есть отдельный Linux/WSL со всеми версиями из раздела 2, установку ОС можно пропустить и начать с раздела 5 «Проверить системные зависимости».
-
-Практикум **не использует существующий VEQTA bench**. Смысл S00 — получить отдельную чистую учебную среду.
+Если подходящий Linux уже установлен, переходите к разделу 4.
 
 ---
 
-# 4. Установить Debian 13 в WSL2
-
-Если Debian 13 уже установлен и работает через WSL2, переходите к разделу 5.
-
-## 4.1. PowerShell
+## 3. Установить Debian 13 в WSL2
 
 Откройте PowerShell от имени администратора:
 
@@ -102,7 +71,7 @@ wsl --list --online
 wsl --install -d Debian
 ```
 
-После установки:
+После установки проверьте версию WSL:
 
 ```powershell
 wsl -l -v
@@ -120,13 +89,9 @@ VERSION 2
 wsl --set-version Debian 2
 ```
 
-## 4.2. Первый запуск
+При первом запуске Debian создайте обычного Linux-пользователя.
 
-Откройте Debian и создайте обычного Linux-пользователя.
-
-Дальше все команды выполняются **от обычного пользователя**, а `sudo` используется только там, где нужны системные права.
-
-Проверка:
+Проверьте систему:
 
 ```bash
 . /etc/os-release
@@ -134,7 +99,7 @@ printf 'USER=%s\nDEBIAN=%s\nCODENAME=%s\nINIT=%s\n' \
   "$(whoami)" "$VERSION_ID" "$VERSION_CODENAME" "$(ps -p 1 -o comm=)"
 ```
 
-Ожидаем:
+Для Debian 13 ожидаются:
 
 ```text
 DEBIAN=13
@@ -142,20 +107,20 @@ CODENAME=trixie
 INIT=systemd
 ```
 
-Если PID 1 не `systemd`, включите systemd для WSL и перезапустите WSL. Это вопрос окружения, не Frappe.
+Если PID 1 не `systemd`, сначала исправьте конфигурацию WSL. Дальнейшие команды предполагают работающий systemd.
 
 ---
 
-# 5. Установить системные зависимости
+## 4. Установить системные зависимости
 
-Обновите индекс пакетов:
+Обновите систему:
 
 ```bash
 sudo apt update
 sudo apt full-upgrade -y
 ```
 
-Установите зависимости, которые нужны текущему CORE-практикуму:
+Установите зависимости, которые используются в этом практикуме:
 
 ```bash
 sudo apt install -y \
@@ -169,14 +134,14 @@ sudo apt install -y \
   pkg-config
 ```
 
-Запустите сервисы:
+Запустите MariaDB и Redis:
 
 ```bash
 sudo systemctl enable --now mariadb
 sudo systemctl enable --now redis-server
 ```
 
-Проверка:
+Проверьте:
 
 ```bash
 mariadb --version
@@ -185,30 +150,17 @@ systemctl is-active mariadb
 systemctl is-active redis-server
 ```
 
-Нужно получить:
-
-```text
-MariaDB ... 11.8.x ...
-PONG
-active
-active
-```
-
-Если MariaDB не `11.8.x`, **не продолжайте**: сначала исправьте системную установку.
+Ожидается MariaDB `11.8.x`, ответ Redis `PONG` и состояние `active` для обоих сервисов.
 
 ### Почему здесь нет wkhtmltopdf
 
-PDF/Print Format не входит в CORE. Не ставим компонент заранее только потому, что он существует в полном production-стеке Frappe.
-
-Когда в NEXT появится реальное требование печатного документа, вернёмся к зависимости для PDF.
+В CORE-практикуме нет задания на PDF и Print Format, поэтому соответствующая зависимость сейчас не используется. Она понадобится только в учебном сценарии, где появится печатный документ.
 
 ---
 
-# 6. Подготовить локального администратора MariaDB для Bench
+## 5. Подготовить пользователя MariaDB для Bench
 
-Bench при создании Site должен иметь право создать базу данных и пользователя Site.
-
-На Debian системный `root` MariaDB может быть настроен через Unix socket. Чтобы не менять системную модель `root`, для учебного Bench создаём отдельного локального администратора БД.
+При создании `Site` Bench нужен пользователь БД с правами на создание базы и пользователя сайта.
 
 Откройте MariaDB:
 
@@ -216,7 +168,7 @@ Bench при создании Site должен иметь право созда
 sudo mariadb
 ```
 
-В консоли MariaDB выполните, подставив свой пароль вместо `ВАШ_ПАРОЛЬ`:
+Создайте отдельного локального администратора для учебной среды, заменив `ВАШ_ПАРОЛЬ` своим паролем:
 
 ```sql
 CREATE USER 'frappe_admin'@'localhost' IDENTIFIED BY 'ВАШ_ПАРОЛЬ';
@@ -225,64 +177,50 @@ FLUSH PRIVILEGES;
 EXIT;
 ```
 
-Проверьте:
+Проверьте вход:
 
 ```bash
 mariadb -u frappe_admin -p -e "SELECT VERSION();"
 ```
 
-Введите тот же пароль.
+Пароль этой учётной записи не хранится в Git.
 
-Это не специальная подсистема практикума. Bench штатно поддерживает параметр `--db-root-username`; мы лишь не используем системного `root` как учётную запись учебного инструмента.
+Bench v16 поддерживает `--db-root-username`, поэтому системную модель пользователя `root` MariaDB для практикума менять не требуется.
 
-Пароль нигде не записывайте в Git.
+Источник:
+
+- https://docs.frappe.io/framework/user/en/bench/reference/new-site
 
 ---
 
-# 7. Установить Node.js и Yarn
+## 6. Установить Node.js 24 и Yarn Classic
 
-## 7.1. NVM
+### NVM
 
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 source ~/.bashrc
 ```
 
-Проверка:
-
-```bash
-nvm --version
-```
-
-## 7.2. Node 24
+### Node.js
 
 ```bash
 nvm install 24
 nvm use 24
 nvm alias default 24
-```
-
-Проверка:
-
-```bash
 node --version
 ```
 
-Первая часть версии должна быть:
+Версия должна начинаться с:
 
 ```text
 v24.
 ```
 
-## 7.3. Yarn Classic
+### Yarn
 
 ```bash
 npm install -g yarn@1.22.22
-```
-
-Проверка:
-
-```bash
 yarn --version
 ```
 
@@ -292,54 +230,44 @@ yarn --version
 1.22.22
 ```
 
-Не обновляйте JavaScript-зависимости самого Frappe вручную. Их версии принадлежат выбранному release Framework.
+Версии JavaScript-зависимостей самого Frappe отдельно не обновляются: они принадлежат выбранному release Framework.
 
 ---
 
-# 8. Установить uv, Python 3.14 и Bench
+## 7. Установить uv, Python 3.14 и Bench
 
-## 8.1. uv
+### uv
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.bashrc
-```
-
-Проверка:
-
-```bash
 uv --version
 ```
 
-## 8.2. Python 3.14
+### Python 3.14
 
 ```bash
 uv python install 3.14 --default
-```
-
-Проверка:
-
-```bash
 python --version
 python3.14 --version
 ```
 
-Обе команды должны показывать Python `3.14.x`.
+Ожидается Python `3.14.x`.
 
-## 8.3. Bench 5.31.0
+### Bench 5.31.0
 
 ```bash
 uv tool install 'frappe-bench==5.31.0'
 ```
 
-Если shell ещё не видит `bench`:
+Если команда `bench` ещё не появилась в `PATH`:
 
 ```bash
 uv tool update-shell
 source ~/.bashrc
 ```
 
-Проверка:
+Проверьте:
 
 ```bash
 bench --version
@@ -351,13 +279,13 @@ bench --version
 5.31.0
 ```
 
-Не используйте `sudo pip install frappe-bench`: Bench ставится в пользовательское окружение, а не в системный Python.
+Bench устанавливается в пользовательское окружение; `sudo pip install frappe-bench` для этого стенда не используется.
 
 ---
 
-# 9. Контроль перед созданием Bench
+## 8. Проверить зависимости
 
-Выполните одним блоком:
+Перед созданием Bench выполните:
 
 ```bash
 printf 'MARIADB=%s\n' "$(mariadb --version)"
@@ -368,7 +296,7 @@ printf 'PYTHON=%s\n' "$(python --version)"
 printf 'BENCH=%s\n' "$(bench --version)"
 ```
 
-Контракт S00:
+Ожидаемая совместимая среда:
 
 ```text
 MariaDB 11.8.x
@@ -379,41 +307,32 @@ Python 3.14.x
 Bench 5.31.0
 ```
 
-Если один пункт не совпадает, не маскируйте проблему следующими командами.
+Если одна из основных версий отличается, сначала исправьте среду. Следующие этапы практикума рассчитаны именно на этот набор.
 
 ---
 
-# 10. Создать отдельный Bench на Frappe v16.33.0
+## 9. Создать Bench с Frappe v16.33.0
 
 ```bash
 mkdir -p ~/frappe
 cd ~/frappe
-```
 
-Создайте Bench:
-
-```bash
 bench init \
   --frappe-branch v16.33.0 \
   --python "$(command -v python3.14)" \
   rental-training-bench
 ```
 
-Перейдите в него:
+Перейдите в Bench:
 
 ```bash
 cd ~/frappe/rental-training-bench
 ```
 
-Проверьте, что это Bench:
+Проверьте:
 
 ```bash
 bench find .
-```
-
-Проверьте версии:
-
-```bash
 bench --version
 bench version --format plain
 ./env/bin/python --version
@@ -421,9 +340,9 @@ node --version
 yarn --version
 ```
 
-Для Framework должно быть `16.33.0`.
+Для Framework ожидается `16.33.0`.
 
-Дополнительная строгая проверка tag:
+Точную Git-точку можно проверить так:
 
 ```bash
 cd apps/frappe
@@ -437,29 +356,13 @@ cd ../..
 v16.33.0
 ```
 
-### Что мы получили
-
-```text
-rental-training-bench/
-├── env/
-├── apps/
-│   └── frappe/
-└── sites/
-```
-
-`Bench` — это рабочая среда. Это ещё не Site и не наше приложение.
+На этом шаге `Bench` — только рабочая среда с Framework. Учебного приложения и учебного `Site` ещё нет.
 
 ---
 
-# 11. Создать чистый Site
+## 10. Создать чистый Site
 
-Находясь в:
-
-```text
-~/frappe/rental-training-bench
-```
-
-выполните:
+Из корня `rental-training-bench` выполните:
 
 ```bash
 bench new-site rental.localhost \
@@ -467,40 +370,30 @@ bench new-site rental.localhost \
   --set-default
 ```
 
-Bench запросит пароль `frappe_admin`, затем пароль пользователя Frappe `Administrator`.
+Bench запросит пароль пользователя MariaDB `frappe_admin`, а затем пароль Frappe-пользователя `Administrator`.
 
-Пароль `Administrator` нужен для входа в Desk. Это **другой пароль**, не пароль MariaDB.
-
-После создания проверьте:
+Проверьте установленные Apps:
 
 ```bash
 bench --site rental.localhost list-apps -f text
 ```
 
-Ожидается ровно:
+На чистом Site ожидается только:
 
 ```text
 frappe
 ```
 
-Если здесь уже есть ERPNext или другое прикладное App, это не чистый Site для CORE.
-
-Первичный источник по Site:
+Источники:
 
 - https://docs.frappe.io/framework/user/en/tutorial/create-a-site
 - https://docs.frappe.io/framework/user/en/bench/reference/new-site
 
 ---
 
-# 12. Включить developer mode только для dev-site
+## 11. Включить developer mode на учебном dev-Site
 
-На следующих этапах мы будем создавать **Standard DocType, принадлежащие App**, и их metadata должны сохраняться в исходниках. Для разработки Standard metadata нужен developer mode.
-
-**Факт Frappe:** developer mode — штатный режим разработки; официальные материалы Frappe могут показывать его включение на уровне Bench/common config.
-
-**Решение этого практикума:** ограничить developer mode только разработческим Site `rental.localhost`. Это нужно не потому, что Frappe требует именно Site-local область, а чтобы второй Site на S09 был независимой acceptance-проверкой установки готового App без developer mode.
-
-Включите Site-local настройку:
+На следующих этапах создаются Standard DocTypes, принадлежащие учебному App. Их metadata должны сохраняться в исходниках приложения, поэтому для `rental.localhost` включается developer mode.
 
 ```bash
 bench --site rental.localhost set-config developer_mode 1
@@ -513,43 +406,13 @@ bench --site rental.localhost clear-cache
 bench --site rental.localhost show-config | grep developer_mode
 ```
 
-Должно быть значение `1`/`true`.
+Ожидается значение `1` или `true`.
 
-### Почему в этом практикуме нет `-g`
-
-```text
-bench set-config -g ...
-→ common_site_config.json
-→ настройка наследуется другими Sites этого Bench
-```
-
-Для нашего учебного стенда такая область помешала бы S09 отличить разработческий Site от чистого acceptance-site.
-
-Поэтому граница практикума такая:
-
-```text
-rental.localhost
-→ developer_mode = 1
-
-новый clean Site
-→ developer_mode не требуется
-```
-
-Если вы проходили более раннюю версию практикума, где developer mode уже был включён глобально, исправьте это один раз:
-
-```bash
-bench set-config -g developer_mode None
-bench --site rental.localhost set-config developer_mode 1
-bench --site rental.localhost clear-cache
-```
-
-Это изменение окружения Bench, а не migration App.
-
-Developer mode — не способ сделать Site production-ready. Это режим разработки.
+Настройка задаётся для `rental.localhost`, а не глобально для Bench. На S09 появится второй чистый Site, на котором установка приложения будет проверяться без зависимости от developer mode.
 
 ---
 
-# 13. Запустить dev-сервер
+## 12. Запустить dev-сервер
 
 Из корня Bench:
 
@@ -557,28 +420,19 @@ Developer mode — не способ сделать Site production-ready. Эт�
 bench start
 ```
 
-Не закрывайте этот терминал: он показывает процессы dev-среды и их ошибки.
-
-Откройте в браузере:
+Откройте:
 
 ```text
 http://rental.localhost:8000/app
 ```
 
-Войдите:
-
-```text
-User: Administrator
-Password: пароль, заданный при bench new-site
-```
-
-Официальный development flow использует `bench start` для запуска процессов Bench.
+Войдите как `Administrator` с паролем, заданным при `bench new-site`.
 
 ---
 
-# 14. Контрольная точка S00
+## 13. Проверить результат S00
 
-Откройте второй терминал Debian и выполните:
+Во втором терминале выполните:
 
 ```bash
 cd ~/frappe/rental-training-bench
@@ -597,9 +451,7 @@ printf '\n=== DEVELOPER MODE ===\n'
 bench --site rental.localhost show-config | grep developer_mode
 ```
 
-## S00 — ГОТОВО
-
-Переход к S01 разрешён только если одновременно верно:
+Перед переходом к S01 проверьте:
 
 ```text
 [ ] Bench находится в ~/frappe/rental-training-bench
@@ -609,87 +461,33 @@ bench --site rental.localhost show-config | grep developer_mode
 [ ] Node = 24.x
 [ ] MariaDB = 11.8.x
 [ ] Redis отвечает PONG
-[ ] Site rental.localhost существует
+[ ] rental.localhost существует
 [ ] на Site установлен только frappe
-[ ] developer mode включён только для rental.localhost
+[ ] developer mode включён для rental.localhost
 [ ] Desk открывается
 [ ] вход Administrator работает
 ```
 
----
-
-# 15. S00 — НЕ ГОТОВО
-
-Не переходите дальше, если:
-
-- `bench version` показывает другую major/minor линию Framework;
-- Python не `3.14.x`;
-- Node не `24.x`;
-- MariaDB не `11.8.x`;
-- Site не открывается;
-- на Site уже установлен ERPNext или другое прикладное App;
-- вы работаете внутри существующего VEQTA Bench;
-- developer mode не включён на `rental.localhost`;
-- developer mode включён глобально без причины в рамках этого учебного стенда;
-- вы начали создавать DocType до появления собственного App.
+После этого среда готова к созданию собственного App.
 
 ---
 
-# 16. Типовые ошибки новичка
-
-### «Я нахожусь где-то в Linux и `bench` ругается»
-
-Команды Site/App выполняются из корня нужного Bench:
-
-```bash
-cd ~/frappe/rental-training-bench
-bench find .
-```
-
-### «Давайте сразу установим ERPNext — там больше готового»
-
-Нет. Цель CORE — увидеть границу:
-
-```text
-что даёт Frappe
-vs
-что создаёт наше App
-```
-
-ERPNext эту границу размоет.
-
-### «Давайте сразу создадим Equipment через Customize Form»
-
-Нет. Собственного App ещё нет. Standard модель должна сразу иметь правильного владельца.
-
-### «Можно поставить всё через sudo pip/npm?»
-
-Не нужно. Node управляется через NVM, Python — через uv, Bench — через uv tool. Системный Python не превращаем в свалку проектных пакетов.
-
-### «Почему мы не ставим всё, что умеет Frappe?»
-
-Потому что практикум не каталог функций. Компонент появляется тогда, когда его требует следующий реальный сценарий.
-
----
-
-# 17. Что ученик должен понять после S00
-
-Без терминов «наизусть» ученик должен уметь объяснить:
+## Что важно понять после S00
 
 ```text
 Bench
-  = среда, в которой живут Apps и Sites
+= среда, в которой находятся Apps и Sites
 
-frappe App
-  = сам Framework внутри Bench
+frappe
+= Framework как App внутри Bench
 
 Site
-  = отдельный экземпляр Frappe со своей БД и конфигурацией
+= отдельный экземпляр Frappe со своей БД и конфигурацией
 
 rental.localhost
-  = наш чистый учебный Site
+= учебный Site для разработки
 ```
 
-На S00 **ещё нет нашего предметного App**.
+На S00 предметного приложения ещё нет.
 
 Следующий этап: [`S01_APP_AND_SITE.md`](S01_APP_AND_SITE.md) — создать `rental_training` и установить его на `rental.localhost`.
