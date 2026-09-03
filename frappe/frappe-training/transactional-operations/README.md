@@ -18,14 +18,14 @@ Equipment Movement
 
 `Equipment Movement` — журнал фактических операций `Issue` и `Return` по конкретному Equipment.
 
-На `Rental` появляются две явные серверные команды:
+На `Rental` появляются две явные изменяющие команды:
 
 ```text
 issue()
 return_equipment()
 ```
 
-Их вызывают тонкие кнопки стандартной Form. Сервер остаётся владельцем бизнес-правила и проверки permissions.
+Обе команды доступны только через POST. Их вызывают тонкие кнопки стандартной Form, а сервер остаётся владельцем бизнес-правила, permission boundary и изменения данных.
 
 Основная цепочка практикума:
 
@@ -87,6 +87,7 @@ Rental остаётся Planned
 - https://docs.frappe.io/framework/user/en/api/document
 - https://docs.frappe.io/framework/user/en/api/form
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/app.py
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/api/v2.py
 
 ## Что не входит
 
@@ -102,7 +103,7 @@ Rental остаётся Planned
 - собственный frontend;
 - ручные savepoint как основной путь бизнес-операции.
 
-Эти механизмы относятся к другим ответственностям. В частности, background job понадобится тогда, когда после успешного commit появится реально долгая или независимая работа.
+Эти механизмы относятся к другим ответственностям. Background job понадобится тогда, когда после успешного commit появится реально долгая или независимая работа.
 
 ## Что нужно знать до начала
 
@@ -123,12 +124,14 @@ Rental остаётся Planned
 
 Маршрут проверяется на **Frappe Framework v16.33.0** — той же контрольной версии, на которой собран `rental_training` в предыдущих практикумах.
 
-## Материалы
+## С чего начать
+
+Практические этапы находятся в [`stages/`](stages/README.md) и проходятся последовательно от `S00` до `S10`.
+
+Справочные материалы:
 
 - [модель и учебный сценарий](APPLICATION_MODEL.md);
 - [требования практикума](REQUIREMENTS.md);
 - [маршрут практикума](ROADMAP.md).
-
-Практические этапы будут находиться в [`stages/`](stages/README.md).
 
 Архитектурный контекст: [Transactions & Async](../../frappe-architecture-standard/06_TRANSACTIONS_ASYNC.md).
