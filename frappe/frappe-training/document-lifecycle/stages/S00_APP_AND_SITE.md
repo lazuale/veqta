@@ -1,6 +1,6 @@
 # S00. Подготовить отдельный App и Site
 
-Первый практикум уже показал, как устроены Bench, App и Site. Здесь мы не повторяем установку Frappe с нуля, а создаём отдельную учебную границу для lifecycle-практикума.
+Первый практикум уже показал, как устроены Bench, App и Site. Здесь мы не повторяем установку Frappe с нуля, а создаём отдельную учебную границу для практикума по жизненному циклу Document.
 
 Новый App:
 
@@ -58,7 +58,7 @@ bench new-app purchase_lifecycle_training
 
 ```text
 App Title       : Purchase Lifecycle Training
-App Description : Training app for Frappe document lifecycle
+App Description : Учебное приложение для практикума по жизненному циклу Document
 App Publisher   : ваше имя или организация
 App Email       : ваш email
 App License     : MIT
@@ -150,9 +150,9 @@ http://purchase-lifecycle.localhost:8000/app
 
 Войдите как `Administrator`.
 
-## 7. Проверить source boundary
+## 7. Проверить границу исходников App
 
-Новый App уже является отдельным Git repository внутри Bench. Проверьте:
+Новый App уже является отдельным Git-репозиторием внутри Bench. Проверьте:
 
 ```bash
 git -C apps/purchase_lifecycle_training status --short
