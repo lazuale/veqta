@@ -58,7 +58,7 @@ A Lab must define:
 - known shortcuts;
 - expected evidence output.
 
-A Lab may use a disposable app/site and may contain temporary code.
+A Lab may use a disposable App/Site and may contain temporary code.
 
 A Lab must be visibly marked experimental.
 
@@ -67,11 +67,11 @@ A Lab must be visibly marked experimental.
 A Lab ends in one or more outcomes:
 
 ```text
-FAIL       → hypothesis rejected / knowledge retained
-LEARN      → useful educational material
-ENGINEERING→ evidence updates architecture guidance
-REFERENCE  → implementation worth preserving as an example
-INCUBATE   → validated product opportunity
+FAIL        → hypothesis rejected / knowledge retained
+LEARN       → useful educational material
+ENGINEERING → evidence updates architecture guidance
+REFERENCE   → implementation worth preserving as an example
+INCUBATE    → validated product opportunity
 ```
 
 Keeping a Lab indefinitely without an explicit outcome is not a lifecycle state.
@@ -109,7 +109,8 @@ A candidate becomes an Incubating Product only when it has both technical and pr
 ### Required engineering evidence
 
 - product boundary is defined;
-- Frappe App boundary is defined;
+- primary Frappe App boundary is defined;
+- any additional frontend/service/App boundary is justified if present;
 - critical data model has passed architecture review;
 - no unexplained framework duplication exists;
 - install / migration path is reproducible;
@@ -119,13 +120,13 @@ A candidate becomes an Incubating Product only when it has both technical and pr
 
 ### Repository rule
 
-An Incubating Product should move to its own repository once it becomes a real independently installable Frappe App rather than a Lab artifact.
+An Incubating Product should move out of the Lab area once its production software has an independent lifecycle. The normal case is a dedicated repository for the primary Frappe App. Additional repositories are introduced only when a separate component has a genuine independent build/release responsibility.
 
 At this stage it may receive a provisional product name.
 
 ## 6. Stage 4 — Product
 
-A Product is an independent maintained application intended for real users.
+A Product is an independent maintained application or coherent software product intended for real users.
 
 Minimum graduation gate:
 
@@ -138,7 +139,8 @@ Minimum graduation gate:
 
 ### Architecture
 
-- App installs cleanly on supported Frappe baseline;
+- primary App installs cleanly on the supported Frappe baseline;
+- additional components, if any, have explicit boundaries and deployment contracts;
 - migrations are reproducible;
 - critical server-side invariants are tested;
 - permissions are tested;
@@ -154,7 +156,7 @@ Minimum graduation gate:
 
 ### Open source
 
-- repository is public unless a temporary security exception is documented;
+- production source is public unless a temporary security exception is documented;
 - software license is explicit;
 - contribution path is explicit;
 - security reporting path exists before significant adoption.
