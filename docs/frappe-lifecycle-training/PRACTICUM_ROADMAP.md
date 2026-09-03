@@ -1,12 +1,13 @@
 # Дорожная карта второго учебного практикума Frappe
 
-Статус: **проект маршрута, полученный из аудированного dependency graph**.
+Статус: **проект маршрута после первичного архитектурного аудита**.
 
 Продолжает:
 
 - [`ARCHITECTURE_PASSPORT.md`](ARCHITECTURE_PASSPORT.md);
 - [`REQUIREMENTS_MATRIX.md`](REQUIREMENTS_MATRIX.md);
-- [`STAGE_DEPENDENCY_GRAPH.md`](STAGE_DEPENDENCY_GRAPH.md).
+- [`STAGE_DEPENDENCY_GRAPH.md`](STAGE_DEPENDENCY_GRAPH.md);
+- [`ARCHITECTURE_CORRECTIONS.md`](ARCHITECTURE_CORRECTIONS.md).
 
 Нормативная база:
 
@@ -778,7 +779,6 @@ PR Approved
 ```text
 PR Cancelled
 Workflow State PR Cancelled → docstatus 2
-status.Allow on Submit = yes
 ```
 
 и transition:
@@ -788,6 +788,16 @@ PR Approved
 → Cancel
 → PR Cancelled
 ```
+
+`status` остаётся обычным Standard Workflow State Field **без `Allow on Submit`** в текущем CORE.
+
+Почему: этот transition является штатным:
+
+```text
+docstatus 1 → 2
+```
+
+и `apply_workflow()` выполняет `doc.cancel()`. Cancel save-path не является обычным `update_after_submit`, поэтому `allow_on_submit` только ради смены state при Cancel здесь не требуется. Это зафиксировано отдельно в [`ARCHITECTURE_CORRECTIONS.md`](ARCHITECTURE_CORRECTIONS.md).
 
 ## Permission responsibility
 
@@ -810,11 +820,19 @@ Senior не получает лишний Cancel
 Cancelled → docstatus 2
 Draft → Cancelled нельзя
 Submitted → Draft нельзя
+status.allow_on_submit не включён без отдельного требования
 ```
 
 ## Архитектурный вывод
 
 Submit и Cancel — разные system operations и разные responsibilities.
+
+Также:
+
+```text
+универсальный fallback Framework
+≠ обязательство копировать все его свойства
+```
 
 ---
 
@@ -1024,6 +1042,7 @@ Purchase Approver может Approved → Cancelled
 Cancelled = docstatus 2
 Cancelled не получает нелегальный transition
 status остаётся одним Standard field
+status не получает allow_on_submit без submitted→submitted requirement
 обязательного workflow_state Custom Field нет
 mandatory Workflow config существует
 Role records соответствуют Standard DocPerm
@@ -1118,6 +1137,14 @@ PR-* Workflow State records
 Workflow со states/transitions/conditions/policies
 ```
 
+При этом для текущего CORE:
+
+```text
+status.Allow on Submit = no
+```
+
+пока не появилось отдельное submitted→submitted требование.
+
 ## Site-local создаётся только для проверки
 
 ```text
@@ -1205,9 +1232,24 @@ CI/CD
 
 Тогда рассматривается `Single DocType` Settings; фиксированное число не превращается в Settings заранее.
 
-## После Submit можно менять отдельное безопасное поле
+## После Submit нужно обычное изменение без смены docstatus
 
-Только это поле становится кандидатом `Allow on Submit`; смысловые поля согласованного разрешения не открываются массово.
+Если появляется реальное требование:
+
+```text
+Submitted state A
+→ Submitted state B
+```
+
+или отдельное безопасное business field действительно должно меняться после Submit, только соответствующее поле становится кандидатом `Allow on Submit`.
+
+Текущий:
+
+```text
+Approved 1 → Cancelled 2
+```
+
+сам по себе такого требования не создаёт.
 
 ## Approval route стал динамическим
 
@@ -1262,14 +1304,15 @@ production deployment
 11. Approved становится Submitted только в S06?
 12. amended_from не создаётся вручную?
 13. Cancel появляется только в S07A?
-14. Amend permission появляется только в S07B?
-15. S08 собирает полный Workflow, включая self approval и resubmit?
-16. fixtures не дублируют Role provisioning Standard DocType?
-17. S09 разделяет server contracts и observed/UI checks?
-18. S10 начинается с действительно чистого Site?
-19. S10 не требует ручной обязательной настройки после install-app?
-20. NEXT/GATE не превратились в скрытые mandatory stages?
-21. API/async/extension/integration не добавлены ради покрытия?
+14. status.Allow on Submit НЕ появляется только ради cancel path?
+15. Amend permission появляется только в S07B?
+16. S08 собирает полный Workflow, включая self approval и resubmit?
+17. fixtures не дублируют Role provisioning Standard DocType?
+18. S09 разделяет server contracts и observed/UI checks?
+19. S10 начинается с действительно чистого Site?
+20. S10 не требует ручной обязательной настройки после install-app?
+21. NEXT/GATE не превратились в скрытые mandatory stages?
+22. API/async/extension/integration не добавлены ради покрытия?
 ```
 
 Если хотя бы один ответ отрицательный, сначала исправляется roadmap или более ранний архитектурный слой.
