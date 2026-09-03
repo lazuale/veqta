@@ -13,7 +13,7 @@
 
 Новое требование:
 
-> Для каждого обязательного элемента CORE нужно знать владельца, source of truth и штатный путь, по которому он попадёт на другой Site.
+> Для каждого обязательного элемента приложения нужно знать владельца, основной источник и штатный путь, по которому он попадёт на другой Site.
 
 S08 не добавляет новую функцию. Это проверка архитектуры поставки перед финальной чистой установкой S09.
 
@@ -41,16 +41,16 @@ S08 не добавляет новую функцию. Это проверка �
 
 Нужно разделить две категории.
 
-## Обязательное состояние продукта
+## Обязательное состояние приложения
 
 Без него `rental_training` после установки не соответствует своему контракту.
 
-Примеры CORE:
+Примеры:
 
 ```text
 Module Rental Training
 Equipment / Customer / Rental / Rental Item
-поля и naming
+поля и правила именования
 DocType Permissions
 Rental Controller V01/V02/V03
 Rental Operator / Rental Manager
@@ -73,47 +73,47 @@ Rental Operator / Rental Manager
 пароли
 allow_tests
 developer_mode
-текущие значения naming counters
+текущие значения счётчиков имён
 ```
 
-Эти данные не становятся fixtures только потому, что они есть на dev-site.
+Эти данные не становятся fixtures только потому, что они есть на Site разработки.
 
 Главная формула S08:
 
 ```text
-обязательное для продукта
-→ App-owned
+обязательное для приложения
+→ принадлежит App
 
 конкретный экземпляр / пользователь / операция
-→ Site-owned
+→ принадлежит Site
 ```
 
 ---
 
-# 2. Delivery manifest CORE
+# 2. Карта поставки состояния приложения
 
 До любых команд зафиксируем ожидаемую карту.
 
-| Элемент | Владелец | Source of truth | Как попадает на Site |
+| Элемент | Владелец | Основной источник | Как попадает на Site |
 |---|---|---|---|
-| App `rental_training` | App | repository / Python package | App доступен Bench, затем `install-app` |
-| Module `Rental Training` | App | `rental_training/modules.txt` | `install-app` создаёт/синхронизирует Module Def |
-| `Equipment` | App | `equipment.json` | Standard DocType sync при install/migrate |
-| `Customer` | App | `customer.json` | Standard DocType sync при install/migrate |
-| `Rental Item` | App | `rental_item.json` | Standard DocType sync при install/migrate |
-| `Rental` | App | `rental.json` | Standard DocType sync при install/migrate |
-| naming / fields / default DocPerm | App | JSON соответствующего Standard DocType | sync metadata/schema |
-| V01/V02/V03 | App | `rental.py` | Python source App |
-| `Rental Operator` | App | role name в Standard DocPerm | `make_module_and_roles()` создаёт missing Role при sync |
-| `Rental Manager` | App | role name в Standard DocPerm | `make_module_and_roles()` создаёт missing Role при sync |
-| automated contracts | App | `test_rental.py` | запускаются Frappe test runner |
-| test Users | Site/test data | database test environment | создаются test case, не fixture |
-| реальные Users | Site | database Site | создаёт администратор Site |
-| Equipment/Customer/Rental records | Site | database Site | создают пользователи/интеграции |
-| `developer_mode` | Site | site config | локальная настройка dev Site |
-| `allow_tests` | Site | site config | локальная настройка test Site |
+| App `rental_training` | App | репозиторий / Python-пакет | App доступен Bench, затем `install-app` |
+| Module `Rental Training` | App | `rental_training/modules.txt` | `install-app` создаёт или синхронизирует Module Def |
+| `Equipment` | App | `equipment.json` | синхронизация Standard DocType при install/migrate |
+| `Customer` | App | `customer.json` | синхронизация Standard DocType при install/migrate |
+| `Rental Item` | App | `rental_item.json` | синхронизация Standard DocType при install/migrate |
+| `Rental` | App | `rental.json` | синхронизация Standard DocType при install/migrate |
+| именование / поля / DocPerm по умолчанию | App | JSON соответствующего Standard DocType | синхронизация метаданных и схемы |
+| V01/V02/V03 | App | `rental.py` | Python-код App |
+| `Rental Operator` | App | имя Role в Standard DocPerm | `make_module_and_roles()` создаёт отсутствующую Role при sync |
+| `Rental Manager` | App | имя Role в Standard DocPerm | `make_module_and_roles()` создаёт отсутствующую Role при sync |
+| автоматические проверки | App | `test_rental.py` | запускаются test runner Frappe |
+| тестовые Users | Site / тестовые данные | БД тестового окружения | создаются test case, не fixture |
+| реальные Users | Site | БД Site | создаёт администратор Site |
+| Documents Equipment/Customer/Rental | Site | БД Site | создают пользователи или интеграции |
+| `developer_mode` | Site | конфигурация Site | локальная настройка Site разработки |
+| `allow_tests` | Site | конфигурация Site | локальная настройка тестового Site |
 
-Это не абстрактная таблица. Дальше каждую строку нужно подтвердить исходниками и фактическим состоянием.
+Дальше каждую строку нужно подтвердить исходниками и фактическим состоянием.
 
 ---
 
@@ -154,11 +154,11 @@ git -C apps/rental_training status --short
 
 Рабочее дерево должно быть чистым.
 
-Если оно не чистое, сначала определите владельца каждого изменения и либо зафиксируйте принятое App-owned изменение, либо уберите случайный мусор.
+Если оно не чистое, сначала определите владельца каждого изменения и либо зафиксируйте принятое изменение App, либо уберите случайный мусор.
 
 ---
 
-# 4. Проверить Module как App-owned state
+# 4. Проверить Module как состояние App
 
 Откройте:
 
@@ -166,19 +166,19 @@ git -C apps/rental_training status --short
 cat apps/rental_training/rental_training/modules.txt
 ```
 
-В CORE ожидается:
+Ожидается:
 
 ```text
 Rental Training
 ```
 
-Это source of truth списка Modules App.
+Это основной источник списка Modules приложения.
 
-Текущий Frappe при `install_app()` вызывает добавление Module Def из module list App до синхронизации его DocTypes.
+Текущий Frappe при `install_app()` добавляет Module Def из списка Modules App до синхронизации его DocTypes.
 
 Поэтому обязательный Module не должен создаваться отдельным ручным пунктом инструкции установки.
 
-Проверьте runtime Site через console:
+Проверьте состояние Site через console:
 
 ```bash
 bench --site rental.localhost console
@@ -188,7 +188,7 @@ bench --site rental.localhost console
 frappe.db.exists("Module Def", "Rental Training")
 ```
 
-Ожидается truthy result.
+Ожидается непустой результат.
 
 Завершите console:
 
@@ -198,7 +198,7 @@ exit()
 
 ---
 
-# 5. Проверить Standard DocTypes и metadata в Git
+# 5. Проверить Standard DocTypes и метаданные в Git
 
 Из корня App:
 
@@ -223,7 +223,7 @@ done
 
 ## Что находится в этих JSON
 
-Именно metadata Standard DocType задаёт, в частности:
+Метаданные Standard DocType задают, в частности:
 
 ```text
 fields
@@ -236,13 +236,13 @@ required flags
 default permissions
 ```
 
-Не нужно создавать отдельный SQL schema-файл приложения.
+Не нужно создавать отдельный SQL-файл схемы приложения.
 
-Frappe при install/migrate синхронизирует DocTypes из JSON и приводит схему Site к этому metadata-state.
+Frappe при install/migrate синхронизирует DocTypes из JSON и приводит схему Site к состоянию, описанному этими метаданными.
 
 ---
 
-# 6. Проверить runtime metadata после sync
+# 6. Проверить метаданные Site после синхронизации
 
 Вернитесь в Bench:
 
@@ -273,11 +273,11 @@ Rental      → Module Rental Training, Standard, normal DocType
 Rental Item → Module Rental Training, Standard, Child DocType
 ```
 
-`custom` не должен показывать, что эти четыре сущности являются случайными Custom DocTypes Site.
+`custom` не должен показывать, что эти четыре сущности являются локальными Custom DocTypes конкретного Site.
 
 ---
 
-# 7. Проверить default permissions как часть Standard metadata
+# 7. Проверить permissions по умолчанию как часть Standard DocType
 
 В той же console:
 
@@ -318,20 +318,20 @@ Manager  → CRUD
 Почему это важно:
 
 ```text
-default permissions продукта
-→ rental_training Standard DocType JSON
+permissions приложения по умолчанию
+→ JSON собственного Standard DocType
 
 не
-→ локальный Role Permission Manager override
+→ локальное переопределение через Role Permission Manager
 ```
 
 ---
 
-# 8. Проверить отсутствие скрытых Site-customizations CORE
+# 8. Проверить отсутствие скрытых настроек Site
 
 Мы создавали собственные Standard DocTypes напрямую в developer mode.
 
-Поэтому обязательные поля и default permissions не должны тайно зависеть от:
+Поэтому обязательные поля и permissions по умолчанию не должны тайно зависеть от:
 
 ```text
 Custom Field
@@ -359,7 +359,7 @@ for doctype, target_field in checks:
     print(doctype, rows)
 ```
 
-Для принятого CORE ожидается:
+Ожидается:
 
 ```text
 Custom Field    []
@@ -374,11 +374,11 @@ Custom DocPerm  []
 ```text
 кто их создал?
 зачем они нужны?
-они относятся к обязательному продукту или к локальному Site?
-какой механизм должен быть source of truth?
+они относятся к обязательному состоянию App или к локальному Site?
+какой механизм должен быть основным источником?
 ```
 
-S08 не принимает скрытую обязательную настройку только потому, что «на dev-site всё работает».
+S08 не принимает скрытую обязательную настройку только потому, что «на Site разработки всё работает».
 
 Завершите console:
 
@@ -388,7 +388,7 @@ exit()
 
 ---
 
-# 9. Проверить Controller как source поведения
+# 9. Проверить Controller как источник поведения
 
 В App:
 
@@ -399,7 +399,7 @@ sed -n '1,280p' \
   rental_training/rental_training/doctype/rental/rental.py
 ```
 
-В Controller должны оставаться три CORE-инварианта:
+В Controller должны оставаться три инварианта приложения:
 
 ```text
 V01 date range
@@ -407,7 +407,7 @@ V02 duplicate Equipment
 V03 overlapping Active Rental
 ```
 
-Проверьте Git tracking:
+Проверьте, что файл отслеживается Git:
 
 ```bash
 git ls-files \
@@ -416,7 +416,7 @@ git ls-files \
 
 Файл должен выводиться.
 
-Python behavior не нужно экспортировать fixture или дублировать Server Script.
+Python-поведение не нужно экспортировать fixture или дублировать Server Script.
 
 ```text
 поведение собственного Standard DocType
@@ -425,7 +425,7 @@ Python behavior не нужно экспортировать fixture или ду
 
 ---
 
-# 10. Проверить provisioning Role из Standard DocPerm
+# 10. Проверить создание Role из Standard DocPerm
 
 В S05D имена:
 
@@ -436,7 +436,7 @@ Rental Manager
 
 были добавлены в `permissions[]` собственных Standard DocTypes.
 
-Проверьте source:
+Проверьте исходники:
 
 ```bash
 cd ~/frappe/rental-training-bench/apps/rental_training
@@ -456,18 +456,18 @@ grep -R '"role": "Rental Manager"' \
 
 При `install-app` сначала выполняется `sync_for()` Standard metadata, а `sync_fixtures()` идёт позже.
 
-Поэтому для текущего CORE source роли выглядит так:
+Для учебного приложения путь выглядит так:
 
 ```text
 Standard DocType JSON
 └── permissions[]
-    └── role name
+    └── имя Role
           ↓
       sync_for()
           ↓
 make_module_and_roles()
           ↓
-missing Role
+создание отсутствующей Role
 ```
 
 Проверьте, что этот путь не продублирован отдельным fixture:
@@ -480,13 +480,13 @@ test ! -f rental_training/fixtures/role.json \
   || echo "CHECK: role fixture exists"
 ```
 
-Если `role.json` существует, не удаляйте файл вслепую: сначала убедитесь, что он не поставляет самостоятельное состояние Role, которого нет в Standard DocPerm. В текущем CORE такого дополнительного требования нет.
+Если `role.json` существует, не удаляйте файл вслепую: сначала убедитесь, что он не поставляет самостоятельное состояние Role, которого нет в Standard DocPerm. В текущем приложении такого дополнительного требования нет.
 
 ---
 
-# 11. Проверить, что Users не стали App-owned конфигурацией
+# 11. Проверить, что Users не стали обязательной конфигурацией App
 
-В App не должно быть source-файла, превращающего учебных Users в обязательную конфигурацию продукта.
+В App не должно быть файла, превращающего учебных Users в обязательную конфигурацию приложения.
 
 Проверьте:
 
@@ -497,20 +497,20 @@ find rental_training/fixtures -maxdepth 1 -type f -print 2>/dev/null | sort
 
 Наличие каталога `fixtures` само по себе нормально, если App использует его для другой оправданной конфигурации.
 
-Но не должно появляться fixture, превращающего в продукт:
+Но не должно появляться fixture с:
 
 ```text
 operator@example.test
 manager@example.test
-пароли
-любого реального сотрудника
+паролями
+данными реальных сотрудников
 ```
 
 Почему:
 
 ```text
-Role name в Standard DocPerm
-→ часть permission model App
+имя Role в Standard DocPerm
+→ часть модели permissions App
 
 User
 → участник конкретного Site
@@ -518,9 +518,9 @@ User
 
 ---
 
-# 12. Проверить, что business data не экспортированы
+# 12. Проверить, что рабочие данные не экспортированы
 
-CORE runtime data:
+Рабочие данные Site:
 
 ```text
 Equipment Documents
@@ -529,7 +529,7 @@ Rental Documents
 Rental Item rows
 ```
 
-не являются fixtures продукта.
+не являются fixtures приложения.
 
 Поэтому не должно существовать fixture-файлов вроде:
 
@@ -545,21 +545,21 @@ rental.json
 
 ```text
 rental_training/.../doctype/equipment/equipment.json
-→ metadata Standard DocType
-→ App-owned
+→ метаданные Standard DocType
+→ принадлежит App
 
 rental_training/fixtures/equipment.json
-→ records Equipment
-→ в CORE такого fixture быть не должно
+→ Documents Equipment
+→ в текущем приложении такого fixture быть не должно
 ```
 
 Это принципиально разные уровни.
 
 ---
 
-# 13. Naming: правило принадлежит App, счётчик — Site
+# 13. Именование: правило принадлежит App, счётчик — Site
 
-В metadata находится правило именования:
+В метаданных находится правило именования:
 
 ```text
 Equipment → EQ-.#####
@@ -567,9 +567,9 @@ Customer  → CUST-.#####
 Rental    → RENT-.#####
 ```
 
-Но новый чистый Site **не обязан продолжать номера dev-site**.
+Но новый чистый Site **не обязан продолжать номера Site разработки**.
 
-Например наличие на dev-site:
+Например наличие на Site разработки:
 
 ```text
 EQ-00037
@@ -581,13 +581,13 @@ EQ-00037
 EQ-00038
 ```
 
-Текущие business records и runtime sequence state принадлежат конкретному Site.
+Текущие Documents и состояние счётчиков принадлежат конкретному Site.
 
-Контракт App — стратегия naming, а не перенос текущего operational counter.
+Контракт App — стратегия именования, а не перенос текущего значения счётчика.
 
 ---
 
-# 14. Site config не является source продукта
+# 14. Конфигурация Site не является источником состояния App
 
 Проверьте текущую конфигурацию:
 
@@ -606,7 +606,7 @@ installed_apps
 другие локальные параметры
 ```
 
-Не копируйте `site_config.json` в repository App как способ «поставить приложение».
+Не копируйте `site_config.json` в репозиторий App как способ «поставить приложение».
 
 В частности:
 
@@ -615,13 +615,13 @@ developer_mode
 allow_tests
 ```
 
-нужны этому dev/test Site, но не являются обязательной бизнес-конфигурацией `rental_training`.
+нужны этому Site разработки и тестирования, но не являются обязательной бизнес-конфигурацией `rental_training`.
 
 ---
 
-# 15. Выполнить migrate как round-trip source → Site
+# 15. Применить состояние App к Site через migrate
 
-В development Bench `migrate` проверяет доступность необходимых сервисов. Если `bench start` уже работает в отдельном терминале, ничего делать не нужно.
+В учебном Bench `migrate` требует доступности необходимых сервисов. Если `bench start` уже работает в отдельном терминале, ничего делать не нужно.
 
 Если процессы Bench не запущены, откройте отдельный терминал и выполните:
 
@@ -630,7 +630,7 @@ cd ~/frappe/rental-training-bench
 bench start
 ```
 
-Оставьте этот терминал открытым на время migrate и последующих проверок. Это инфраструктура dev-окружения, а не скрытая настройка `rental_training`.
+Оставьте этот терминал открытым на время migrate и последующих проверок. Это инфраструктура учебного окружения, а не скрытая настройка `rental_training`.
 
 Теперь запускаем штатную синхронизацию уже существующего Site:
 
@@ -668,18 +668,18 @@ git -C apps/rental_training status --short
 Смысл проверки:
 
 ```text
-Git/App source
+исходники App
    ↓ migrate
 текущий Site
    ↓ tests
 контракты работают
 ```
 
-`migrate` не должен требовать ручного SQL или повторного накликивания обязательных полей/permissions.
+`migrate` не должен требовать ручного SQL или повторного создания обязательных полей и permissions через интерфейс.
 
 ---
 
-# 16. Нужен ли CORE patch сейчас?
+# 16. Нужен ли patch сейчас?
 
 Откройте:
 
@@ -688,7 +688,7 @@ sed -n '1,240p' \
   apps/rental_training/rental_training/patches.txt
 ```
 
-В CORE мы **не добавляем patch только ради знакомства с patches**.
+Мы **не добавляем patch только ради знакомства с patches**.
 
 Patch нужен, когда существует реальная задача:
 
@@ -711,17 +711,17 @@ Patch нужен, когда существует реальная задача:
 
 ## Почему сейчас patch не нужен
 
-CORE строит первую исходную версию учебного App.
+Практикум строит первую исходную версию учебного App.
 
-`rental.localhost` — dev/test Site, на котором мы по ходу обучения меняли модель. Он не объявлен поддерживаемой предыдущей production-версией продукта.
+`rental.localhost` — Site разработки и тестирования, на котором мы по ходу обучения меняли модель. Он не объявлен предыдущей поддерживаемой версией приложения.
 
-Поэтому не нужно писать ретроспективный patch для каждого учебного изменения только потому, что на dev-site уже существовала пара тестовых записей.
+Поэтому не нужно писать ретроспективный patch для каждого учебного изменения только потому, что на Site разработки уже существовала пара тестовых записей.
 
-Главное доказательство первого baseline будет в S09:
+Главная проверка первой версии будет в S09:
 
 ```text
-clean Site
-+ current App source
+чистый Site
++ текущие исходники App
 → корректная установка с нуля
 ```
 
@@ -729,9 +729,9 @@ clean Site
 
 ---
 
-# 17. Не использовать ручной SQL как delivery mechanism
+# 17. Не использовать ручной SQL как механизм поставки
 
-В S08 запрещено считать нормальным способом поставки:
+Нормальный путь установки не должен выглядеть так:
 
 ```text
 install app
@@ -741,36 +741,36 @@ install app
 → вручную вставить permissions
 ```
 
-Если schema принадлежит Standard DocType, её source — JSON + sync/migrate.
+Если схема принадлежит Standard DocType, её источник — JSON + sync/migrate.
 
-Если обязательная конфигурация действительно требует fixture, её source — fixture JSON.
+Если обязательная конфигурация действительно требует fixture, её источник — fixture JSON.
 
 Если старые данные надо преобразовать — кандидат patch.
 
-Ручной SQL может существовать как осознанный специальный инструмент, но не как скрытая штатная инструкция установки CORE.
+Ручной SQL может существовать как осознанный специальный инструмент, но не как скрытая штатная инструкция установки приложения.
 
 ---
 
 # 18. Составить собственную карту поставки
 
-Перед S09 ученик должен заполнить таблицу фактическими путями своего App.
+Перед S09 заполните таблицу фактическими путями своего App.
 
-| Обязательный элемент | Owner | Source file | Runtime destination | Проверено |
+| Обязательный элемент | Владелец | Исходный файл | Куда применяется | Проверено |
 |---|---|---|---|---|
 | Rental Training Module | App | `modules.txt` | `Module Def` | [ ] |
-| Equipment | App | `equipment.json` | DocType/table/meta | [ ] |
-| Customer | App | `customer.json` | DocType/table/meta | [ ] |
-| Rental Item | App | `rental_item.json` | Child DocType/table/meta | [ ] |
-| Rental | App | `rental.json` | DocType/table/meta | [ ] |
-| V01/V02/V03 | App | `rental.py` | Document lifecycle | [ ] |
-| Operator/Manager roles | App | role names в Standard DocType JSON | Role records через sync | [ ] |
-| CRUD defaults | App | DocType JSON | permission engine | [ ] |
-| automated contracts | App | `test_rental.py` | test runner | [ ] |
-| Users | Site | database | User | [ ] |
-| business records | Site | database | Documents | [ ] |
-| developer/test config | Site | site config | Site runtime | [ ] |
+| Equipment | App | `equipment.json` | DocType / таблица / метаданные | [ ] |
+| Customer | App | `customer.json` | DocType / таблица / метаданные | [ ] |
+| Rental Item | App | `rental_item.json` | Child DocType / таблица / метаданные | [ ] |
+| Rental | App | `rental.json` | DocType / таблица / метаданные | [ ] |
+| V01/V02/V03 | App | `rental.py` | жизненный цикл Document | [ ] |
+| роли Operator/Manager | App | имена Role в Standard DocType JSON | записи Role через sync | [ ] |
+| CRUD по умолчанию | App | DocType JSON | механизм permissions | [ ] |
+| автоматические проверки | App | `test_rental.py` | test runner Frappe | [ ] |
+| Users | Site | БД | User | [ ] |
+| рабочие Documents | Site | БД | Documents | [ ] |
+| настройки разработки и тестов | Site | конфигурация Site | состояние Site | [ ] |
 
-Если для обязательной строки нет понятного source of truth, S08 не пройден.
+Если для обязательной строки нет понятного основного источника, поставка приложения ещё не определена.
 
 ---
 
@@ -824,65 +824,65 @@ printf '\n=== FINAL APP GIT ===\n'
 git -C apps/rental_training status --short
 ```
 
-После принятого S08:
+Ожидаемый результат:
 
 ```text
 все обязательные файлы → OK
-role names в DocPerm     → найдены
-лишний Role fixture      → отсутствует
-migrate                  → success
-tests                    → green
-final Git                → clean
+имена Role в DocPerm    → найдены
+лишний Role fixture     → отсутствует
+migrate                 → выполняется успешно
+tests                   → проходят
+Git App                 → чистый
 ```
 
 ---
 
-# 20. S08 — ГОТОВО
+# 20. Проверка перед переходом к S09
 
-Переход к чистой установке S09 разрешён, если одновременно верно:
+Переход к чистой установке S09 возможен, если одновременно верно:
 
 ```text
-[ ] Module имеет source в modules.txt
+[ ] Module имеет источник в modules.txt
 [ ] четыре Standard DocTypes имеют JSON в App
-[ ] naming/fields/default permissions находятся в Standard metadata
-[ ] Rental Controller V01/V02/V03 tracked by Git
+[ ] именование, поля и permissions по умолчанию находятся в Standard metadata
+[ ] Rental Controller V01/V02/V03 отслеживается Git
 [ ] Rental Operator/Rental Manager находятся в Standard DocPerm
 [ ] отдельный Role fixture не дублирует эти имена
 [ ] Users не экспортированы как fixtures
-[ ] business data не экспортированы как fixtures
-[ ] developer_mode/allow_tests остаются Site-local
+[ ] рабочие данные не экспортированы как fixtures
+[ ] developer_mode/allow_tests остаются локальными настройками Site
 [ ] нет скрытых обязательных Custom Field / Property Setter / Custom DocPerm
-[ ] Bench services доступны перед migrate
+[ ] сервисы Bench доступны перед migrate
 [ ] bench migrate проходит
 [ ] tests после migrate проходят
-[ ] App Git остаётся clean
+[ ] Git App остаётся чистым
 [ ] patches.txt не содержит фиктивной миграции «для галочки»
 [ ] ученик может объяснить, почему patch сейчас не нужен
 ```
 
 ---
 
-# 21. S08 — НЕ ГОТОВО
+# 21. Когда не переходить к S09
 
-Не переходите к S09, если:
+Сначала исправьте проблему, если:
 
-- обязательное поле существует только на dev-site;
+- обязательное поле существует только на Site разработки;
 - обязательная Role после install должна создаваться вручную;
-- default permissions держатся только на локальном override;
+- permissions по умолчанию держатся только на локальном переопределении;
 - добавлен Role fixture только для имён, уже находящихся в Standard DocPerm;
-- `fixture` содержит Users или обычные Rentals без продуктового требования;
-- runtime records считаются частью source App;
-- `site_config.json` копируется как способ установки продукта;
+- `fixture` содержит Users или обычные Rentals без требования приложения;
+- рабочие Documents считаются частью исходников App;
+- `site_config.json` копируется как способ установки приложения;
 - `migrate` требует ручного SQL;
 - tests после migrate падают;
-- существует обязательная настройка, для которой нельзя назвать owner/source/delivery path;
+- существует обязательная настройка, для которой нельзя назвать владельца, источник и путь поставки;
 - patch написан только для демонстрации механизма.
 
 ---
 
 # 22. Что ученик должен понять после S08
 
-Не достаточно сказать:
+Недостаточно сказать:
 
 ```text
 «у меня всё работает»
@@ -891,7 +891,7 @@ final Git                → clean
 Нужно уметь показать:
 
 ```text
-что является продуктом
+что принадлежит App
 ↓
 где это хранится
 ↓
@@ -904,25 +904,25 @@ final Git                → clean
 
 Именно поэтому Frappe App — не просто папка с Python-кодом.
 
-В нашем CORE приложение состоит из нескольких штатных типов source state:
+В учебном приложении обязательное состояние хранится несколькими штатными способами:
 
 ```text
 modules.txt
 DocType JSON
 Python Controller
-Frappe-aware tests
+тесты Frappe
 ```
 
-а Site — из собственного экземплярного состояния:
+а Site хранит собственное экземплярное состояние:
 
 ```text
 Users
-business Documents
-site config
-installed app state
-runtime naming state
+рабочие Documents
+site_config.json
+список установленных Apps
+текущее состояние счётчиков имён
 ```
 
-S08 доказывает, что мы понимаем эту границу.
+S08 проверяет понимание этой границы.
 
-S09 останется сделать последнее: взять **новый чистый Site, на котором ничего из CORE раньше не создавалось**, установить текущий App и проверить, что delivery manifest действительно восстанавливает обязательное состояние без скрытых ручных шагов.
+На S09 останется последнее: взять **новый чистый Site, на котором приложение раньше не создавалось вручную**, установить текущий App и проверить, что карта поставки действительно восстанавливает обязательное состояние без скрытых ручных шагов.
