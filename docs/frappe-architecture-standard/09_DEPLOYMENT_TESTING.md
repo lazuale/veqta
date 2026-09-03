@@ -233,6 +233,7 @@ App может зависеть от других Apps. Расширение д�
 extend_doctype_class → v16+
 Packages             → v14+
 ограничения Server Script по умолчанию → v15+
+IntegrationTestCase / UnitTestCase как актуальная test API → v16
 ```
 
 ### Правило
@@ -245,14 +246,44 @@ Packages             → v14+
 
 ## 13. Тестирование — часть архитектурного контракта
 
-**[ДОКУМЕНТАЦИЯ FRAPPE]** Frappe предоставляет test runner, `FrappeTestCase`, тестовый Site и команды `bench run-tests`.
+**[ДОКУМЕНТАЦИЯ FRAPPE]** Frappe предоставляет test runner и команды `bench --site ... run-tests`. Test runner умеет обнаруживать test-файлы и автоматически строить test records зависимых `DocType`, найденных через `Link`.
 
-Источники:
+Источник:
 
 - https://docs.frappe.io/framework/user/en/testing
-- https://docs.frappe.io/framework/user/en/guides/automated-testing/unit-testing
 
-Frappe может автоматически создавать тестовые записи для зависимых `DocType`, обнаруженных по полям `Link`.
+**[ИСХОДНЫЙ КОД]** В Frappe v16.33.0 boilerplate нового Standard DocType генерирует тестовый класс через:
+
+```python
+from frappe.tests import IntegrationTestCase
+
+class IntegrationTestSomeDocType(IntegrationTestCase):
+    ...
+```
+
+и предоставляет:
+
+```python
+EXTRA_TEST_RECORD_DEPENDENCIES = []
+IGNORE_TEST_RECORD_DEPENDENCIES = []
+```
+
+Источник:
+
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/boilerplate/test_controller._py
+
+**[РЕЛИЗ FRAPPE / MIGRATION GUIDE]** Старый `FrappeTestCase` в v16 deprecated и должен заменяться:
+
+```text
+IntegrationTestCase → тест взаимодействует с БД/Documents
+UnitTestCase        → логика остаётся в памяти и не трогает БД
+```
+
+Источник:
+
+- https://github.com/frappe/frappe/wiki/Migrating-to-version-16#tests
+
+**[АРХИТЕКТУРНЫЙ ВЫВОД]** Для нового v16 App не следует копировать старые примеры с `FrappeTestCase`, если актуальный Framework уже сгенерировал более точный тип test case.
 
 ---
 
@@ -322,15 +353,28 @@ frappe.get_doc умеет загружать Document;
 
 ---
 
-## 16. Tests и transactions
+## 16. Tests, БД и user context в v16
 
-**[ДОКУМЕНТАЦИЯ FRAPPE]** `FrappeTestCase` предоставляет специфичную для Frappe подготовку теста и изоляцию транзакций.
+**[ИСХОДНЫЙ КОД]** `IntegrationTestCase` в Frappe v16 наследует `UnitTestCase` и добавляет test database setup/teardown, загрузку зависимых test records и управление DB connections. Если класс переопределяет `setUpClass`, он обязан вызвать `super().setUpClass()`.
 
 Источник:
 
-- https://docs.frappe.io/framework/user/en/guides/automated-testing/unit-testing
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/tests/classes/integration_test_case.py
 
-Это важно для тестов жизненного цикла и сохранения данных.
+**[ИСХОДНЫЙ КОД]** Frappe также регистрирует для test cases context manager:
+
+```python
+with self.set_user(user):
+    ...
+```
+
+который временно переключает пользователя и гарантированно возвращает предыдущий user context в `finally`.
+
+Источник:
+
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/tests/classes/context_managers.py
+
+**[АРХИТЕКТУРНЫЙ ВЫВОД]** Для обычного integration test не нужно добавлять ручные `commit()` / `rollback()` только ради того, чтобы «почистить тест». Сначала следует использовать test lifecycle Framework и изолированный test design. Ручное управление транзакцией оправдано только когда сама транзакционная семантика является предметом конкретного теста.
 
 ---
 
@@ -382,7 +426,9 @@ migrate с предыдущей поддерживаемой версии;
 5. Какие миграции схемы и данных нужны?
 6. Есть ли ручной production SQL? Почему?
 7. Какие возможности, зависящие от версии, используются?
-8. Какие тесты защищают собственные инварианты?
-9. Проверяется ли чистая установка?
-10. Проверяется ли migrate с предыдущей версии?
+8. Какие tests защищают собственные контракты?
+9. Для DB/Document tests используется актуальный IntegrationTestCase?
+10. Test data независимо от случайного состояния dev-site?
+11. Проверяется ли чистая установка?
+12. Проверяется ли migrate с предыдущей версии?
 ```
