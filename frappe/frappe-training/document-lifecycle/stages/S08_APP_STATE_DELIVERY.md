@@ -10,7 +10,9 @@
 
 Связанный архитектурный раздел: [`../../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md`](../../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md).
 
-## 1. Определить источник каждого элемента
+---
+
+# 1. Определить источник каждого элемента
 
 Итоговый процесс состоит из разных типов состояния.
 
@@ -39,7 +41,9 @@
 → не становятся fixtures
 ```
 
-## 2. Почему Role fixture не нужен
+---
+
+# 2. Почему Role fixture не нужен
 
 Имена трёх ролей уже находятся в permission rows Standard `Purchase Request`.
 
@@ -61,7 +65,9 @@ Role fixture с тем же именем
 
 Отдельный Role fixture понадобился бы только при появлении обязательных свойств Role, которые не выражаются Standard DocPerm.
 
-## 3. Настроить fixtures в hooks.py
+---
+
+# 3. Настроить fixtures в hooks.py
 
 Откройте:
 
@@ -123,7 +129,9 @@ Workflow Action Master
 
 Источник: [`frappe/utils/fixtures.py`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/utils/fixtures.py).
 
-## 4. Экспортировать fixtures
+---
+
+# 4. Экспортировать fixtures
 
 Из Bench:
 
@@ -150,7 +158,9 @@ find apps/purchase_lifecycle_training/purchase_lifecycle_training/fixtures \
 
 Точное количество цифр префикса зависит от количества fixtures; при трёх элементах это одна цифра.
 
-## 5. Проверить, что экспорт не захватил лишнее
+---
+
+# 5. Проверить, что экспорт не захватил лишнее
 
 В fixtures должны быть только:
 
@@ -184,7 +194,9 @@ bench --site purchase-lifecycle.localhost export-fixtures --app purchase_lifecyc
 
 Повторный export при неизменной конфигурации должен давать стабильный и объяснимый diff, а не случайно захватывать новые записи Site.
 
-## 6. Проверить состав исходников App
+---
+
+# 6. Проверить состав исходников App
 
 К этому моменту App должен содержать по смыслу:
 
@@ -206,7 +218,9 @@ purchase_lifecycle_training/
 
 `purchase_request.py` может оставаться без собственной бизнес-логики. Текущий процесс уже выражается штатными `Workflow`, `docstatus` и permissions, поэтому Python-код не нужно добавлять просто ради наличия Controller.
 
-## Результат
+---
+
+# Результат
 
 После S08:
 
