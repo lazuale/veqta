@@ -19,7 +19,7 @@ The default relationship is:
 ```text
 Frappe Framework
        ↓
-independent VEQTA product App
+product-specific Frappe App
 ```
 
 Not:
@@ -54,20 +54,24 @@ does its semantics match?
 
 Custom code is not a defect. Unnecessary duplication of framework responsibility is.
 
-## 4. App boundary rule
+## 4. Product and App boundary rule
 
-A production product should normally be an independent Frappe App.
+For a normal Frappe-based product, the default software boundary is an independently installable Frappe App.
 
-The App owns its product-specific:
+That App owns the product-specific:
 
 - DocTypes and controllers;
 - hooks and integrations;
 - fixtures and patches when required;
 - tests;
-- product modules and reports;
+- modules and reports;
 - release lifecycle.
 
-A Site remains a deployment/runtime instance and must not become the only source of product configuration.
+A Product is not required to be forever identical to exactly one App. A dedicated frontend, companion service or additional App is acceptable when a real product responsibility requires it. Such a boundary must be documented explicitly and must not be introduced merely to create a proprietary-looking platform layer.
+
+A Site remains a deployment/runtime tenant and must not become the only source of product configuration.
+
+A Bench is an environment for managing Apps and Sites, not the product architecture itself.
 
 ## 5. No universal VEQTA domain model
 
@@ -252,6 +256,6 @@ Every dependency on undocumented internal behavior creates an upgrade liability 
 
 Before accepting a design, the reviewer must be able to answer:
 
-> Which responsibility belongs to Frappe, which responsibility belongs to this App, and what evidence justifies the boundary?
+> Which responsibility belongs to Frappe, which responsibility belongs to the product App or other product component, and what evidence justifies the boundary?
 
 If that boundary cannot be explained, the design is not ready.
