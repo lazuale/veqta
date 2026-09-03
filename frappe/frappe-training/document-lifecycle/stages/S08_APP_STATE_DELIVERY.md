@@ -1,41 +1,41 @@
-# S08. Поставить lifecycle-конфигурацию вместе с App
+# S08. Поставить обязательную конфигурацию вместе с App
 
-К S08 процесс уже работает на dev Site. Но пока часть конфигурации была создана через Desk.
+К S08 процесс уже работает на dev Site. Но часть обязательной конфигурации пока была создана вручную через Desk.
 
 Новое требование:
 
-> Новый Site после установки App должен получить обязательный lifecycle без повторного ручного создания Workflow.
+> Новый Site после установки App должен получить готовый Workflow без повторного ручного создания его состояний и переходов.
 
-Здесь нужно не экспортировать всё подряд, а определить владельца каждого элемента.
+Здесь нужно не экспортировать всё подряд, а определить, какой источник отвечает за каждый обязательный элемент.
 
 Связанный архитектурный раздел: [`../../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md`](../../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md).
 
-## 1. Составить карту владения
+## 1. Определить источник каждого элемента
 
-Финальный lifecycle состоит из разных типов состояния.
+Итоговый процесс состоит из разных типов состояния.
 
-| Элемент | Основной источник | Поставка |
+| Элемент | Основной источник | Как попадает на Site |
 |---|---|---|
-| `Purchase Request` schema | Standard DocType JSON | sync при install/migrate |
+| схема `Purchase Request` | Standard DocType JSON | sync при install/migrate |
 | default DocPerm | Standard DocType JSON | sync при install/migrate |
-| `PLT Requester` | имя Role в Standard DocPerm | Frappe создаёт missing Role при sync |
-| `PLT Approver` | имя Role в Standard DocPerm | Frappe создаёт missing Role при sync |
-| `PLT Senior Approver` | имя Role в Standard DocPerm | Frappe создаёт missing Role при sync |
-| `PLT Submit for Review` | App-owned setup record | filtered fixture |
-| `PLT Cancel Request` | App-owned setup record | filtered fixture |
-| `PLT ...` Workflow States | App-owned setup records | filtered fixture |
-| `PLT Purchase Request Approval` | App-owned setup record | filtered fixture |
-| runtime Workflow Actions | данные Site | не fixture |
+| `PLT Requester` | имя Role в Standard DocPerm | Frappe создаёт отсутствующую Role при sync |
+| `PLT Approver` | имя Role в Standard DocPerm | Frappe создаёт отсутствующую Role при sync |
+| `PLT Senior Approver` | имя Role в Standard DocPerm | Frappe создаёт отсутствующую Role при sync |
+| `PLT Submit for Review` | запись настройки App | filtered fixture |
+| `PLT Cancel Request` | запись настройки App | filtered fixture |
+| `PLT ...` Workflow State | записи настройки App | filtered fixture |
+| `PLT Purchase Request Approval` | запись настройки App | filtered fixture |
+| текущие Workflow Action | данные Site | не fixture |
 | Users / passwords | данные Site | не fixture |
 | Purchase Request records | данные Site | не fixture |
 
 Главный принцип:
 
 ```text
-обязательная конфигурация App
+обязательная конфигурация приложения
 → должна воспроизводиться из App
 
-операционные данные конкретного Site
+пользователи и рабочие данные конкретного Site
 → не становятся fixtures
 ```
 
@@ -57,9 +57,9 @@ Standard DocPerm
 Role fixture с тем же именем
 ```
 
-дублировала бы один и тот же delivery responsibility.
+дублировала бы один и тот же источник обязательного состояния.
 
-Отдельный Role fixture понадобился бы только при отдельном App-owned состоянии Role, которое не выражается Standard DocPerm.
+Отдельный Role fixture понадобился бы только при появлении обязательных свойств Role, которые не выражаются Standard DocPerm.
 
 ## 3. Настроить fixtures в hooks.py
 
@@ -117,7 +117,7 @@ Workflow Action Master
 → Workflow
 ```
 
-`Workflow` ссылается на Action Masters и Workflow States через свои child rows, поэтому базовые records должны импортироваться раньше самого Workflow.
+`Workflow` ссылается на Action Masters и Workflow States через свои child rows, поэтому эти записи должны импортироваться раньше самого Workflow.
 
 В v16.33.0 `fixture_auto_order` добавляет числовые префиксы к export-файлам, а import читает fixture files в отсортированном порядке.
 
@@ -140,7 +140,7 @@ find apps/purchase_lifecycle_training/purchase_lifecycle_training/fixtures \
   -maxdepth 1 -type f -printf '%f\n' | sort
 ```
 
-Ожидаемый смысл порядка:
+Ожидаемый порядок:
 
 ```text
 1_workflow_action_master.json
@@ -165,9 +165,9 @@ find apps/purchase_lifecycle_training/purchase_lifecycle_training/fixtures \
 ```text
 Role
 User
-Workflow Action runtime rows
-Purchase Request business records
-Framework-owned Approve / Reject / Review Action Masters
+текущих Workflow Action
+рабочих Purchase Request
+стандартных Approve / Reject / Review Action Masters
 ```
 
 Проверьте Git:
@@ -182,9 +182,9 @@ git -C apps/purchase_lifecycle_training status --short
 bench --site purchase-lifecycle.localhost export-fixtures --app purchase_lifecycle_training
 ```
 
-Повторный export при неизменной конфигурации должен давать объяснимый стабильный diff, а не случайно захватывать новые записи Site.
+Повторный export при неизменной конфигурации должен давать стабильный и объяснимый diff, а не случайно захватывать новые записи Site.
 
-## 6. Проверить source manifest
+## 6. Проверить состав исходников App
 
 К этому моменту App должен содержать по смыслу:
 
@@ -204,18 +204,18 @@ purchase_lifecycle_training/
             └── test_purchase_request.py
 ```
 
-`purchase_request.py` может оставаться без собственной бизнес-логики. В текущем практикуме процесс уже выражается штатными `Workflow`, `docstatus` и permissions, поэтому Python не нужно добавлять просто ради наличия Controller.
+`purchase_request.py` может оставаться без собственной бизнес-логики. Текущий процесс уже выражается штатными `Workflow`, `docstatus` и permissions, поэтому Python-код не нужно добавлять просто ради наличия Controller.
 
 ## Результат
 
 После S08:
 
 ```text
-Standard metadata владеет Purchase Request и default DocPerm
-Role fixture отсутствует
-App-owned Action Masters / States / Workflow экспортированы filtered fixtures
-runtime данные Site не попали в Git
-порядок fixture import выражает реальные зависимости
+Standard metadata хранит Purchase Request и default DocPerm
+Role fixture не нужен
+собственные Action Masters / States / Workflow экспортированы filtered fixtures
+пользователи и рабочие данные Site не попали в Git
+порядок fixture import соответствует зависимостям
 ```
 
 Следующий этап: [`S09_AUTOMATED_TESTS.md`](S09_AUTOMATED_TESTS.md).
