@@ -1,30 +1,28 @@
-# VEQTA Project Charter
+# Хартия проекта VEQTA
 
-Status: **foundation baseline candidate**  
-Scope: VEQTA as an independent open-source initiative built on Frappe Framework
+Статус: **кандидат в foundation baseline**  
+Область: VEQTA как открытая инициатива, построенная вокруг Frappe Framework
 
-## 1. Definition
+## 1. Определение
 
-VEQTA is an **independent open-source engineering and product ecosystem built on Frappe Framework**.
+VEQTA — **независимая открытая инженерная и продуктовая экосистема, построенная на Frappe Framework**.
 
-It operates as an architecture-first product studio: engineering knowledge is made explicit, taught through reproducible practice, tested in isolated Labs and applied to independent production products.
+VEQTA работает как инженерная продуктовая студия и связывает четыре вида деятельности, которые обычно существуют отдельно:
 
-VEQTA exists to connect four activities that are usually separated:
+1. понимание того, как Frappe спроектирован и как его естественно использовать;
+2. обучение этой инженерной модели воспроизводимым способом;
+3. проверку спорных решений в изолированных экспериментах;
+4. превращение зрелых решений в самостоятельные продукты для реальной эксплуатации.
 
-1. understanding how Frappe is designed to be used;
-2. teaching that engineering model in a reproducible way;
-3. testing uncertain decisions in isolated experiments;
-4. turning mature solutions into independent production applications.
+VEQTA не является Frappe `App`, заменой Frappe Framework, форком Frappe или произвольным сборником учебных материалов.
 
-VEQTA is not a Frappe App, a replacement for Frappe Framework, a fork of Frappe, an official Frappe project, or a generic collection of tutorials.
+## 2. Миссия
 
-## 2. Mission
+Создавать полезное открытое программное обеспечение на Frappe и одновременно делать путь от понимания Framework до production-реализации явным, проверяемым и пригодным для обучения.
 
-Build useful open-source software on Frappe while making the engineering path from framework knowledge to production implementation explicit, verifiable and teachable.
+Долгосрочный результат — не одно универсальное приложение, а согласованная система инженерных знаний, обучения, экспериментов и самостоятельных продуктов, объединённых общей инженерной дисциплиной.
 
-The long-term result is not one universal application. It is a coherent family of engineering knowledge, learning materials, experiments and independent products that share the same engineering discipline.
-
-## 3. Strategic model
+## 3. Стратегическая модель
 
 ```text
 Frappe Framework
@@ -41,147 +39,153 @@ VEQTA Learn       VEQTA Labs
        VEQTA Products
               │
               ▼
-users · contributors · services · community
+пользователи · участники · сервисы · сообщество
 ```
 
-The ecosystem is built through useful engineering assets and useful products. Community size is not treated as a substitute for product value.
+Экосистема является следствием полезных инженерных активов и полезных продуктов. Размер сообщества не считается заменой продуктовой ценности.
 
-## 4. Four permanent domains
+## 4. Четыре постоянных направления
 
 ### 4.1 VEQTA Engineering
 
-The engineering knowledge layer.
+Инженерный слой знаний.
 
-It defines how VEQTA evaluates architecture on Frappe, records evidence, separates Frappe facts from VEQTA conclusions, documents patterns and anti-patterns, and maintains compatibility guidance.
+Он определяет, как VEQTA оценивает архитектуру на Frappe, фиксирует доказательства, отделяет факты Frappe от выводов VEQTA, документирует паттерны и антипаттерны и поддерживает сведения о совместимости.
 
-Its core asset is the Frappe Architecture Standard.
+Его основной актив — Frappe Architecture Standard.
 
 ### 4.2 VEQTA Learn
 
-The educational layer.
+Учебный слой.
 
-It converts accepted engineering knowledge into structured learning paths, courses, practicums and exercises. It teaches decision-making and responsibility ownership, not a catalogue of framework features.
+Он превращает принятые инженерные знания в структурированные учебные маршруты, курсы, практикумы и упражнения. Learn учит принятию инженерных решений и распределению ответственности, а не каталогу функций Framework.
 
-Learn consumes Engineering. A convenient lesson is never a reason to weaken an engineering rule.
+Learn использует Engineering. Удобство урока никогда не является причиной ослабить инженерное правило.
 
 ### 4.3 VEQTA Labs
 
-The experimental layer.
+Экспериментальный слой.
 
-Labs are isolated, explicitly temporary environments for validating architectural, product or UX hypotheses. A Lab may produce a reference implementation, invalidate an idea, feed evidence back into Engineering, become material for Learn, or graduate into product incubation.
+Labs — изолированные и явно временные среды для проверки архитектурных, продуктовых и UX-гипотез. Lab может дать эталонную реализацию, опровергнуть идею, вернуть доказательства в Engineering, стать материалом для Learn или перейти в инкубацию продукта.
 
-A Lab is not a production product and must never be presented as one.
+Lab не является готовым продуктом и не должен представляться как готовый продукт.
 
 ### 4.4 VEQTA Products
 
-The production layer.
+Продуктовый слой.
 
-Products solve real user problems. For a product built on Frappe, the **default software boundary** is an independently installable Frappe App with its own scope, release lifecycle, documentation and product identity.
+Products решают реальные пользовательские задачи. Нормальное техническое ядро Frappe-продукта — самостоятельно устанавливаемый `App` со своей областью ответственности, репозиторием, релизным циклом, документацией и продуктовой идентичностью. Дополнительные компоненты допустимы, если для них существует реальная ответственность и явное архитектурное обоснование.
 
-A product may legitimately include additional components — for example a dedicated frontend, companion service or more than one App — when the product responsibility requires them. Such a deviation must be an explicit architectural decision rather than a branding choice or speculative platform layer.
+VEQTA сама не обязана иметь собственные `DocType` или runtime-пакет.
 
-VEQTA itself does not need its own DocTypes or runtime package.
+## 5. Основная аудитория
 
-## 5. Primary audience
+Зонтичный бренд VEQTA ориентирован прежде всего на людей и команды, которые создают решения на Frappe:
 
-The VEQTA umbrella brand is primarily builder-facing:
+- разработчиков Frappe и будущих разработчиков Frappe;
+- архитекторов программных и прикладных решений;
+- технических руководителей;
+- независимых разработчиков;
+- команды внедрения;
+- участников open-source проектов.
 
-- Frappe developers and future Frappe developers;
-- software and solution architects;
-- technical leads;
-- independent builders;
-- implementation teams;
-- open-source contributors.
+Каждый Product обращается к собственной конечной аудитории и должен быть понятен ей без необходимости изучать всю экосистему VEQTA.
 
-Individual products address their own end users and must be understandable without requiring those users to understand the whole VEQTA ecosystem.
+## 6. Языковая ориентация
 
-## 6. Non-goals
+VEQTA ориентирована прежде всего на русскоязычную аудиторию.
 
-VEQTA does not aim to:
+Русский язык является основным языком документации, обучения, инженерных материалов, governance и публичной коммуникации. Английская терминология сохраняется там, где она является официальным названием Frappe, частью кода/API или точнее перевода.
 
-- replace official Frappe documentation;
-- imply official affiliation with Frappe Technologies;
-- create a parallel framework over Frappe;
-- create a mandatory `veqta_core` dependency for all products;
-- reproduce ERPNext under another name;
-- build courses merely to demonstrate every Frappe feature;
-- keep failed experiments alive for branding reasons;
-- turn branding or visual identity into a justification for custom technical architecture;
-- force unrelated products into one domain model;
-- define community growth as the main success criterion.
+Полные правила определены в [`LANGUAGE_POLICY.md`](LANGUAGE_POLICY.md).
 
-## 7. Engineering authority
+## 7. Что VEQTA сознательно не делает
 
-The order of authority for technical claims is:
+VEQTA не ставит целью:
+
+- заменить официальную документацию Frappe;
+- создать параллельный framework поверх Frappe;
+- создать обязательную зависимость `veqta_core` для всех продуктов;
+- воспроизвести ERPNext под другим названием;
+- строить курсы только ради демонстрации каждой функции Frappe;
+- сохранять неудачные эксперименты ради бренда;
+- использовать брендинг или визуальную идентичность как оправдание собственной технической архитектуры;
+- заставлять несвязанные продукты использовать одну предметную модель;
+- считать рост сообщества главным показателем успеха;
+- переходить на английский язык только ради внешнего впечатления «международного проекта».
+
+## 8. Инженерный источник истины
+
+Порядок авторитетности технических утверждений:
 
 ```text
-official Frappe documentation / source / releases
-                    ↓
-             VEQTA Engineering
-             ↙       ↓       ↘
-          Learn     Labs    Products
+официальная документация / исходный код / релизы Frappe
+                         ↓
+                  VEQTA Engineering
+                  ↙       ↓       ↘
+               Learn     Labs    Products
 ```
 
-Engineering may contain VEQTA architectural conclusions, but they must be identified as conclusions rather than represented as official Frappe rules.
+Engineering может содержать архитектурные выводы VEQTA, но они должны явно обозначаться как выводы, а не как официальные правила Frappe.
 
-Labs and Products can generate evidence that causes Engineering to be revised. They do not silently override it.
+Labs и Products могут дать доказательства, из-за которых Engineering будет пересмотрен. Они не переопределяют его молча.
 
-## 8. Product-led rule
+## 9. Product-led правило
 
-VEQTA must produce useful software, not only knowledge about software.
+VEQTA должна создавать полезное программное обеспечение, а не только знания о программном обеспечении.
 
-Engineering and Learn are first-class outputs, but the strategic direction requires a path toward independent production products. No artificial deadline or invented product category is required; product candidates must emerge from validated problems and evidence.
+Engineering и Learn являются полноценными результатами работы, но стратегическое направление требует пути к самостоятельным продуктам. Искусственный срок или заранее придуманный набор продуктовых категорий не нужен: кандидаты должны возникать из проверенных проблем и доказательств.
 
-## 9. Open-source rule
+## 10. Open-source правило
 
-VEQTA follows an open-source-first product model.
+VEQTA следует open-source-first модели.
 
-The default strategic model is not "open core" where essential product capabilities are deliberately withheld from the open-source application. Sustainable commercial activity may later exist around hosting, support, implementation, consulting, education or other services.
+Базовая стратегия не строится как `open core`, где существенные продуктовые возможности намеренно удерживаются только в закрытой версии. Устойчивая коммерческая деятельность в будущем может строиться вокруг hosting, поддержки, внедрения, консалтинга, обучения и других сервисов.
 
-Exact software, content and trademark licensing is defined separately and may differ by artifact type.
+Конкретные лицензии для кода, контента и товарных знаков определяются отдельно и могут различаться.
 
-## 10. Brand rule
+## 11. Правило бренда
 
-VEQTA is an umbrella identity, not the default name of every application.
+VEQTA — зонтичная идентичность, а не обязательное имя каждого приложения.
 
-Products may use a VEQTA-endorsed name or a standalone product name, but each production product must have its own identity, audience and value proposition.
+Product может использовать имя с VEQTA или самостоятельное имя, но каждый готовый продукт должен иметь собственную идентичность, аудиторию и ценностное предложение.
 
-The current VEQTA name is treated as a working brand until formal trademark and naming clearance is complete.
+Текущее имя VEQTA считается рабочим до завершения отдельной проверки названия и товарных знаков.
 
-Names and logos belonging to Frappe Technologies or other projects are treated as third-party marks. VEQTA's use of the words `Frappe Framework` is descriptive of the upstream technology and must not imply endorsement or official status.
+## 12. Решения, требующие изменения Хартии
 
-## 11. Decision rules
+Следующие решения нельзя вводить как неформальное соглашение — они требуют явного изменения этой Хартии:
 
-The following decisions require an explicit change to this Charter rather than an informal convention:
+- переопределить VEQTA как одно приложение;
+- ввести обязательный runtime/framework слой VEQTA между Frappe и Products;
+- объединить Learn, Labs и Products в одну неразделённую область разработки;
+- перейти от open-source-first к open-core как базовой стратегии;
+- сделать предметную область одного Product универсальной моделью VEQTA;
+- изменить четырёхчастную архитектуру Engineering, Learn, Labs и Products;
+- изменить русский язык как основной язык экосистемы.
 
-- redefining VEQTA as a single application;
-- introducing a mandatory VEQTA runtime/framework layer between Frappe and products;
-- merging Learn, Labs and Products into one undifferentiated development area;
-- changing the open-source product strategy to open-core;
-- making one product domain the universal domain model of VEQTA;
-- changing the four-domain architecture of Engineering, Learn, Labs and Products.
+## 13. Базовые документы
 
-## 12. Foundation documents
-
-This Charter is interpreted together with:
+Эта Хартия применяется вместе с:
 
 - [`BRAND_ARCHITECTURE.md`](BRAND_ARCHITECTURE.md)
 - [`ENGINEERING_PRINCIPLES.md`](ENGINEERING_PRINCIPLES.md)
 - [`PRODUCT_LIFECYCLE.md`](PRODUCT_LIFECYCLE.md)
 - [`REPOSITORY_STRUCTURE.md`](REPOSITORY_STRUCTURE.md)
+- [`LANGUAGE_POLICY.md`](LANGUAGE_POLICY.md)
 
-If these documents conflict, `PROJECT_CHARTER.md` has priority until the conflict is resolved explicitly.
+Если документы противоречат друг другу, `PROJECT_CHARTER.md` имеет приоритет до явного устранения противоречия.
 
-## 13. Baseline test
+## 14. Проверка нового направления
 
-Any future initiative using the VEQTA name must be classifiable without ambiguity as one of:
+Любая будущая инициатива под именем VEQTA должна однозначно классифицироваться как:
 
 ```text
-Engineering artifact
-Learning artifact
-Lab artifact
-Product artifact
-Ecosystem / governance support
+инженерный артефакт
+учебный артефакт
+Lab
+Product
+поддержка экосистемы / governance
 ```
 
-If it cannot be classified, its place in VEQTA has not been designed yet and it must not be added by convention.
+Если классификация невозможна, место инициативы в VEQTA ещё не спроектировано и её нельзя добавлять по привычке.
