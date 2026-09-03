@@ -57,7 +57,8 @@ ignore_permissions=True
 Первичные источники Frappe:
 
 - https://docs.frappe.io/framework/user/en/basics/users-and-permissions
-- https://docs.frappe.io/framework/user/en/python-api/hooks#fixtures
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/installer.py
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/permissions.py
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/document.py
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/delete_doc.py
@@ -184,17 +185,21 @@ Rental Manager
 
 и чтобы Standard DocTypes имели определённые default permissions.
 
-Следовательно:
+Для текущего CORE источник этой модели один:
 
 ```text
-Role records
-→ обязательная конфигурация App
-→ fixtures
-
 DocType Permissions
 → часть metadata Standard DocType
 → equipment.json / customer.json / rental.json
+
+role name внутри DocPerm
+→ часть той же metadata
+→ при sync Frappe создаёт отсутствующий Role
 ```
+
+В Frappe v16.33.0 `make_module_and_roles()` собирает имена ролей из permission rows Standard DocType и создаёт отсутствующие `Role`. Для созданной роли Framework устанавливает `desk_access = 1`.
+
+При установке App `install_app()` выполняет `sync_for()` до `sync_fixtures()`. Поэтому отдельный `Role` fixture только ради двух имён, уже присутствующих в Standard DocPerm собственного App, дублировал бы штатный механизм Frappe.
 
 ## Site-owned
 
@@ -317,7 +322,7 @@ Disabled    : no
 
 ---
 
-# 6. Пока Role ещё не доставляются App
+# 6. Пока изменения существуют только на Site
 
 После создания двух Role проверьте Git:
 
@@ -334,12 +339,10 @@ git -C apps/rental_training status --short
 ```text
 Role создана на Site
 ≠
-Role уже поставляется с App
+роль уже описана обязательной metadata нашего App
 ```
 
-Чтобы сделать обязательные Role воспроизводимыми, позже мы явно объявим их fixtures.
-
-Сначала настроим default permissions Standard DocTypes.
+Дальше мы добавим эти имена в default permissions Standard DocTypes. Именно эти permission rows станут воспроизводимым source: при синхронизации Frappe создаст отсутствующие Role на другом Site.
 
 ---
 
@@ -597,98 +600,72 @@ default permission model продукта
 
 ---
 
-# 13. Объявить обязательные Role как fixtures
+# 13. Почему отдельный Role fixture здесь не нужен
 
-Теперь нужно сделать две Role частью устанавливаемого App.
+После разделов 7–9 оба имени роли уже находятся в `permissions[]` Standard DocTypes нашего App.
 
-Откройте:
-
-```text
-apps/rental_training/rental_training/hooks.py
-```
-
-Найдите существующий `fixtures` hook либо добавьте его.
-
-Если `fixtures` уже используется, **не затирайте** существующие записи — добавьте наш объект в общий список.
-
-Для текущего практикума достаточно:
-
-```python
-fixtures = [
-    {
-        "dt": "Role",
-        "filters": [
-            [
-                "role_name",
-                "in",
-                ["Rental Operator", "Rental Manager"],
-            ]
-        ],
-    },
-]
-```
-
-Смысл фильтра:
+В Frappe v16.33.0 штатный sync Standard DocType вызывает `make_module_and_roles()`:
 
 ```text
-не экспортировать все Role Site
-экспортировать только две Role нашего App
+permissions[]
+→ собрать role names
+→ проверить наличие Role
+→ создать отсутствующую Role
+→ desk_access = 1
 ```
 
-Нельзя использовать:
+При `install-app` этот sync происходит до `sync_fixtures()`.
 
-```python
-fixtures = ["Role"]
+Следовательно, схема:
+
+```text
+Standard DocPerm
++
+Role fixture с тем же role_name
 ```
 
-потому что это попытается превратить весь набор ролей конкретного Site в конфигурацию учебного приложения.
+создала бы два механизма поставки одной ответственности.
+
+Для CORE используем более простой путь:
+
+```text
+Standard DocPerm
+→ source of truth role name
+→ штатный sync Frappe создаёт missing Role
+```
+
+Отдельный Role fixture был бы оправдан только при дополнительном App-owned состоянии самой Role, которое не выражается Standard DocPerm. В текущем требовании такого состояния нет.
 
 ---
 
-# 14. Экспортировать fixtures штатной командой
+# 14. Проверить, что лишний fixture не появился
 
-Из корня Bench:
-
-```bash
-cd ~/frappe/rental-training-bench
-```
-
-Выполните:
+Проверьте `hooks.py`:
 
 ```bash
-bench --site rental.localhost export-fixtures --app rental_training
+cd ~/frappe/rental-training-bench/apps/rental_training
+
+grep -n -A20 -B5 'fixtures' rental_training/hooks.py || true
 ```
 
-Официальный `export-fixtures` читает `fixtures` из `hooks.py` и сохраняет соответствующие database records в JSON App.
+Если `fixtures` уже используются для другой самостоятельной конфигурации App, не удаляйте их.
 
-Проверьте результат:
+Но текущие две роли не должны добавляться отдельной записью вида:
 
-```bash
-find apps/rental_training/rental_training/fixtures \
-  -maxdepth 1 -type f -print
+```python
+{
+    "dt": "Role",
+    "filters": [["role_name", "in", ["Rental Operator", "Rental Manager"]]],
+}
 ```
 
-Ожидается fixture Role, обычно:
+и для них не требуется:
 
 ```text
-apps/rental_training/rental_training/fixtures/role.json
+rental_training/fixtures/role.json
 ```
 
-Проверьте содержимое:
-
-```bash
-sed -n '1,240p' \
-  apps/rental_training/rental_training/fixtures/role.json
-```
-
-В нём должны присутствовать:
-
-```text
-Rental Operator
-Rental Manager
-```
-
-и **не должен** появиться произвольный список остальных ролей Site.
+Также не запускайте `export-fixtures` только ради этих двух Role: их воспроизводимость будет проверена на чистом Site в S09.
 
 ---
 
@@ -705,24 +682,24 @@ git status --short
 Ожидаемый класс изменений:
 
 ```text
-hooks.py
-fixtures/role.json
 equipment.json
 customer.json
 rental.json
 ```
 
-Это важная архитектурная картина:
+Архитектурная картина:
 
 ```text
-Role definitions
-→ fixture
-
+Role names
++
 Role → CRUD on DocType
-→ Standard DocType JSON
+→ Standard DocType JSON permissions[]
+
+missing Role на новом Site
+→ создаёт Frappe при sync Standard metadata
 
 конкретные User accounts
-→ пока только Site
+→ только Site
 ```
 
 ---
@@ -815,9 +792,7 @@ manager@example.test
 
 не должно создавать новые source-файлы пользователей.
 
-Их нет в `fixtures` hook.
-
-Это правильно.
+Это правильно: `User` остаётся состоянием конкретного Site и не входит в обязательную metadata CORE.
 
 ---
 
@@ -1441,18 +1416,15 @@ cd ~/frappe/rental-training-bench/apps/rental_training
 git status --short
 
 git diff -- \
-  rental_training/hooks.py \
   rental_training/rental_training/doctype/equipment/equipment.json \
   rental_training/rental_training/doctype/customer/customer.json \
   rental_training/rental_training/doctype/rental/rental.json
 ```
 
-Fixture может быть новым untracked файлом, поэтому добавьте весь согласованный набор:
+Добавьте согласованный набор:
 
 ```bash
 git add \
-  rental_training/hooks.py \
-  rental_training/fixtures \
   rental_training/rental_training/doctype/equipment/equipment.json \
   rental_training/rental_training/doctype/customer/customer.json \
   rental_training/rental_training/doctype/rental/rental.json
@@ -1464,12 +1436,12 @@ git add \
 git diff --cached
 ```
 
-Убедитесь, что в fixture Role нет случайных ролей Site и тем более пользователей/паролей.
+Убедитесь, что в Git попали только default permissions Standard DocTypes и нет случайных Users, паролей или Role fixture.
 
 Зафиксируйте:
 
 ```bash
-git commit -m "feat: add rental roles and permissions"
+git commit -m "feat: add rental permissions"
 ```
 
 Проверьте:
@@ -1492,8 +1464,7 @@ git status --short
 
 - Role уже созданы в БД;
 - permissions уже сохранены через DocType UI;
-- Users уже существуют локально;
-- fixture уже экспортирован из этого Site.
+- Users уже существуют локально.
 
 Поэтому S05D не требует выполнять `bench migrate` просто ради ритуала.
 
@@ -1501,11 +1472,12 @@ git status --short
 
 ```text
 Standard DocType JSON
-+ fixtures
         ↓
 install / migrate sync
         ↓
-обязательная permission model воспроизводится
+DocPerm синхронизируются
+        ↓
+missing Role создаются Frappe
 ```
 
 Это будет доказано не предположением, а clean-install проверкой на S08/S09.
@@ -1526,13 +1498,16 @@ sessions
 конкретные runtime Equipment
 ```
 
-В Git должны появиться только обязательные элементы продукта:
+В Git появляется обязательная permission model:
 
 ```text
-Role fixtures
-DocType default permissions
-fixtures hook
+Standard DocType JSON
+└── permissions[]
+    ├── Rental Operator
+    └── Rental Manager
 ```
+
+Отдельный Role fixture для этих двух имён текущему CORE не нужен.
 
 ---
 
@@ -1566,17 +1541,21 @@ DocPerm.delete = 0
 
 ## Ошибка 3. Настроить всё только Role Permission Manager и забыть delivery
 
-На dev-site всё выглядит правильно, но после clean install роли/defaults приходится восстанавливать вручную.
+На dev-site всё выглядит правильно, но после clean install default permissions приходится восстанавливать вручную.
 
-Это значит, что обязательное состояние продукта не принадлежит App.
+Это значит, что обязательное состояние продукта не принадлежит Standard metadata App.
 
-## Ошибка 4. Экспортировать все Role
+## Ошибка 4. Добавить Role fixture для имени, которое уже находится в Standard DocPerm
 
-```python
-fixtures = ["Role"]
+Так App начинает поставлять одну и ту же ответственность двумя путями:
+
+```text
+Standard DocPerm sync
++
+Role fixture sync
 ```
 
-Так App начинает тащить конфигурацию всего учебного Site.
+Для текущего CORE это лишнее дублирование.
 
 ## Ошибка 5. Экспортировать Users
 
@@ -1598,17 +1577,17 @@ fixtures = ["Role"]
 
 Они принадлежат нашему App и воспроизводятся вместе с моделью.
 
-## Правильно 3. Role как отфильтрованный fixture
+## Правильно 3. Role name поставляется тем же Standard DocPerm
 
-Роль является обязательной конфигурацией, но не Standard DocType нашего App. Fixtures подходят её семантике.
+Frappe создаёт отсутствующий `Role` при sync Standard DocType. Отдельный fixture появляется только при самостоятельном App-owned состоянии Role, которого текущий CORE не требует.
 
 ---
 
 # 39. Контрольная карта S05D
 
 ```text
-[ ] создана Role Rental Operator
-[ ] создана Role Rental Manager
+[ ] создана Role Rental Operator на dev-site
+[ ] создана Role Rental Manager на dev-site
 [ ] обе Role имеют Desk Access
 [ ] Equipment DocPerm соответствует матрице
 [ ] Customer DocPerm соответствует матрице
@@ -1616,9 +1595,8 @@ fixtures = ["Role"]
 [ ] If Owner не включён без требования
 [ ] Submit/Cancel/Amend не включены
 [ ] Rental Item не превращён в самостоятельный CRUD
-[ ] Role объявлены отфильтрованным fixture
-[ ] export-fixtures выполнен штатной командой
-[ ] fixture содержит только две Role приложения
+[ ] имена Rental Operator/Rental Manager находятся в Standard DocPerm
+[ ] отдельный Role fixture для этих имён не добавлен
 [ ] operator@example.test создан только на Site
 [ ] manager@example.test создан только на Site
 [ ] Operator не имеет System Manager/Rental Manager
@@ -1674,11 +1652,10 @@ Manager
 ## 3. Delivery
 
 ```text
-Role
-→ fixture
-
-DocPerm
+Role names + DocPerm
 → Standard DocType JSON
+→ sync Standard metadata
+→ missing Role создаёт Frappe
 
 Users
 → Site only
@@ -1700,6 +1677,7 @@ permission hooks
 custom ACL
 JS-security
 ignore_permissions=True
+Role fixture, дублирующий Standard DocPerm
 ```
 
 ---
@@ -1714,9 +1692,9 @@ S05D не принят, если:
 - Manager не получает заявленный CRUD;
 - `If Owner` включён без предметного требования;
 - права существуют только как локальный override Site;
-- обязательные Role не воспроизводятся из App;
-- экспортированы все Role Site вместо двух нужных;
-- Users/пароли попали в fixtures или Git;
+- обязательные Role не воспроизводятся из Standard metadata App;
+- добавлен Role fixture только для имён, уже находящихся в Standard DocPerm;
+- Users/пароли попали в Git;
 - собственный код обходит permission engine через `ignore_permissions=True`;
 - JavaScript используется как единственная защита.
 
