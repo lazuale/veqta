@@ -492,12 +492,14 @@ frappe
 
 ---
 
-# 12. Включить developer mode
+# 12. Включить developer mode только для dev-site
 
-На этом Bench один учебный Site, поэтому developer mode включаем явно для общей конфигурации Bench:
+На следующих этапах мы будем создавать **Standard DocType, принадлежащие App**, и их metadata должны сохраняться в исходниках. Для этого developer mode нужен именно разработческому Site `rental.localhost`.
+
+Включите его как Site-local настройку:
 
 ```bash
-bench set-config -g developer_mode 1
+bench --site rental.localhost set-config developer_mode 1
 bench --site rental.localhost clear-cache
 ```
 
@@ -509,9 +511,37 @@ bench --site rental.localhost show-config | grep developer_mode
 
 Должно быть значение `1`/`true`.
 
-Зачем это нужно: на следующих этапах мы будем создавать **Standard DocType, принадлежащие App**, и их метаданные должны сохраняться в исходниках.
+### Почему здесь нет `-g`
 
-Developer mode — не способ сделать Site «production-ready». Это режим разработки.
+```text
+bench set-config -g ...
+→ common_site_config.json
+→ настройка наследуется другими Sites этого Bench
+```
+
+Для режима разработки это слишком широкая область. В S09 появится второй чистый acceptance-site, который должен доказать установку App **без developer mode**.
+
+Поэтому граница такая:
+
+```text
+rental.localhost
+→ developer_mode = 1
+
+новый clean Site
+→ developer_mode не требуется
+```
+
+Если вы проходили более раннюю версию практикума, где developer mode уже был включён глобально, исправьте это один раз:
+
+```bash
+bench set-config -g developer_mode None
+bench --site rental.localhost set-config developer_mode 1
+bench --site rental.localhost clear-cache
+```
+
+Это изменение окружения Bench, а не migration App.
+
+Developer mode — не способ сделать Site production-ready. Это режим разработки.
 
 ---
 
@@ -577,7 +607,7 @@ bench --site rental.localhost show-config | grep developer_mode
 [ ] Redis отвечает PONG
 [ ] Site rental.localhost существует
 [ ] на Site установлен только frappe
-[ ] developer mode включён
+[ ] developer mode включён только для rental.localhost
 [ ] Desk открывается
 [ ] вход Administrator работает
 ```
@@ -595,7 +625,8 @@ bench --site rental.localhost show-config | grep developer_mode
 - Site не открывается;
 - на Site уже установлен ERPNext или другое прикладное App;
 - вы работаете внутри существующего VEQTA Bench;
-- developer mode не включён;
+- developer mode не включён на `rental.localhost`;
+- developer mode включён глобально без причины;
 - вы начали создавать DocType до появления собственного App.
 
 ---
