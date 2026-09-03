@@ -13,7 +13,9 @@ docstatus = 0
 
 Для этого используется системный жизненный цикл Document во Frappe.
 
-## 1. Сначала очистить несовместимые учебные записи
+---
+
+# 1. Сначала очистить несовместимые учебные записи
 
 До этого этапа на dev Site уже есть заявки:
 
@@ -66,7 +68,9 @@ patch только ради временных учебных данных
 
 В рабочей системе с реальными данными такое изменение потребовало бы отдельной миграции данных. В учебном dev Site сохранять контрольные записи предыдущих этапов не требуется.
 
-## 2. Включить Is Submittable
+---
+
+# 2. Включить Is Submittable
 
 Откройте Standard DocType `Purchase Request` и включите:
 
@@ -87,7 +91,9 @@ git -C apps/purchase_lifecycle_training diff -- \
   purchase_lifecycle_training/purchase_lifecycle_training/doctype/purchase_request/purchase_request.json
 ```
 
-## 3. Выдать Submit только согласующим
+---
+
+# 3. Выдать Submit только согласующим
 
 В Permissions `Purchase Request` измените только `Submit`:
 
@@ -106,7 +112,9 @@ PLT Senior Approver  Submit yes
 
 Requester не получает Submit, потому что он не выполняет окончательное согласование.
 
-## 4. Изменить docstatus только у Approved
+---
+
+# 4. Изменить docstatus только у Approved
 
 Откройте Workflow `PLT Purchase Request Approval`.
 
@@ -139,7 +147,9 @@ Draft 0 → Submitted 1
 
 Источник: [`frappe/model/workflow.py`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/workflow.py).
 
-## 5. Не включать status.Allow on Submit
+---
+
+# 5. Не включать status.Allow on Submit
 
 Поле `status` должно остаться:
 
@@ -152,7 +162,9 @@ Allow on Submit : no
 
 `Allow on Submit` нужен, когда поле должно изменяться уже после Submit у существующего Submitted Document. Такого требования у нас нет.
 
-## 6. Проверить малую заявку
+---
+
+# 6. Проверить малую заявку
 
 Создайте новый Document под Requester:
 
@@ -196,7 +208,9 @@ print(row)
 exit()
 ```
 
-## 7. Проверить большую заявку
+---
+
+# 7. Проверить большую заявку
 
 Создайте:
 
@@ -226,7 +240,9 @@ docstatus = 1
 
 Оба маршрута согласования заканчиваются одинаково: окончательно согласованный Document становится Submitted.
 
-## 8. Проверить права, а не только кнопки
+---
+
+# 8. Проверить права, а не только кнопки
 
 Под Requester убедитесь, что у него нет права Submit.
 
@@ -241,7 +257,9 @@ Amend
 
 Техническая возможность Submittable Document поддерживать Cancel и Amend ещё не означает, что эти операции уже разрешены текущими бизнес-требованиями.
 
-## Результат
+---
+
+# Результат
 
 После S06:
 
