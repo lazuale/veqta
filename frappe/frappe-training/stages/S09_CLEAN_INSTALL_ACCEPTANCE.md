@@ -1,14 +1,10 @@
-# S09. Доказать CORE на новом чистом Site
+# S09. Проверить приложение на новом чистом Site
 
-S08 ответил на вопрос, **откуда должен восстанавливаться каждый обязательный элемент приложения**.
+S08 показал, откуда должен восстанавливаться каждый обязательный элемент приложения.
 
-S09 больше ничего не проектирует.
+Теперь это нужно проверить на новом Site, где `rental_training` раньше не создавался вручную.
 
-Теперь нужно проверить утверждение фактом:
-
-> Новый Site, на котором CORE никогда не создавался вручную, должен получить всю обязательную модель из текущего `rental_training` и пройти те же контракты без скрытых восстановительных действий.
-
-Это финальный экзамен CORE.
+> Новый Site должен получить обязательную модель из текущего App и пройти те же проверки без скрытых восстановительных действий.
 
 Связанные документы:
 
@@ -32,7 +28,7 @@ S09 больше ничего не проектирует.
 
 ---
 
-# 1. Что именно доказывает S09
+# 1. Что проверяет S09
 
 До S09 всё разрабатывалось на:
 
@@ -40,7 +36,7 @@ S09 больше ничего не проектирует.
 rental.localhost
 ```
 
-Там мы руками создавали DocTypes, меняли metadata и писали Controller.
+Там мы вручную создавали DocTypes, меняли метаданные и писали Controller.
 
 Поэтому факт:
 
@@ -64,17 +60,17 @@ rental-acceptance.localhost
 
 ```text
 свою БД
-свою site_config
-свой набор installed Apps
-свои Users
-свои business Documents
+свой site_config.json
+свой набор установленных Apps
+своих Users
+свои рабочие Documents
 ```
 
 На нём никогда не создавались `Equipment`, `Customer`, `Rental`, роли или permissions вручную.
 
-## Что S09 НЕ доказывает
+## Что здесь не проверяется
 
-S09 не является production deployment test и не проверяет:
+S09 не является проверкой промышленного развёртывания и не охватывает:
 
 ```text
 reverse proxy
@@ -90,12 +86,12 @@ OS bootstrap с нуля
 
 S00 уже зафиксировал совместимую среду. S09 проверяет **воспроизводимость Frappe App на чистом Site**.
 
-Это достаточная граница CORE:
+Граница проверки:
 
 ```text
 совместимый Bench
-+ committed App source
-+ clean Site
++ зафиксированные исходники App
++ чистый Site
 → воспроизводимое обязательное состояние App
 ```
 
@@ -121,7 +117,7 @@ bench version --format plain
 16.33.0
 ```
 
-Теперь проверьте App repository:
+Теперь проверьте репозиторий App:
 
 ```bash
 git -C apps/rental_training status --short
@@ -136,27 +132,27 @@ git -C apps/rental_training rev-parse HEAD
 
 ## Почему это важно
 
-Мы хотим проверить:
+Проверяется:
 
 ```text
-конкретное committed состояние App
+конкретное зафиксированное состояние App
 ```
 
 а не:
 
 ```text
-папку с незакоммиченными локальными правками
+папка с незакоммиченными локальными правками
 ```
 
-Если Git не clean, S09 не начинается.
+Если Git не чист, сначала разберите изменения.
 
-Важно: `rental_training` в этом практикуме имеет собственный Git repository внутри Bench. Именно его commit фиксируется как source приложения; Git repository документации VEQTA не заменяет Git-историю самого учебного App.
+Важно: `rental_training` в этом практикуме имеет собственный Git-репозиторий внутри Bench. Именно его commit фиксируется как состояние приложения; репозиторий документации VEQTA не заменяет Git-историю самого учебного App.
 
 ---
 
-# 3. Убедиться, что developer mode не протекает на весь Bench
+# 3. Убедиться, что developer mode включён только там, где нужен
 
-Разработка Standard DocTypes требует developer mode на `rental.localhost`, но acceptance-site не должен зависеть от режима разработки.
+Разработка Standard DocTypes требует developer mode на `rental.localhost`, но новый контрольный Site не должен зависеть от режима разработки.
 
 Проверьте общий конфиг Bench:
 
@@ -164,7 +160,7 @@ git -C apps/rental_training rev-parse HEAD
 grep -n 'developer_mode' sites/common_site_config.json || true
 ```
 
-Для актуальной версии практикума `developer_mode` не должен быть глобальной обязательной настройкой.
+`developer_mode` не должен быть глобальной обязательной настройкой.
 
 Если вы проходили старую версию S00 и там осталось глобальное значение, исправьте окружение:
 
@@ -174,7 +170,7 @@ bench --site rental.localhost set-config developer_mode 1
 bench --site rental.localhost clear-cache
 ```
 
-Проверьте dev-site:
+Проверьте Site разработки:
 
 ```bash
 bench --site rental.localhost show-config | grep developer_mode
@@ -186,11 +182,11 @@ bench --site rental.localhost show-config | grep developer_mode
 
 ```text
 создание Standard metadata
-→ developer responsibility
-→ dev Site
+→ задача разработки
+→ Site разработки
 
 использование установленного App
-→ runtime responsibility
+→ обычная работа Site
 → developer mode не требуется
 ```
 
@@ -208,7 +204,7 @@ test ! -d sites/rental-acceptance.localhost \
   || echo "STOP: acceptance Site already exists"
 ```
 
-Если Site уже существует, **не используйте `--force` и не переустанавливайте его молча**. Финальная проверка должна начинаться с действительно нового экземпляра.
+Если Site уже существует, **не используйте `--force` и не переустанавливайте его молча**. Проверка должна начинаться с действительно нового экземпляра.
 
 Создайте Site:
 
@@ -220,7 +216,7 @@ bench new-site rental-acceptance.localhost \
 Bench запросит:
 
 1. пароль MariaDB-пользователя `frappe_admin`;
-2. новый пароль Frappe `Administrator` для acceptance-site.
+2. новый пароль Frappe `Administrator` для контрольного Site.
 
 Не используйте пароль MariaDB как пароль Administrator.
 
@@ -231,13 +227,13 @@ Bench запросит:
 --set-default
 ```
 
-Нам специально нужна промежуточная точка **до установки App**.
+Нам нужна промежуточная точка **до установки App**.
 
 ---
 
-# 5. Доказать чистое состояние ДО установки
+# 5. Проверить чистое состояние до установки
 
-Проверьте installed Apps:
+Проверьте установленные Apps:
 
 ```bash
 bench --site rental-acceptance.localhost list-apps -f text
@@ -259,7 +255,7 @@ App установлен на Site
 
 Это та же граница, которую мы впервые увидели в S01, но теперь она проверяется на готовом App.
 
-## Проверить отсутствие CORE metadata и Role
+## Проверить отсутствие DocTypes и Role учебного приложения
 
 Откройте console нового Site:
 
@@ -287,13 +283,13 @@ for role in core_roles:
 ```text
 Installed Apps: ['frappe']
 
-Equipment   → absent
-Customer    → absent
-Rental      → absent
-Rental Item → absent
+Equipment   → нет
+Customer    → нет
+Rental      → нет
+Rental Item → нет
 
-Rental Operator → absent
-Rental Manager  → absent
+Rental Operator → нет
+Rental Manager  → нет
 ```
 
 Завершите:
@@ -302,11 +298,11 @@ Rental Manager  → absent
 exit()
 ```
 
-Если CORE уже существует, Site не является чистой контрольной площадкой.
+Если эти сущности уже существуют, Site не является чистой контрольной площадкой.
 
 ---
 
-# 6. Проверить, что acceptance-site не использует developer mode
+# 6. Проверить, что контрольный Site не использует developer mode
 
 Выполните:
 
@@ -314,21 +310,19 @@ exit()
 bench --site rental-acceptance.localhost show-config | grep developer_mode || true
 ```
 
-При исправленном S00 ожидается отсутствие включённого `developer_mode`.
+При правильной настройке ожидается отсутствие включённого `developer_mode`.
 
 Если вывод показывает `1`/`true`, не продолжайте установку, пока не выясните источник.
 
 Частая причина — старый глобальный ключ в `common_site_config.json`. Исправление приведено в разделе 3.
 
-Не включайте developer mode на acceptance-site «чтобы точно заработало».
-
-Это уничтожит смысл проверки.
+Не включайте developer mode на контрольном Site «чтобы точно заработало» — это уничтожит смысл проверки.
 
 ---
 
 # 7. Установить `rental_training`
 
-Теперь выполняем единственное действие, которое должно принести продуктовую модель на Site:
+Теперь выполняем единственное действие, которое должно принести модель приложения на Site:
 
 ```bash
 bench --site rental-acceptance.localhost install-app rental_training
@@ -352,7 +346,7 @@ rental_training
 В актуальном Frappe v16 `install_app()` штатно:
 
 ```text
-добавляет Module Def из module list App
+добавляет Module Def из списка Modules App
 → синхронизирует Standard metadata App
 → регистрирует App на Site
 → синхронизирует jobs
@@ -360,30 +354,30 @@ rental_training
 → синхронизирует exported customizations
 ```
 
-Для CORE нам важны прежде всего:
+Для нашего приложения важны прежде всего:
 
 ```text
 modules.txt
 → Module Def
 
 DocType JSON
-→ DocType/schema/default permissions
-→ role names внутри permissions[]
-→ missing Role создаются make_module_and_roles()
+→ DocType / schema / default permissions
+→ имена Role внутри permissions[]
+→ отсутствующие Role создаются make_module_and_roles()
 
-Python source
-→ Controller behavior
+Python-код
+→ поведение Controller
 ```
 
 В Frappe v16.33.0 `install_app()` выполняет `sync_for()` до `sync_fixtures()`. При sync Standard DocType `make_module_and_roles()` собирает роли из permission rows, создаёт отсутствующие `Role` и задаёт им `desk_access = 1`.
 
-Поэтому отдельный `fixtures/role.json` для `Rental Operator` и `Rental Manager` текущему CORE не нужен.
+Поэтому отдельный `fixtures/role.json` для `Rental Operator` и `Rental Manager` текущему приложению не нужен.
 
 Никаких ручных действий между этими пунктами быть не должно.
 
 ---
 
-# 8. Проверить delivery manifest сразу после install-app
+# 8. Проверить состояние сразу после install-app
 
 Откройте console:
 
@@ -397,7 +391,7 @@ bench --site rental-acceptance.localhost console
 frappe.db.exists("Module Def", "Rental Training")
 ```
 
-Ожидается truthy result.
+Ожидается непустой результат.
 
 ## 8.2. Standard DocTypes
 
@@ -432,11 +426,11 @@ for role in ["Rental Operator", "Rental Manager"]:
 
 Обе Role должны существовать **до того, как мы создадим хоть одного User**.
 
-Они должны появиться как следствие синхронизации Standard DocTypes, в `permissions[]` которых находятся эти role names.
+Они должны появиться как следствие синхронизации Standard DocTypes, в `permissions[]` которых находятся эти имена Role.
 
-Если приходится открывать `Role` и создавать их вручную, S09 провален.
+Если приходится открывать `Role` и создавать их вручную, поставка приложения не воспроизводится.
 
-## 8.4. Default permissions
+## 8.4. Permissions по умолчанию
 
 ```python
 roles = {"Rental Operator", "Rental Manager"}
@@ -454,7 +448,7 @@ for doctype in ["Equipment", "Customer", "Rental"]:
             )
 ```
 
-Контракт:
+Ожидается:
 
 ```text
 Equipment
@@ -470,7 +464,7 @@ Operator → Read/Create/Write
 Manager  → CRUD
 ```
 
-## 8.5. Нет скрытых Site-customizations
+## 8.5. Нет скрытых локальных настроек
 
 ```python
 targets = ["Equipment", "Customer", "Rental", "Rental Item"]
@@ -506,7 +500,7 @@ exit()
 
 # 9. Перед migrate убедиться, что процессы Bench запущены
 
-В development Bench `migrate` проверяет доступность необходимых сервисов, включая Redis cache.
+В учебном Bench `migrate` требует доступности необходимых сервисов, включая Redis cache.
 
 Если `bench start` уже работает в отдельном терминале — ничего делать не нужно.
 
@@ -522,26 +516,26 @@ bench start
 Это не часть `rental_training` и не скрытая зависимость App:
 
 ```text
-Bench services
-→ инфраструктура dev-окружения
+сервисы Bench
+→ инфраструктура учебного окружения
 
-App metadata/Controller
-→ продуктовый source
+метаданные и Controller App
+→ исходники приложения
 ```
 
-Не путайте ошибку вида «Redis service недоступен» с ошибкой архитектуры clean install.
+Не путайте ошибку вида «Redis service недоступен» с ошибкой архитектуры чистой установки.
 
 ---
 
-# 10. Выполнить migrate как отдельную проверку update-path
+# 10. Выполнить migrate как отдельную проверку пути обновления
 
 `install-app` уже синхронизировал обязательное состояние при первичной установке.
 
-Поэтому следующая команда не нужна как «магический второй install».
+Поэтому следующая команда не является «магическим вторым install».
 
-Мы запускаем её сознательно, чтобы доказать ещё один контракт:
+Мы запускаем её, чтобы проверить ещё один контракт:
 
-> Текущее committed состояние App можно безопасно провести через обычный update/migrate path без ручного восстановления модели.
+> Текущее зафиксированное состояние App можно безопасно провести через обычный путь update/migrate без ручного восстановления модели.
 
 Выполните:
 
@@ -556,7 +550,7 @@ bench --site rental-acceptance.localhost migrate
 ручного UPDATE
 создания Role через Desk
 создания Custom Field
-правки DocType на acceptance-site
+правки DocType на контрольном Site
 ```
 
 После migrate снова проверьте Apps:
@@ -574,11 +568,11 @@ rental_training
 
 ---
 
-# 11. Включить только test-настройку и запустить весь suite
+# 11. Включить только настройку тестов и запустить весь набор
 
-На acceptance-site не нужен developer mode.
+На контрольном Site не нужен developer mode.
 
-Для штатного test runner нужна только test-настройка конкретного Site:
+Для штатного test runner нужна только настройка конкретного Site:
 
 ```bash
 bench --site rental-acceptance.localhost set-config allow_tests 1 --parse
@@ -590,15 +584,15 @@ bench --site rental-acceptance.localhost set-config allow_tests 1 --parse
 bench --site rental-acceptance.localhost show-config | grep allow_tests
 ```
 
-Теперь запустите весь App:
+Теперь запустите все тесты App:
 
 ```bash
 bench --site rental-acceptance.localhost run-tests --app rental_training
 ```
 
-Suite должен быть зелёным **на Site, где CORE до установки вообще не существовал**.
+Тесты должны пройти **на Site, где приложение до установки вообще не существовало**.
 
-Этим одной командой повторно доказываются:
+Этой командой повторно проверяются:
 
 ```text
 V01 date range
@@ -612,11 +606,11 @@ Operator permissions
 Manager permissions
 ```
 
-Если тесты проходят только на `rental.localhost`, но падают здесь — clean-install contract не выполнен.
+Если тесты проходят только на `rental.localhost`, но падают здесь — контракт чистой установки не выполнен.
 
 ---
 
-# 12. Проверить, что tests не изменили source App
+# 12. Проверить, что тесты не изменили исходники App
 
 ```bash
 git -C apps/rental_training status --short
@@ -624,7 +618,7 @@ git -C apps/rental_training status --short
 
 Ожидается пустой вывод.
 
-Tests могут создавать временные database records в своём test lifecycle, но не должны переписывать committed модель продукта.
+Тесты могут создавать временные записи БД в своём жизненном цикле, но не должны переписывать зафиксированную модель приложения.
 
 ---
 
@@ -669,16 +663,16 @@ Rental
 Правильное состояние:
 
 ```text
-install-app уже привёз metadata
+install-app уже привёз метаданные
 ↓
 Desk уже умеет Form/List
 ```
 
-Если для появления полей требуется открыть DocType и нажать Save, S09 провален.
+Если для появления полей требуется открыть DocType и нажать Save, чистая установка не воспроизводится.
 
 ---
 
-# 15. Создать двух Site-local Users
+# 15. Создать двух Users этого Site
 
 Role уже должны быть на Site после синхронизации Standard DocPerm.
 
@@ -728,13 +722,13 @@ System Manager
 - не экспортируются fixture;
 - не добавляются в Git.
 
-После создания Users проверьте source App:
+После создания Users проверьте исходники App:
 
 ```bash
 git -C apps/rental_training status --short
 ```
 
-Он должен оставаться clean.
+Рабочее дерево должно оставаться чистым.
 
 ---
 
@@ -756,7 +750,7 @@ Serial Number  : ACC-TOOL-01
 
 Сохраните и запомните сгенерированный `name`.
 
-Не предполагаем заранее, что это обязательно `EQ-00001`: numbering state является состоянием Site.
+Не предполагаем заранее, что это обязательно `EQ-00001`: состояние счётчиков принадлежит Site.
 
 ## 16.2. Создать Equipment №2
 
@@ -803,11 +797,11 @@ Manager
 → сохраняет Active Rental
 ```
 
-Это полноценный вертикальный сценарий на новом Site.
+Это полноценный сквозной сценарий на новом Site.
 
 ---
 
-# 17. Проверить naming и Link presentation
+# 17. Проверить именование и отображение Links
 
 Откройте сохранённый Rental.
 
@@ -818,18 +812,18 @@ Manager
 3. у Customer/Equipment/Rental существуют стабильные системные `name` по заданным naming expressions;
 4. UI не хранит копию названия вместо Link.
 
-Не требуйте совпадения конкретных номеров с dev-site.
+Не требуйте совпадения конкретных номеров с Site разработки.
 
 Правильная гарантия:
 
 ```text
-strategy воспроизводится
-runtime counter локален Site
+стратегия именования воспроизводится
+счётчик остаётся локальным для Site
 ```
 
 ---
 
-# 18. Проверить Operator на реальном Desk
+# 18. Проверить Operator через Desk
 
 Выйдите и войдите как:
 
@@ -843,9 +837,9 @@ Operator должен иметь возможность читать сущес�
 
 Создавать новый Equipment он не должен.
 
-В Desk это может проявиться как отсутствие `Add/New` либо отказ операции — точная UI-подача вторична.
+В Desk это может проявиться как отсутствие `Add/New` либо отказ операции — точная подача интерфейса вторична.
 
-Серверная гарантия уже повторно проверена S07 suite на этом же acceptance-site.
+Серверная гарантия уже повторно проверена автоматическими тестами на этом же Site.
 
 ## Customer
 
@@ -886,7 +880,7 @@ End Date : 2026-10-15
 
 Удалять Rental Operator не должен.
 
-Если Delete action не показывается — это нормальный UI-эффект permission model. Серверный запрет уже проверяется automated test.
+Если Delete action не показывается — это нормальный эффект permissions. Серверный запрет уже проверяется автоматическим тестом.
 
 ---
 
@@ -913,15 +907,15 @@ Equipment:
 
 Ожидается отказ сохранения с бизнес-ошибкой V03.
 
-Это важно по двум причинам:
+Это показывает сразу две вещи:
 
 ```text
 правило приехало из rental.py
 +
-правило работает через обычный Desk Document path
+правило работает через обычный путь Document в Desk
 ```
 
-Мы не создавали для acceptance-site:
+Для контрольного Site мы не создавали:
 
 ```text
 Client Script
@@ -933,17 +927,17 @@ Workflow
 
 ---
 
-# 20. Где проверяются V01 и V02 на финальном Site
+# 20. Где проверяются V01 и V02
 
-Не нужно снова вручную мучить каждое поле только ради количества действий.
+Не нужно снова вручную перебирать каждое поле только ради количества действий.
 
-На **этом же `rental-acceptance.localhost`** уже выполнился:
+На **этом же `rental-acceptance.localhost`** уже выполнялась команда:
 
 ```bash
 bench --site rental-acceptance.localhost run-tests --app rental_training
 ```
 
-Он проверил:
+Она проверила:
 
 ```text
 V01 invalid date → rejected
@@ -951,13 +945,13 @@ V02 duplicate Equipment → rejected
 V03 overlap → rejected
 ```
 
-Ручная проверка V03 в Desk нужна здесь как вертикальное пользовательское доказательство.
+Ручная проверка V03 в Desk нужна здесь как сквозной пользовательский сценарий.
 
-Автоматические tests остаются главным повторяемым контрактом всех трёх правил.
+Автоматические тесты остаются главным повторяемым способом проверки всех трёх правил.
 
 ---
 
-# 21. Проверить финальное Site-owned состояние
+# 21. Проверить состояние, принадлежащее Site
 
 После пользовательского сценария откройте console:
 
@@ -980,12 +974,12 @@ for user in [
     print(user, frappe.db.exists("User", user))
 ```
 
-Точные counts после test runner не являются архитектурным контрактом.
+Точные значения после test runner не являются архитектурным контрактом.
 
 Здесь важно другое:
 
 ```text
-business records и Users появились уже ПОСЛЕ установки
+рабочие Documents и Users появились уже после установки
 → они принадлежат этому Site
 ```
 
@@ -997,7 +991,7 @@ exit()
 
 ---
 
-# 22. Финально проверить source App
+# 22. Финально проверить исходники App
 
 Вернитесь в терминал:
 
@@ -1025,18 +1019,18 @@ bench --site rental-acceptance.localhost show-config | \
 Ожидаемый смысл:
 
 ```text
-App commit → тот же committed source, с которого начинали S09
-Git        → clean
-Apps       → frappe + rental_training
-developer_mode → не включён
-allow_tests     → 1/true
+commit App       → тот же, с которого начинали S09
+Git              → чист
+Apps             → frappe + rental_training
+developer_mode   → не включён
+allow_tests      → 1/true
 ```
 
-Создание Users, Equipment, Customer и Rental не должно менять repository App.
+Создание Users, Equipment, Customer и Rental не должно менять репозиторий App.
 
 ---
 
-# 23. Финальная автоматическая проверка ещё раз
+# 23. Ещё раз запустить автоматические тесты
 
 После ручного пользовательского сценария снова выполните:
 
@@ -1044,82 +1038,82 @@ allow_tests     → 1/true
 bench --site rental-acceptance.localhost run-tests --app rental_training
 ```
 
-Suite должен остаться зелёным.
+Тесты должны по-прежнему проходить.
 
 Это ловит ещё один класс ошибки:
 
 ```text
-tests проходят только на пустой БД
+тесты проходят только на пустой БД
 ```
 
-Наши тесты должны изолировать собственные данные и не зависеть от того, что пользователь уже создал обычные business Documents.
+Наши тесты должны изолировать собственные данные и не зависеть от обычных Documents, созданных пользователем.
 
 ---
 
-# 24. Контрольная матрица S09
+# 24. Итоговая таблица S09
 
 | Проверка | Ожидание |
 |---|---|
 | Site до install | только `frappe` |
-| CORE DocTypes до install | отсутствуют |
-| CORE Role до install | отсутствуют |
-| developer mode | не нужен acceptance-site |
-| `install-app rental_training` | success |
-| Module | появился из App |
-| 4 Standard DocTypes | появились из JSON |
-| Role Operator/Manager | появились из Standard DocPerm при sync |
-| default permissions | соответствуют JSON |
-| hidden Custom Field/Property Setter/Custom DocPerm | отсутствуют |
-| Bench services перед migrate | доступны |
-| `migrate` | success без ручного SQL |
-| tests | green |
-| Manager vertical scenario | проходит |
-| Operator read/create/write limits | соответствуют модели |
+| DocTypes приложения до install | отсутствуют |
+| Role приложения до install | отсутствуют |
+| developer mode | не нужен контрольному Site |
+| `install-app rental_training` | выполняется успешно |
+| Module | появляется из App |
+| 4 Standard DocTypes | появляются из JSON |
+| Role Operator/Manager | появляются из Standard DocPerm при sync |
+| permissions по умолчанию | соответствуют JSON |
+| скрытые Custom Field/Property Setter/Custom DocPerm | отсутствуют |
+| сервисы Bench перед migrate | доступны |
+| `migrate` | проходит без ручного SQL |
+| тесты | проходят |
+| сквозной сценарий Manager | проходит |
+| ограничения Operator | соответствуют модели |
 | V03 в Desk | конфликт блокируется |
-| runtime Users/business data | остаются Site-owned |
-| App Git после всего | clean |
+| Users и рабочие данные | остаются на Site |
+| Git App после всего | чист |
 
 ---
 
-# 25. S09 — ГОТОВО
+# 25. Итоговая проверка практикума
 
-CORE считается завершённым, если одновременно верно:
+Практикум завершён, если одновременно верно:
 
 ```text
 [ ] создан новый rental-acceptance.localhost
 [ ] до install-app на нём был только frappe
-[ ] до install-app CORE DocTypes и Role отсутствовали
-[ ] acceptance-site не требует developer_mode
-[ ] App repository был clean и его commit SHA зафиксирован
+[ ] до install-app DocTypes и Role приложения отсутствовали
+[ ] контрольный Site не требует developer_mode
+[ ] репозиторий App был чистым и его commit SHA зафиксирован
 [ ] rental_training установился штатной командой install-app
 [ ] Module Rental Training появился без ручного создания
 [ ] Equipment появился из App
 [ ] Customer появился из App
 [ ] Rental Item появился из App
 [ ] Rental появился из App
-[ ] naming/fields/default permissions соответствуют source metadata
+[ ] именование, поля и permissions по умолчанию соответствуют метаданным App
 [ ] Rental Operator появился из Standard DocPerm sync
 [ ] Rental Manager появился из Standard DocPerm sync
 [ ] отдельный Role fixture для этих имён не требуется
 [ ] скрытых обязательных Custom Field/Property Setter/Custom DocPerm нет
-[ ] Bench services доступны перед migrate
+[ ] сервисы Bench доступны перед migrate
 [ ] bench migrate проходит
-[ ] tests проходят на acceptance-site
-[ ] Site-local Users создаются после установки и не входят в App
+[ ] тесты проходят на контрольном Site
+[ ] Users создаются после установки и не входят в App
 [ ] Manager проходит Equipment → Customer → Rental
 [ ] Operator видит Equipment, но не может создавать его
-[ ] Operator может создавать/изменять Customer и Rental
+[ ] Operator может создавать и изменять Customer и Rental
 [ ] Operator не может удалять Rental
 [ ] overlapping Active Rental блокируется через Desk
-[ ] tests остаются зелёными после обычных business records
-[ ] App Git остаётся clean после всех runtime-действий
+[ ] тесты остаются зелёными после создания обычных Documents
+[ ] Git App остаётся чистым после всех действий на Site
 ```
 
 ---
 
-# 26. S09 — НЕ ГОТОВО
+# 26. Когда S09 не завершён
 
-CORE не принимается, если хотя бы одно обязательное действие звучит так:
+Сначала исправьте причину, если обязательный шаг звучит так:
 
 ```text
 «после install откройте DocType и ещё раз Save»
@@ -1128,23 +1122,23 @@ CORE не принимается, если хотя бы одно обязате
 «поправьте permissions через Role Permission Manager»
 «включите developer mode, иначе установленное App не работает»
 «выполните этот ALTER TABLE вручную»
-«скопируйте Users с dev-site»
+«скопируйте Users с Site разработки»
 «скопируйте старые EQ/CUST/RENT записи как fixtures»
 ```
 
-Также этап не принят, если:
+Также этап не завершён, если:
 
-- tests проходят только на старом `rental.localhost`;
+- тесты проходят только на старом `rental.localhost`;
 - новый Site требует локальный Server Script для V01/V02/V03;
 - роли не восстанавливаются из Standard DocPerm sync;
 - добавлен Role fixture только для имён, уже находящихся в Standard DocPerm;
-- default permissions зависят от Site override;
-- App source меняется от обычной работы пользователей;
-- clean install работает только при незакоммиченных файлах разработчика.
+- permissions по умолчанию зависят от локального переопределения Site;
+- исходники App меняются от обычной работы пользователей;
+- чистая установка работает только при незакоммиченных файлах разработчика.
 
 ---
 
-# 27. Что доказал весь CORE
+# 27. Что ученик прошёл за весь практикум
 
 После S09 у ученика есть не просто маленькая система проката.
 
@@ -1155,19 +1149,19 @@ CORE не принимается, если хотя бы одно обязате
         ↓
 ответственность
         ↓
-нативный механизм Frappe
+штатный механизм Frappe
         ↓
-Standard metadata / Document / permission / Controller
+Standard metadata / Document / permissions / Controller
         ↓
-Desk scenario
+сквозной сценарий Desk
         ↓
-server-side contracts
+серверные правила
         ↓
-automated tests
+автоматические тесты
         ↓
-App-owned delivery manifest
+воспроизводимая поставка состояния App
         ↓
-clean Site install
+установка на чистый Site
 ```
 
 Итоговая модель остаётся маленькой:
@@ -1179,23 +1173,23 @@ Rental
 └── Rental Item
 ```
 
-Но вокруг неё уже доказаны важные свойства настоящего Frappe App:
+Но вокруг неё уже проверены важные свойства настоящего Frappe App:
 
 ```text
-стабильная identity
+стабильный системный name
 живые Link
-composition через Child DocType
+композиция через Child DocType
 Table MultiSelect
 предметный status
-server validation
-cross-document invariant
+серверная валидация
+междокументный инвариант
 Role + DocType Permissions
 migrate
-Frappe-aware tests
-clean install
+тесты Frappe
+чистая установка
 ```
 
-При этом CORE сознательно не потребовал:
+При этом практикум не потребовал:
 
 ```text
 Workflow
@@ -1212,8 +1206,8 @@ Server Script
 custom frontend
 ```
 
-Потому что ни один из этих механизмов пока не нужен для доказанного требования.
+Потому что ни один из этих механизмов пока не нужен для поставленных требований.
 
-Это и есть финальный архитектурный результат практикума:
+Главный результат практикума:
 
-> Не перечислить возможности Frappe, а научиться выбирать штатный механизм по ответственности и уметь доказать, что решение воспроизводимо.
+> Не перечислить возможности Frappe, а научиться выбирать штатный механизм по ответственности и проверять воспроизводимость решения.
