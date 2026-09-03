@@ -5,8 +5,8 @@
 | Этап | Результат |
 |---|---|
 | [S00](S00_APP_AND_SITE.md) | создан отдельный `purchase_lifecycle_training` и dev Site |
-| [S01](S01_PURCHASE_REQUEST.md) | создан обычный `Purchase Request` с plain `status` |
-| [S02](S02_PERMISSIONS_AND_STATUS_LIMIT.md) | настроены базовые роли и DocPerm, доказана граница plain status |
+| [S01](S01_PURCHASE_REQUEST.md) | создан обычный `Purchase Request` с обычным `status` |
+| [S02](S02_PERMISSIONS_AND_STATUS_LIMIT.md) | настроены базовые роли и DocPerm, доказана граница обычного `status` |
 | [S03](S03_BASIC_WORKFLOW.md) | настроен базовый Workflow с Reject, повторной отправкой и Workflow Action |
 | [S04](S04_SELF_APPROVAL.md) | запрещено одобрение собственной заявки через `Allow Self Approval` |
 | [S05](S05_CONDITIONAL_APPROVAL.md) | добавлен второй уровень согласования для суммы больше `1000` |
