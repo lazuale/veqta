@@ -67,6 +67,8 @@ Rental Manager
 
 Эта граница нужна не ради демонстрации permissions. Она создаёт реальную разницу между пользовательской и доверенной системной выборкой данных, которую затем можно проверить через Desk, `get_list`, `get_all`, отчёты и автоматические тесты.
 
+Когда в практикуме появляется первое требование к отчёту, `Rental Manager` дополнительно получает стандартный permission `Report` на `Rental`. Он не выдаётся заранее: в первом приложении отчётов ещё не было.
+
 ## Учебные данные
 
 На Site нужны контролируемые данные минимум от двух операторов и одного менеджера:
@@ -191,7 +193,8 @@ utilization_percent = occupied_days / period_days * 100
 
 К концу практикума App должен воспроизводимо содержать:
 
-- изменённые Standard DocType Permissions для `Rental Operator`;
+- `If Owner` для `Rental Operator` в Standard DocType Permissions;
+- `Report` permission для `Rental Manager` в Standard DocType Permissions;
 - Standard Query Report;
 - Standard Script Report;
 - Python/JS исходники Script Report;
