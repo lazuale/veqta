@@ -61,11 +61,11 @@ Rental Operator
 Movement создаётся внутри уже авторизованной команды Rental:
 
 ```text
-пользователь имеет write на конкретный Rental
+перечитать persisted Rental
         ↓
-серверная команда проверяет право
+проверить write на этот Rental
         ↓
-команда внутренне создаёт Movement
+внутренне создать Movement
 ```
 
 Для внутренней вставки используется:
@@ -80,7 +80,9 @@ doc.insert(ignore_permissions=True)
 self.check_permission("write")
 ```
 
-Без этой предварительной проверки внутренний bypass был бы неправильной границей безопасности.
+Причём явная проверка выполняется **после `self.reload()`**, чтобы она опиралась на persisted Document из БД, а не на присланное клиентом состояние.
+
+Без этой проверки внутренний bypass был бы неправильной границей безопасности.
 
 Первичный источник:
 
@@ -106,23 +108,26 @@ Active → Returned
 = Return Rental
 ```
 
-Поэтому Controller получает две явные команды:
+Поэтому Controller получает две явные изменяющие команды:
 
 ```python
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def issue(self):
     ...
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def return_equipment(self):
     ...
 ```
 
 Form вызывает их через `frm.call()`.
 
-Первичный источник:
+Ограничение `methods=["POST"]` важно по смыслу: операция изменяет данные и должна выполняться записывающим HTTP-методом, а не GET.
+
+Первичные источники:
 
 - https://docs.frappe.io/framework/user/en/api/form#frmcall
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/api/v2.py
 
 ## Почему не on_update
 
@@ -187,8 +192,8 @@ Rental содержит Equipment
 Команда выполняет:
 
 ```text
-1. проверить write permission
-2. перечитать persisted Rental
+1. перечитать persisted Rental
+2. проверить write permission текущего пользователя
 3. проверить status = Planned
 4. разрешить внутренний переход Planned → Active
 5. сохранить Rental через Document API
@@ -240,7 +245,6 @@ Movement создан только для части Equipment
 try:
     ...
 except Exception:
-    frappe.log_error()
     return {"ok": False}
 ```
 
@@ -266,8 +270,8 @@ Rental.status = Active
 Команда выполняет:
 
 ```text
-1. проверить write permission
-2. перечитать persisted Rental
+1. перечитать persisted Rental
+2. проверить write permission текущего пользователя
 3. проверить status = Active
 4. разрешить Active → Returned
 5. сохранить Rental через Document API
@@ -324,7 +328,7 @@ frappe.db.set_value("Rental", rental.name, "status", "Active")
 - metadata `Rental.status`;
 - серверное правило `new Rental → Planned`;
 - защиту переходов состояния;
-- controller methods `issue()` и `return_equipment()`;
+- POST-only controller methods `issue()` и `return_equipment()`;
 - Form buttons для вызова серверных методов;
 - автоматические тесты собственных контрактов.
 
