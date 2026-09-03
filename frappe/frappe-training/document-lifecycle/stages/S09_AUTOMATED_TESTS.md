@@ -8,7 +8,9 @@
 
 Тестируем не стандартную способность Frappe выполнять Workflow, а нашу конкретную конфигурацию и ожидаемые переходы `Purchase Request`.
 
-## 1. Использовать IntegrationTestCase
+---
+
+# 1. Использовать IntegrationTestCase
 
 Тесты создают Documents, переключают пользователей, читают БД и выполняют реальные переходы Workflow. Это интеграционные тесты.
 
@@ -22,7 +24,9 @@ from frappe.tests import IntegrationTestCase
 
 Сам Frappe тестирует Workflow через `IntegrationTestCase` и `apply_workflow()`; см. [`test_workflow.py` v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/workflow/doctype/workflow/test_workflow.py).
 
-## 2. Разрешить запуск тестов на dev Site
+---
+
+# 2. Разрешить запуск тестов на dev Site
 
 ```bash
 cd ~/frappe/rental-training-bench
@@ -33,7 +37,9 @@ bench --site purchase-lifecycle.localhost show-config | grep allow_tests
 
 `allow_tests` принадлежит Site и не должен попадать в исходники App.
 
-## 3. Открыть файл тестов Purchase Request
+---
+
+# 3. Открыть файл тестов Purchase Request
 
 При создании Standard `Purchase Request` Frappe уже создал:
 
@@ -202,7 +208,9 @@ class IntegrationTestPurchaseRequest(IntegrationTestCase):
         self.assertFalse(status.allow_on_submit)
 ```
 
-## 4. Тесты не должны восстанавливать обязательную конфигурацию
+---
+
+# 4. Тесты не должны восстанавливать обязательную конфигурацию
 
 Тесты создают только тестовых Users и рабочие Documents, которые нужны конкретной проверке.
 
@@ -216,7 +224,9 @@ class IntegrationTestPurchaseRequest(IntegrationTestCase):
 
 Это обязательная конфигурация App. Если поставка состояния из S08 сломана, тест должен упасть, а не тайно восстановить недостающую настройку внутри `setUp()`.
 
-## 5. Запустить тесты
+---
+
+# 5. Запустить тесты
 
 ```bash
 cd ~/frappe/rental-training-bench
@@ -227,7 +237,9 @@ bench --site purchase-lifecycle.localhost run-tests \
 
 Исправляйте причину падения, а не ослабляйте проверку ради зелёного результата.
 
-## 6. Что проверить отдельно через Desk
+---
+
+# 6. Что проверить отдельно через Desk
 
 Не каждое поведение интерфейса нужно превращать в интеграционный тест.
 
@@ -243,7 +255,9 @@ amended_from указывает на исходную заявку
 
 `Only Allow Edit For` не является самостоятельной универсальной серверной защитой полей. Критические переходы Workflow проверяются через `apply_workflow()`.
 
-## 7. Дополнительные проверки
+---
+
+# 7. Дополнительные проверки
 
 После базового набора полезно добавить отдельные тесты для точных границ:
 
@@ -261,7 +275,9 @@ Approver/Senior не получают Amend
 
 Каждый такой test method должен проверять одно понятное правило приложения.
 
-## Результат
+---
+
+# Результат
 
 После S09 критические правила процесса можно проверить одной командой:
 
