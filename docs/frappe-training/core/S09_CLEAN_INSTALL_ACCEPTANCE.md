@@ -496,7 +496,36 @@ exit()
 
 ---
 
-# 9. Выполнить migrate как отдельную проверку update-path
+# 9. Перед migrate убедиться, что процессы Bench запущены
+
+В development Bench `migrate` проверяет доступность необходимых сервисов, включая Redis cache.
+
+Если `bench start` уже работает в отдельном терминале — ничего делать не нужно.
+
+Если не работает, откройте второй терминал и запустите:
+
+```bash
+cd ~/frappe/rental-training-bench
+bench start
+```
+
+Оставьте этот терминал открытым до конца S09.
+
+Это не часть `rental_training` и не скрытая зависимость App:
+
+```text
+Bench services
+→ инфраструктура dev-окружения
+
+App metadata/fixtures/Controller
+→ продуктовый source
+```
+
+Не путайте ошибку вида «Redis service недоступен» с ошибкой архитектуры clean install.
+
+---
+
+# 10. Выполнить migrate как отдельную проверку update-path
 
 `install-app` уже синхронизировал обязательное состояние при первичной установке.
 
@@ -537,7 +566,7 @@ rental_training
 
 ---
 
-# 10. Включить только test-настройку и запустить весь suite
+# 11. Включить только test-настройку и запустить весь suite
 
 На acceptance-site не нужен developer mode.
 
@@ -579,7 +608,7 @@ Manager permissions
 
 ---
 
-# 11. Проверить, что tests не изменили source App
+# 12. Проверить, что tests не изменили source App
 
 ```bash
 git -C apps/rental_training status --short
@@ -591,14 +620,9 @@ Tests могут создавать временные database records в св�
 
 ---
 
-# 12. Запустить Desk для нового Site
+# 13. Открыть Desk нового Site
 
-Если dev-процессы Bench ещё не запущены, в отдельном терминале:
-
-```bash
-cd ~/frappe/rental-training-bench
-bench start
-```
+`bench start` уже должен работать после раздела 9.
 
 Откройте:
 
@@ -618,7 +642,7 @@ Administrator
 
 ---
 
-# 13. Убедиться, что модель доступна без developer mode
+# 14. Убедиться, что модель доступна без developer mode
 
 Через Awesomebar найдите:
 
@@ -646,7 +670,7 @@ Desk уже умеет Form/List
 
 ---
 
-# 14. Создать двух Site-local Users
+# 15. Создать двух Site-local Users
 
 Role уже должны быть на Site из fixture.
 
@@ -706,7 +730,7 @@ git -C apps/rental_training status --short
 
 ---
 
-# 15. Пройти основной сценарий под Rental Manager
+# 16. Пройти основной сценарий под Rental Manager
 
 Выйдите из Administrator и войдите как:
 
@@ -714,7 +738,7 @@ git -C apps/rental_training status --short
 manager.acceptance@example.test
 ```
 
-## 15.1. Создать Equipment №1
+## 16.1. Создать Equipment №1
 
 ```text
 Equipment Name : Acceptance Bosch Drill
@@ -726,7 +750,7 @@ Serial Number  : ACC-TOOL-01
 
 Не предполагаем заранее, что это обязательно `EQ-00001`: numbering state является состоянием Site.
 
-## 15.2. Создать Equipment №2
+## 16.2. Создать Equipment №2
 
 ```text
 Equipment Name : Acceptance Canon Camera
@@ -736,7 +760,7 @@ Serial Number  : ACC-CAM-01
 
 Сохраните.
 
-## 15.3. Создать Customer
+## 16.3. Создать Customer
 
 ```text
 Customer Name : Acceptance Customer
@@ -746,7 +770,7 @@ Email         : acceptance.customer@example.test
 
 Сохраните.
 
-## 15.4. Создать первый Active Rental
+## 16.4. Создать первый Active Rental
 
 ```text
 Customer   : Acceptance Customer
@@ -775,7 +799,7 @@ Manager
 
 ---
 
-# 16. Проверить naming и Link presentation
+# 17. Проверить naming и Link presentation
 
 Откройте сохранённый Rental.
 
@@ -797,7 +821,7 @@ runtime counter локален Site
 
 ---
 
-# 17. Проверить Operator на реальном Desk
+# 18. Проверить Operator на реальном Desk
 
 Выйдите и войдите как:
 
@@ -858,7 +882,7 @@ End Date : 2026-10-15
 
 ---
 
-# 18. Проверить V03 через обычный пользовательский сценарий
+# 19. Проверить V03 через обычный пользовательский сценарий
 
 Оставаясь под Operator, создайте ещё один Rental:
 
@@ -901,7 +925,7 @@ Workflow
 
 ---
 
-# 19. Где проверяются V01 и V02 на финальном Site
+# 20. Где проверяются V01 и V02 на финальном Site
 
 Не нужно снова вручную мучить каждое поле только ради количества действий.
 
@@ -925,7 +949,7 @@ V03 overlap → rejected
 
 ---
 
-# 20. Проверить финальное Site-owned состояние
+# 21. Проверить финальное Site-owned состояние
 
 После пользовательского сценария откройте console:
 
@@ -965,7 +989,7 @@ exit()
 
 ---
 
-# 21. Финально проверить source App
+# 22. Финально проверить source App
 
 Вернитесь в терминал:
 
@@ -1004,7 +1028,7 @@ allow_tests     → 1/true
 
 ---
 
-# 22. Финальная автоматическая проверка ещё раз
+# 23. Финальная автоматическая проверка ещё раз
 
 После ручного пользовательского сценария снова выполните:
 
@@ -1024,7 +1048,7 @@ tests проходят только на пустой БД
 
 ---
 
-# 23. Контрольная матрица S09
+# 24. Контрольная матрица S09
 
 | Проверка | Ожидание |
 |---|---|
@@ -1038,6 +1062,7 @@ tests проходят только на пустой БД
 | Role Operator/Manager | появились из fixture |
 | default permissions | соответствуют JSON |
 | hidden Custom Field/Property Setter/Custom DocPerm | отсутствуют |
+| Bench services перед migrate | доступны |
 | `migrate` | success без ручного SQL |
 | tests | green |
 | Manager vertical scenario | проходит |
@@ -1048,7 +1073,7 @@ tests проходят только на пустой БД
 
 ---
 
-# 24. S09 — ГОТОВО
+# 25. S09 — ГОТОВО
 
 CORE считается завершённым, если одновременно верно:
 
@@ -1068,6 +1093,7 @@ CORE считается завершённым, если одновременн�
 [ ] Rental Operator появился из fixture
 [ ] Rental Manager появился из fixture
 [ ] скрытых обязательных Custom Field/Property Setter/Custom DocPerm нет
+[ ] Bench services доступны перед migrate
 [ ] bench migrate проходит
 [ ] tests проходят на acceptance-site
 [ ] Site-local Users создаются после установки и не входят в App
@@ -1082,7 +1108,7 @@ CORE считается завершённым, если одновременн�
 
 ---
 
-# 25. S09 — НЕ ГОТОВО
+# 26. S09 — НЕ ГОТОВО
 
 CORE не принимается, если хотя бы одно обязательное действие звучит так:
 
@@ -1108,7 +1134,7 @@ CORE не принимается, если хотя бы одно обязате
 
 ---
 
-# 26. Что доказал весь CORE
+# 27. Что доказал весь CORE
 
 После S09 у ученика есть не просто маленькая система проката.
 
