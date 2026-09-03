@@ -18,7 +18,9 @@ PLT Rejected → PLT Pending Approval
 
 Это уже штатная ответственность `Workflow`.
 
-## 1. Не создавать второе поле состояния
+---
+
+# 1. Не создавать второе поле состояния
 
 У нас уже есть поле Standard DocType:
 
@@ -42,7 +44,9 @@ Frappe умеет автоматически создать Custom Field, есл
 
 Источник: [`Workflow.create_custom_field_for_workflow_state()` v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/workflow/doctype/workflow/workflow.py).
 
-## 2. Не копировать состояние процесса при Duplicate
+---
+
+# 2. Не копировать состояние процесса при Duplicate
 
 Откройте Standard DocType `Purchase Request`, найдите поле `status` и включите:
 
@@ -60,7 +64,9 @@ Allow on Submit : no
 
 `Allow on Submit` сейчас не нужен: все состояния Workflow на S03 имеют `docstatus = 0`.
 
-## 3. Создать Workflow State
+---
+
+# 3. Создать Workflow State
 
 Через Desk откройте `Workflow State` и создайте:
 
@@ -75,7 +81,9 @@ PLT Approved
 
 Style и icon для практикума не важны.
 
-## 4. Создать собственное действие отправки
+---
+
+# 4. Создать собственное действие отправки
 
 Frappe уже создаёт базовые `Workflow Action Master`:
 
@@ -97,7 +105,9 @@ PLT Submit for Review
 
 Frappe устанавливает базовые Action Masters при setup; см. [`frappe/utils/install.py`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/utils/install.py).
 
-## 5. Создать Workflow
+---
+
+# 5. Создать Workflow
 
 Откройте `Workflow` и создайте:
 
@@ -111,7 +121,9 @@ Send Email Alert     : no
 
 Email не является условием существования самого Workflow или серверного перехода.
 
-## 6. Добавить состояния
+---
+
+# 6. Добавить состояния
 
 На S03 все состояния соответствуют `docstatus = 0`:
 
@@ -137,9 +149,11 @@ docstatus = 0
 
 `Only Allow Edit For` задаёт, какая роль может редактировать Document в конкретном состоянии Workflow. Не используйте эту настройку как доказательство отдельной универсальной серверной защиты всех полей.
 
-## 7. Добавить переходы
+---
 
-### Draft → Pending Approval
+# 7. Добавить переходы
+
+## Draft → Pending Approval
 
 ```text
 State               : PLT Draft
@@ -152,7 +166,7 @@ Condition           : пусто
 
 `yes` здесь обязателен по смыслу: owner должен уметь отправить собственную заявку.
 
-### Pending Approval → Approved
+## Pending Approval → Approved
 
 ```text
 State               : PLT Pending Approval
@@ -165,7 +179,7 @@ Condition           : пусто
 
 На S03 self approval ещё не запрещён отдельным требованием. Мы намеренно оставляем его разрешённым, чтобы на S04 добавить новое правило отдельно.
 
-### Pending Approval → Rejected
+## Pending Approval → Rejected
 
 ```text
 State               : PLT Pending Approval
@@ -176,7 +190,7 @@ Allow Self Approval : yes
 Condition           : пусто
 ```
 
-### Rejected → Pending Approval
+## Rejected → Pending Approval
 
 ```text
 State               : PLT Rejected
@@ -189,7 +203,9 @@ Condition           : пусто
 
 Сохраните Workflow.
 
-## 8. Проверить нормальный маршрут
+---
+
+# 8. Проверить нормальный маршрут
 
 Создайте новую заявку под `requester@example.test`:
 
@@ -235,7 +251,9 @@ status    = PLT Approved
 docstatus = 0
 ```
 
-## 9. Проверить запрет прямого перехода
+---
+
+# 9. Проверить запрет прямого перехода
 
 Создайте ещё одну Draft-заявку под Requester и через Bench Console попробуйте сразу записать `PLT Approved`:
 
@@ -268,7 +286,9 @@ frappe.set_user("Administrator")
 exit()
 ```
 
-## 10. Посмотреть Workflow Action
+---
+
+# 10. Посмотреть Workflow Action
 
 Когда заявка находится в `PLT Pending Approval`, откройте Desk под Approver и посмотрите ожидающие Workflow Actions.
 
@@ -284,7 +304,9 @@ Workflow Action
 
 Это разные части механизма. На следующем этапе пользователь будет иметь подходящую роль, но серверная проверка `Allow Self Approval` всё равно запретит одобрение собственной заявки.
 
-## Результат
+---
+
+# Результат
 
 После S03:
 
