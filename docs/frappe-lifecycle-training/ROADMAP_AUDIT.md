@@ -108,7 +108,7 @@ allow_self_approval = no
 
 То есть после S05 новая Senior branch **обязана унаследовать policy S04**. Нельзя оставить новый Senior approval transition с default `yes`.
 
-Для non-approval transition `Approved → Cancelled` текущий CORE не выводит запрет из self-approval requirement автоматически. Его значение задаётся осознанно в executable specification вместе с Cancel responsibility; оно не наследуется случайно от approval transitions.
+Для `Pending Manager → Rejected` и `Approved → Cancelled` self-policy принимается отдельно вместе с семантикой этих действий; она не должна оставаться случайным default и не наследуется автоматически от approval transitions.
 
 ## Обязательные tests
 
