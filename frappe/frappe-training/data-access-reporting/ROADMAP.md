@@ -9,7 +9,7 @@
   ↓
 List View
   ↓
-Report Builder
+Report permission + Report Builder
   ↓
 пользовательское и системное чтение
   ↓
@@ -61,7 +61,16 @@ end_date
 
 Менеджеру нужна сохраняемая табличная сводка по Rental с группировкой и простыми агрегатами.
 
-Используется `Report Builder` без Python и SQL.
+До этого момента `Rental Manager` не нуждался в permission `Report`: в первом практикуме отдельного требования к отчётам не было. Теперь permission появляется вместе с самой задачей отчётности.
+
+Standard DocType Permissions `Rental` получают:
+
+```text
+Rental Manager
+→ Report = yes
+```
+
+После этого используется `Report Builder` без Python и SQL.
 
 Этап должен показать границу механизма: Report Builder хорошо решает задачу одного DocType и его Child Tables, но не обязан превращаться в универсальный язык для любой аналитической выборки.
 
@@ -158,6 +167,7 @@ Python оставляет ответственность за расчёт ин�
 
 - `Rental Operator` не читает чужой Rental;
 - `Rental Manager` читает все Rentals;
+- `Rental Manager` имеет обязательный `Report` permission на `Rental`;
 - обязательные Standard Reports существуют и имеют нужную аудиторию;
 - расчёт занятости корректно обрезает интервалы границами периода;
 - пересекающиеся интервалы одного Equipment не удваивают календарные дни;
@@ -170,7 +180,10 @@ Python оставляет ответственность за расчёт ин�
 Установить итоговый `rental_training` на новый чистый Site и проверить, что из App воспроизводятся:
 
 ```text
-Standard DocType Permissions с If Owner
+Standard DocType Permissions:
+  Rental Operator → If Owner
+  Rental Manager  → Report
+
 Standard Query Report и его роли
 Standard Script Report и его исходники
 автоматические тесты приложения
@@ -193,6 +206,8 @@ Rental Item
 ## Почему порядок именно такой
 
 `List View` и `Report Builder` идут раньше собственного кода, потому что сначала проверяются штатные средства представления уже существующей модели.
+
+`Report` permission появляется вместе с первым отчётным требованием, а не заранее только потому, что такой permission существует во Framework.
 
 Permission boundary появляется до Query Report и Script Report, чтобы собственная выборка проектировалась с пониманием того, кому разрешено видеть результат.
 
