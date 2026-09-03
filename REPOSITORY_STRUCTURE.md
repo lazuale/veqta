@@ -1,21 +1,23 @@
-# VEQTA Repository Structure
+# Структура репозитория VEQTA
 
-Status: **foundation baseline candidate**
+Статус: **кандидат в foundation baseline**
 
-## 1. Purpose
+## 1. Назначение
 
-This document defines how VEQTA source, engineering knowledge, learning materials, experiments and production products are separated in Git.
+Этот документ определяет, как в Git разделяются исходный код VEQTA, инженерные знания, учебные материалы, эксперименты и production-продукты.
 
-The goal is to avoid two failure modes:
+Цель — избежать двух противоположных ошибок:
 
-1. one repository becoming an undifferentiated dump of unrelated artifacts;
-2. premature fragmentation into many repositories before boundaries are real.
+1. один репозиторий превращается в неструктурированную свалку несвязанных артефактов;
+2. проект слишком рано дробится на множество репозиториев до появления реальных границ.
 
-## 2. Current phase: ecosystem hub repository
+Основной язык документации и навигации — русский согласно [`LANGUAGE_POLICY.md`](LANGUAGE_POLICY.md). Технические имена файлов, директорий, App и других контрактов могут сохраняться на английском.
 
-At the current stage, `lazuale/veqta` remains the ecosystem hub and source of truth for foundation, engineering knowledge, learning materials and Labs.
+## 2. Текущая фаза: ecosystem hub
 
-Target structure:
+На текущем этапе `lazuale/veqta` остаётся центральным репозиторием экосистемы и источником истины для foundation, инженерных знаний, учебных материалов и Labs.
+
+Целевая структура:
 
 ```text
 veqta/
@@ -26,6 +28,7 @@ veqta/
 ├── ENGINEERING_PRINCIPLES.md
 ├── PRODUCT_LIFECYCLE.md
 ├── REPOSITORY_STRUCTURE.md
+├── LANGUAGE_POLICY.md
 │
 ├── engineering/
 │   ├── README.md
@@ -65,30 +68,30 @@ veqta/
     └── NAMING.md
 ```
 
-Not every empty directory should be created immediately. Directories appear when they contain a real artifact.
+Пустые директории заранее не создаются. Раздел появляется, когда в нём есть реальный артефакт.
 
-## 3. Why `docs/` is removed as the main taxonomy
+## 3. Почему `docs/` перестаёт быть основной таксономией
 
-`docs/` is too generic for the new model because it currently mixes fundamentally different responsibilities:
+`docs/` слишком общий раздел для новой модели: сейчас внутри него смешаны принципиально разные ответственности:
 
-- product/prototype model documentation;
-- architecture standards;
-- training materials;
-- setup instructions.
+- документация prototype/Product;
+- архитектурные стандарты;
+- учебные материалы;
+- инструкции по развёртыванию.
 
-The new top-level taxonomy communicates responsibility directly:
+Новая верхнеуровневая структура показывает ответственность напрямую:
 
 ```text
-engineering → accepted engineering knowledge
-learn       → education
-labs        → experiments
-products    → product catalogue / links
-brand       → identity system
+engineering → принятые инженерные знания
+learn       → обучение
+labs        → эксперименты
+products    → каталог Products / ссылки
+brand       → система идентичности
 ```
 
-Documentation may still exist inside any of these domains, but `docs` is no longer the primary business architecture of the repository.
+Документация может существовать внутри каждого направления, но `docs/` больше не является архитектурой репозитория.
 
-## 4. Migration map from current repository
+## 4. Карта миграции текущего репозитория
 
 ```text
 docs/frappe-architecture-standard/
@@ -111,37 +114,38 @@ docs/DEVELOPMENT.md
 
 docs/START_HERE_WSL2.md
     → labs/work-management/v0.1/SETUP.md
-    or a later general developer setup document if its scope proves broader
+    или позднее в общий developer setup, если его область действительно шире Lab
 ```
 
-The content should be reviewed during migration rather than moved mechanically when old wording defines VEQTA as a single product.
+При переносе материалы проверяются, а не перемещаются механически, если старый текст определяет VEQTA как один Product.
 
-## 5. Root README responsibility
+## 5. Ответственность корневого README
 
-The root `README.md` is the public landing page of the ecosystem.
+Корневой `README.md` — публичная стартовая страница экосистемы.
 
-It must answer, in order:
+Он должен последовательно отвечать:
 
-1. What is VEQTA?
-2. What is its relationship to Frappe?
-3. What are Engineering, Learn, Labs and Products?
-4. What is currently usable?
-5. Where should a new visitor start?
-6. What is experimental versus production-ready?
+1. Что такое VEQTA?
+2. Как она связана с Frappe?
+3. Что такое Engineering, Learn, Labs и Products?
+4. Что уже реально доступно?
+5. С чего начать новому посетителю?
+6. Что является экспериментом, а что готовым продуктом?
+7. Какой язык является основным и почему часть технических терминов остаётся английской?
 
-It must not use one current Lab as the definition of VEQTA.
+Один текущий Lab не может определять VEQTA целиком.
 
-## 6. Engineering structure
+## 6. Структура Engineering
 
-`engineering/` contains accepted or actively maintained engineering guidance.
+`engineering/` содержит принятые или активно поддерживаемые инженерные рекомендации.
 
-The current Frappe Architecture Standard belongs under:
+Текущий Frappe Architecture Standard размещается в:
 
 ```text
 engineering/frappe/
 ```
 
-A future structure may include additional engineering concerns only when they become real:
+Новые разделы появляются только при наличии реальной ответственности, например:
 
 ```text
 engineering/
@@ -151,45 +155,45 @@ engineering/
 └── references/
 ```
 
-Do not create categories in anticipation of content.
+Категории не создаются заранее ради красивого дерева.
 
-## 7. Learn structure
+## 7. Структура Learn
 
-`learn/` contains educational artifacts.
+`learn/` содержит учебные артефакты.
 
-Courses are independent learning units:
+Курсы являются самостоятельными учебными единицами:
 
 ```text
 learn/courses/<course-slug>/
 ```
 
-A course may contain specification, roadmap, exercises, solutions, code references and evaluation material, but its educational code must not be confused with production Product code.
+Курс может содержать specification, roadmap, упражнения, решения, ссылки на код и материалы оценки, но учебный код не смешивается с production-кодом Product.
 
-Learning paths may later combine courses without physically duplicating them.
+Учебные маршруты могут объединять несколько курсов без физического дублирования материалов.
 
-## 8. Labs structure
+## 8. Структура Labs
 
-Each Lab has an explicit scope and status:
+Каждый Lab имеет явную область и статус:
 
 ```text
 labs/<lab-name>/<version-or-experiment>/
 ```
 
-A Lab README or primary document should state:
+README или основной документ Lab должен указывать:
 
-- hypothesis;
-- status;
-- Frappe baseline;
-- expected outcome;
-- whether code is disposable, reference-quality or incubation candidate.
+- гипотезу;
+- статус;
+- baseline Frappe;
+- ожидаемый исход;
+- является ли код одноразовым, эталонным или кандидатом на инкубацию.
 
-When a Lab graduates into a standalone Product, product code moves to an independent repository. Lab evidence can remain in the hub as historical/reference material.
+Когда Lab вырастает в самостоятельный Product, продуктовый код переносится в отдельный репозиторий. Доказательства Lab могут оставаться в hub как исторический и справочный материал.
 
-## 9. Products structure in the hub
+## 9. Раздел Products в hub
 
-`products/` is initially a catalogue and governance area, not a monorepo for all product source code.
+`products/` на первом этапе является каталогом и governance-областью, а не монорепозиторием всего продуктового кода.
 
-Example future catalogue:
+Пример будущего каталога:
 
 ```text
 products/README.md
@@ -198,25 +202,25 @@ Product A → github.com/<owner>/<product-a>
 Product B → github.com/<owner>/<product-b>
 ```
 
-This keeps the ecosystem discoverable while preserving Frappe App independence.
+Так экосистема остаётся обозримой, а Products сохраняют независимый релизный цикл.
 
-## 10. When a Product gets its own repository
+## 10. Когда Product получает собственный репозиторий
 
-A Product should be extracted when:
+Product выделяется, когда:
 
-- it is an independently installable Frappe App;
-- it has its own issue/release lifecycle;
-- it has its own user-facing documentation;
-- it can be versioned independently from VEQTA Engineering and Learn;
-- its source no longer exists mainly to support a Lab experiment.
+- существует как самостоятельно устанавливаемое программное ядро Frappe;
+- имеет собственный issue/release цикл;
+- имеет собственную пользовательскую документацию;
+- может версионироваться независимо от VEQTA Engineering и Learn;
+- его код больше не существует в основном ради Lab.
 
-Repository extraction should happen by the Incubating Product stage or earlier if independent installation already matters.
+Выделение должно произойти не позднее стадии инкубации, либо раньше, если самостоятельная установка уже имеет значение.
 
-## 11. Future organization model
+## 11. Будущая GitHub organization
 
-If VEQTA grows beyond a personal repository namespace, the preferred mature model is a dedicated GitHub organization.
+Если VEQTA перерастёт личный namespace, предпочтительная зрелая модель — отдельная GitHub organization.
 
-Possible shape:
+Возможная форма:
 
 ```text
 github.com/<veqta-org>/
@@ -224,18 +228,18 @@ github.com/<veqta-org>/
 ├── veqta              # ecosystem hub / foundation
 ├── <product-a>        # production Frappe App
 ├── <product-b>        # production Frappe App
-└── <shared-library>   # only after shared-code extraction criteria are proven
+└── <shared-library>   # только после доказанной необходимости общего кода
 ```
 
-Engineering and Learn may remain in the hub while the project is compact. They should be split into separate repositories only when independent release/contribution workflows create a real benefit.
+Engineering и Learn могут оставаться в hub, пока проект компактен. Их стоит выделять в отдельные репозитории только при реальной выгоде от независимых релизов или contribution-процессов.
 
-Repository count is not a maturity metric.
+Количество репозиториев не является показателем зрелости.
 
-## 12. Repository naming
+## 12. Именование репозиториев
 
-Repository names should reflect actual responsibility.
+Имя отражает реальную ответственность.
 
-Avoid vague names such as:
+Не создаём расплывчатые репозитории:
 
 ```text
 veqta-core
@@ -244,50 +248,51 @@ veqta-utils
 veqta-platform
 ```
 
-unless the responsibility and consumer set have already been proven.
+пока не доказаны их ответственность и набор потребителей.
 
-Product repositories should use the product's real technical/package identity rather than a generic ecosystem term.
+Product repository использует реальное техническое/package имя Product, а не общее название экосистемы.
 
-## 13. Source of truth
+## 13. Источник истины
 
-Each artifact has one primary source of truth:
-
-```text
-Foundation policy   → ecosystem hub
-Engineering guidance→ ecosystem hub / engineering
-Learning material   → ecosystem hub / learn
-Lab evidence        → ecosystem hub / labs
-Product source      → product repository
-```
-
-Do not maintain competing canonical copies across Learn, Labs and Product repositories.
-
-## 14. Migration order
-
-The repository should be migrated in this order:
+У каждого типа артефакта один основной источник истины:
 
 ```text
-1. accept foundation documents
-2. rewrite root README
-3. create real target directories
-4. move Engineering
-5. move Learn
-6. reclassify current prototype as Lab
-7. repair all internal links
-8. audit old terminology
-9. only then remove obsolete paths
+Foundation policy    → ecosystem hub
+Engineering guidance → ecosystem hub / engineering
+Learning material    → ecosystem hub / learn
+Lab evidence         → ecosystem hub / labs
+Product source       → product repository
 ```
 
-This order preserves a readable repository throughout the migration.
+Нельзя поддерживать конкурирующие канонические копии в Learn, Labs и Product repositories.
 
-## 15. Definition of done for the reorganization
+Русская версия основного материала является смысловым источником истины, если для конкретного артефакта явно не установлено иное.
 
-The repository reorganization is complete when:
+## 14. Порядок миграции
 
-- root README no longer defines VEQTA as one application;
-- every maintained artifact is classified as Engineering, Learn, Lab, Product or foundation/brand governance;
-- no current path implies that Learn or Engineering are temporary additions to a single product;
-- the Work Management prototype is visibly a Lab;
-- internal links resolve after migration;
-- no duplicate source of truth remains;
-- future production App code has a documented extraction path.
+```text
+1. принять foundation documents
+2. переписать root README
+3. создать реальные целевые директории
+4. перенести Engineering
+5. перенести Learn
+6. переклассифицировать текущий prototype как Lab
+7. исправить внутренние ссылки
+8. провести аудит старой терминологии и языка
+9. только после этого удалить устаревшие пути
+```
+
+Так репозиторий остаётся читаемым на всём протяжении миграции.
+
+## 15. Definition of Done реорганизации
+
+Реорганизация завершена, когда:
+
+- root README больше не определяет VEQTA как одно приложение;
+- каждый поддерживаемый артефакт классифицирован как Engineering, Learn, Lab, Product или foundation/brand governance;
+- ни один актуальный путь не показывает Learn или Engineering как временное приложение к одному Product;
+- Work Management prototype явно обозначен как Lab;
+- внутренние ссылки работают после миграции;
+- нет дублирующихся источников истины;
+- основной текст актуальных материалов следует русскоязычной политике;
+- для будущего production `App` существует документированный путь выделения в самостоятельный репозиторий.
