@@ -1,10 +1,10 @@
 # Матрица требований второго учебного практикума Frappe
 
-Статус: **аудированная матрица-кандидат перед dependency graph**.
+Статус: **аудированная матрица; основание для dependency graph**.
 
 Этот документ продолжает [`ARCHITECTURE_PASSPORT.md`](ARCHITECTURE_PASSPORT.md).
 
-Матрица не является roadmap. Она проверяет причинность архитектуры:
+Следующий слой — [`STAGE_DEPENDENCY_GRAPH.md`](STAGE_DEPENDENCY_GRAPH.md). Матрица сама не является roadmap: она проверяет причинность архитектуры.
 
 ```text
 требование
@@ -237,7 +237,7 @@ Baseline до Submittable:
 | Purchase Requester | yes | yes | yes | no |
 | Purchase Approver | yes | no | yes | no |
 
-Submit/Cancel ещё не используются, потому что Purchase Request пока не Submittable.
+`Submit`, `Cancel` и `Amend` пока не используются: соответствующих требований ещё нет.
 
 **Граница:** Workflow transition role не заменяет DocPerm.
 
@@ -300,7 +300,7 @@ Cancelled      → Purchase Approver
 
 **Граница:** `allow_edit`, DocPerm и transition role — разные уровни.
 
-По результатам аудита `allow_edit` **не используется как единственное доказательство серверного запрета изменения полей**. В CORE это обязательная state/edit policy стандартного Workflow, проверяемая через Desk/observed behavior. Серверная безопасность процесса доказывается transitions, DocPerm, self-approval check и docstatus.
+По результатам аудита `allow_edit` не используется как единственное доказательство серверного запрета изменения полей. В CORE это state/edit policy стандартного Workflow, проверяемая через Desk/observed behavior. Серверная безопасность процесса доказывается transitions, DocPerm, self-approval check и docstatus.
 
 **Проверка:**
 
@@ -336,7 +336,7 @@ status = Select
 Workflow State Field = status
 ```
 
-**Ключевая коррекция после аудита:** менять `status` с Select на `Link → Workflow State` **не требуется**.
+**Ключевая коррекция после аудита:** менять `status` с Select на `Link → Workflow State` не требуется.
 
 **Почему:** в Frappe v16.33.0 `Workflow.create_custom_field_for_workflow_state()` создаёт Link field только когда указанного field вообще нет в Meta. Существующее Standard поле может быть Workflow State Field без лишней смены типа.
 
@@ -356,13 +356,7 @@ No Copy = yes
 
 чтобы обычное Duplicate не переносило текущий workflow-state как старт нового документа.
 
-После появления Submittable-семантики в R12 дополнительно включается:
-
-```text
-Allow on Submit = yes
-```
-
-для workflow-state field. Это не разрешает обходить transitions: серверный Workflow всё равно проверяет переход.
+`Allow on Submit` пока не нужен: он появится только тогда, когда Workflow должен менять state уже Submitted Document — см. `R13`.
 
 **Проверка:**
 
@@ -520,13 +514,7 @@ Rejected
 
 **Первый механизм:** `Is Submittable + docstatus`.
 
-Теперь появляется:
-
-```text
-Cancelled
-```
-
-и mapping:
+На этом шаге mapping ещё минимален:
 
 ```text
 Draft            → docstatus 0
@@ -534,24 +522,25 @@ Pending Manager  → docstatus 0
 Pending Senior   → docstatus 0
 Rejected         → docstatus 0
 Approved         → docstatus 1
-Cancelled        → docstatus 2
 ```
 
-`status` остаётся тем же Standard Select; добавляется значение `Cancelled`, а самому field включается `Allow on Submit = yes` как workflow-state field.
+`Cancelled` пока не добавляется: сама возможность зафиксировать факт ещё не создаёт требования отменять его.
 
-### DocPerm тоже меняется
+### Submit DocPerm появляется только теперь
 
-Workflow transition role не выдаёт системное право `submit()`/`cancel()`.
+Workflow transition role не выдаёт системное право `submit()`.
 
-Поэтому вместе с Submittable-семантикой роли Approver получают:
+Оба возможных final approver должны уметь реально выполнить submit-path:
 
-| Role | Submit | Cancel |
-|---|---:|---:|
-| Purchase Approver | yes | yes |
-| Senior Purchase Approver | yes | yes |
-| Purchase Requester | no | no |
+| Role | Submit |
+|---|---:|
+| Purchase Approver | yes |
+| Senior Purchase Approver | yes |
+| Purchase Requester | no |
 
-**Почему:** final Approve реально вызывает `submit()`, а Cancel transition — `cancel()`.
+**Почему:** маленькую заявку финально одобряет `Purchase Approver`, большую — `Senior Purchase Approver`; оба transitions должны уметь привести Document к `docstatus = 1`.
+
+`Cancel` и `Amend` права пока не выдаются.
 
 **Ключевой вывод:**
 
@@ -563,15 +552,48 @@ Approved = docstatus 1
 
 ---
 
-## R13. Workflow полностью описывает submit/cancel path
+## R13. Появилась отдельная политика отмены Submitted approval
 
-**Требование:** после `Is Submittable` не должно существовать параллельной неуправляемой модели lifecycle.
+Новое требование:
 
-**Ответственность:** связать Workflow State с системным Doc Status.
+> Уже одобренное разрешение иногда нужно официально отменить, не удаляя и не возвращая его в Draft.
 
-**Первый механизм:** Workflow State `Doc Status` + Workflow Transitions.
+CORE-политика ответственности:
 
-Допустимый путь:
+```text
+Purchase Approver
+→ владеет отменой Approved Purchase Request
+
+Senior Purchase Approver
+→ только второй уровень final approval для дорогих заявок
+
+Purchase Requester
+→ не отменяет Submitted approval
+```
+
+**Ответственность:** перевести ранее Submitted факт в системное Cancelled состояние.
+
+**Первый механизм:** Workflow transition `Approved → Cancelled` + `docstatus 2` + стандартный `Cancel` DocPerm.
+
+Только здесь появляются:
+
+```text
+status option = Cancelled
+Workflow State Cancelled → Doc Status 2
+status.Allow on Submit = yes
+```
+
+и права:
+
+| Role | Cancel |
+|---|---:|
+| Purchase Approver | yes |
+| Senior Purchase Approver | no |
+| Purchase Requester | no |
+
+**Почему `Allow on Submit` у status появляется здесь:** Workflow должен изменить state field у уже Submitted Document при системном cancel-path. Это техническое свойство workflow-state field и не разрешение редактировать остальные Submitted поля.
+
+Допустимый lifecycle теперь:
 
 ```text
 Draft-state 0
@@ -589,46 +611,79 @@ Cancelled → другой state
 
 **Почему:** Frappe `apply_workflow()` вызывает `save()`, `submit()` или `cancel()` в зависимости от Doc Status следующего state.
 
-**Граница:** Workflow state и docstatus остаются разными понятиями.
+**Проверка:**
 
-**Проверка:** final Approve реально приводит к `docstatus 1`; Cancel transition — к `docstatus 2`; незаконные переходы отклоняются.
+```text
+final Approve → docstatus 1
+Purchase Approver может Approved → Cancelled
+Senior Purchase Approver не получает лишнее Cancel право
+Requester не может Cancel
+Cancelled → docstatus 2
+illegal transitions отклоняются
+```
 
 ---
 
-## R14. Смысловая ошибка после approval исправляется через Cancel / Amend
+## R14. Смысловая ошибка после Cancel исправляется через Amend
 
-**Требование:** после final approval обнаружена ошибка, меняющая смысл согласованного факта.
+Новое требование:
 
-**Ответственность:** исправить факт без переписывания Submitted записи.
+> После отмены согласованной заявки requester должен создать исправленную версию, сохранив связь с исходным фактом.
 
-**Первый механизм:** `Cancel → Amend`.
+**Ответственность:** исправить факт без переписывания отменённой записи.
+
+**Первый механизм:** штатный `Amend` cancelled Document.
+
+CORE-политика:
+
+```text
+Purchase Approver
+→ Cancel original
+
+Purchase Requester
+→ Amend cancelled original
+→ исправляет новый Draft
+→ снова отправляет его по Workflow
+```
+
+### Amend DocPerm появляется только теперь
+
+`Amend` — отдельный стандартный permission type Frappe. Он не следует автоматически из Write/Create/Cancel.
+
+| Role | Amend |
+|---|---:|
+| Purchase Requester | yes |
+| Purchase Approver | no |
+| Senior Purchase Approver | no |
+
+У Requester уже есть `Create = yes` из R05, что соответствует созданию нового amended Document.
 
 **Не используется:**
 
 ```text
-вернуть 1 → 0
-редактировать все Submitted fields
+вернуть docstatus 1 → 0
+редактировать исходный Submitted/Cancelled факт
 ручной SQL
 Allow on Submit для смысловых полей
 ```
 
 ### Amend не принимается на веру
 
-Desk Frappe копирует cancelled Document через отдельный `from_amend` path, а workflow UI для local Document устанавливает default state его текущего docstatus.
+Desk Frappe использует отдельный `from_amend` copy path, а workflow UI для нового local Document устанавливает default state его текущего docstatus.
 
-Поэтому CORE ожидает:
+CORE ожидает:
 
 ```text
 Cancelled original
-→ Amend
+→ Requester Amend
 → new docstatus 0
 → initial Draft workflow-state
 → amended_from = original
 ```
 
-Но это поведение обязательно проверяется на принятой версии Frappe реальным Desk scenario. `No Copy` не выдаётся за механизм сброса state при Amend: `from_amend` имеет отдельную copy semantics.
+Но этот native path обязательно проверяется на принятой версии Frappe реальным Desk scenario. `No Copy` не выдаётся за механизм сброса state при Amend: у `from_amend` собственная copy semantics.
 
-**Граница:** если фактический v16 runtime расходится с ожидаемым native path, сначала фиксируется поведение Framework; workaround не проектируется заранее.
+**Граница:** если фактический v16 runtime расходится с ожидаемым native path, сначала фиксируется поведение Framework; workaround заранее не проектируется.
 
 ---
 
@@ -641,7 +696,7 @@ Cancelled original
 Source of truth:
 
 ```text
-Purchase Request schema + status
+Purchase Request schema + status + DocPerm
 → Standard DocType metadata
 
 Purchase Requester / Purchase Approver / Senior Purchase Approver
@@ -674,7 +729,7 @@ workflow_state.json
 
 что ставит `Workflow` раньше `Workflow State`.
 
-Поэтому delivery contract обязан обеспечить:
+Delivery contract обязан обеспечить:
 
 ```text
 Role
@@ -739,9 +794,12 @@ Rejected остаётся docstatus 0
 Rejected можно исправить и снова отправить
 Approved после R12 становится docstatus 1
 Requester не имеет submit/cancel permission
-Approver roles имеют submit/cancel permission
+Purchase Approver имеет submit/cancel permission
+Senior Purchase Approver имеет submit, но не cancel
+Purchase Requester имеет amend permission после R14
+Approver roles не получают amend без требования
 Draft нельзя сразу Cancel
-Submitted можно Cancel через допустимый transition
+Purchase Approver может Approved → Cancelled
 Cancelled = docstatus 2
 Cancelled не переходит дальше
 обязательного Custom Field workflow_state нет
@@ -753,7 +811,7 @@ status остаётся Standard Select
 ```text
 Only Allow Edit For отражается в Desk ожидаемым образом
 Workflow Action отображается согласно permitted roles
-Amend создаёт новую draft-запись, связанную через amended_from
+Requester Amend создаёт новую draft-запись, связанную через amended_from
 ```
 
 Так state/UI policy не выдаётся за неподтверждённую server ACL.
@@ -773,11 +831,12 @@ Amend создаёт новую draft-запись, связанную чере�
 ```text
 clean compatible Frappe Site
 + committed App
-+ Standard Purchase Request metadata
++ Standard Purchase Request metadata/DocPerm
 + ordered filtered fixtures
 + mandatory Roles / Workflow States / Workflow
 + automated contracts
-+ requester/approver lifecycle
++ requester/approver/senior lifecycle
++ Cancel / Amend scenario
 = reproducible lifecycle
 ```
 
@@ -857,7 +916,7 @@ Date-based Notification имеет scheduler dependency и поэтому не �
 
 ## D00. Эволюция dev/test данных
 
-После аудита **нет** обязательной смены:
+После аудита нет обязательной смены:
 
 ```text
 status Select → Link
@@ -869,8 +928,8 @@ status Select → Link
 
 ```text
 добавляется Pending Senior
-добавляется Cancelled
 Approved получает новую docstatus-семантику 1
+позднее добавляется Cancelled
 ```
 
 Disposable dev/test records можно явно пересоздать штатным Document-путём.
@@ -885,7 +944,7 @@ Disposable dev/test records можно явно пересоздать штат�
 
 Первый кандидат — `Allow on Submit` только для этого field.
 
-Не путать с техническим `Allow on Submit` workflow-state field `status`.
+Не путать с техническим `Allow on Submit` workflow-state field `status`, которое появляется в R13 для workflow cancel-path.
 
 ---
 
@@ -973,9 +1032,30 @@ Cancelled → docstatus 2
 
 ---
 
-## Workflow transition role заменяет Submit/Cancel DocPerm
+## Workflow transition role заменяет Document permissions
 
-Неправильно: `submit()`/`cancel()` остаются системными Document operations со своими permissions.
+Неправильно:
+
+```text
+роль указана в transition
+→ значит автоматически есть Submit / Cancel / Amend
+```
+
+Это разные права и разные ответственности.
+
+---
+
+## Выдать Cancel/Amend всем Approver-ролям «на всякий случай»
+
+Неправильно: право появляется только вместе с конкретной ответственностью.
+
+CORE:
+
+```text
+Purchase Approver        → Cancel approved request
+Purchase Requester       → Amend cancelled request
+Senior Purchase Approver → ни Cancel, ни Amend без отдельного требования
+```
 
 ---
 
@@ -993,7 +1073,7 @@ Cancelled → docstatus 2
 
 # 13. Контроль перед dependency graph
 
-Перед построением графа нужно ответить `да`:
+Перед построением/принятием графа нужно ответить `да`:
 
 ```text
 1. R01–R17 — реальные требования, а не список функций?
@@ -1010,19 +1090,22 @@ Cancelled → docstatus 2
 12. self approval проверяется на apply_workflow?
 13. Rejected = docstatus 0 и имеет явный resubmit path?
 14. Approved становится docstatus 1 только после отдельного требования?
-15. Submit/Cancel DocPerm учтены отдельно от transition roles?
-16. Cancelled появляется только вместе с Submittable lifecycle?
-17. Workflow описывает реальный submit/cancel path?
-18. Amend проверяется фактически, а не объясняется выдуманным no_copy поведением?
-19. fixtures имеют доказанный dependency order?
-20. глобальная уникальность Workflow State не игнорируется?
-21. server lifecycle защищён automated contracts?
-22. state/UI policies проверяются отдельно?
-23. финал — отдельный clean Site acceptance?
-24. disposable dev data не выдана за production migration?
-25. production migration не объявлена ненужной вообще?
-26. NEXT остаётся вне lifecycle CORE?
-27. API/async/extension/integration не добавлены ради покрытия?
+15. Submit право появляется только вместе с final submit responsibility?
+16. Cancelled и Cancel право появляются только после отдельного R13?
+17. Senior не получает Cancel без требования?
+18. Amend permission появляется только вместе с R14 и принадлежит Requester?
+19. Cancel и Amend выполняют разные роли ответственности?
+20. Workflow описывает реальный submit/cancel path?
+21. Amend проверяется фактически, а не объясняется выдуманным no_copy поведением?
+22. fixtures имеют доказанный dependency order?
+23. глобальная уникальность Workflow State не игнорируется?
+24. server lifecycle защищён automated contracts?
+25. state/UI policies проверяются отдельно?
+26. финал — отдельный clean Site acceptance?
+27. disposable dev data не выдана за production migration?
+28. production migration не объявлена ненужной вообще?
+29. NEXT остаётся вне lifecycle CORE?
+30. API/async/extension/integration не добавлены ради покрытия?
 ```
 
-Если хотя бы один ответ отрицательный, сначала исправляется матрица. Dependency graph строится только после этого.
+Если хотя бы один ответ отрицательный, сначала исправляется матрица или граф. Roadmap строится только после прохождения этого gate.
