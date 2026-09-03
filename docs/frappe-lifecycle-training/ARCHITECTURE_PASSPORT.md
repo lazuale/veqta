@@ -6,8 +6,6 @@
 
 Нормативная база — [`docs/frappe-architecture-standard`](../frappe-architecture-standard/README.md). Если учебное решение конфликтует со стандартом или актуальным Frappe v16, исправляется практикум.
 
-Следующий формализованный слой — [`REQUIREMENTS_MATRIX.md`](REQUIREMENTS_MATRIX.md). Граф зависимостей и roadmap до принятия матрицы не создаются.
-
 ---
 
 # 1. Назначение
@@ -224,14 +222,14 @@ Workflow State records создаются до смены типа поля, а 
 Следующее требование:
 
 ```text
-Purchase Requester:
+Requester:
 Draft → Pending Manager
 
 Purchase Approver:
 Pending Manager → Approved
 Pending Manager → Rejected
 
-Purchase Requester:
+Requester:
 не может Pending Manager → Approved
 ```
 
@@ -272,10 +270,9 @@ requested_amount > лимит
 → после Purchase Approver нужен Senior Purchase Approver
 ```
 
-Только теперь появляются:
+Только теперь появляется состояние:
 
 ```text
-Senior Purchase Approver
 Pending Senior
 ```
 
@@ -301,61 +298,55 @@ Approved
 
 # 11. Self approval — отдельная политика
 
-Следующий вопрос процесса:
+Вопрос:
 
-> Может ли пользователь с ролью Approver одобрить Document, который сам создал?
+> Может ли Approver одобрить Document, который сам создал?
 
-В обязательном сценарии:
+Для обязательного сценария:
 
 ```text
 нет
 ```
 
-Первым используется штатный `allow_self_approval` перехода Workflow.
+Первым используется штатный `allow_self_approval` перехода Workflow. Собственная проверка `doc.owner == frappe.session.user` не пишется, пока Workflow уже владеет этой ответственностью.
 
-Собственная проверка `doc.owner == frappe.session.user` не пишется, пока стандартный Workflow уже выражает эту ответственность.
-
-Граница уже задана разделом 5: штатная проверка сравнивает пользователя с `doc.owner`. Если requester позднее перестанет совпадать с owner, это будет новая архитектурная задача.
+Граница: Frappe сравнивает пользователя с `doc.owner`, поэтому этот механизм правильно соответствует только принятой здесь модели `requester = owner`.
 
 ---
 
-# 12. Rejected не равен Cancelled
+# 12. Rejected ≠ Cancelled
 
-В этом практикуме `Rejected` означает отрицательное решение на draft-стадии согласования.
-
-Поэтому:
+`Rejected` здесь означает отрицательное решение на draft-стадии согласования:
 
 ```text
 Rejected → docstatus 0
 ```
 
-`Rejected` не означает `docstatus 2`, потому что Frappe `Cancelled` — состояние ранее Submitted Document.
+Это не `docstatus 2`. Заявка может быть исправлена и снова отправлена на согласование, если матрица требований примет такой переход.
 
-Если процесс допускает исправление Rejected и повторную отправку, это должно быть явным Workflow transition.
+`Cancelled` в Frappe относится к ранее Submitted Document. Если бизнес позже потребует терминальный неизменяемый отказ с другой семантикой, это будет отдельное решение, а не автоматическая подмена rejection системным cancel.
 
 ---
 
-# 13. Final approval становится зафиксированным фактом
+# 13. Final approval стал фактом → Is Submittable / docstatus
 
 Новое требование:
 
-> После окончательного одобрения сумма, назначение и срок заявки считаются согласованными. Их нельзя незаметно переписать обычным Save.
+> После окончательного одобрения сумма, назначение и срок считаются согласованными. Их нельзя незаметно переписать обычным Save.
 
-Теперь `Approved` — не просто workflow state.
-
-Появляется транзакционная семантика:
+Теперь `Approved` — не просто workflow label:
 
 ```text
 до final approval
-→ Document рабочий и изменяемый
+→ Document рабочий
 
 после final approval
 → Document фиксирует разрешённый факт
 ```
 
-Первый штатный кандидат — `Is Submittable` / `docstatus`.
+Первый штатный кандидат — `Is Submittable / docstatus`.
 
-После этого mapping:
+После включения submittable-семантики:
 
 ```text
 Draft            → docstatus 0
@@ -366,38 +357,44 @@ Approved         → docstatus 1
 Cancelled        → docstatus 2
 ```
 
-`Cancelled` вводится только здесь.
+`Cancelled` вводится только теперь.
 
-`Approved` получает `docstatus 1` не из-за названия, а из-за отдельного требования зафиксировать разрешение как факт.
+```text
+business state = предметный смысл
+Workflow       = политика переходов
+docstatus      = системный транзакционный lifecycle
+```
 
 ---
 
-# 14. Workflow должен полностью описывать submit/cancel path
+# 14. Workflow должен описать submit/cancel путь
 
-После появления `Is Submittable` активный Workflow управляет переходами, связанными с `save()`, `submit()` и `cancel()`.
+Для submittable DocType активный Workflow заменяет обычный Save/Submit flow.
 
-Workflow должен содержать допустимые переходы к:
+Значит после появления `Is Submittable` нельзя считать, что Submit/Cancel «останутся сами». Workflow обязан иметь допустимые переходы, которые реально приводят к:
 
 ```text
 Approved  → docstatus 1
 Cancelled → docstatus 2
 ```
 
-и не должен моделировать нелегальные для Frappe переходы:
+Frappe v16.33.0 не разрешает переходы:
 
 ```text
-Draft → Cancelled
-Submitted → Draft
-Cancelled → другой state
+Draft      → Cancelled
+Submitted  → Draft
+из уже Cancelled state
 ```
 
-Будущая матрица и tests должны доказать эти границы действиями, а не только конфигурацией строк Workflow.
+Матрица должна проверить эти границы реальными действиями.
 
 ---
 
-# 15. Cancel / Amend вместо бесследного переписывания
+# 15. Ошибка после submit → Cancel / Amend
 
-Если после final approval обнаружена смысловая ошибка в сумме или назначении, первый штатный путь:
+Если после approval обнаружена ошибка, меняющая смысл согласованной заявки, обычный Edit не подходит.
+
+Первый штатный путь:
 
 ```text
 Cancel
@@ -405,52 +402,57 @@ Cancel
 → новый исправленный Document
 ```
 
-Практикум должен показать разницу между обычным изменением Draft и исправлением уже зафиксированного Submitted факта.
+Практикум должен показать разницу:
 
-`Allow on Submit` не используется как способ вернуть Submitted Document в обычное редактирование.
+```text
+изменить Draft
+≠
+исправить Submitted факт
+```
+
+`Allow on Submit` не используется как способ вернуть обычное редактирование.
 
 ---
 
 # 16. Allow on Submit — GATE
 
-Механизм появляется только под отдельное безопасное требование.
+Он рассматривается только если появляется поле, которое действительно может измениться после approval без изменения смысла согласованной заявки.
 
-Пример:
+Пример отдельного требования:
 
-> После approval можно записать внешний номер заказа, не меняя согласованную сумму, назначение и срок.
+> После approval нужно записать внешний номер заказа; это не меняет сумму, назначение и решение согласования.
 
-Только тогда конкретное поле может рассматриваться как `Allow on Submit`.
+Только тогда проверяется `Allow on Submit`. Без такого требования он вне обязательного маршрута.
 
 ---
 
-# 17. DocType Permissions и Workflow roles — разные уровни
+# 17. Workflow не заменяет DocType Permissions
 
-Базовая безопасность:
+Безопасность остаётся двухуровневой:
 
 ```text
 Role + DocType Permissions
 → может ли пользователь вообще работать с Purchase Request
 
-Workflow transition roles
-→ какое процессное действие доступно в текущем state
+Workflow transition roles / state edit policy
+→ какое действие процесса допустимо в текущем state
 ```
 
-Обязательные роли появляются по мере требований:
+Роль в Workflow transition не является автоматической выдачей всех прав на Document.
+
+Обязательные роли-кандидаты:
 
 ```text
-R05:
 Purchase Requester
 Purchase Approver
-
-R09:
 Senior Purchase Approver
 ```
 
-`Permission Type [v16+]` не нужен автоматически для Approve: разрешение transition уже принадлежит Workflow.
+`Permission Type [v16+]` не включается автоматически для approve: право выполнить переход уже выражает Workflow. Он станет кандидатом только для отдельного действия вне Workflow.
 
 ---
 
-# 18. Workflow должен быть App-owned
+# 18. Workflow — App-owned configuration
 
 Обязательный процесс не может существовать только потому, что его один раз настроили на dev-site.
 
@@ -461,21 +463,28 @@ Purchase Request schema + status field
 → Standard DocType metadata
 
 обязательные Roles
-→ filtered fixtures
+→ fixtures
 
-Workflow State records
-→ filtered fixtures
+нужные Workflow State records
+→ fixtures
 
-Workflow + states + transitions + conditions
-→ filtered fixture
+Workflow + child states/transitions/conditions
+→ fixtures
 
 test Users
 → Site-local data
 ```
 
-После clean install не должно требоваться вручную создавать Workflow, Workflow States, Roles или скрытый `workflow_state` Custom Field.
+Точные fixture filters и порядок экспорта фиксируются после принятия матрицы.
 
-Точные fixture filters и порядок экспорта фиксируются будущей исполняемой спецификацией.
+Критический отрицательный критерий:
+
+```text
+после clean install
+не требуется вручную создавать Workflow
+не требуется вручную добавлять Workflow States
+не появляется случайный обязательный site-local workflow_state Custom Field
+```
 
 ---
 
@@ -486,25 +495,24 @@ test Users
 Минимальный класс контрактов:
 
 ```text
-Requester может отправить Draft
+Requester может Draft → Pending Manager
 Requester не может Approve
-Purchase Approver может допустимый Approve/Reject
+Purchase Approver может выполнить допустимый approval
 маленькая сумма не требует Senior
-большая сумма требует Senior
-self approval запрещён
+большая сумма идёт в Pending Senior
+self approval блокируется
 Rejected остаётся docstatus 0
 final Approved становится docstatus 1
 Draft нельзя сразу Cancel
-Submitted можно Cancel через допустимый Workflow transition
+Submitted можно Cancel только допустимым transition
 Cancelled становится docstatus 2
-Cancelled не переходит дальше
 ```
 
-Проверяется и delivery contract обязательного Workflow на clean Site.
+Точная test matrix появится позже. Тестируется собственный процесс приложения, а не внутренности Frappe ради coverage.
 
 ---
 
-# 20. Clean Site acceptance — финальный gate
+# 20. Clean Site acceptance — финальный gate lifecycle CORE
 
 Финал должен доказать:
 
@@ -514,19 +522,18 @@ Cancelled не переходит дальше
 + install-app / migrate
 + mandatory Workflow configuration
 + tests
-+ реальный requester/approver scenario
 = воспроизводимый lifecycle
 ```
 
-На новом Site нельзя вручную создавать обязательные Workflow/State/Role/state-field.
+На новом Site нельзя вручную создавать обязательный Workflow, Roles, Workflow States или state Custom Field.
 
-Site-local test Users и runtime Purchase Requests создаются после установки App.
+Test Users и runtime Purchase Requests остаются Site-local.
 
 ---
 
-# 21. Что после аудита НЕ входит в обязательный lifecycle CORE
+# 21. Что после аудита исключено из обязательного lifecycle CORE
 
-Первоначальная идея включала в одну обязательную цепочку:
+Первоначальный паспорт продолжал обязательную цепочку через:
 
 ```text
 Assignment
@@ -535,7 +542,7 @@ File / Comment / Version
 Print
 ```
 
-После аудита это признано слишком широкой границей.
+Это признано слишком широкой границей.
 
 Обязательный маршрут заканчивается на:
 
@@ -549,7 +556,7 @@ Workflow
 → clean delivery
 ```
 
-Операционные спутники остаются `NEXT`.
+Операционные спутники остаются ветками `NEXT`. Их присутствие в паспорте не означает, что они обязаны попасть в матрицу второго практикума.
 
 ---
 
@@ -559,17 +566,26 @@ Workflow
 
 > После approval конкретный сотрудник должен выполнить закупку.
 
-Первый механизм: `Assignment / ToDo`.
+Первый механизм:
 
-Если нужен только текущий рабочий исполнитель, не создаётся автоматически `executor → Link → User`.
+```text
+Assignment / ToDo
+```
 
-Assignment имеет собственное уведомление о назначении/снятии назначения; отдельная Notification для дублирования этого события не нужна.
+```text
+кто сейчас должен сделать работу
+→ Assignment
+```
+
+Если нужен только текущий рабочий исполнитель, поле `executor → User` не создаётся автоматически. Если исполнитель должен стать неизменяемым бизнес-фактом, это уже другая ответственность.
+
+Assignment сам создаёт `ToDo` и штатно уведомляет пользователя о назначении/снятии назначения. Отдельная Notification для дублирования этого события не нужна.
 
 ---
 
 # 23. NEXT-B — Notification
 
-Notification не дублирует:
+Notification не должна дублировать:
 
 ```text
 Workflow Action
@@ -577,13 +593,19 @@ Workflow Send Email Alert
 Assignment notification
 ```
 
-Для неё нужен отдельный смысл, например напоминание относительно `needed_by`.
+Пример отдельного смысла:
 
-Date-based Notification использует scheduler infrastructure Frappe, поэтому эта зависимость не должна незаметно попадать в lifecycle CORE.
+> За два дня до `needed_by` по всё ещё актуальной заявке напомнить ответственному.
+
+Первый кандидат — date-based `Notification`.
+
+Но у этой возможности есть скрытая эксплуатационная зависимость: time/date-based Notifications запускаются scheduler infrastructure Frappe. Поэтому она не должна незаметно попадать в lifecycle CORE, который пока не изучает scheduler/background jobs как отдельную архитектурную тему.
 
 ---
 
 # 24. NEXT-C — File / Comment / Version
+
+Типовые требования:
 
 ```text
 приложить коммерческое предложение
@@ -596,19 +618,27 @@ Date-based Notification использует scheduler infrastructure Frappe, п
 → Track Changes / Version
 ```
 
-Не создаются автоматически `Purchase Request Attachment`, `Purchase Request Comment`, `Approval History`.
+Не создаются автоматически `Purchase Request Attachment`, `Purchase Request Comment` или `Approval History`.
+
+Если нужен отдельный юридически значимый журнал с другой семантикой, модель пересматривается отдельно.
 
 ---
 
 # 25. NEXT-D — Print
 
-Если Approved Purchase Request нужно представить как печатный документ/PDF, сначала проверяется штатный Print View.
+Возможное требование:
 
-Только если его недостаточно — `Print Format`.
+> Одобренную заявку нужно представить как печатный документ/PDF.
+
+Первый шаг — штатный Print View. Если его недостаточно, кандидат — `Print Format`.
+
+Собственный PDF generator или frontend не вводится без другой ответственности. Печатный контур может потребовать дополнительные зависимости среды; они появляются только после принятия ветки.
 
 ---
 
-# 26. За пределами обязательного маршрута
+# 26. Вне второго lifecycle CORE
+
+Не входят автоматически:
 
 ```text
 REST API
@@ -630,6 +660,8 @@ external integration
 production deployment
 ```
 
+NEXT-A/B/C/D также не становятся обязательными только потому, что перечислены здесь.
+
 ---
 
 # 27. Архитектурная карта после аудита
@@ -647,7 +679,7 @@ role-controlled transitions
         ↓
 amount-based branching
         ↓
-Senior role + Pending Senior + Conditions
+Condition + Pending Senior
         ↓
 self approval policy
         ↓
@@ -675,18 +707,18 @@ Print
 
 ---
 
-# 28. Источники
+# 28. Первичные источники
 
 **[ДОКУМЕНТАЦИЯ FRAPPE]** `docstatus`:
 
 - https://docs.frappe.io/framework/doctypes/docstatus
 
-**[ОФИЦИАЛЬНАЯ ДОКУМЕНТАЦИЯ ЭКОСИСТЕМЫ]** Workflow:
+**[ОФИЦИАЛЬНАЯ ДОКУМЕНТАЦИЯ ЭКОСИСТЕМЫ]** Workflow / Workflow Actions:
 
 - https://docs.frappe.io/erpnext/workflows
 - https://docs.frappe.io/erpnext/workflow-actions
 
-**[ИСХОДНЫЙ КОД FRAPPE v16.33.0]** автоматическое создание Workflow state Custom Field:
+**[ИСХОДНЫЙ КОД FRAPPE v16.33.0]** Workflow создаёт state Custom Field только если указанного поля нет в Meta:
 
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/workflow/doctype/workflow/workflow.py
 
@@ -694,20 +726,71 @@ Print
 
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/workflow.py
 
+`has_approval_access()` сравнивает пользователя с `doc.owner`; `apply_workflow()` вызывает `save()`, `submit()` или `cancel()` в зависимости от Doc Status следующего state.
+
 **[ДОКУМЕНТАЦИЯ FRAPPE]** fixtures:
 
 - https://docs.frappe.io/framework/user/en/python-api/hooks
 
-**[ВНУТРЕННИЙ АРХИТЕКТУРНЫЙ СТАНДАРТ]**:
+**[ДОКУМЕНТАЦИЯ FRAPPE]** Assignment / ToDo:
+
+- https://docs.frappe.io/framework/assignments-and-todos
+
+**[ДОКУМЕНТАЦИЯ FRAPPE]** Notification:
+
+- https://docs.frappe.io/framework/notifications
+
+**[ИСХОДНЫЙ КОД FRAPPE]** scheduler вызывает ежедневные/offset Notification checks:
+
+- https://github.com/frappe/frappe/blob/version-16/frappe/hooks.py
+
+**[ДОКУМЕНТАЦИЯ FRAPPE]** Printing:
+
+- https://docs.frappe.io/framework/user/en/desk/printing
+
+**[ДОКУМЕНТАЦИЯ FRAPPE]** `Allow on Submit`:
+
+- https://docs.frappe.io/framework/doctypes/allow-on-submit
+
+**[ВНУТРЕННИЙ СТАНДАРТ]**:
 
 - [`03_DOCUMENT_LIFECYCLE.md`](../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md)
 - [`04_SECURITY.md`](../frappe-architecture-standard/04_SECURITY.md)
 - [`05_TRANSACTIONS_ASYNC.md`](../frappe-architecture-standard/05_TRANSACTIONS_ASYNC.md)
+- [`08_UI_REPORTING.md`](../frappe-architecture-standard/08_UI_REPORTING.md)
 - [`09_DEPLOYMENT_TESTING.md`](../frappe-architecture-standard/09_DEPLOYMENT_TESTING.md)
 - [`10_DECISION_STANDARD.md`](../frappe-architecture-standard/10_DECISION_STANDARD.md)
 
 ---
 
-# 29. Критерий принятия паспорта
+# 29. Gate перед матрицей требований
 
-Перед dependency graph матрица должна подтвердить все ключевые решения паспорта. Если матрица выявляет противоречие, сначала исправляется паспорт/матрица, а не строится удобная последовательность уроков.
+На все вопросы нужен ответ `да`:
+
+```text
+1. Purchase Request создаёт реальную lifecycle-задачу?
+2. Requester в CORE явно равен Document.owner?
+3. Обычный status появляется раньше Workflow?
+4. Pending Senior не существует до второго approval level?
+5. Cancelled не существует до docstatus?
+6. После Workflow остаётся один source of truth состояния?
+7. Mandatory state field принадлежит Standard DocType, а не случайному Custom Field?
+8. Workflow появляется только после role-controlled transitions?
+9. Condition появляется из amount-based approval?
+10. Self approval соответствует принятой owner-семантике?
+11. Rejected не перепутан с Cancelled?
+12. Approved получает docstatus 1 только после требования о фиксации разрешения?
+13. Workflow полностью описывает submit/cancel path после Is Submittable?
+14. Cancel / Amend используется для изменения смысла Submitted факта?
+15. Allow on Submit остаётся GATE?
+16. DocType Permissions и Workflow roles не смешаны?
+17. Workflow/Role configuration имеет App-owned delivery path?
+18. Lifecycle contracts проверяются автоматически?
+19. Финал проверяется на чистом Site?
+20. Assignment/Notification/File/Comment/Version/Print не перегружают обязательный CORE?
+21. Notification не дублирует Workflow/Assignment и не скрывает scheduler dependency?
+22. API/async/extension/integration не попали в CORE ради покрытия?
+23. Первый и второй практикумы учат разным архитектурным классам задач?
+```
+
+Если хотя бы один ответ отрицательный, сначала исправляется паспорт. Матрица, граф и roadmap до этого не создаются.
