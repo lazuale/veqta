@@ -82,9 +82,11 @@ Rental Manager
 После прохождения практикума в исходниках `rental_training` находятся:
 
 - Standard DocTypes и их metadata;
+- default permissions с именами прикладных ролей;
 - Python controller для Rental;
-- роли и необходимая переносимая конфигурация;
 - автоматические тесты приложения.
+
+При установке App отсутствующие `Rental Operator` и `Rental Manager` создаются Frappe из permission rows Standard DocTypes. Отдельный Role fixture для текущего CORE не нужен.
 
 Пользователи и созданные ими Equipment, Customer и Rental остаются данными конкретного `Site`.
 
