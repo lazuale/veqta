@@ -8,7 +8,7 @@
 
 ---
 
-# 1. Назначение второго практикума
+# 1. Назначение
 
 Первый практикум отвечает на вопрос:
 
@@ -18,7 +18,7 @@
 
 > **Как обычный Document превращается в управляемый бизнес-процесс и зафиксированный транзакционный факт, не изобретая собственный workflow engine?**
 
-Обязательная учебная ось второго практикума:
+Обязательная учебная ось:
 
 ```text
 обычный предметный Document
@@ -41,20 +41,14 @@ Cancel / Amend
         ↓
 автоматические контракты
         ↓
-воспроизводимая установка на чистый Site
+чистая воспроизводимая установка
 ```
 
-Практикум не строится как каталог:
-
-```text
-Workflow → Assignment → Notification → Print → ...
-```
-
-Каждый механизм появляется только после требования, которое создаёт новую ответственность.
+Практикум не строится как каталог `Workflow → Assignment → Notification → Print`. Каждый механизм появляется только после требования, которое создаёт новую ответственность.
 
 ---
 
-# 2. Что ученик уже должен понимать
+# 2. Входные знания
 
 Второй практикум не повторяет с нуля:
 
@@ -72,15 +66,13 @@ tests
 clean install
 ```
 
-Эти знания являются входом из первого CORE-практикума.
+Это вход из первого CORE-практикума.
 
-Второй практикум создаёт отдельный учебный App и отдельную предметную модель, чтобы lifecycle-решения не зависели от Rental.
-
-Создание App, Site и Git остаётся технической предпосылкой, а не новой учебной темой.
+Второй практикум создаёт отдельный учебный App и отдельную предметную модель. Создание App, Site и Git остаётся технической предпосылкой, а не новой учебной темой.
 
 ---
 
-# 3. Нейтральная предметная область
+# 3. Предметная область
 
 Предметная задача — **внутренняя заявка на закупку**.
 
@@ -90,21 +82,16 @@ clean install
 
 ```text
 Approved Purchase Request
-≠
-сама покупка
-≠
-платёж
-≠
-складская операция
+≠ сама покупка
+≠ платёж
+≠ складская операция
 ```
 
-`submit` в этом практикуме фиксирует именно факт организационного разрешения потратить согласованную сумму на согласованную цель.
-
-Это и создаёт реальную причину изучать `docstatus`, а не использовать Submitted как декоративный финальный статус.
+`submit` здесь фиксирует факт организационного разрешения потратить согласованную сумму на согласованную цель. Это и создаёт реальную причину изучать `docstatus`, а не использовать Submitted как декоративный финальный статус.
 
 ---
 
-# 4. Минимальная предметная модель
+# 4. Минимальная модель
 
 Стартовая модель намеренно мала:
 
@@ -133,39 +120,27 @@ Purchase Request Comment
 Purchase Request Attachment
 ```
 
-Причина: второй практикум изучает lifecycle и процесс. Новые сущности не создаются ради большей «реалистичности», пока без них можно честно выразить учебные требования.
-
-Если позднее появится реальное требование к строкам закупки, поставщику, бюджету или другому самостоятельному объекту, модель пересматривается обычным способом из первого практикума.
+Второй практикум изучает lifecycle и процесс. Новые сущности не создаются ради большей «реалистичности», пока без них можно честно выразить учебные требования.
 
 ---
 
-# 5. Кто является requester
+# 5. Requester = Document.owner
 
-В обязательном сценарии requester — пользователь, который создал Document.
-
-То есть:
+В обязательном сценарии requester — пользователь, который создал Document:
 
 ```text
-requester
-=
-Document.owner
+requester = Document.owner
 ```
 
-Отдельного поля `requester → User` в CORE второго практикума нет.
+Отдельного поля `requester → User` в lifecycle CORE нет.
 
-Это не универсальная модель закупок. Это важная граница учебного сценария.
+Это не универсальная модель закупок. Это граница учебного сценария, важная для self approval: штатная реализация Workflow Frappe сравнивает пользователя именно с `doc.owner`.
 
-Причина особенно существенна для self approval: штатная реализация Workflow Frappe проверяет собственную заявку именно через `doc.owner`.
-
-Если появится требование:
-
-> сотрудник может создавать заявку от имени другого сотрудника,
-
-то `owner` перестанет полностью выражать requester и модель self-approval придётся пересмотреть отдельно.
+Если позже появится требование создавать заявку от имени другого сотрудника, `owner` перестанет полностью выражать requester и self-approval policy придётся пересмотреть.
 
 ---
 
-# 6. Первый шаг — обычное бизнес-состояние
+# 6. Сначала — обычное бизнес-состояние
 
 Первое требование:
 
@@ -173,7 +148,7 @@ Document.owner
 
 Для этого сначала достаточно обычного предметного поля состояния.
 
-Начальный набор смыслов:
+Начальный набор:
 
 ```text
 Draft
@@ -182,7 +157,7 @@ Approved
 Rejected
 ```
 
-На этом этапе **нет**:
+На этом этапе нет:
 
 ```text
 Pending Senior
@@ -191,31 +166,25 @@ Workflow
 Is Submittable
 ```
 
-Это принципиально.
+`Pending Senior` появится только после требования о втором уровне согласования. `Cancelled` — только после появления транзакционной семантики `docstatus = 2`.
 
-`Pending Senior` появится только после требования о втором уровне согласования.
-
-`Cancelled` появится только после появления транзакционной семантики `docstatus = 2`.
-
-Наличие четырёх значений само по себе не доказывает необходимость Workflow.
-
-Архитектурная проверка:
+Наличие нескольких значений само по себе не доказывает необходимость Workflow:
 
 ```text
 нужно только хранить состояние?
 → обычное поле
 
-нужно ограничить допустимые переходы по ролям и условиям?
-→ появляется кандидат Workflow
+нужно ограничить переходы по ролям/условиям?
+→ кандидат Workflow
 ```
 
 ---
 
-# 7. Единственный source of truth состояния
+# 7. Один source of truth состояния
 
 Это обязательное архитектурное решение второго практикума.
 
-Нельзя получить:
+Нельзя получить два поля:
 
 ```text
 status
@@ -223,74 +192,55 @@ status
 workflow_state
 ```
 
-если оба поля выражают один и тот же смысл процесса.
+если оба выражают один и тот же процесс.
 
-В Frappe v16.33.0 при сохранении Workflow Framework проверяет поле, указанное как `workflow_state_field`. Если такого поля нет в Meta целевого DocType, Frappe автоматически создаёт **Custom Field** типа `Link → Workflow State` на Site.
+Frappe v16.33.0 при сохранении Workflow проверяет поле, указанное как `workflow_state_field`. Если такого поля нет в Meta целевого DocType, Framework автоматически создаёт на Site `Custom Field` типа `Link → Workflow State`.
 
-Для чужого или Site-customized DocType это может быть нормальным штатным поведением.
+Для Site-customized или чужого DocType это штатно допустимо. Для нашего собственного Standard `Purchase Request` обязательное поле состояния должно принадлежать App.
 
-Для нашего собственного Standard `Purchase Request` обязательное состояние должно принадлежать App, а не возникать скрытым ручным Custom Field на dev-site.
-
-Поэтому baseline второго практикума:
+Baseline практикума:
 
 ```text
 до Workflow
-status = обычный Standard DocField
+status = Standard Select
 
 после появления Workflow
 тот же fieldname status
-→ остаётся единственным source of truth состояния
-→ становится Standard Link → Workflow State
+→ остаётся единственным state field
+→ Standard field меняется на Link → Workflow State
 → Workflow State Field = status
 ```
 
-То есть мы **эволюционируем существующее поле**, а не создаём второе состояние рядом.
+Это **архитектурный вывод практикума**, а не универсальное требование Frappe. Его цель — сохранить один source of truth и не получить скрытый обязательный `Custom Field` на dev-site.
 
-Workflow State records должны существовать до того, как существующие значения `status` начинают интерпретироваться как Links. В учебном сценарии названия состояний сохраняются совместимыми.
-
-Если бы это была поддерживаемая предыдущая production-версия с реальными данными, изменение типа поля и существующих значений потребовало бы отдельного migration analysis. Второй практикум не выдаёт dev/test записи за такую production migration.
+Workflow State records создаются до смены типа поля, а используемые значения `status` должны иметь соответствующие записи Workflow State. Если бы это была поддерживаемая production-версия с реальными данными, изменение поля потребовало бы отдельного migration analysis; dev/test данные практикума за такую production migration не выдаются.
 
 ---
 
-# 8. Вторая граница — политика переходов
+# 8. Появилась политика переходов → Workflow
 
 Следующее требование:
 
 ```text
-Requester
-может:
+Requester:
 Draft → Pending Manager
 
-Purchase Approver
-может:
+Purchase Approver:
 Pending Manager → Approved
 Pending Manager → Rejected
 
-Requester
-не может:
-Pending Manager → Approved
+Requester:
+не может Pending Manager → Approved
 ```
 
-Появились одновременно:
-
-```text
-состояния
-+
-переходы
-+
-роли
-+
-правила допустимого действия
-```
-
-Первый штатный кандидат — `Workflow`.
+Появились состояния, переходы, роли и правила допустимого действия. Первый штатный кандидат — `Workflow`.
 
 Не создаются собственные:
 
 ```text
 approve() только ради обхода Workflow
 if "Purchase Approver" in frappe.get_roles() в разных местах
-JS-кнопки как единственная защита перехода
+JS-кнопки как единственная защита
 Approval Log как движок процесса
 ```
 
@@ -298,21 +248,19 @@ Workflow становится владельцем политики перехо
 
 ---
 
-# 9. Workflow Action — часть штатного Workflow, не отдельная подсистема
+# 9. Workflow Action — часть штатного Workflow
 
-После включения Workflow пользователь должен увидеть не только кнопку на Form, но и штатную модель ожидающих действий через `Workflow Action`.
-
-Это часть доказательства, что мы используем реальную подсистему Workflow Frappe, а не только меняем поле состояния.
+После включения Workflow пользователь должен увидеть не только действие на Form, но и штатную модель ожидающих действий через `Workflow Action`.
 
 Отдельный собственный `Approval Inbox` не создаётся.
 
-Email для Workflow Actions не является обязательной предпосылкой CORE: он зависит от настройки исходящей почты и включённого `Send Email Alert`. Сам Workflow проверяется без требования поднимать отдельную email-инфраструктуру.
+Email для Workflow Actions не является обязательной предпосылкой lifecycle CORE: он зависит от настройки исходящей почты и `Send Email Alert`. Сам Workflow должен быть проверяем без отдельной email-инфраструктуры.
 
 ---
 
-# 10. Третья граница — условный уровень согласования
+# 10. Появилось условное согласование → Condition
 
-Следующее требование:
+Новое требование:
 
 ```text
 requested_amount <= лимит
@@ -322,15 +270,13 @@ requested_amount > лимит
 → после Purchase Approver нужен Senior Purchase Approver
 ```
 
-Только теперь появляется новое состояние:
+Только теперь появляется состояние:
 
 ```text
 Pending Senior
 ```
 
-и первая реальная причина использовать `Condition` перехода Workflow.
-
-Смысловая схема:
+и реальная причина использовать `Condition` перехода Workflow.
 
 ```text
 Draft
@@ -346,98 +292,61 @@ Pending Senior
 Approved
 ```
 
-Лимит на этом этапе остаётся частью зафиксированного учебного сценария.
-
-Отдельный Settings DocType не создаётся ради демонстрации `Single DocType`.
-
-Если появится самостоятельное требование:
-
-> администратор должен менять лимит без изменения Workflow,
-
-тогда настройки рассматриваются отдельно.
+Лимит пока является частью зафиксированного учебного сценария. `Single DocType` настроек не создаётся ради демонстрации. Если администратор должен менять лимит как данные системы, это станет отдельным требованием.
 
 ---
 
 # 11. Self approval — отдельная политика
 
-Следующий вопрос процесса:
+Вопрос:
 
-> Может ли пользователь, имеющий роль Approver, одобрить Document, который сам создал?
+> Может ли Approver одобрить Document, который сам создал?
 
-В обязательном сценарии ответ:
+Для обязательного сценария:
 
 ```text
 нет
 ```
 
-Первым используется штатный `allow_self_approval` перехода Workflow.
+Первым используется штатный `allow_self_approval` перехода Workflow. Собственная проверка `doc.owner == frappe.session.user` не пишется, пока Workflow уже владеет этой ответственностью.
 
-Собственная проверка:
-
-```python
-if doc.owner == frappe.session.user:
-    ...
-```
-
-не пишется, пока стандартный Workflow уже выражает эту ответственность.
-
-Граница уже зафиксирована разделом 5:
-
-```text
-self approval Frappe
-сравнивает пользователя с doc.owner
-```
-
-Если business requester позднее перестанет совпадать с owner, это будет новая архитектурная задача.
+Граница: Frappe сравнивает пользователя с `doc.owner`, поэтому этот механизм правильно соответствует только принятой здесь модели `requester = owner`.
 
 ---
 
-# 12. Rejected не равен Cancelled
+# 12. Rejected ≠ Cancelled
 
-В этом практикуме `Rejected` означает отрицательное решение на draft-стадии согласования.
-
-Поэтому:
+`Rejected` здесь означает отрицательное решение на draft-стадии согласования:
 
 ```text
-Rejected
-→ docstatus 0
+Rejected → docstatus 0
 ```
 
-и заявка может быть исправлена и снова отправлена на рассмотрение, если будущая матрица выберет такой переход.
+Это не `docstatus 2`. Заявка может быть исправлена и снова отправлена на согласование, если матрица требований примет такой переход.
 
-`Rejected` не означает:
-
-```text
-docstatus 2
-```
-
-Потому что Frappe `Cancelled` — состояние ранее **Submitted** Document.
-
-Если бизнес позже потребует терминальный неизменяемый отказ с другой юридической семантикой, это будет отдельное требование, а не причина автоматически подменить rejection системным cancel.
+`Cancelled` в Frappe относится к ранее Submitted Document. Если бизнес позже потребует терминальный неизменяемый отказ с другой семантикой, это будет отдельное решение, а не автоматическая подмена rejection системным cancel.
 
 ---
 
-# 13. Четвёртая граница — окончательное одобрение как зафиксированный факт
+# 13. Final approval стал фактом → Is Submittable / docstatus
 
-Следующее требование меняет архитектуру сильнее:
+Новое требование:
 
-> После окончательного одобрения сумма, назначение и срок заявки считаются согласованными. Их нельзя незаметно переписать обычным Save.
+> После окончательного одобрения сумма, назначение и срок считаются согласованными. Их нельзя незаметно переписать обычным Save.
 
-Теперь `Approved` — не просто значение workflow state.
-
-Появилась транзакционная семантика:
+Теперь `Approved` — не просто workflow label:
 
 ```text
 до final approval
-→ Document рабочий и изменяемый
+→ Document рабочий
 
 после final approval
 → Document фиксирует разрешённый факт
 ```
 
-Первый штатный кандидат — `Is Submittable` / `docstatus`.
+Первый штатный кандидат — `Is Submittable / docstatus`.
 
-После включения submittable-семантики mapping становится:
+После включения submittable-семантики:
 
 ```text
 Draft            → docstatus 0
@@ -448,55 +357,42 @@ Approved         → docstatus 1
 Cancelled        → docstatus 2
 ```
 
-`Cancelled` вводится **только на этом этапе**.
-
-`Workflow` и `docstatus` используются вместе, но отвечают на разные вопросы:
+`Cancelled` вводится только теперь.
 
 ```text
-business state
-= предметный смысл состояния
-
-Workflow
-= кто и при каких условиях может выполнить переход
-
-docstatus
-= системный транзакционный lifecycle
+business state = предметный смысл
+Workflow       = политика переходов
+docstatus      = системный транзакционный lifecycle
 ```
 
 ---
 
-# 14. Workflow должен полностью описать submit/cancel путь
+# 14. Workflow должен описать submit/cancel путь
 
 Для submittable DocType активный Workflow заменяет обычный Save/Submit flow.
 
-Поэтому после появления `Is Submittable` нельзя считать, что кнопки Submit/Cancel «как-нибудь останутся сами».
-
-Workflow обязан содержать допустимые переходы, которые реально приводят к:
+Значит после появления `Is Submittable` нельзя считать, что Submit/Cancel «останутся сами». Workflow обязан иметь допустимые переходы, которые реально приводят к:
 
 ```text
 Approved  → docstatus 1
 Cancelled → docstatus 2
 ```
 
-Frappe не разрешает:
+Frappe v16.33.0 не разрешает переходы:
 
 ```text
 Draft      → Cancelled
 Submitted  → Draft
-переход из уже Cancelled state
+из уже Cancelled state
 ```
 
-Будущая матрица должна проверить эти границы реальными действиями, а не только конфигурацией таблицы Workflow.
+Матрица должна проверить эти границы реальными действиями.
 
 ---
 
-# 15. Cancel / Amend вместо бесследного переписывания
+# 15. Ошибка после submit → Cancel / Amend
 
-После `Submitted` появляется требование:
-
-> Что делать, если после approval обнаружена ошибка в сумме или назначении?
-
-Если изменение меняет смысл согласованного факта, обычный Edit не подходит.
+Если после approval обнаружена ошибка, меняющая смысл согласованной заявки, обычный Edit не подходит.
 
 Первый штатный путь:
 
@@ -506,51 +402,45 @@ Cancel
 → новый исправленный Document
 ```
 
-Практикум должен показать разницу между:
+Практикум должен показать разницу:
 
 ```text
 изменить Draft
+≠
+исправить Submitted факт
 ```
 
-и:
-
-```text
-исправить уже зафиксированный Submitted факт
-```
-
-`Allow on Submit` не используется как способ вернуть Submitted Document в режим обычного редактирования.
+`Allow on Submit` не используется как способ вернуть обычное редактирование.
 
 ---
 
-# 16. Allow on Submit — GATE, а не обязательный механизм
+# 16. Allow on Submit — GATE
 
 Он рассматривается только если появляется поле, которое действительно может измениться после approval без изменения смысла согласованной заявки.
 
 Пример отдельного требования:
 
-> После approval исполнитель записывает внешний номер заказа; это не меняет сумму, назначение и решение согласования.
+> После approval нужно записать внешний номер заказа; это не меняет сумму, назначение и решение согласования.
 
-Только тогда можно проверить `Allow on Submit`.
-
-Без такого требования механизм остаётся вне обязательного маршрута.
+Только тогда проверяется `Allow on Submit`. Без такого требования он вне обязательного маршрута.
 
 ---
 
-# 17. Безопасность Workflow не заменяет DocType Permissions
+# 17. Workflow не заменяет DocType Permissions
 
-Базовая безопасность остаётся двухуровневой:
+Безопасность остаётся двухуровневой:
 
 ```text
 Role + DocType Permissions
 → может ли пользователь вообще работать с Purchase Request
 
 Workflow transition roles / state edit policy
-→ какое действие процесса доступно в текущем state
+→ какое действие процесса допустимо в текущем state
 ```
 
-Наличие роли в Workflow transition не должно восприниматься как автоматическая выдача всех прав на Document.
+Роль в Workflow transition не является автоматической выдачей всех прав на Document.
 
-Предполагаемые обязательные роли:
+Обязательные роли-кандидаты:
 
 ```text
 Purchase Requester
@@ -558,103 +448,92 @@ Purchase Approver
 Senior Purchase Approver
 ```
 
-`Permission Type [v16+]` не включается автоматически для approve: само право выполнить переход уже принадлежит Workflow.
-
-Он станет кандидатом только для отдельного нестандартного действия вне Workflow.
+`Permission Type [v16+]` не включается автоматически для approve: право выполнить переход уже выражает Workflow. Он станет кандидатом только для отдельного действия вне Workflow.
 
 ---
 
-# 18. Воспроизводимость Workflow — часть архитектуры App
+# 18. Workflow — App-owned configuration
 
 Обязательный процесс не может существовать только потому, что его один раз настроили на dev-site.
 
-Для собственного App source of truth разделяется так:
+Source of truth:
 
 ```text
-Purchase Request schema
-включая status field
+Purchase Request schema + status field
 → Standard DocType metadata
 
 обязательные Roles
-→ App configuration / fixtures
+→ fixtures
 
-Workflow State records, которых требует процесс
-→ App configuration / fixtures
+нужные Workflow State records
+→ fixtures
 
-Workflow + transitions + conditions
-→ App configuration / fixtures
+Workflow + child states/transitions/conditions
+→ fixtures
 
 test Users
 → Site-local data
 ```
 
-Точные fixture filters и порядок экспорта фиксируются будущей спецификацией после принятия матрицы.
+Точные fixture filters и порядок экспорта фиксируются после принятия матрицы.
 
-Критический отрицательный тест:
+Критический отрицательный критерий:
 
 ```text
 после clean install
-не должно требоваться вручную создавать Workflow
-или появившийся случайно site-local Custom Field workflow_state
+не требуется вручную создавать Workflow
+не требуется вручную добавлять Workflow States
+не появляется случайный обязательный site-local workflow_state Custom Field
 ```
 
 ---
 
-# 19. Автоматические контракты обязательны и во втором практикуме
+# 19. Автоматические контракты обязательны
 
-Второй практикум не должен завершаться фразой «покликали Workflow — работает».
+Второй практикум не заканчивается «покликали Workflow — работает».
 
 Минимальный класс контрактов:
 
 ```text
-Requester может отправить Draft на согласование
-Requester не может выполнить Approve
-Purchase Approver может одобрить допустимый переход
-большая сумма идёт в Pending Senior
+Requester может Draft → Pending Manager
+Requester не может Approve
+Purchase Approver может выполнить допустимый approval
 маленькая сумма не требует Senior
+большая сумма идёт в Pending Senior
 self approval блокируется
 Rejected остаётся docstatus 0
 final Approved становится docstatus 1
 Draft нельзя сразу Cancel
-Submitted можно Cancel только через допустимый Workflow transition
+Submitted можно Cancel только допустимым transition
 Cancelled становится docstatus 2
 ```
 
-Точная test matrix появится позже.
-
-Тестируется собственная конфигурация процесса и её интеграция с Frappe lifecycle, а не внутренности Framework ради coverage.
+Точная test matrix появится позже. Тестируется собственный процесс приложения, а не внутренности Frappe ради coverage.
 
 ---
 
-# 20. Clean Site acceptance остаётся финальным gate
+# 20. Clean Site acceptance — финальный gate lifecycle CORE
 
-Финал второго практикума должен доказать:
+Финал должен доказать:
 
 ```text
 чистый совместимый Frappe Site
-+ второй учебный App из committed source
++ второй App из committed source
 + install-app / migrate
 + mandatory Workflow configuration
 + tests
 = воспроизводимый lifecycle
 ```
 
-На новом Site нельзя вручную:
+На новом Site нельзя вручную создавать обязательный Workflow, Roles, Workflow States или state Custom Field.
 
-```text
-создавать Workflow
-добавлять обязательные Workflow States
-донастраивать Roles
-создавать workflow_state Custom Field
-```
-
-Site-local test Users и runtime Purchase Requests создаются уже после установки App.
+Test Users и runtime Purchase Requests остаются Site-local.
 
 ---
 
-# 21. Что после аудита НЕ входит в обязательный lifecycle CORE
+# 21. Что после аудита исключено из обязательного lifecycle CORE
 
-Первоначальный паспорт пытался продолжить обязательную цепочку через:
+Первоначальный паспорт продолжал обязательную цепочку через:
 
 ```text
 Assignment
@@ -663,11 +542,9 @@ File / Comment / Version
 Print
 ```
 
-После аудита это признано слишком широкой границей.
+Это признано слишком широкой границей.
 
-Эти механизмы полезны, но отвечают уже не на главный вопрос lifecycle CORE.
-
-Поэтому обязательный маршрут заканчивается на:
+Обязательный маршрут заканчивается на:
 
 ```text
 Workflow
@@ -679,13 +556,13 @@ Workflow
 → clean delivery
 ```
 
-Операционные спутники остаются естественными ветками `NEXT` и будут включены только если будущая матрица докажет необходимость именно во втором практикуме.
+Операционные спутники остаются ветками `NEXT`. Их присутствие в паспорте не означает, что они обязаны попасть в матрицу второго практикума.
 
 ---
 
 # 22. NEXT-A — Assignment / ToDo
 
-Возможное следующее требование:
+Возможное требование:
 
 > После approval конкретный сотрудник должен выполнить закупку.
 
@@ -695,28 +572,20 @@ Workflow
 Assignment / ToDo
 ```
 
-Смысл:
-
 ```text
 кто сейчас должен сделать работу
 → Assignment
 ```
 
-Если нужен только текущий рабочий исполнитель, не создаётся автоматически:
+Если нужен только текущий рабочий исполнитель, поле `executor → User` не создаётся автоматически. Если исполнитель должен стать неизменяемым бизнес-фактом, это уже другая ответственность.
 
-```text
-executor → Link → User
-```
-
-Если позднее исполнитель должен стать неизменяемым бизнес-фактом, это уже другая ответственность.
-
-Assignment сам создаёт ToDo и штатно уведомляет пользователя о назначении/снятии назначения. Отдельная Notification для дублирования этого события не нужна.
+Assignment сам создаёт `ToDo` и штатно уведомляет пользователя о назначении/снятии назначения. Отдельная Notification для дублирования этого события не нужна.
 
 ---
 
 # 23. NEXT-B — Notification
 
-Notification не дублирует:
+Notification не должна дублировать:
 
 ```text
 Workflow Action
@@ -724,17 +593,13 @@ Workflow Send Email Alert
 Assignment notification
 ```
 
-Для неё нужен отдельный смысл.
+Пример отдельного смысла:
 
-Пример:
+> За два дня до `needed_by` по всё ещё актуальной заявке напомнить ответственному.
 
-> За два дня до `needed_by` по всё ещё актуальной заявке нужно напомнить ответственному.
+Первый кандидат — date-based `Notification`.
 
-Первый кандидат — штатная `Notification` с date-based event.
-
-Но это уже расширяет эксплуатационную границу: date-based Notifications выполняются через scheduler infrastructure Frappe.
-
-Поэтому такая ветка не должна незаметно попадать в lifecycle CORE, который пока сознательно не обучает scheduler/background jobs как отдельной архитектурной теме.
+Но у этой возможности есть скрытая эксплуатационная зависимость: time/date-based Notifications запускаются scheduler infrastructure Frappe. Поэтому она не должна незаметно попадать в lifecycle CORE, который пока не изучает scheduler/background jobs как отдельную архитектурную тему.
 
 ---
 
@@ -753,15 +618,9 @@ Assignment notification
 → Track Changes / Version
 ```
 
-Не создаются автоматически:
+Не создаются автоматически `Purchase Request Attachment`, `Purchase Request Comment` или `Approval History`.
 
-```text
-Purchase Request Attachment
-Purchase Request Comment
-Approval History
-```
-
-Если позднее нужен отдельный юридически значимый журнал с другой семантикой, модель пересматривается отдельно.
+Если нужен отдельный юридически значимый журнал с другой семантикой, модель пересматривается отдельно.
 
 ---
 
@@ -771,19 +630,15 @@ Approval History
 
 > Одобренную заявку нужно представить как печатный документ/PDF.
 
-Первый шаг — проверить штатный Print View.
+Первый шаг — штатный Print View. Если его недостаточно, кандидат — `Print Format`.
 
-Если его недостаточно, следующий кандидат — `Print Format`.
-
-Собственный PDF generator или отдельный frontend не вводится без другой ответственности.
-
-Печатный контур может потребовать дополнительные зависимости среды; они добавляются только когда эта ветка действительно принимается.
+Собственный PDF generator или frontend не вводится без другой ответственности. Печатный контур может потребовать дополнительные зависимости среды; они появляются только после принятия ветки.
 
 ---
 
-# 26. Что второй практикум намеренно не покрывает
+# 26. Вне второго lifecycle CORE
 
-В обязательный маршрут не входят:
+Не входят автоматически:
 
 ```text
 REST API
@@ -795,11 +650,9 @@ foreign DocType customization
 doc_events
 extend_doctype_class
 override_doctype_class
-Web Form
-Portal
+Web Form / Portal
 custom frontend
-Query Report
-Script Report
+Query Report / Script Report
 complex User Permission model
 Permission Type без отдельной команды
 concurrency / locking
@@ -807,7 +660,7 @@ external integration
 production deployment
 ```
 
-NEXT-A/B/C/D также не становятся обязательными только потому, что паспорт их перечисляет.
+NEXT-A/B/C/D также не становятся обязательными только потому, что перечислены здесь.
 
 ---
 
@@ -820,21 +673,21 @@ Purchase Request
         ↓
 обычный status
         ↓
-появились role-controlled transitions
+role-controlled transitions
         ↓
 единый state field + Workflow
         ↓
-появилось amount-based ветвление
+amount-based branching
         ↓
-conditional transitions + Pending Senior
+Condition + Pending Senior
         ↓
 self approval policy
         ↓
-final approval стал фиксированным фактом
+final approval = фиксированный факт
         ↓
 Is Submittable / docstatus
         ↓
-Cancelled появляется как docstatus 2
+Cancelled = docstatus 2
         ↓
 Cancel / Amend
         ↓
@@ -852,34 +705,28 @@ File / Comment / Version
 Print
 ```
 
-Эти две цепочки больше не смешиваются в одну только ради количества функций.
-
 ---
 
-# 28. Источники
+# 28. Первичные источники
 
 **[ДОКУМЕНТАЦИЯ FRAPPE]** `docstatus`:
 
 - https://docs.frappe.io/framework/doctypes/docstatus
 
-**[ОФИЦИАЛЬНАЯ ДОКУМЕНТАЦИЯ ЭКОСИСТЕМЫ]** Workflow:
+**[ОФИЦИАЛЬНАЯ ДОКУМЕНТАЦИЯ ЭКОСИСТЕМЫ]** Workflow / Workflow Actions:
 
 - https://docs.frappe.io/erpnext/workflows
 - https://docs.frappe.io/erpnext/workflow-actions
 
-Workflow задаёт состояния, переходы, роли, условия и `Doc Status`; для submittable DocType активный Workflow заменяет обычный Save/Submit flow.
-
-**[ИСХОДНЫЙ КОД FRAPPE v16.33.0]** Workflow создаёт Custom Field состояния только если указанного поля нет в Meta:
+**[ИСХОДНЫЙ КОД FRAPPE v16.33.0]** Workflow создаёт state Custom Field только если указанного поля нет в Meta:
 
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/workflow/doctype/workflow/workflow.py
 
-Это основание не допускать скрытый site-local `workflow_state` для собственного Standard DocType.
-
-**[ИСХОДНЫЙ КОД FRAPPE v16.33.0]** Workflow transitions, conditions, `apply_workflow()` и self approval:
+**[ИСХОДНЫЙ КОД FRAPPE v16.33.0]** transitions, conditions, `apply_workflow()` и self approval:
 
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/workflow.py
 
-`has_approval_access()` сравнивает пользователя с `doc.owner`, а `apply_workflow()` вызывает обычные `save()`, `submit()` и `cancel()` в зависимости от Doc Status следующего Workflow State.
+`has_approval_access()` сравнивает пользователя с `doc.owner`; `apply_workflow()` вызывает `save()`, `submit()` или `cancel()` в зависимости от Doc Status следующего state.
 
 **[ДОКУМЕНТАЦИЯ FRAPPE]** fixtures:
 
@@ -893,6 +740,10 @@ Workflow задаёт состояния, переходы, роли, услов
 
 - https://docs.frappe.io/framework/notifications
 
+**[ИСХОДНЫЙ КОД FRAPPE]** scheduler вызывает ежедневные/offset Notification checks:
+
+- https://github.com/frappe/frappe/blob/version-16/frappe/hooks.py
+
 **[ДОКУМЕНТАЦИЯ FRAPPE]** Printing:
 
 - https://docs.frappe.io/framework/user/en/desk/printing
@@ -901,7 +752,7 @@ Workflow задаёт состояния, переходы, роли, услов
 
 - https://docs.frappe.io/framework/doctypes/allow-on-submit
 
-**[ВНУТРЕННИЙ АРХИТЕКТУРНЫЙ СТАНДАРТ]**:
+**[ВНУТРЕННИЙ СТАНДАРТ]**:
 
 - [`03_DOCUMENT_LIFECYCLE.md`](../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md)
 - [`04_SECURITY.md`](../frappe-architecture-standard/04_SECURITY.md)
@@ -912,31 +763,31 @@ Workflow задаёт состояния, переходы, роли, услов
 
 ---
 
-# 29. Критерий принятия паспорта после аудита
+# 29. Gate перед матрицей требований
 
-Перед созданием матрицы требований нужно ответить `да` на все вопросы:
+На все вопросы нужен ответ `да`:
 
 ```text
-1. Purchase Request действительно создаёт реальную lifecycle-задачу?
-2. Requester в обязательном сценарии явно равен Document.owner?
+1. Purchase Request создаёт реальную lifecycle-задачу?
+2. Requester в CORE явно равен Document.owner?
 3. Обычный status появляется раньше Workflow?
-4. Pending Senior не существует до требования второго approval level?
-5. Cancelled не существует как обычный business state до docstatus?
-6. После включения Workflow остаётся один source of truth состояния?
-7. Workflow не создаёт скрытый обязательный Custom Field на dev-site?
+4. Pending Senior не существует до второго approval level?
+5. Cancelled не существует до docstatus?
+6. После Workflow остаётся один source of truth состояния?
+7. Mandatory state field принадлежит Standard DocType, а не случайному Custom Field?
 8. Workflow появляется только после role-controlled transitions?
-9. Conditional Workflow появляется из amount-based approval?
-10. Self approval использует штатную семантику owner и явно ограничен этой моделью?
+9. Condition появляется из amount-based approval?
+10. Self approval соответствует принятой owner-семантике?
 11. Rejected не перепутан с Cancelled?
-12. Approved получает docstatus 1 только после отдельного требования о фиксации разрешения?
-13. Workflow полностью описывает submit/cancel transitions после Is Submittable?
-14. Cancel / Amend используется для изменения смысла зафиксированного факта?
-15. Allow on Submit остаётся отдельным GATE?
+12. Approved получает docstatus 1 только после требования о фиксации разрешения?
+13. Workflow полностью описывает submit/cancel path после Is Submittable?
+14. Cancel / Amend используется для изменения смысла Submitted факта?
+15. Allow on Submit остаётся GATE?
 16. DocType Permissions и Workflow roles не смешаны?
 17. Workflow/Role configuration имеет App-owned delivery path?
 18. Lifecycle contracts проверяются автоматически?
 19. Финал проверяется на чистом Site?
-20. Assignment/Notification/File/Comment/Version/Print не перегружают обязательный lifecycle CORE?
+20. Assignment/Notification/File/Comment/Version/Print не перегружают обязательный CORE?
 21. Notification не дублирует Workflow/Assignment и не скрывает scheduler dependency?
 22. API/async/extension/integration не попали в CORE ради покрытия?
 23. Первый и второй практикумы учат разным архитектурным классам задач?
