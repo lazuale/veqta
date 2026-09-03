@@ -38,7 +38,7 @@
 ## CORE — обязательный lifecycle-маршрут
 
 ```text
-R01–R16
+R01–R17
 ```
 
 CORE отвечает только на вопрос:
@@ -104,9 +104,9 @@ production deployment
 
 ```text
 subject
- description
- requested_amount
- needed_by
+description
+requested_amount
+needed_by
 ```
 
 **Ответственность:** хранить одну заявку с собственной identity и lifecycle.
@@ -235,17 +235,18 @@ Select/status
 
 # 4. CORE — базовая безопасность процесса
 
-## R05. Участники процесса имеют базовый доступ к Purchase Request
+## R05. Участники базового согласования имеют доступ к Purchase Request
 
-**Требование:** Requester и Approvers должны иметь право работать с Purchase Request, но это право не должно автоматически означать право выполнить любой workflow transition.
+**Требование:** Requester и первый Approver должны иметь право работать с Purchase Request, но это право не должно автоматически означать право выполнить любой workflow transition.
 
-Обязательные роли:
+На этом этапе нужны только роли:
 
 ```text
 Purchase Requester
 Purchase Approver
-Senior Purchase Approver
 ```
+
+`Senior Purchase Approver` пока **не создаётся**: второго уровня согласования ещё нет.
 
 **Ответственность:** базовая авторизация DocType.
 
@@ -382,11 +383,25 @@ requested_amount > LIMIT
 → после Purchase Approver нужен Senior Purchase Approver
 ```
 
-**Ответственность:** условно выбрать допустимый дальнейший transition на основании данных текущего Document.
+**Новая роль появляется только теперь:**
 
-**Первый механизм:** `Condition` в Workflow Transition.
+```text
+Senior Purchase Approver
+```
 
-**Новая state появляется только теперь:**
+и получает необходимые базовые DocType Permissions.
+
+**Ответственность:** условно выбрать допустимый дальнейший transition на основании данных текущего Document и дать второму уровню согласования собственную роль.
+
+**Первый механизм:**
+
+```text
+Role + DocType Permissions
++
+Condition в Workflow Transition
+```
+
+**Новое состояние появляется только теперь:**
 
 ```text
 Pending Senior
@@ -409,7 +424,7 @@ Pending Manager → Pending Senior → Approved
 
 **Граница:** LIMIT пока является зафиксированной частью учебного сценария, а не настраиваемой бизнес-сущностью. Настройки — `D03`.
 
-**Проверка:** две контрольные заявки по разные стороны LIMIT должны получить разные доступные переходы.
+**Проверка:** две контрольные заявки по разные стороны LIMIT должны получить разные доступные переходы; Senior Approver участвует только в большой заявке.
 
 ---
 
@@ -467,7 +482,7 @@ Rejected = Cancelled
 Rejected = docstatus 2
 ```
 
-**Граница:** будущая матрица этапов может разрешить `Rejected → Pending Manager` после исправления заявки, но это должно быть отдельным принятым transition, а не неявным редактированием state.
+**Граница:** будущий граф может разрешить `Rejected → Pending Manager` после исправления заявки, но это должно быть отдельным принятым transition, а не неявным редактированием state.
 
 **Проверка:** после Reject:
 
@@ -615,7 +630,7 @@ Workflow
 + conditions
 → filtered fixture
 
-тестовые Users
+test Users
 → Site-local data
 ```
 
@@ -687,9 +702,15 @@ Frappe вообще умеет submit()
 
 ---
 
-# 10. Обязательный финальный acceptance
+## R17. Lifecycle воспроизводится на чистом Site
 
-Матрица не вводит отдельный новый механизм, но фиксирует обязательный финальный критерий всего CORE:
+**Требование:** доказать, что процесс принадлежит App, а не истории ручной настройки dev-site.
+
+**Ответственность:** clean-site acceptance обязательного lifecycle CORE.
+
+**Первый механизм:** штатная установка App + `migrate` + tests + реальный Desk/server scenario.
+
+Финальный критерий:
 
 ```text
 чистый совместимый Frappe Site
@@ -711,11 +732,13 @@ runtime Purchase Requests
 local test config
 ```
 
-Практикум считается архитектурно незавершённым, если процесс работает только на dev-site, где его настроили вручную.
+**Граница:** это acceptance Frappe App на чистом Site, а не production deployment test.
+
+**Проверка:** после установки не требуется вручную создавать Role, Workflow State, Workflow или state Custom Field; полный lifecycle и tests проходят на новом Site.
 
 ---
 
-# 11. NEXT — операционные спутники
+# 10. NEXT — операционные спутники
 
 ## N01. После approval работу нужно назначить конкретному сотруднику
 
@@ -799,7 +822,7 @@ Approval History
 
 ---
 
-# 12. GATE — архитектурные развилки
+# 11. GATE — архитектурные развилки
 
 ## D00. Что делать с данными при эволюции учебной модели
 
@@ -895,7 +918,7 @@ Workflow states/transitions/conditions?
 
 ---
 
-# 13. Явные неправильные решения
+# 12. Явные неправильные решения
 
 ## Неправильно: Workflow с первого дня
 
@@ -915,6 +938,19 @@ status хранит состояние
 ↓
 Workflow
 ```
+
+---
+
+## Неправильно: Senior role заранее
+
+```text
+когда-нибудь будет второй уровень approval
+→ сразу создать Senior Purchase Approver
+```
+
+Почему плохо: механизм появляется до требования.
+
+Правильно: Senior role и `Pending Senior` появляются вместе с R09.
 
 ---
 
@@ -982,35 +1018,36 @@ Cancelled → docstatus 2
 
 ---
 
-# 14. Контроль матрицы перед dependency graph
+# 13. Контроль матрицы перед dependency graph
 
 Перед построением графа нужно ответить `да`:
 
 ```text
-1. R01–R16 являются реальными требованиями, а не списком функций?
+1. R01–R17 являются реальными требованиями, а не списком функций?
 2. Минимальная модель не повторяет первый практикум ради количества DocTypes?
 3. Requester = owner явно является границей CORE, а не универсальным утверждением?
 4. Обычный status появляется раньше Workflow?
 5. Есть отрицательный опыт, показывающий ограничение обычного status?
-6. Workflow появляется только из role-controlled transitions?
-7. После Workflow остаётся один source of truth состояния?
-8. Обязательный state field принадлежит Standard DocType App?
-9. Workflow Action используется раньше собственного Approval Inbox?
-10. Pending Senior появляется только вместе с amount-based требованием?
-11. Self approval использует штатную owner-based семантику только пока R02 истинно?
-12. Rejected остаётся docstatus 0?
-13. Approved становится docstatus 1 только после требования о фиксации факта?
-14. Cancelled появляется только вместе с submittable lifecycle?
-15. Workflow описывает реальный submit/cancel path?
-16. Cancel / Amend используется для смыслового исправления Submitted факта?
-17. Role / Workflow State / Workflow имеют App-owned delivery path?
-18. Не экспортируются все системные Roles/Workflow records Site?
-19. Lifecycle защищён автоматическими tests?
-20. Финал проверяется на clean Site?
-21. Эволюция disposable dev data не выдана за production migration?
-22. Реальная production migration не объявлена ненужной вообще?
-23. Assignment/Notification/File/Comment/Version/Print остаются NEXT?
-24. API/async/extension/integration не попали в CORE ради покрытия?
+6. До R09 не существуют Senior role и Pending Senior?
+7. Workflow появляется только из role-controlled transitions?
+8. После Workflow остаётся один source of truth состояния?
+9. Обязательный state field принадлежит Standard DocType App?
+10. Workflow Action используется раньше собственного Approval Inbox?
+11. Senior role и Pending Senior появляются только вместе с amount-based требованием?
+12. Self approval использует штатную owner-based семантику только пока R02 истинно?
+13. Rejected остаётся docstatus 0?
+14. Approved становится docstatus 1 только после требования о фиксации факта?
+15. Cancelled появляется только вместе с submittable lifecycle?
+16. Workflow описывает реальный submit/cancel path?
+17. Cancel / Amend используется для смыслового исправления Submitted факта?
+18. Role / Workflow State / Workflow имеют App-owned delivery path?
+19. Не экспортируются все системные Roles/Workflow records Site?
+20. Lifecycle защищён автоматическими tests?
+21. Финал является отдельным clean-site acceptance R17?
+22. Эволюция disposable dev data не выдана за production migration?
+23. Реальная production migration не объявлена ненужной вообще?
+24. Assignment/Notification/File/Comment/Version/Print остаются NEXT?
+25. API/async/extension/integration не попали в CORE ради покрытия?
 ```
 
 Если какой-то ответ отрицательный, сначала исправляется матрица. Dependency graph и roadmap строятся только после этого.
