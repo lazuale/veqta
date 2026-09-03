@@ -6,7 +6,7 @@
 модель
 + Controller
 + permissions
-+ tests
++ тесты
 ```
 
 Но пока всё это разрабатывалось на одном `rental.localhost`.
@@ -21,8 +21,8 @@ S08 не добавляет новую функцию. Это проверка �
 
 - [`S05D_ROLES_AND_PERMISSIONS.md`](S05D_ROLES_AND_PERMISSIONS.md);
 - [`S07_AUTOMATED_CONTRACT_TESTS.md`](S07_AUTOMATED_CONTRACT_TESTS.md);
-- [`../CORE_STAGE_SPECIFICATION.md`](../CORE_STAGE_SPECIFICATION.md);
-- [`../PRACTICUM_ROADMAP.md`](../PRACTICUM_ROADMAP.md);
+- [`../APPLICATION_MODEL.md`](../APPLICATION_MODEL.md);
+- [`../ROADMAP.md`](../ROADMAP.md);
 - [`../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md`](../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md).
 
 Первичные источники Frappe:
@@ -54,7 +54,7 @@ Equipment / Customer / Rental / Rental Item
 DocType Permissions
 Rental Controller V01/V02/V03
 Rental Operator / Rental Manager
-автоматические tests
+автоматические тесты
 ```
 
 Такое состояние должно иметь воспроизводимый источник в App.
@@ -237,7 +237,6 @@ default permissions
 ```
 
 Не нужно создавать отдельный SQL-файл схемы приложения.
-
 Frappe при install/migrate синхронизирует DocTypes из JSON и приводит схему Site к состоянию, описанному этими метаданными.
 
 ---
