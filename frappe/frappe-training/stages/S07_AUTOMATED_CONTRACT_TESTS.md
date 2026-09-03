@@ -1,6 +1,6 @@
-# S07. Превратить правила CORE в автоматические контракты
+# S07. Закрепить правила приложения автоматическими тестами
 
-К S07 приложение уже умеет работать через Desk, защищает три бизнес-инварианта и имеет базовую permission model:
+К S07 приложение уже умеет работать через Desk, защищает три бизнес-инварианта и имеет базовую модель permissions:
 
 ```text
 Rental.validate()
@@ -12,7 +12,7 @@ Rental Operator / Rental Manager
 └── Role + DocType Permissions
 ```
 
-До сих пор эти контракты доказывались вручную через Desk и `bench console`.
+До сих пор эти требования проверялись вручную через Desk и `bench console`.
 
 Новое требование:
 
@@ -25,10 +25,10 @@ S07 **не добавляет новую бизнес-функцию**. Он п�
 - [`S05C_RENTAL_LOCAL_INVARIANTS.md`](S05C_RENTAL_LOCAL_INVARIANTS.md);
 - [`S05D_ROLES_AND_PERMISSIONS.md`](S05D_ROLES_AND_PERMISSIONS.md);
 - [`S06_ACTIVE_RENTAL_CONFLICT.md`](S06_ACTIVE_RENTAL_CONFLICT.md);
-- [`../CORE_STAGE_SPECIFICATION.md`](../CORE_STAGE_SPECIFICATION.md);
-- [`../REQUIREMENTS_MATRIX.md`](../REQUIREMENTS_MATRIX.md);
-- [`../PRACTICUM_ROADMAP.md`](../PRACTICUM_ROADMAP.md);
-- [`../../frappe-architecture-standard/09_DEPLOYMENT_TESTING.md`](../../frappe-architecture-standard/09_DEPLOYMENT_TESTING.md).
+- [`../APPLICATION_MODEL.md`](../APPLICATION_MODEL.md);
+- [`../REQUIREMENTS.md`](../REQUIREMENTS.md);
+- [`../ROADMAP.md`](../ROADMAP.md);
+- [`../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md`](../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md).
 
 Первичные источники Frappe:
 
@@ -53,7 +53,7 @@ Form вообще открывается
 List вообще умеет показывать записи
 ```
 
-Наш App добавил собственные контракты. Вот их и нужно защищать.
+Наш App добавил собственные правила. Вот их и нужно защищать.
 
 ## Данные
 
@@ -78,7 +78,7 @@ Returned → не блокирует
 10–12 + 13–14 → допустимо
 ```
 
-Повторное сохранение самого Active Rental не должно создавать self-conflict.
+Повторное сохранение самого Active Rental не должно создавать конфликт с собой.
 
 ## Permissions
 
@@ -110,7 +110,7 @@ Rental-тесты:
 проверяют permissions
 ```
 
-Это integration tests.
+Это интеграционные тесты.
 
 В актуальном Frappe v16 используется:
 
@@ -125,7 +125,7 @@ class IntegrationTestRental(IntegrationTestCase):
     ...
 ```
 
-Текущий boilerplate Standard DocType v16.33.0 генерирует именно такую основу.
+Текущая заготовка Standard DocType v16.33.0 генерирует именно такую основу.
 
 Старый путь:
 
@@ -133,15 +133,15 @@ class IntegrationTestRental(IntegrationTestCase):
 from frappe.tests.utils import FrappeTestCase
 ```
 
-не используем: в v16 он deprecated и готовится к удалению в v17.
+не используем: в v16 он помечен как устаревший и готовится к удалению в v17.
 
-Отдельный `UnitTestCase` здесь тоже был бы неправильным выбором: он предназначен для логики без взаимодействия с БД, а наши контракты специально проверяют реальный Document/permission path.
+Отдельный `UnitTestCase` здесь тоже был бы неправильным выбором: он предназначен для логики без взаимодействия с БД, а наши проверки специально проходят реальный путь Document и permissions.
 
 ---
 
 # 3. Что уже создал Frappe
 
-При создании Standard DocType `Rental` в developer mode Frappe уже создал test boilerplate рядом с Controller:
+При создании Standard DocType `Rental` в developer mode Frappe уже создал заготовку теста рядом с Controller:
 
 ```text
 apps/rental_training/
@@ -173,7 +173,7 @@ class IntegrationTestRental(IntegrationTestCase):
     pass
 ```
 
-Также boilerplate содержит:
+Также заготовка содержит:
 
 ```python
 EXTRA_TEST_RECORD_DEPENDENCIES = []
@@ -182,13 +182,13 @@ IGNORE_TEST_RECORD_DEPENDENCIES = []
 
 На S07 их не заполняем без причины.
 
-Наши Customer и Equipment для каждого теста создаются явно, поэтому тест понятен без скрытого набора заранее подготовленных бизнес-записей.
+Наши Customer и Equipment для каждого теста создаются явно, поэтому тест понятен без скрытого набора заранее подготовленных рабочих записей.
 
 ---
 
 # 4. Разрешить запуск tests на учебном Site
 
-`allow_tests` — настройка **учебного Site**, а не обязательная конфигурация продукта.
+`allow_tests` — настройка **учебного Site**, а не обязательная конфигурация приложения.
 
 Проверьте текущее значение:
 
@@ -226,9 +226,9 @@ git -C apps/rental_training status --short
 
 ```text
 allow_tests
-→ свойство конкретного dev/test Site
+→ свойство конкретного Site разработки и тестирования
 → sites/rental.localhost/site_config.json
-→ не source продукта
+→ не исходники приложения
 ```
 
 Не экспортируйте `allow_tests` как fixture.
@@ -250,7 +250,7 @@ frappe.get_doc("Equipment", "EQ-00001")
 кто-то до него вручную создал EQ-00001
 ```
 
-Автоматический контракт должен сам подготовить минимальные данные, необходимые конкретному тесту.
+Автоматическая проверка должна сама подготовить минимальные данные, необходимые конкретному тесту.
 
 Поэтому каждый test method получает собственные:
 
@@ -506,7 +506,7 @@ class IntegrationTestRental(IntegrationTestCase):
 
 ---
 
-# 7. Разобрать test structure
+# 7. Разобрать структуру теста
 
 ## `setUp()`
 
@@ -528,22 +528,22 @@ test A не должен зависеть от того,
 
 ## `make_rental()`
 
-Это helper **только тестового кода**.
+Это вспомогательная функция **только тестового кода**.
 
-Он не является новым business service приложения.
+Она не является новым Service приложения.
 
-Его ответственность очень узкая:
+Её ответственность очень узкая:
 
 ```text
-собрать одинаковую тестовую форму Rental
-и убрать шум из test methods
+собрать одинаковый тестовый Rental
+и убрать повторение из test methods
 ```
 
-Не переносите этот helper в production-код ради «чистой архитектуры».
+Не переносите эту функцию в рабочий код ради «чистой архитектуры».
 
 ## `make_user()`
 
-Тестовый User создаётся внутри test transaction и получает существующую App-owned Role.
+Тестовый User создаётся внутри теста и получает существующую Role приложения.
 
 Ключевой момент:
 
@@ -553,15 +553,15 @@ self.assertTrue(frappe.db.exists("Role", role))
 
 Тест **не создаёт отсутствующую Role автоматически**.
 
-Если `Rental Operator` или `Rental Manager` исчезли, тест должен сообщить о нарушенном контракте, а не тайно починить приложение.
+Если `Rental Operator` или `Rental Manager` исчезли, тест должен сообщить о нарушенном требовании, а не тайно починить приложение.
 
-Конкретный test User остаётся тестовыми данными и не становится fixture App.
+Конкретный тестовый User остаётся тестовыми данными и не становится fixture App.
 
 ---
 
 # 8. Почему используется `self.set_user()`
 
-Текущий `IntegrationTestCase` наследует Frappe test context manager:
+Текущий `IntegrationTestCase` предоставляет контекстный менеджер:
 
 ```python
 with self.set_user(operator):
@@ -570,7 +570,7 @@ with self.set_user(operator):
 
 Он временно переключает `frappe.session.user`, а после блока восстанавливает предыдущего пользователя.
 
-Это безопаснее учебного шаблона:
+Это безопаснее шаблона:
 
 ```python
 frappe.set_user(operator)
@@ -580,17 +580,17 @@ frappe.set_user(operator)
 
 который может загрязнить следующие проверки.
 
-В `tearDown()` всё равно явно возвращаем `Administrator` как дополнительную понятную границу этапа.
+В `tearDown()` всё равно явно возвращаем `Administrator` как дополнительную понятную границу теста.
 
 ---
 
 # 9. Почему здесь нет ручного `commit()` / `rollback()`
 
-В S05C/S06 `bench console` требовал отдельно понимать интерактивную transaction boundary.
+В S05C/S06 `bench console` требовал отдельно понимать границу интерактивной транзакции.
 
 Автоматический test runner — другой контекст.
 
-`IntegrationTestCase` предоставляет test database setup/teardown и управляет общей test transaction инфраструктурой.
+`IntegrationTestCase` предоставляет подготовку и очистку тестовой БД и управляет транзакционной инфраструктурой тестов.
 
 Поэтому внутри обычных tests не добавляем:
 
@@ -603,7 +603,7 @@ frappe.db.rollback()
 
 Особенно нельзя встраивать `commit()` в Controller, чтобы «тест видел запись».
 
-Если тест начинает требовать такие действия без отдельной причины, сначала нужно проверить сам test design.
+Если тест начинает требовать такие действия без отдельной причины, сначала нужно проверить устройство самого теста.
 
 ---
 
@@ -633,13 +633,13 @@ OK
 
 Точное время и количество служебных строк могут отличаться.
 
-Критерий — exit code 0 и `OK` для нашего test module.
+Критерий — код завершения 0 и `OK` для нашего test module.
 
 ---
 
 # 11. Запустить один конкретный test
 
-При разработке быстрее запускать только сломанный контракт.
+При разработке быстрее запускать только сломанную проверку.
 
 Например V01:
 
@@ -659,7 +659,7 @@ bench --site rental.localhost run-tests \
   --test test_overlapping_active_rental_is_rejected
 ```
 
-Это не другой test mechanism. Это тот же штатный runner с более узким scope.
+Это не другой механизм тестирования. Это тот же штатный runner с более узким набором проверок.
 
 ---
 
@@ -671,17 +671,17 @@ bench --site rental.localhost run-tests \
 bench --site rental.localhost run-tests --app rental_training
 ```
 
-Это уже основной повторяемый контракт текущего учебного App.
+Это основной повторяемый набор тестов текущего учебного App.
 
-На маленьком CORE он должен проходить полностью.
+На маленьком приложении он должен проходить полностью.
 
-Не заменяйте эту команду запуском только одного «любимого» test method перед финальной приёмкой.
+Не заменяйте эту команду запуском только одного «любимого» test method перед финальной проверкой.
 
 ---
 
 # 13. Доказать, что тест действительно что-то защищает
 
-Зелёный test suite сам по себе ещё не доказывает, что тест чувствителен к поломке.
+Зелёный набор тестов сам по себе ещё не доказывает, что тест чувствителен к поломке.
 
 Сделайте контролируемую временную ошибку.
 
@@ -727,7 +727,7 @@ FAIL
 
 ---
 
-# 14. Что именно доказывают permission tests
+# 14. Что именно доказывают тесты permissions
 
 ## Operator
 
@@ -751,7 +751,7 @@ Rental.save()   → разрешено
 Rental delete   → запрещено
 ```
 
-То есть проверяется не UI, а фактический Document/delete path.
+То есть проверяется не UI, а фактический путь Document и delete.
 
 ## Manager
 
@@ -763,13 +763,13 @@ Equipment.save()
 Equipment delete
 ```
 
-Это проверяет противоположную сторону permission matrix на том же DocType.
+Это проверяет противоположную сторону матрицы permissions на том же DocType.
 
-Мы не пишем тест «кнопка Delete видна менеджеру». Это UI-следствие, а не граница безопасности.
+Мы не пишем тест «кнопка Delete видна менеджеру». Это следствие UI, а не граница безопасности.
 
 ---
 
-# 15. Что S07 намеренно НЕ тестирует
+# 15. Что S07 намеренно не тестирует
 
 Не добавляйте тесты только ради количества:
 
@@ -787,15 +787,15 @@ frappe.throw вообще бросает exception
 Также S07 не добавляет:
 
 ```text
-browser/UI automation
+автоматизацию браузера и UI
 Playwright
 REST integration tests
-background worker tests
-mock-heavy test infrastructure
+тесты background workers
+сложную инфраструктуру mock
 CI pipeline
-coverage target
+целевой процент coverage
 performance/load tests
-concurrency race test
+тест конкурентной гонки
 ```
 
 Каждый такой уровень требует отдельного основания.
@@ -803,7 +803,7 @@ concurrency race test
 Особенно важно последнее:
 
 ```text
-S06 честно не обещает race-condition protection
+S06 честно не обещает защиту от race condition
 → S07 не должен писать test,
   который делает вид, что такая гарантия уже существует
 ```
@@ -812,7 +812,7 @@ S06 честно не обещает race-condition protection
 
 # 16. Test records: почему не создаём отдельный учебный каталог fixtures
 
-Frappe умеет автоматически загружать test records зависимых DocTypes, а актуальный boilerplate предоставляет:
+Frappe умеет автоматически загружать test records зависимых DocTypes, а актуальная заготовка предоставляет:
 
 ```python
 EXTRA_TEST_RECORD_DEPENDENCIES
@@ -836,7 +836,7 @@ IGNORE_TEST_RECORD_DEPENDENCIES
 
 ---
 
-# 17. Git checkpoint
+# 17. Зафиксировать тесты в Git
 
 Посмотрите изменение:
 
@@ -845,7 +845,7 @@ git -C apps/rental_training diff -- \
   rental_training/rental_training/doctype/rental/test_rental.py
 ```
 
-В production Controller после контрольной intentional failure не должно остаться временной поломки:
+В рабочем Controller после контрольной намеренной поломки не должно остаться временной ошибки:
 
 ```bash
 git -C apps/rental_training diff -- \
@@ -861,7 +861,7 @@ git -C apps/rental_training add \
   rental_training/rental_training/doctype/rental/test_rental.py
 
 git -C apps/rental_training commit \
-  -m "test: cover rental core contracts"
+  -m "test: cover rental rules"
 ```
 
 Проверьте:
@@ -872,13 +872,13 @@ git -C apps/rental_training status --short
 
 Ожидается пустой вывод.
 
-`allow_tests` в Site config в этот commit не входит.
+`allow_tests` в конфигурации Site в этот commit не входит.
 
 ---
 
 # 18. Финальный запуск S07
 
-После Git checkpoint ещё раз:
+После commit ещё раз:
 
 ```bash
 bench --site rental.localhost run-tests --app rental_training
@@ -886,7 +886,7 @@ bench --site rental.localhost run-tests --app rental_training
 
 Этап не считается пройденным по старому выводу терминала до последней правки.
 
-Финальный test run выполняется на том App state, который находится в Git.
+Финальный запуск тестов выполняется на том состоянии App, которое находится в Git.
 
 ---
 
@@ -904,7 +904,7 @@ bench --site rental.localhost run-tests --app rental_training
 
 ## Ошибка 2. Использовать старый `FrappeTestCase`
 
-Проблема: это deprecated API текущей ветки v16.
+Проблема: это устаревший API текущей ветки v16.
 
 Правильно для Document/DB tests:
 
@@ -914,7 +914,7 @@ from frappe.tests import IntegrationTestCase
 
 ## Ошибка 3. Проверять только `has_permission()`
 
-`has_permission()` полезен, но наш контракт сформулирован как реальные операции.
+`has_permission()` полезен, но наше требование сформулировано как реальные операции.
 
 Проверяем:
 
@@ -926,17 +926,17 @@ delete
 
 ## Ошибка 4. Создать Role внутри теста, если её нет
 
-Тогда тест сам чинит нарушение App contract.
+Тогда тест сам чинит нарушение требований App.
 
-Правильно: обязательная Role должна уже поставляться App; её отсутствие — failure.
+Правильно: обязательная Role должна уже поставляться App; её отсутствие — ошибка теста.
 
 ## Ошибка 5. Коммитить test Users как fixtures
 
-Test User нужен запуску теста, а не установленному продукту.
+Test User нужен запуску теста, а не установленному приложению.
 
 ## Ошибка 6. Делать `frappe.db.commit()` после каждого test insert
 
-Это ломает нормальную test isolation model и обычно не требуется.
+Это ломает нормальную изоляцию тестов и обычно не требуется.
 
 ## Ошибка 7. Один огромный `test_everything`
 
@@ -951,15 +951,15 @@ Test User нужен запуску теста, а не установленно
 Цель:
 
 ```text
-если наш контракт сломан
+если наше правило сломано
 → соответствующий test обязан это обнаружить
 ```
 
 ---
 
-# 20. ГОТОВО
+# 20. Проверка перед S08
 
-S07 считается пройденным, если одновременно выполняется всё:
+Перед переходом дальше одновременно должно быть верно:
 
 ```text
 [ ] test_rental.py использует IntegrationTestCase
@@ -986,35 +986,35 @@ S07 считается пройденным, если одновременно �
 Ученик должен уметь объяснить:
 
 ```text
-почему эти tests являются IntegrationTestCase
-почему мы тестируем App contracts, а не Frappe вообще
-почему тест сам создаёт business data
+почему эти tests используют IntegrationTestCase
+почему мы тестируем собственные правила App, а не Frappe вообще
+почему тест сам создаёт рабочие данные
 почему Role должна существовать до permission test
 почему test User не fixture
 почему self.set_user лучше ручного незакрытого frappe.set_user
 почему в tests нет ручных commit/rollback
-почему S07 не доказывает concurrency guarantee, которой нет в S06
+почему S07 не доказывает защиту от конкурентной гонки, которой нет в S06
 ```
 
 ---
 
-# 21. НЕ ГОТОВО
+# 21. Когда не переходить к S08
 
-Этап не принят, если выполняется хотя бы одно:
+Сначала исправьте проблему, если:
 
 ```text
-тесты проходят только при наличии ручных данных dev-site;
-используется deprecated FrappeTestCase без причины;
+тесты проходят только при наличии ручных данных Site разработки;
+используется устаревший FrappeTestCase без причины;
 permissions проверены только через UI;
 тест сам создаёт отсутствующие обязательные Roles;
 намеренная поломка V01/V02/V03 не делает соответствующий test красным;
-тесты требуют ручного commit в production Controller;
-запускается только один test, а весь App suite падает;
-в Git попали Site passwords или test Users как fixtures;
-S07 заявляет защиту от race condition, которой приложение ещё не реализует.
+тесты требуют ручного commit в рабочем Controller;
+запускается только один test, а весь набор App падает;
+в Git попали пароли Site или test Users как fixtures;
+S07 заявляет защиту от конкурентной гонки, которой приложение ещё не реализует.
 ```
 
-Следующий этап после S07 — **S08: аудит App-owned состояния и миграций**.
+Следующий этап — **S08: проверить поставку обязательного состояния App**.
 
 Там вопрос изменится:
 

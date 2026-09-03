@@ -21,12 +21,12 @@ Rental
 
 ## С чего начать
 
-Практические этапы находятся в [`core/`](core/README.md) и проходятся последовательно от `S00` до `S09`.
+Практические этапы находятся в [`stages/`](stages/README.md) и проходятся последовательно от `S00` до `S09`.
 
-Дополнительные справочные страницы:
+Справочные материалы:
 
-- [`CORE_STAGE_SPECIFICATION.md`](CORE_STAGE_SPECIFICATION.md) — что именно создаётся в учебном приложении;
-- [`REQUIREMENTS_MATRIX.md`](REQUIREMENTS_MATRIX.md) — какие требования реализуются по ходу практикума;
-- [`PRACTICUM_ROADMAP.md`](PRACTICUM_ROADMAP.md) — маршрут этапов.
+- [модель учебного приложения](APPLICATION_MODEL.md);
+- [требования к приложению](REQUIREMENTS.md);
+- [маршрут практикума](ROADMAP.md).
 
 Архитектурные объяснения, на которые ссылаются задания, находятся в соседнем [архитектурном стандарте Frappe](../frappe-architecture-standard/README.md).

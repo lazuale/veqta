@@ -19,9 +19,9 @@ Rental.validate()
 
 Новое требование:
 
-> Оператор проката должен работать с клиентами и прокатами, но не должен управлять справочником Equipment и не должен удалять бизнес-записи. Менеджер должен иметь полный CRUD-доступ к CORE-модели.
+> Оператор проката должен работать с клиентами и прокатами, но не должен управлять справочником Equipment и не должен удалять рабочие записи. Менеджер должен иметь полный CRUD-доступ к модели практикума.
 
-Для этого CORE использует только штатную базовую модель Frappe:
+Для этого используются только штатные механизмы Frappe:
 
 ```text
 User
@@ -49,9 +49,9 @@ ignore_permissions=True
 Связанные документы:
 
 - [`S05C_RENTAL_LOCAL_INVARIANTS.md`](S05C_RENTAL_LOCAL_INVARIANTS.md);
-- [`../CORE_STAGE_SPECIFICATION.md`](../CORE_STAGE_SPECIFICATION.md);
-- [`../REQUIREMENTS_MATRIX.md`](../REQUIREMENTS_MATRIX.md);
-- [`../PRACTICUM_ROADMAP.md`](../PRACTICUM_ROADMAP.md);
+- [`../APPLICATION_MODEL.md`](../APPLICATION_MODEL.md);
+- [`../REQUIREMENTS.md`](../REQUIREMENTS.md);
+- [`../ROADMAP.md`](../ROADMAP.md);
 - [`../../frappe-architecture-standard/04_SECURITY.md`](../../frappe-architecture-standard/04_SECURITY.md).
 
 Первичные источники Frappe:
@@ -65,7 +65,7 @@ ignore_permissions=True
 
 ---
 
-# 1. Сначала сформулировать permission matrix
+# 1. Сначала сформулировать матрицу прав
 
 До кликов нужно знать, что именно разрешено.
 
@@ -101,7 +101,7 @@ Rental
 | Customer | yes | yes | yes | yes |
 | Rental | yes | yes | yes | yes |
 
-Менеджер имеет полный CRUD-доступ к текущему CORE.
+Менеджер имеет полный CRUD-доступ к текущей модели.
 
 ## Чего в матрице нет
 
@@ -151,9 +151,9 @@ Rental ACL
 └── ...
 ```
 
-создала бы второй движок прав рядом со штатным.
+создала бы второй механизм прав рядом со штатным.
 
-Тогда пришлось бы отдельно согласовывать:
+Тогда пришлось бы отдельно согласовывать с ним:
 
 ```text
 Desk
@@ -161,10 +161,8 @@ REST API
 Document.save()
 List
 Reports
-custom endpoints
+собственные endpoints
 ```
-
-с нашей самодельной системой.
 
 На S05D для этого нет никакого основания.
 
@@ -174,7 +172,7 @@ custom endpoints
 
 Это центральная архитектурная часть этапа.
 
-## App-owned
+## Состояние App
 
 Приложение **требует**, чтобы после чистой установки существовали роли:
 
@@ -183,25 +181,25 @@ Rental Operator
 Rental Manager
 ```
 
-и чтобы Standard DocTypes имели определённые default permissions.
+и чтобы Standard DocTypes имели определённые permissions по умолчанию.
 
-Для текущего CORE источник этой модели один:
+Для текущего приложения источник этой модели один:
 
 ```text
 DocType Permissions
-→ часть metadata Standard DocType
+→ часть метаданных Standard DocType
 → equipment.json / customer.json / rental.json
 
-role name внутри DocPerm
-→ часть той же metadata
-→ при sync Frappe создаёт отсутствующий Role
+имя Role внутри DocPerm
+→ часть тех же метаданных
+→ при sync Frappe создаёт отсутствующую Role
 ```
 
 В Frappe v16.33.0 `make_module_and_roles()` собирает имена ролей из permission rows Standard DocType и создаёт отсутствующие `Role`. Для созданной роли Framework устанавливает `desk_access = 1`.
 
 При установке App `install_app()` выполняет `sync_for()` до `sync_fixtures()`. Поэтому отдельный `Role` fixture только ради двух имён, уже присутствующих в Standard DocPerm собственного App, дублировал бы штатный механизм Frappe.
 
-## Site-owned
+## Состояние Site
 
 Конкретные пользователи:
 
@@ -212,13 +210,13 @@ manager@example.test
 
 нужны только для учебной проверки на этом Site.
 
-Это не часть продукта.
+Они не являются обязательной частью App.
 
 Следовательно:
 
 ```text
 User accounts
-→ runtime/config data конкретного Site
+→ данные конкретного Site
 → не fixtures практикума
 → пароли не Git
 ```
@@ -260,7 +258,7 @@ rental_training
 git -C apps/rental_training status --short
 ```
 
-После принятого S05C рабочее дерево должно быть чистым.
+После S05C рабочее дерево должно быть чистым.
 
 Проверьте, что Controller S05C уже находится в Git:
 
@@ -273,7 +271,7 @@ git -C apps/rental_training log -1 --oneline -- \
 
 # 5. Создать две Role через Desk
 
-Если dev server не работает:
+Если сервер разработки не работает:
 
 ```bash
 cd ~/frappe/rental-training-bench
@@ -332,17 +330,17 @@ cd ~/frappe/rental-training-bench
 git -C apps/rental_training status --short
 ```
 
-Сам факт создания Role в БД Site не обязан автоматически создать source-файл в нашем App.
+Сам факт создания Role в БД Site не обязан автоматически создать файл в нашем App.
 
 Это полезное наблюдение:
 
 ```text
 Role создана на Site
 ≠
-роль уже описана обязательной metadata нашего App
+имя Role уже записано в обязательных метаданных App
 ```
 
-Дальше мы добавим эти имена в default permissions Standard DocTypes. Именно эти permission rows станут воспроизводимым source: при синхронизации Frappe создаст отсутствующие Role на другом Site.
+Дальше мы добавим эти имена в permissions по умолчанию Standard DocTypes. Именно эти permission rows станут воспроизводимым источником: при синхронизации Frappe создаст отсутствующие Role на другом Site.
 
 ---
 
@@ -362,7 +360,7 @@ Equipment
 
 Откройте таблицу `Permissions`.
 
-Добавьте/настройте строки уровня `0`.
+Добавьте или настройте строки уровня `0`.
 
 ## Rental Operator
 
@@ -394,7 +392,7 @@ Delete : yes
 
 ### Что произошло
 
-Мы изменили **default permissions Standard DocType собственного App**.
+Мы изменили **permissions по умолчанию Standard DocType собственного App**.
 
 Поэтому developer mode должен записать изменение в:
 
@@ -443,7 +441,7 @@ Delete : yes
 
 Сохраните.
 
-Ожидаемое source-изменение:
+Ожидается изменение:
 
 ```text
 customer/customer.json
@@ -508,7 +506,7 @@ Rental
     └── Rental Item
 ```
 
-В текущем исходнике Frappe permission handling для child document учитывает `parenttype` при проверке прав.
+В текущем исходнике Frappe проверка permissions для child document учитывает `parenttype`.
 
 Поэтому S05D не придумывает отдельную роль:
 
@@ -522,7 +520,7 @@ Rental Item Operator
 
 ---
 
-# 11. Проверить изменения metadata через Git
+# 11. Проверить изменения метаданных через Git
 
 Вернитесь в терминал:
 
@@ -564,57 +562,57 @@ Rental Manager
 
 Точный порядок JSON-ключей не является контрактом.
 
-Контракт:
+Важно другое:
 
 ```text
-обязательные default permissions
-→ находятся в metadata Standard DocType
+обязательные permissions по умолчанию
+→ находятся в метаданных Standard DocType
 → видны Git
 ```
 
 ---
 
-# 12. Не использовать Role Permission Manager как источник обязательных defaults
+# 12. Не использовать Role Permission Manager как источник обязательных permissions
 
 Frappe предоставляет `Role Permission Manager` — это нормальный штатный административный инструмент.
 
-Но он способен создавать **Site-level overrides** относительно default permissions DocType.
+Но он способен создавать локальные переопределения Site относительно permissions DocType по умолчанию.
 
 Для S05D нам нужна другая гарантия:
 
-> После установки App на чистый Site базовая permission model уже существует без ручной донастройки.
+> После установки App на чистый Site базовая модель permissions уже существует без ручной донастройки.
 
-Поэтому обязательные defaults мы редактировали в `Permissions` самих Standard DocTypes своего App.
+Поэтому обязательные permissions мы редактировали в `Permissions` самих Standard DocTypes своего App.
 
 Правило этапа:
 
 ```text
-default permission model продукта
-→ Standard DocType metadata
+permissions приложения по умолчанию
+→ метаданные Standard DocType
 
 локальное изменение конкретного Site
 → Role Permission Manager может быть уместен
 ```
 
-Мы не запрещаем Role Permission Manager. Мы просто не делаем локальный override скрытым обязательным шагом установки продукта.
+Мы не запрещаем Role Permission Manager. Мы просто не делаем локальное переопределение скрытым обязательным шагом установки приложения.
 
 ---
 
 # 13. Почему отдельный Role fixture здесь не нужен
 
-После разделов 7–9 оба имени роли уже находятся в `permissions[]` Standard DocTypes нашего App.
+После разделов 7–9 оба имени Role уже находятся в `permissions[]` Standard DocTypes нашего App.
 
-В Frappe v16.33.0 штатный sync Standard DocType вызывает `make_module_and_roles()`:
+В Frappe v16.33.0 штатная синхронизация Standard DocType вызывает `make_module_and_roles()`:
 
 ```text
 permissions[]
-→ собрать role names
+→ собрать имена Role
 → проверить наличие Role
 → создать отсутствующую Role
 → desk_access = 1
 ```
 
-При `install-app` этот sync происходит до `sync_fixtures()`.
+При `install-app` эта синхронизация происходит до `sync_fixtures()`.
 
 Следовательно, схема:
 
@@ -626,15 +624,15 @@ Role fixture с тем же role_name
 
 создала бы два механизма поставки одной ответственности.
 
-Для CORE используем более простой путь:
+Для учебного приложения используем более простой путь:
 
 ```text
 Standard DocPerm
-→ source of truth role name
-→ штатный sync Frappe создаёт missing Role
+→ источник имени Role
+→ штатная синхронизация Frappe создаёт отсутствующую Role
 ```
 
-Отдельный Role fixture был бы оправдан только при дополнительном App-owned состоянии самой Role, которое не выражается Standard DocPerm. В текущем требовании такого состояния нет.
+Отдельный Role fixture был бы оправдан только при дополнительном состоянии самой Role, которое требуется App и не выражается Standard DocPerm. В текущем требовании такого состояния нет.
 
 ---
 
@@ -669,7 +667,7 @@ rental_training/fixtures/role.json
 
 ---
 
-# 15. Проверить Git ownership permission model
+# 15. Проверить, где хранится модель permissions
 
 Теперь:
 
@@ -690,13 +688,13 @@ rental.json
 Архитектурная картина:
 
 ```text
-Role names
+имена Role
 +
 Role → CRUD on DocType
-→ Standard DocType JSON permissions[]
+→ permissions[] Standard DocType JSON
 
-missing Role на новом Site
-→ создаёт Frappe при sync Standard metadata
+отсутствующую Role на новом Site
+→ создаёт Frappe при синхронизации Standard metadata
 
 конкретные User accounts
 → только Site
@@ -769,7 +767,7 @@ Rental Manager
 
 Оба пользователя должны работать в Desk.
 
-Frappe автоматически предоставляет System Users роль `Desk User`; это инфраструктурная роль Framework, а не замена нашим предметным ролям.
+Frappe автоматически предоставляет System Users роль `Desk User`; это инфраструктурная роль Framework, а не замена нашим прикладным ролям.
 
 ---
 
@@ -790,9 +788,9 @@ operator@example.test
 manager@example.test
 ```
 
-не должно создавать новые source-файлы пользователей.
+не должно создавать новые файлы пользователей в исходниках App.
 
-Это правильно: `User` остаётся состоянием конкретного Site и не входит в обязательную metadata CORE.
+Это правильно: `User` остаётся состоянием конкретного Site и не входит в обязательные метаданные приложения.
 
 ---
 
@@ -840,7 +838,7 @@ Rental Manager
 
 ---
 
-# 19. Посмотреть effective CRUD-права программно
+# 19. Посмотреть фактические CRUD-права программно
 
 В том же console используйте функцию:
 
@@ -909,7 +907,7 @@ frappe.set_user("Administrator")
 
 ### Почему одной таблицы `has_permission()` недостаточно
 
-Она хорошо показывает effective permission model, но S05D должен доказать, что реальные Document operations действительно блокируются/разрешаются.
+Она хорошо показывает итоговые permissions, но S05D должен проверить, что реальные операции Document действительно блокируются или разрешаются.
 
 Поэтому дальше выполняются несколько настоящих CRUD-проверок.
 
@@ -946,7 +944,7 @@ BLOCKED operator create Equipment
 
 Мы не проверяем только отсутствие кнопки `New`.
 
-В актуальном `Document.insert()` Frappe выполняет permission check `create` до вставки Document.
+В актуальном `Document.insert()` Frappe выполняет проверку permission `create` до вставки Document.
 
 ---
 
@@ -995,7 +993,7 @@ print("ALLOWED operator create Customer:", operator_customer.name)
 
 Ожидается успешная вставка.
 
-Для чистоты учебного Site откатите эту **console-транзакцию**:
+Для чистоты учебного Site откатите эту **транзакцию console**:
 
 ```python
 frappe.db.rollback()
@@ -1057,7 +1055,7 @@ print("ALLOWED operator create Rental:", operator_rental.name)
 frappe.db.rollback()
 ```
 
-Это одновременно подтверждает, что permission model и Controller S05C работают в одном обычном Document path.
+Это одновременно подтверждает, что permissions и Controller S05C работают в одном обычном пути Document.
 
 ---
 
@@ -1091,7 +1089,7 @@ print("ALLOWED operator write Rental:", rental.name)
 frappe.db.rollback()
 ```
 
-После rollback runtime-запись вернётся к исходному состоянию.
+После rollback запись вернётся к исходному состоянию.
 
 ## Delete запрещён
 
@@ -1111,9 +1109,9 @@ except frappe.PermissionError as exc:
     frappe.db.rollback()
 ```
 
-Ожидается permission error.
+Ожидается `PermissionError`.
 
-В актуальном Frappe `delete_doc()` документирует и выполняет delete-permission check, если `ignore_permissions=False`.
+В актуальном Frappe `delete_doc()` документирует и выполняет проверку delete-permission, если `ignore_permissions=False`.
 
 ---
 
@@ -1164,7 +1162,7 @@ frappe.delete_doc("Equipment", loaded.name)
 print("DELETE OK:", loaded.name)
 ```
 
-Теперь откатите всю временную console-транзакцию:
+Теперь откатите всю временную транзакцию console:
 
 ```python
 frappe.db.rollback()
@@ -1186,7 +1184,7 @@ exit()
 
 # 26. Проверить то же поведение через Desk
 
-Теперь выполните короткую UI-проверку.
+Теперь выполните короткую проверку интерфейса.
 
 ## Под Operator
 
@@ -1219,7 +1217,7 @@ Rental
 ✗ удалить
 ```
 
-Не оценивайте безопасность только по наличию/отсутствию кнопок. Серверные проверки уже выполнены предыдущими разделами.
+Не оценивайте безопасность только по наличию или отсутствию кнопок. Серверные проверки уже выполнены предыдущими разделами.
 
 ## Под Manager
 
@@ -1229,11 +1227,11 @@ Rental
 manager@example.test
 ```
 
-Проверьте, что обычный CRUD всех трёх CORE DocTypes доступен.
+Проверьте, что обычный CRUD всех трёх DocTypes доступен.
 
 ---
 
-# 27. Почему UI hiding не считается защитой
+# 27. Почему скрытие UI не считается защитой
 
 Допустим, кто-то сделал:
 
@@ -1241,7 +1239,7 @@ manager@example.test
 frm.remove_custom_button("Delete")
 ```
 
-или спрятал поле/кнопку CSS.
+или спрятал поле или кнопку CSS.
 
 Это не меняет permission engine.
 
@@ -1254,7 +1252,7 @@ Document API
 серверный метод
 ```
 
-S05D принят только потому, что запрет находится в штатной серверной permission model.
+S05D считается пройденным только потому, что запрет находится в штатной серверной модели permissions.
 
 Формула:
 
@@ -1301,7 +1299,7 @@ Operator B видит только Equipment участка Y
 
 Поэтому User Permission пока не нужен.
 
-Если такое требование появится, это будет отдельная архитектурная ветка.
+Если такое требование появится, его нужно будет рассматривать отдельно.
 
 ---
 
@@ -1376,7 +1374,7 @@ has_permission
 
 # 33. Проверить, что в коде не появился обход прав
 
-Из App repo:
+Из репозитория App:
 
 ```bash
 cd ~/frappe/rental-training-bench/apps/rental_training
@@ -1391,7 +1389,7 @@ grep -RIn \
   rental_training || true
 ```
 
-Для текущего CORE собственный код не должен содержать такой обход.
+Для текущего приложения собственный код не должен содержать такой обход.
 
 Также S05D не требует собственной проверки:
 
@@ -1406,7 +1404,7 @@ CRUD уже принадлежит permission engine.
 
 ---
 
-# 34. Зафиксировать permission model в Git
+# 34. Зафиксировать модель permissions в Git
 
 Проверьте итоговый diff:
 
@@ -1430,13 +1428,13 @@ git add \
   rental_training/rental_training/doctype/rental/rental.json
 ```
 
-Проверьте staged diff:
+Проверьте подготовленный diff:
 
 ```bash
 git diff --cached
 ```
 
-Убедитесь, что в Git попали только default permissions Standard DocTypes и нет случайных Users, паролей или Role fixture.
+Убедитесь, что в Git попали только permissions по умолчанию Standard DocTypes и нет случайных Users, паролей или Role fixture.
 
 Зафиксируйте:
 
@@ -1468,7 +1466,7 @@ git status --short
 
 Поэтому S05D не требует выполнять `bench migrate` просто ради ритуала.
 
-Но для **другого Site** смысл source-файлов другой:
+Но для **другого Site** смысл файлов App другой:
 
 ```text
 Standard DocType JSON
@@ -1477,10 +1475,10 @@ install / migrate sync
         ↓
 DocPerm синхронизируются
         ↓
-missing Role создаются Frappe
+отсутствующие Role создаются Frappe
 ```
 
-Это будет доказано не предположением, а clean-install проверкой на S08/S09.
+Это будет проверено на чистом Site в S08/S09.
 
 ---
 
@@ -1493,12 +1491,12 @@ operator@example.test User record
 manager@example.test User record
 их пароли
 sessions
-конкретные runtime Rentals
-конкретные runtime Customers
-конкретные runtime Equipment
+конкретные Rentals
+конкретные Customers
+конкретные Equipment
 ```
 
-В Git появляется обязательная permission model:
+В Git появляется обязательная модель permissions:
 
 ```text
 Standard DocType JSON
@@ -1507,7 +1505,7 @@ Standard DocType JSON
     └── Rental Manager
 ```
 
-Отдельный Role fixture для этих двух имён текущему CORE не нужен.
+Отдельный Role fixture для этих двух имён текущему приложению не нужен.
 
 ---
 
@@ -1522,7 +1520,7 @@ Administrator может создать Rental
 
 Нет.
 
-Administrator является специальным системным пользователем и не доказывает поведение предметных ролей.
+Administrator является специальным системным пользователем и не доказывает поведение прикладных ролей.
 
 ## Ошибка 2. Спрятать кнопку вместо запрета
 
@@ -1531,7 +1529,7 @@ Operator не должен удалять Rental
 → скрыли Delete в JS
 ```
 
-Это UI, а не authorization.
+Это UI, а не авторизация.
 
 Правильная ответственность:
 
@@ -1539,11 +1537,11 @@ Operator не должен удалять Rental
 DocPerm.delete = 0
 ```
 
-## Ошибка 3. Настроить всё только Role Permission Manager и забыть delivery
+## Ошибка 3. Настроить всё только Role Permission Manager и забыть про воспроизводимость
 
-На dev-site всё выглядит правильно, но после clean install default permissions приходится восстанавливать вручную.
+На Site разработки всё выглядит правильно, но после чистой установки permissions по умолчанию приходится восстанавливать вручную.
 
-Это значит, что обязательное состояние продукта не принадлежит Standard metadata App.
+Это значит, что обязательное состояние приложения не находится в Standard metadata App.
 
 ## Ошибка 4. Добавить Role fixture для имени, которое уже находится в Standard DocPerm
 
@@ -1555,39 +1553,39 @@ Standard DocPerm sync
 Role fixture sync
 ```
 
-Для текущего CORE это лишнее дублирование.
+Для текущего приложения это лишнее дублирование.
 
 ## Ошибка 5. Экспортировать Users
 
-Учебный аккаунт конкретного человека — не обязательная конфигурация продукта.
+Учебный аккаунт конкретного человека — не обязательная конфигурация приложения.
 
 ## Ошибка 6. Добавить `ignore_permissions=True`, чтобы тест прошёл
 
-Это уничтожает сам смысл проверки authorization.
+Это уничтожает сам смысл проверки авторизации.
 
 ---
 
 # 38. Три правильных решения
 
-## Правильно 1. CRUD policy через DocPerm
+## Правильно 1. CRUD через DocPerm
 
 Требование совпадает со стандартными permission types — значит используем их напрямую.
 
-## Правильно 2. Default permissions в Standard DocType metadata
+## Правильно 2. Permissions по умолчанию в Standard DocType metadata
 
 Они принадлежат нашему App и воспроизводятся вместе с моделью.
 
-## Правильно 3. Role name поставляется тем же Standard DocPerm
+## Правильно 3. Имя Role поставляется тем же Standard DocPerm
 
-Frappe создаёт отсутствующий `Role` при sync Standard DocType. Отдельный fixture появляется только при самостоятельном App-owned состоянии Role, которого текущий CORE не требует.
+Frappe создаёт отсутствующую `Role` при синхронизации Standard DocType. Отдельный fixture появляется только при самостоятельном состоянии Role, которое требуется App и которого текущая модель не содержит.
 
 ---
 
 # 39. Контрольная карта S05D
 
 ```text
-[ ] создана Role Rental Operator на dev-site
-[ ] создана Role Rental Manager на dev-site
+[ ] создана Role Rental Operator на Site разработки
+[ ] создана Role Rental Manager на Site разработки
 [ ] обе Role имеют Desk Access
 [ ] Equipment DocPerm соответствует матрице
 [ ] Customer DocPerm соответствует матрице
@@ -1601,24 +1599,24 @@ Frappe создаёт отсутствующий `Role` при sync Standard Doc
 [ ] manager@example.test создан только на Site
 [ ] Operator не имеет System Manager/Rental Manager
 [ ] Manager не имеет System Manager
-[ ] Operator server-side не может create Equipment
-[ ] Operator server-side может read Equipment
-[ ] Operator server-side может create Customer
-[ ] Operator server-side может create/write Rental
-[ ] Operator server-side не может delete Rental
-[ ] Manager server-side имеет полный CRUD
+[ ] Operator на сервере не может create Equipment
+[ ] Operator на сервере может read Equipment
+[ ] Operator на сервере может create Customer
+[ ] Operator на сервере может create/write Rental
+[ ] Operator на сервере не может delete Rental
+[ ] Manager на сервере имеет полный CRUD
 [ ] Desk отражает те же права
 [ ] собственный код не использует ignore_permissions=True
-[ ] обязательная permission model видна в Git
-[ ] runtime Users не попали в Git
-[ ] Git working tree после commit чистый
+[ ] обязательная модель permissions видна в Git
+[ ] Users не попали в Git
+[ ] рабочее дерево Git после commit чистое
 ```
 
 ---
 
-# 40. ГОТОВО
+# 40. Проверка перед S06
 
-S05D принят, если одновременно выполнены четыре уровня проверки.
+Перед переходом дальше должны быть проверены четыре уровня.
 
 ## 1. Модель
 
@@ -1627,13 +1625,13 @@ Rental Operator
 Rental Manager
 ```
 
-существуют как предметные Role.
+существуют как прикладные Role.
 
-DocPerm трёх обычных CORE DocTypes соответствует утверждённой CRUD-матрице.
+DocPerm трёх обычных DocTypes соответствует утверждённой CRUD-матрице.
 
-## 2. Server authorization
+## 2. Серверная авторизация
 
-Реальными server-side операциями доказано:
+Реальными серверными операциями проверено:
 
 ```text
 Operator
@@ -1649,19 +1647,19 @@ Manager
 ✓ CRUD Rental
 ```
 
-## 3. Delivery
+## 3. Воспроизводимость
 
 ```text
-Role names + DocPerm
+имена Role + DocPerm
 → Standard DocType JSON
-→ sync Standard metadata
-→ missing Role создаёт Frappe
+→ синхронизация Standard metadata
+→ отсутствующие Role создаёт Frappe
 
 Users
-→ Site only
+→ только Site
 ```
 
-После clean install не должно требоваться вручную создавать две обязательные Role или заново настраивать default CRUD matrix.
+После чистой установки не должно требоваться вручную создавать две обязательные Role или заново настраивать базовую CRUD-матрицу.
 
 ## 4. Архитектурная граница
 
@@ -1674,7 +1672,7 @@ If Owner
 User Permission
 Share
 permission hooks
-custom ACL
+собственная ACL
 JS-security
 ignore_permissions=True
 Role fixture, дублирующий Standard DocPerm
@@ -1682,19 +1680,19 @@ Role fixture, дублирующий Standard DocPerm
 
 ---
 
-# 41. НЕ ГОТОВО
+# 41. Когда не переходить к S06
 
-S05D не принят, если:
+Сначала исправьте проблему, если:
 
 - права проверены только визуально;
-- тесты выполнялись только под Administrator;
+- проверки выполнялись только под Administrator;
 - Operator фактически может создать Equipment или удалить Rental;
 - Manager не получает заявленный CRUD;
 - `If Owner` включён без предметного требования;
-- права существуют только как локальный override Site;
+- права существуют только как локальное переопределение Site;
 - обязательные Role не воспроизводятся из Standard metadata App;
 - добавлен Role fixture только для имён, уже находящихся в Standard DocPerm;
-- Users/пароли попали в Git;
+- Users или пароли попали в Git;
 - собственный код обходит permission engine через `ignore_permissions=True`;
 - JavaScript используется как единственная защита.
 
@@ -1704,7 +1702,7 @@ S05D не принят, если:
 
 Предметная модель данных не изменилась.
 
-Появилась отдельная authorization model:
+Появилась отдельная модель авторизации:
 
 ```text
 User
