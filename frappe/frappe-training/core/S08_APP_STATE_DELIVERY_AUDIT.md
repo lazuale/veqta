@@ -6,7 +6,6 @@
 модель
 + Controller
 + permissions
-+ Role fixtures
 + tests
 ```
 
@@ -16,7 +15,7 @@
 
 > Для каждого обязательного элемента CORE нужно знать владельца, source of truth и штатный путь, по которому он попадёт на другой Site.
 
-S08 не добавляет новую функцию. Это аудит архитектуры поставки перед финальной чистой установкой S09.
+S08 не добавляет новую функцию. Это проверка архитектуры поставки перед финальной чистой установкой S09.
 
 Связанные документы:
 
@@ -24,13 +23,13 @@ S08 не добавляет новую функцию. Это аудит арх�
 - [`S07_AUTOMATED_CONTRACT_TESTS.md`](S07_AUTOMATED_CONTRACT_TESTS.md);
 - [`../CORE_STAGE_SPECIFICATION.md`](../CORE_STAGE_SPECIFICATION.md);
 - [`../PRACTICUM_ROADMAP.md`](../PRACTICUM_ROADMAP.md);
-- [`../../frappe-architecture-standard/09_DEPLOYMENT_TESTING.md`](../../frappe-architecture-standard/09_DEPLOYMENT_TESTING.md).
+- [`../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md`](../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md).
 
 Первичные источники Frappe:
 
 - https://docs.frappe.io/framework/user/en/guides/deployment/migrations
 - https://docs.frappe.io/framework/user/en/bench/reference/migrate
-- https://docs.frappe.io/framework/user/en/python-api/hooks#fixtures
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/installer.py
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/migrate.py
 
@@ -105,8 +104,8 @@ developer_mode
 | `Rental` | App | `rental.json` | Standard DocType sync при install/migrate |
 | naming / fields / default DocPerm | App | JSON соответствующего Standard DocType | sync metadata/schema |
 | V01/V02/V03 | App | `rental.py` | Python source App |
-| `Rental Operator` | App | `hooks.py` + `fixtures/role.json` | fixture sync |
-| `Rental Manager` | App | `hooks.py` + `fixtures/role.json` | fixture sync |
+| `Rental Operator` | App | role name в Standard DocPerm | `make_module_and_roles()` создаёт missing Role при sync |
+| `Rental Manager` | App | role name в Standard DocPerm | `make_module_and_roles()` создаёт missing Role при sync |
 | automated contracts | App | `test_rental.py` | запускаются Frappe test runner |
 | test Users | Site/test data | database test environment | создаются test case, не fixture |
 | реальные Users | Site | database Site | создаёт администратор Site |
@@ -145,7 +144,7 @@ rental_training
 bench --site rental.localhost run-tests --app rental_training
 ```
 
-На S08 нельзя начинать аудит поставки с уже сломанным приложением.
+На S08 нельзя начинать проверку поставки с уже сломанным приложением.
 
 Проверьте Git:
 
@@ -426,74 +425,79 @@ Python behavior не нужно экспортировать fixture или ду
 
 ---
 
-# 10. Проверить Role fixtures
+# 10. Проверить provisioning Role из Standard DocPerm
 
-Проверьте `hooks.py`:
-
-```bash
-sed -n '1,280p' rental_training/hooks.py
-```
-
-Должен существовать fixture `Role`, ограниченный нашими двумя ролями.
-
-Проверьте файл:
-
-```bash
-test -f rental_training/fixtures/role.json \
-  && echo "OK role fixture" \
-  || echo "MISSING role fixture"
-```
-
-Посмотрите его:
-
-```bash
-sed -n '1,260p' rental_training/fixtures/role.json
-```
-
-В нём должны находиться:
+В S05D имена:
 
 ```text
 Rental Operator
 Rental Manager
 ```
 
-и не должен быть экспортирован случайный набор остальных Role Site.
+были добавлены в `permissions[]` собственных Standard DocTypes.
 
-## Round-trip проверка fixture
-
-Вернитесь в Bench:
+Проверьте source:
 
 ```bash
-cd ~/frappe/rental-training-bench
-bench --site rental.localhost export-fixtures --app rental_training
+cd ~/frappe/rental-training-bench/apps/rental_training
+
+grep -R '"role": "Rental Operator"' \
+  rental_training/rental_training/doctype/equipment \
+  rental_training/rental_training/doctype/customer \
+  rental_training/rental_training/doctype/rental
+
+grep -R '"role": "Rental Manager"' \
+  rental_training/rental_training/doctype/equipment \
+  rental_training/rental_training/doctype/customer \
+  rental_training/rental_training/doctype/rental
 ```
 
-Теперь:
+В Frappe v16.33.0 `make_module_and_roles()` собирает имена ролей из permission rows и создаёт отсутствующие `Role`. Для новой роли Framework задаёт `desk_access = 1`.
+
+При `install-app` сначала выполняется `sync_for()` Standard metadata, а `sync_fixtures()` идёт позже.
+
+Поэтому для текущего CORE source роли выглядит так:
+
+```text
+Standard DocType JSON
+└── permissions[]
+    └── role name
+          ↓
+      sync_for()
+          ↓
+make_module_and_roles()
+          ↓
+missing Role
+```
+
+Проверьте, что этот путь не продублирован отдельным fixture:
 
 ```bash
-git -C apps/rental_training status --short
+grep -n -A20 -B5 'fixtures' rental_training/hooks.py || true
+
+test ! -f rental_training/fixtures/role.json \
+  && echo "OK: no redundant role fixture" \
+  || echo "CHECK: role fixture exists"
 ```
 
-Ожидается чистое дерево.
-
-Если `role.json` изменился, Site и committed source расходятся. Нужно понять, какое состояние принято как продуктовый контракт, затем снова экспортировать и commit нужной версии.
+Если `role.json` существует, не удаляйте файл вслепую: сначала убедитесь, что он не поставляет самостоятельное состояние Role, которого нет в Standard DocPerm. В текущем CORE такого дополнительного требования нет.
 
 ---
 
-# 11. Проверить, что Users не превратились в fixtures
+# 11. Проверить, что Users не стали App-owned конфигурацией
 
-В App не должно быть fixture с учебными Users.
+В App не должно быть source-файла, превращающего учебных Users в обязательную конфигурацию продукта.
 
 Проверьте:
 
 ```bash
 cd ~/frappe/rental-training-bench/apps/rental_training
-find rental_training/fixtures -maxdepth 1 -type f -print | sort
+find rental_training/fixtures -maxdepth 1 -type f -print 2>/dev/null | sort
 ```
 
-Для текущего CORE ожидается только необходимая App-конфигурация, прежде всего Role fixture.
+Наличие каталога `fixtures` само по себе нормально, если App использует его для другой оправданной конфигурации.
 
-Не должно появляться source-файла, превращающего в продукт:
+Но не должно появляться fixture, превращающего в продукт:
 
 ```text
 operator@example.test
@@ -505,8 +509,11 @@ manager@example.test
 Почему:
 
 ```text
-Role = capability model продукта
-User = участник конкретного Site
+Role name в Standard DocPerm
+→ часть permission model App
+
+User
+→ участник конкретного Site
 ```
 
 ---
@@ -736,7 +743,7 @@ install app
 
 Если schema принадлежит Standard DocType, её source — JSON + sync/migrate.
 
-Если обязательная конфигурация является fixture, её source — fixture JSON.
+Если обязательная конфигурация действительно требует fixture, её source — fixture JSON.
 
 Если старые данные надо преобразовать — кандидат patch.
 
@@ -744,7 +751,7 @@ install app
 
 ---
 
-# 18. Составить собственный audit manifest
+# 18. Составить собственную карту поставки
 
 Перед S09 ученик должен заполнить таблицу фактическими путями своего App.
 
@@ -756,7 +763,7 @@ install app
 | Rental Item | App | `rental_item.json` | Child DocType/table/meta | [ ] |
 | Rental | App | `rental.json` | DocType/table/meta | [ ] |
 | V01/V02/V03 | App | `rental.py` | Document lifecycle | [ ] |
-| Operator/Manager roles | App | `hooks.py` + `fixtures/role.json` | Role records | [ ] |
+| Operator/Manager roles | App | role names в Standard DocType JSON | Role records через sync | [ ] |
 | CRUD defaults | App | DocType JSON | permission engine | [ ] |
 | automated contracts | App | `test_rental.py` | test runner | [ ] |
 | Users | Site | database | User | [ ] |
@@ -789,19 +796,23 @@ for file in \
   rental_training/rental_training/doctype/rental_item/rental_item.json \
   rental_training/rental_training/doctype/rental/rental.json \
   rental_training/rental_training/doctype/rental/rental.py \
-  rental_training/rental_training/doctype/rental/test_rental.py \
-  rental_training/hooks.py \
-  rental_training/fixtures/role.json
+  rental_training/rental_training/doctype/rental/test_rental.py
 do
   test -f "apps/rental_training/$file" \
     && echo "OK      $file" \
     || echo "MISSING $file"
 done
 
-printf '\n=== FIXTURE ROUND TRIP ===\n'
-bench --site rental.localhost export-fixtures --app rental_training
+printf '\n=== ROLE SOURCE ===\n'
+grep -R '"role": "Rental Operator"' \
+  apps/rental_training/rental_training/rental_training/doctype/{equipment,customer,rental} || true
+grep -R '"role": "Rental Manager"' \
+  apps/rental_training/rental_training/rental_training/doctype/{equipment,customer,rental} || true
 
-git -C apps/rental_training status --short
+printf '\n=== REDUNDANT ROLE FIXTURE ===\n'
+test ! -f apps/rental_training/rental_training/fixtures/role.json \
+  && echo "OK: no redundant role fixture" \
+  || echo "CHECK: role fixture exists"
 
 printf '\n=== MIGRATE ===\n'
 bench --site rental.localhost migrate
@@ -817,10 +828,11 @@ git -C apps/rental_training status --short
 
 ```text
 все обязательные файлы → OK
-fixture round-trip      → Git clean
-migrate                 → success
-tests                   → green
-final Git               → clean
+role names в DocPerm     → найдены
+лишний Role fixture      → отсутствует
+migrate                  → success
+tests                    → green
+final Git                → clean
 ```
 
 ---
@@ -834,12 +846,12 @@ final Git               → clean
 [ ] четыре Standard DocTypes имеют JSON в App
 [ ] naming/fields/default permissions находятся в Standard metadata
 [ ] Rental Controller V01/V02/V03 tracked by Git
-[ ] Role fixtures ограничены Rental Operator/Rental Manager
+[ ] Rental Operator/Rental Manager находятся в Standard DocPerm
+[ ] отдельный Role fixture не дублирует эти имена
 [ ] Users не экспортированы как fixtures
 [ ] business data не экспортированы как fixtures
 [ ] developer_mode/allow_tests остаются Site-local
 [ ] нет скрытых обязательных Custom Field / Property Setter / Custom DocPerm
-[ ] fixture round-trip не оставляет необъяснённый diff
 [ ] Bench services доступны перед migrate
 [ ] bench migrate проходит
 [ ] tests после migrate проходят
@@ -857,10 +869,10 @@ final Git               → clean
 - обязательное поле существует только на dev-site;
 - обязательная Role после install должна создаваться вручную;
 - default permissions держатся только на локальном override;
+- добавлен Role fixture только для имён, уже находящихся в Standard DocPerm;
 - `fixture` содержит Users или обычные Rentals без продуктового требования;
 - runtime records считаются частью source App;
 - `site_config.json` копируется как способ установки продукта;
-- после `export-fixtures` появляется необъяснённый diff;
 - `migrate` требует ручного SQL;
 - tests после migrate падают;
 - существует обязательная настройка, для которой нельзя назвать owner/source/delivery path;
@@ -898,8 +910,6 @@ final Git               → clean
 modules.txt
 DocType JSON
 Python Controller
-hooks.py
-fixtures
 Frappe-aware tests
 ```
 
