@@ -80,6 +80,10 @@ Amend permission
 
 Это разные обязанности.
 
+В Desk v16.33.0 условие `can_amend()` проверяет `docstatus == 2` и `frm.perm[0].amend`; `Only Allow Edit For` в это условие не входит.
+
+Источник: [`frappe/public/js/frappe/form/toolbar.js` v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/form/toolbar.js).
+
 Именно поэтому на этом этапе меняется DocPerm `Amend`, а не state edit-policy как будто отменённый факт снова становится редактируемым.
 
 ## 4. Пройти реальный Desk scenario
