@@ -253,11 +253,11 @@ bench --site rental.localhost console
 Выполните:
 
 ```python
-core_doctypes = ["Equipment", "Customer", "Rental", "Rental Item"]
+app_doctypes = ["Equipment", "Customer", "Rental", "Rental Item"]
 
 frappe.get_all(
     "DocType",
-    filters={"name": ["in", core_doctypes]},
+    filters={"name": ["in", app_doctypes]},
     fields=["name", "module", "custom", "istable"],
     order_by="name asc",
 )
