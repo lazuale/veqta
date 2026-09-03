@@ -12,6 +12,6 @@ VEQTA Learn — практические учебные маршруты по р
 
 ## Жизненный цикл Document
 
-**[Жизненный цикл Document на Frappe](document-lifecycle/README.md)** — второй практикум о том, как обычный `Document` и предметный `status` превращаются в управляемый `Workflow`, а затем в транзакционный lifecycle с `Submit`, `Cancel` и `Amend`.
+**[Жизненный цикл Document на Frappe](document-lifecycle/README.md)** — второй практикум о том, как обычный `Document` и предметный `status` превращаются в управляемый `Workflow`, а затем в системный жизненный цикл с `Submit`, `Cancel` и `Amend`.
 
-Практикум использует отдельный учебный `Purchase Request` и предполагает, что базовые границы Bench / App / Site, Standard DocType, permissions и tests уже знакомы по первому маршруту.
+Практикум использует отдельный учебный `Purchase Request` и предполагает, что базовые границы Bench / App / Site, Standard DocType, permissions и автоматические тесты уже знакомы по первому маршруту.
