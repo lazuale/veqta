@@ -47,7 +47,7 @@ Python-логику переходов
 - [`../APPLICATION_MODEL.md`](../APPLICATION_MODEL.md);
 - [`../REQUIREMENTS.md`](../REQUIREMENTS.md);
 - [`../ROADMAP.md`](../ROADMAP.md);
-- [`../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md`](../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md).
+- [`../../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md`](../../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md).
 
 ---
 
