@@ -614,6 +614,17 @@ allow_tests
 
 # 15. Выполнить migrate как round-trip source → Site
 
+В development Bench `migrate` проверяет доступность необходимых сервисов. Если `bench start` уже работает в отдельном терминале, ничего делать не нужно.
+
+Если процессы Bench не запущены, откройте отдельный терминал и выполните:
+
+```bash
+cd ~/frappe/rental-training-bench
+bench start
+```
+
+Оставьте этот терминал открытым на время migrate и последующих проверок. Это инфраструктура dev-окружения, а не скрытая настройка `rental_training`.
+
 Теперь запускаем штатную синхронизацию уже существующего Site:
 
 ```bash
@@ -758,6 +769,8 @@ install app
 
 # 19. Контрольная последовательность S08
 
+Перед запуском блока ниже `bench start` должен работать в отдельном терминале, если процессы Bench не были запущены ранее.
+
 Из Bench:
 
 ```bash
@@ -827,6 +840,7 @@ final Git               → clean
 [ ] developer_mode/allow_tests остаются Site-local
 [ ] нет скрытых обязательных Custom Field / Property Setter / Custom DocPerm
 [ ] fixture round-trip не оставляет необъяснённый diff
+[ ] Bench services доступны перед migrate
 [ ] bench migrate проходит
 [ ] tests после migrate проходят
 [ ] App Git остаётся clean
