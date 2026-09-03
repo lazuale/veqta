@@ -15,7 +15,9 @@
 - [`../../../frappe-architecture-standard/02_DATA_MODEL.md`](../../../frappe-architecture-standard/02_DATA_MODEL.md);
 - [`../../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md`](../../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md).
 
-## 1. Проверить входное состояние
+---
+
+# 1. Проверить входное состояние
 
 ```bash
 cd ~/frappe/rental-training-bench
@@ -37,7 +39,9 @@ purchase_lifecycle_training
 developer_mode  1
 ```
 
-## 2. Создать Standard DocType
+---
+
+# 2. Создать Standard DocType
 
 Откройте Desk:
 
@@ -60,9 +64,11 @@ Is Submittable  : выключено
 
 `Is Submittable` сейчас выключен намеренно. Пока нет требования фиксировать окончательное согласование через Submit, системный `docstatus` не нужен как часть процесса.
 
-## 3. Добавить поля
+---
 
-### Subject
+# 3. Добавить поля
+
+## Subject
 
 ```text
 Label        : Subject
@@ -72,7 +78,7 @@ Mandatory    : yes
 In List View : yes
 ```
 
-### Description
+## Description
 
 ```text
 Label      : Description
@@ -81,7 +87,7 @@ Type       : Small Text
 Mandatory  : no
 ```
 
-### Requested Amount
+## Requested Amount
 
 ```text
 Label        : Requested Amount
@@ -91,7 +97,7 @@ Mandatory    : yes
 In List View : yes
 ```
 
-### Needed By
+## Needed By
 
 ```text
 Label        : Needed By
@@ -101,7 +107,7 @@ Mandatory    : yes
 In List View : yes
 ```
 
-### Status
+## Status
 
 ```text
 Label        : Status
@@ -133,7 +139,9 @@ Approval Log
 requester
 ```
 
-## 4. Почему requester не нужен
+---
+
+# 4. Почему requester не нужен
 
 Каждый Frappe Document уже имеет системное поле `owner`.
 
@@ -147,7 +155,9 @@ requester = owner
 
 Если позднее понадобится создавать заявки от имени другого сотрудника, это будет новое требование и модель придётся пересмотреть.
 
-## 5. Настроить naming
+---
+
+# 5. Настроить naming
 
 В секции Naming:
 
@@ -174,7 +184,9 @@ Show Title in Link Fields : yes
 
 Официальное описание naming: https://docs.frappe.io/framework/user/en/basics/doctypes/naming
 
-## 6. Сохранить DocType и проверить исходники App
+---
+
+# 6. Сохранить DocType и проверить исходники App
 
 После Save вернитесь в терминал:
 
@@ -194,7 +206,9 @@ test -f \
 
 Standard DocType должен появиться в исходниках App, а не существовать только в базе dev Site.
 
-## 7. Создать контрольную заявку
+---
+
+# 7. Создать контрольную заявку
 
 Через Desk создайте:
 
@@ -238,7 +252,9 @@ docstatus = 0
 exit()
 ```
 
-## 8. Увидеть важную границу
+---
+
+# 8. Увидеть важную границу
 
 Сейчас у нас есть несколько значений состояния, но это ещё не основание для Workflow.
 
@@ -265,5 +281,11 @@ status           = обычное предметное состояние
 docstatus        = 0
 Workflow         = отсутствует
 ```
+
+---
+
+# Результат
+
+После S01 ученик должен видеть разницу между обычным полем состояния и механизмом Workflow: хранить `status` можно уже сейчас, а ограничивать переходы пока не требуется.
 
 Следующий этап: [`S02_PERMISSIONS_AND_STATUS_LIMIT.md`](S02_PERMISSIONS_AND_STATUS_LIMIT.md).
