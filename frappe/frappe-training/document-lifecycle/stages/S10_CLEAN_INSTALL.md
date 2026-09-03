@@ -291,7 +291,7 @@ senior@example.test    → PLT Senior Approver
 
 Затем пройдите минимум два маршрута.
 
-### Маленькая заявка
+## Маленькая заявка
 
 ```text
 Requester создаёт заявку на 500
@@ -300,7 +300,7 @@ Requester создаёт заявку на 500
 → PLT Approved / docstatus 1
 ```
 
-### Большая заявка
+## Большая заявка
 
 ```text
 Requester создаёт заявку на 1500
