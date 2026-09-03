@@ -13,7 +13,9 @@ docstatus = 1
 
 Для этого Frappe уже имеет системную операцию Cancel и `docstatus = 2`.
 
-## 1. Добавить Cancelled в status
+---
+
+# 1. Добавить Cancelled в status
 
 В поле `status` добавьте option:
 
@@ -38,7 +40,9 @@ PLT Cancelled
 PLT Cancelled
 ```
 
-## 2. Создать отдельное действие Cancel
+---
+
+# 2. Создать отдельное действие Cancel
 
 Создайте `Workflow Action Master`:
 
@@ -48,7 +52,9 @@ PLT Cancel Request
 
 Мы не переиспользуем `Reject`: отклонение Draft-заявки и отмена уже Submitted Document имеют разный смысл.
 
-## 3. Добавить состояние Cancelled в Workflow
+---
+
+# 3. Добавить состояние Cancelled в Workflow
 
 В `PLT Purchase Request Approval` добавьте:
 
@@ -58,7 +64,9 @@ PLT Cancel Request
 
 `Only Allow Edit For` является обязательным полем строки состояния Workflow. Для `docstatus = 2` оно не делает отменённый Document снова редактируемым и не выдаёт право Amend. Право Amend появится отдельно на S07B.
 
-## 4. Добавить переход Approved → Cancelled
+---
+
+# 4. Добавить переход Approved → Cancelled
 
 ```text
 State               : PLT Approved
@@ -71,7 +79,9 @@ Condition           : пусто
 
 Здесь `Allow Self Approval = yes`, потому что текущее правило запрещает одобрять собственную заявку, но не запрещает отменять её после согласования. Не переносим ограничение одного действия на другое без отдельного требования.
 
-## 5. Выдать отдельный Cancel permission
+---
+
+# 5. Выдать отдельный Cancel permission
 
 В Standard DocPerm:
 
@@ -83,7 +93,9 @@ PLT Senior Approver  Cancel no
 
 Senior может окончательно согласовать большую заявку, но из этого не следует право отменять любые Submitted Purchase Requests.
 
-## 6. Проверить настоящий Cancel
+---
+
+# 6. Проверить настоящий Cancel
 
 Возьмите любую Submitted заявку:
 
@@ -116,7 +128,9 @@ next docstatus    = 2
 
 Источник: [`apply_workflow()`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/workflow.py).
 
-## 7. Почему status.Allow on Submit всё ещё не нужен
+---
+
+# 7. Почему status.Allow on Submit всё ещё не нужен
 
 Оставьте:
 
@@ -130,7 +144,9 @@ status.Allow on Submit = no
 
 Источник: [`Workflow.create_custom_field_for_workflow_state()`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/workflow/doctype/workflow/workflow.py).
 
-## 8. Проверить отрицательные случаи
+---
+
+# 8. Проверить отрицательные случаи
 
 Под Requester не должно быть права Cancel.
 
@@ -140,7 +156,9 @@ Draft-заявка не должна переходить прямо в Cancelle
 
 Источник: [`Workflow.validate_docstatus()`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/workflow/doctype/workflow/workflow.py).
 
-## Результат
+---
+
+# Результат
 
 После S07A:
 
