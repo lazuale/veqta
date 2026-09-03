@@ -56,9 +56,7 @@ def validate_status_transition(self):
     )
 ```
 
-### Важное уточнение
-
-На этом этапе защита закрывается полностью:
+Итоговая защита:
 
 ```text
 новый Rental
@@ -71,7 +69,7 @@ Active → Returned
 → только return_equipment()
 ```
 
-Это означает, что старые тестовые helpers, которые создавали `Active` или `Returned` Rental напрямую через `insert()`, позже нужно привести к новому бизнес-контракту. Это будет сделано на S08.
+Старые test helpers, которые создавали `Active` или `Returned` напрямую через `insert()`, на S08 будут приведены к новому бизнес-контракту.
 
 ---
 
@@ -80,10 +78,10 @@ Active → Returned
 Добавьте в Controller:
 
 ```python
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def return_equipment(self):
-    self.check_permission("write")
     self.reload()
+    self.check_permission("write")
 
     if self.status != "Active":
         frappe.throw(_("Only an Active Rental can be returned."))
@@ -97,11 +95,19 @@ def return_equipment(self):
     return {"status": self.status}
 ```
 
+Как и `issue()`, команда:
+
+```text
+POST-only
+перечитывает persisted Rental
+проверяет write уже по сохранённому Document
+```
+
 Структура намеренно почти совпадает с `issue()`.
 
 Пока не создавайте отдельный Service или command framework только ради двух коротких методов.
 
-Общая часть уже вынесена ровно там, где появилась настоящая общая ответственность:
+Общая часть уже вынесена там, где появилась настоящая общая ответственность:
 
 ```text
 create_equipment_movements()
@@ -168,7 +174,7 @@ frappe.ui.form.on("Rental", {
 });
 ```
 
-UI теперь отражает предметное состояние:
+UI отражает предметное состояние:
 
 ```text
 Planned  → Issue
@@ -176,13 +182,13 @@ Active   → Return
 Returned → нет transition button
 ```
 
-Но серверные методы всё равно сами проверяют текущее состояние.
+Но серверные методы сами проверяют состояние и permissions.
 
 ---
 
 ## 5. Проверить прямой Active → Returned
 
-Возьмите любой Active Rental, например `success` из S00/S02.
+Возьмите Active Rental `success` из S02.
 
 В console:
 
@@ -198,16 +204,16 @@ rental.save()
 Rental status must be changed through the corresponding operation.
 ```
 
-Проверьте persisted state:
-
-```python
-frappe.db.get_value("Rental", rental.name, "status")
-```
-
-Он должен оставаться:
+Persisted state должен оставаться:
 
 ```text
 Active
+```
+
+Проверьте:
+
+```python
+frappe.db.get_value("Rental", rental.name, "status")
 ```
 
 ---
@@ -270,9 +276,7 @@ Return
 
 ## 8. Проверить повторный Return
 
-После успешного возврата снова вызовите method через console или Form.
-
-Form уже не показывает кнопку Return.
+После успешного возврата Form уже не показывает кнопку Return.
 
 Серверный вызов также должен отказать из-за:
 
@@ -280,27 +284,27 @@ Form уже не показывает кнопку Return.
 status = Returned
 ```
 
-То есть UI и сервер согласованы, но сервер остаётся настоящей защитой.
+UI и сервер согласованы, но сервер остаётся настоящей защитой.
 
 ---
 
 ## 9. Проверить повторный Issue
 
-На том же Returned Rental вызов `issue()` также должен быть запрещён:
+На том же Returned Rental вызов `issue()` должен быть запрещён:
 
 ```text
 Only a Planned Rental can be issued.
 ```
 
-Для текущего сценария этого достаточно, чтобы повторный request не создавал второй набор Issue Movement после уже завершённой операции.
+Для текущего сценария этого достаточно, чтобы повторный request не создавал второй набор Issue Movement после завершённой операции.
 
 Отдельная deduplication infrastructure сейчас не нужна.
 
 ---
 
-## 10. Проверить новый Rental с неправильным начальным status
+## 10. Повторно проверить неправильное начальное состояние
 
-Откройте console под Administrator и попробуйте:
+Откройте console под Administrator и попробуйте создать новый Rental сразу как `Active`:
 
 ```python
 frappe.get_doc(
@@ -321,7 +325,7 @@ frappe.get_doc(
 A new Rental must start as Planned.
 ```
 
-Это закрывает серверную дыру, при которой UI был read-only, но новый Document можно было бы сразу вставить как `Active` без Issue Movement.
+Это подтверждает финальный серверный контракт и после добавления Return.
 
 ---
 
@@ -343,9 +347,9 @@ rental.js
 Посмотрите diff и убедитесь, что:
 
 ```text
-новый Rental обязан стартовать Planned
 Active → Returned разрешён только через return
-return_equipment() проверяет write
+return_equipment() POST-only
+return_equipment() проверяет write на persisted Rental
 return_equipment() не делает commit
 кнопка Return не содержит бизнес-логики
 ```
@@ -372,16 +376,16 @@ git status --short
 
 ## 13. Контрольная точка S06
 
-К этому моменту рабочий контракт Rental:
+Рабочий контракт Rental:
 
 ```text
 новый Rental = Planned
 
-issue()
+issue() [POST]
 Planned → Active
 + Issue Movement × Equipment
 
-return_equipment()
+return_equipment() [POST]
 Active → Returned
 + Return Movement × Equipment
 ```
