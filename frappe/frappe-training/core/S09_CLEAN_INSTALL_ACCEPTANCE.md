@@ -17,7 +17,7 @@ S09 больше ничего не проектирует.
 - [`S05D_ROLES_AND_PERMISSIONS.md`](S05D_ROLES_AND_PERMISSIONS.md);
 - [`../CORE_STAGE_SPECIFICATION.md`](../CORE_STAGE_SPECIFICATION.md);
 - [`../PRACTICUM_ROADMAP.md`](../PRACTICUM_ROADMAP.md);
-- [`../../frappe-architecture-standard/09_DEPLOYMENT_TESTING.md`](../../frappe-architecture-standard/09_DEPLOYMENT_TESTING.md).
+- [`../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md`](../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md).
 
 Первичные источники Frappe:
 
@@ -25,6 +25,7 @@ S09 больше ничего не проектирует.
 - https://docs.frappe.io/framework/user/en/bench/reference/new-site
 - https://docs.frappe.io/framework/user/en/bench/reference/migrate
 - https://docs.frappe.io/framework/user/en/testing
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/commands/site.py
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/installer.py
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/migrate.py
@@ -39,7 +40,7 @@ S09 больше ничего не проектирует.
 rental.localhost
 ```
 
-Там мы руками создавали DocTypes, меняли metadata, экспортировали fixtures и писали Controller.
+Там мы руками создавали DocTypes, меняли metadata и писали Controller.
 
 Поэтому факт:
 
@@ -355,7 +356,7 @@ rental_training
 → синхронизирует Standard metadata App
 → регистрирует App на Site
 → синхронизирует jobs
-→ синхронизирует fixtures
+→ синхронизирует fixtures, если App их использует
 → синхронизирует exported customizations
 ```
 
@@ -367,13 +368,16 @@ modules.txt
 
 DocType JSON
 → DocType/schema/default permissions
-
-fixtures/role.json
-→ Rental Operator / Rental Manager
+→ role names внутри permissions[]
+→ missing Role создаются make_module_and_roles()
 
 Python source
 → Controller behavior
 ```
+
+В Frappe v16.33.0 `install_app()` выполняет `sync_for()` до `sync_fixtures()`. При sync Standard DocType `make_module_and_roles()` собирает роли из permission rows, создаёт отсутствующие `Role` и задаёт им `desk_access = 1`.
+
+Поэтому отдельный `fixtures/role.json` для `Rental Operator` и `Rental Manager` текущему CORE не нужен.
 
 Никаких ручных действий между этими пунктами быть не должно.
 
@@ -419,7 +423,7 @@ Rental      → Rental Training / Standard / normal
 Rental Item → Rental Training / Standard / Child
 ```
 
-## 8.3. Role fixtures
+## 8.3. Role из Standard DocPerm
 
 ```python
 for role in ["Rental Operator", "Rental Manager"]:
@@ -427,6 +431,8 @@ for role in ["Rental Operator", "Rental Manager"]:
 ```
 
 Обе Role должны существовать **до того, как мы создадим хоть одного User**.
+
+Они должны появиться как следствие синхронизации Standard DocTypes, в `permissions[]` которых находятся эти role names.
 
 Если приходится открывать `Role` и создавать их вручную, S09 провален.
 
@@ -519,7 +525,7 @@ bench start
 Bench services
 → инфраструктура dev-окружения
 
-App metadata/fixtures/Controller
+App metadata/Controller
 → продуктовый source
 ```
 
@@ -674,7 +680,7 @@ Desk уже умеет Form/List
 
 # 15. Создать двух Site-local Users
 
-Role уже должны быть на Site из fixture.
+Role уже должны быть на Site после синхронизации Standard DocPerm.
 
 Теперь создаются **только участники этого Site**.
 
@@ -1061,7 +1067,7 @@ tests проходят только на пустой БД
 | `install-app rental_training` | success |
 | Module | появился из App |
 | 4 Standard DocTypes | появились из JSON |
-| Role Operator/Manager | появились из fixture |
+| Role Operator/Manager | появились из Standard DocPerm при sync |
 | default permissions | соответствуют JSON |
 | hidden Custom Field/Property Setter/Custom DocPerm | отсутствуют |
 | Bench services перед migrate | доступны |
@@ -1092,8 +1098,9 @@ CORE считается завершённым, если одновременн�
 [ ] Rental Item появился из App
 [ ] Rental появился из App
 [ ] naming/fields/default permissions соответствуют source metadata
-[ ] Rental Operator появился из fixture
-[ ] Rental Manager появился из fixture
+[ ] Rental Operator появился из Standard DocPerm sync
+[ ] Rental Manager появился из Standard DocPerm sync
+[ ] отдельный Role fixture для этих имён не требуется
 [ ] скрытых обязательных Custom Field/Property Setter/Custom DocPerm нет
 [ ] Bench services доступны перед migrate
 [ ] bench migrate проходит
@@ -1129,7 +1136,8 @@ CORE не принимается, если хотя бы одно обязате
 
 - tests проходят только на старом `rental.localhost`;
 - новый Site требует локальный Server Script для V01/V02/V03;
-- Role fixture не восстанавливается;
+- роли не восстанавливаются из Standard DocPerm sync;
+- добавлен Role fixture только для имён, уже находящихся в Standard DocPerm;
 - default permissions зависят от Site override;
 - App source меняется от обычной работы пользователей;
 - clean install работает только при незакоммиченных файлах разработчика.
@@ -1182,7 +1190,6 @@ Table MultiSelect
 server validation
 cross-document invariant
 Role + DocType Permissions
-fixtures
 migrate
 Frappe-aware tests
 clean install
