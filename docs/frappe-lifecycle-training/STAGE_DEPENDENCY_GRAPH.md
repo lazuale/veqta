@@ -275,7 +275,7 @@ Rejected
 
 Покрывает `R12`.
 
-Требует, чтобы final approval уже имел определённый маршрут. Поэтому минимальное основание:
+Требует:
 
 ```text
 P05 базовый Workflow
@@ -283,7 +283,7 @@ P05 базовый Workflow
 P07 оба final approval path
 ```
 
-Теперь появляется новая ответственность:
+Новая ответственность:
 
 ```text
 окончательно согласованный Document
@@ -412,6 +412,18 @@ Senior Purchase Approver → Amend no
 
 У Requester уже есть `Create = yes` из `P03`.
 
+`Amend` является стандартным permission type Frappe и в Desk описан как право создать amended copy cancelled Document. Но CORE не выдаёт сам permission bit за полное доказательство серверной невозможности вручную сконструировать иной Document path.
+
+Поэтому доказательство разделяется:
+
+```text
+permission contract
+→ frappe.has_permission(..., "amend") / role permissions
+
+native user scenario
+→ реальный Desk Amend
+```
+
 Ожидаемый native path:
 
 ```text
@@ -526,7 +538,7 @@ Rejected docstatus 0 + resubmit
 Approved docstatus 1
 Submit DocPerm
 Cancel DocPerm
-Amend DocPerm
+Amend permission matrix
 least-privilege split между Requester / Approver / Senior
 Cancelled docstatus 2
 illegal transitions
@@ -534,12 +546,12 @@ single Standard status field
 mandatory configuration presence
 ```
 
-Observed/UI checks не маскируются под server contracts:
+Observed/UI checks отдельно:
 
 ```text
 Only Allow Edit For presentation
 Workflow Action presentation
-Amend Desk path
+Requester Amend Desk path
 ```
 
 ---
@@ -582,8 +594,6 @@ P14 automated contracts green
 
 # 3. Граф зависимостей
 
-Сжатый граф:
-
 ```text
 P00 App/Site prerequisite
   ↓
@@ -609,25 +619,15 @@ P05 base Workflow + one Standard state field
              P11 Cancelled + Cancel DocPerm
                   ↓
              P12 Amend responsibility + Amend DocPerm
-
-P03 ───────┐
-P07 ───────┤
-P11 ───────┤
-P12 ───────┼────→ P13 App-owned ordered delivery
-            │
-P05 ───────┐│
-P07 ───────┤│
-P08 ───────┤│
-P09 ───────┤├────→ P14 automated contracts
-P10 ───────┤│
-P11 ───────┤│
-P12 ───────┤│
-P13 ───────┘│
-             │
-P12 ───────┐ │
-P13 ───────┼─┴──→ P15 clean Site acceptance
-P14 ───────┘
+                  ↓
+             P13 App-owned ordered delivery
+                  ↓
+             P14 automated contracts
+                  ↓
+             P15 clean Site acceptance
 ```
+
+В реальности `P06`, `P08`, `P09` являются параллельными обязательными ветками после `P05`, а `P14` собирает их обратно. Линейный хвост `P10→P15` показан компактно только для основного transactional path.
 
 ---
 
@@ -660,7 +660,7 @@ P14 ───────┘
 | P09 | P14 | Tests проверяют reject/resubmit |
 | P10 | P14 | Tests проверяют submit semantics/permission |
 | P11 | P14 | Tests проверяют cancel semantics/permission |
-| P12 | P14 | Tests проверяют amend permission boundary |
+| P12 | P14 | Tests проверяют amend permission matrix |
 | P13 | P14 | Tests должны работать на App-owned mandatory config |
 | P12 | P15 | Финальная приёмка включает native Amend observation |
 | P13 | P15 | Clean Site должен воспроизвести config из App |
@@ -775,13 +775,14 @@ D04 динамический approval route
 9. P11 впервые вводит Cancelled и только необходимый Cancel DocPerm?
 10. Senior не получает Cancel без требования?
 11. P12 впервые вводит Amend responsibility и Amend DocPerm Requester?
-12. Cancel и Amend принадлежат разным явно принятым обязанностям?
-13. P12 не предполагает Amend semantics без наблюдения?
-14. P13 учитывает fixture dependency order и глобальность Workflow State names?
-15. P14 разделяет server contracts и UI/observed checks?
-16. P15 зависит только от обязательного CORE, а не от NEXT?
-17. Ни один GATE не превратился в обязательный этап без нового требования?
-18. Граф описывает зависимости результатов, а не желаемый порядок лекций?
+12. Amend permission bit не выдаётся за более сильную гарантию, чем доказано Frappe?
+13. Cancel и Amend принадлежат разным явно принятым обязанностям?
+14. P12 проверяет native Amend через реальный user/Desk scenario?
+15. P13 учитывает fixture dependency order и глобальность Workflow State names?
+16. P14 разделяет server contracts и UI/observed checks?
+17. P15 зависит только от обязательного CORE, а не от NEXT?
+18. Ни один GATE не превратился в обязательный этап без нового требования?
+19. Граф описывает зависимости результатов, а не желаемый порядок лекций?
 ```
 
 Если любой ответ отрицательный, сначала исправляется граф. Roadmap строится только после этого gate.
