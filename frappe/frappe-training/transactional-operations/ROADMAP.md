@@ -7,7 +7,7 @@
   ↓
 Equipment Movement
   ↓
-явная команда issue()
+явная POST-команда issue()
   ↓
 Rental + несколько Movement
   ↓
@@ -19,7 +19,7 @@ rollback
   ↓
 пойманное исключение как антипример
   ↓
-return_equipment()
+POST-команда return_equipment()
   ↓
 Document API vs set_value
   ↓
@@ -60,7 +60,7 @@ Equipment Movement
 └── movement_at   → Datetime
 ```
 
-`Equipment Movement` — самостоятельный журнал.
+`Equipment Movement` — самостоятельный system-generated журнал.
 
 Permissions:
 
@@ -77,13 +77,15 @@ Rental Operator → без прямого доступа
 
 > Выдать Rental и зарегистрировать Issue Movement для каждого Equipment одной бизнес-операцией.
 
-На `Rental` появляется whitelisted controller method:
+На `Rental` появляется POST-only controller method:
 
 ```python
-issue()
+@frappe.whitelist(methods=["POST"])
+def issue(self):
+    ...
 ```
 
-С этого же этапа серверный контракт становится таким:
+С этого же этапа серверный контракт:
 
 ```text
 новый Rental → только Planned
@@ -93,8 +95,8 @@ Planned → Active → только issue()
 Команда:
 
 ```text
-проверяет write permission текущего пользователя
 перечитывает persisted Rental
+проверяет write permission текущего пользователя
 проверяет status = Planned
 разрешает внутренний переход Planned → Active
 сохраняет Rental через Document API
@@ -102,11 +104,11 @@ Planned → Active → только issue()
 не вызывает frappe.db.commit()
 ```
 
-Movement создаётся внутренне через `insert(ignore_permissions=True)` только после `self.check_permission("write")` на Rental.
+Movement создаётся внутренне через `insert(ignore_permissions=True)` только после проверки `write` на persisted Rental.
 
 `status` становится read-only в обычной Form, а Controller защищает и начальное состояние, и прямой переход на сервере.
 
-В `rental.js` появляется тонкая кнопка **Issue**, вызывающая:
+`rental.js` только вызывает:
 
 ```javascript
 frm.call("issue")
@@ -116,7 +118,7 @@ frm.call("issue")
 
 После создания первого Issue Movement временно добавить контролируемое исключение.
 
-Ожидаемый результат неуспешного request:
+Ожидаемый результат неуспешного POST request:
 
 ```text
 Rental.status = Planned
@@ -137,7 +139,7 @@ frappe.db.commit()
 
 после части записей, а затем вызвать исключение.
 
-Теперь rollback request уже не отменяет ранее зафиксированную часть.
+Rollback request уже не отменяет ранее зафиксированную часть.
 
 Наблюдаемое состояние:
 
@@ -156,7 +158,6 @@ Issue Movement = 1 из N
 try:
     ...
 except Exception:
-    frappe.log_error()
     return {"ok": False}
 ```
 
@@ -166,10 +167,12 @@ Request завершается без необработанного исклю�
 
 ### S06 — добавить атомарную команду Return
 
-Добавляется:
+Добавляется POST-only method:
 
 ```python
-return_equipment()
+@frappe.whitelist(methods=["POST"])
+def return_equipment(self):
+    ...
 ```
 
 Итоговый серверный контракт status:
@@ -180,13 +183,21 @@ Planned → Active → только issue()
 Active → Returned → только return_equipment()
 ```
 
-Return снова использует Document API, создаёт Movement и не делает ручной commit.
+Return, как и Issue:
+
+```text
+перечитывает persisted Rental
+проверяет write
+меняет состояние через Document API
+создаёт полный набор Movement
+не делает ручной commit
+```
 
 В `rental.js` появляется кнопка **Return** только для `Active`.
 
 ### S07 — сравнить Document API и прямое изменение БД
 
-Обычный:
+Обычный путь:
 
 ```python
 rental.status = "Active"
@@ -195,7 +206,7 @@ rental.save()
 
 проходит Controller и отклоняет прямой переход.
 
-Технический:
+Технический путь:
 
 ```python
 frappe.db.set_value(
@@ -266,7 +277,7 @@ Movement не экспортируются как fixtures.
 Equipment Movement
 его default permissions
 Rental с защищённым status
-controller methods issue / return_equipment
+POST-only controller methods issue / return_equipment
 Form Script
 tests source
 ```
