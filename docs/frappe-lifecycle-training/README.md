@@ -1,6 +1,6 @@
 # Второй учебный практикум Frappe — lifecycle
 
-Статус: **архитектурная база и roadmap подготовлены; executable specification ещё не создана**.
+Статус: **архитектурная база и roadmap прошли аудит; executable specification ещё не создана**.
 
 Практикум изучает управляемый lifecycle собственного `Purchase Request`:
 
@@ -22,13 +22,14 @@ plain Document
 
 ## Читать в таком порядке
 
-1. [`ARCHITECTURE_CORRECTIONS.md`](ARCHITECTURE_CORRECTIONS.md) — обязательная текущая коррекция; имеет приоритет над отменённой формулировкой про `status.Allow on Submit` в ранних архитектурных слоях.
+1. [`ARCHITECTURE_CORRECTIONS.md`](ARCHITECTURE_CORRECTIONS.md) — обязательная архитектурная коррекция; имеет приоритет над отменённой формулировкой про `status.Allow on Submit` в ранних слоях.
 2. [`ARCHITECTURE_PASSPORT.md`](ARCHITECTURE_PASSPORT.md) — предметная и архитектурная граница практикума.
 3. [`REQUIREMENTS_MATRIX.md`](REQUIREMENTS_MATRIX.md) — требования `R01–R17`, NEXT и GATE.
 4. [`STAGE_DEPENDENCY_GRAPH.md`](STAGE_DEPENDENCY_GRAPH.md) — реальные зависимости `P00–P15`.
 5. [`PRACTICUM_ROADMAP.md`](PRACTICUM_ROADMAP.md) — практический маршрут `S00–S10`.
+6. [`ROADMAP_AUDIT.md`](ROADMAP_AUDIT.md) — обязательный gate после злого аудита roadmap; его точечные corrections имеют приоритет до финальной консолидации документов.
 
-Следующий слой после отдельного аудита roadmap:
+Следующий слой создаётся только из **всех шести** документов выше:
 
 ```text
 CORE_STAGE_SPECIFICATION
@@ -36,12 +37,14 @@ CORE_STAGE_SPECIFICATION
 → clean-site acceptance
 ```
 
+Нельзя начинать executable specification только по roadmap, игнорируя `ROADMAP_AUDIT.md`.
+
 ## Нормативная база
 
 - [`docs/frappe-architecture-standard`](../frappe-architecture-standard/README.md);
 - [`13_ROLE_PROVISIONING.md`](../frappe-architecture-standard/13_ROLE_PROVISIONING.md).
 
-Если текст практикума конфликтует с нормативной базой, текущей архитектурной коррекцией или фактическим поведением принятой версии Frappe, исправляется практикум.
+Если текст практикума конфликтует с нормативной базой, текущими corrections или фактическим поведением принятой версии Frappe, исправляется практикум.
 
 ## Что не входит во второй CORE автоматически
 
