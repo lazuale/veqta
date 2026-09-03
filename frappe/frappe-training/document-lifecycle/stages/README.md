@@ -12,7 +12,7 @@
 | [S05](S05_CONDITIONAL_APPROVAL.md) | условный второй уровень для суммы больше `1000` |
 | [S06](S06_SUBMITTABLE.md) | final approval становится `docstatus = 1` |
 | [S07A](S07A_CANCEL.md) | официальный Cancel path |
-| [S07B](S07B_AMEND.md) | исправленная версия через Amend |
+| [S07B](S07B_AMEND.md) | новая версия отменённой заявки через Amend |
 | [S08](S08_APP_STATE_DELIVERY.md) | Workflow-конфигурация поставляется вместе с App |
 | [S09](S09_AUTOMATED_TESTS.md) | критические lifecycle-контракты закреплены tests |
 | [S10](S10_CLEAN_INSTALL.md) | процесс воспроизводится на новом чистом Site |
