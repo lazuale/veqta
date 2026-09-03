@@ -29,6 +29,19 @@ plain Document
 5. [`PRACTICUM_ROADMAP.md`](PRACTICUM_ROADMAP.md) — практический маршрут `S00–S10`.
 6. [`ROADMAP_AUDIT.md`](ROADMAP_AUDIT.md) — обязательный gate после злого аудита roadmap; его точечные corrections имеют приоритет до финальной консолидации документов.
 
+Roadmap gate пройден. Stage map `S00–S10` сохранён, но следующий слой обязан учитывать найденные corrections:
+
+```text
+transition-level Allow Self Approval policy
+status.No Copy = yes после включения Workflow
+минимальный Senior DocPerm
+reset несовместимых disposable Approved/docstatus0 records перед S06
+Only Allow Edit For = Desk policy, не server immutability
+source-backed native Amend expectation
+inherited naming checkpoint
+окончательный Workflow State namespace после фиксации App identifier
+```
+
 Следующий слой создаётся только из **всех шести** документов выше:
 
 ```text
@@ -38,25 +51,6 @@ CORE_STAGE_SPECIFICATION
 ```
 
 Нельзя начинать executable specification только по roadmap, игнорируя `ROADMAP_AUDIT.md`.
-
-## Что дополнительно доказал аудит roadmap
-
-```text
-Allow Self Approval
-→ свойство каждой transition row, а не глобальная policy Workflow
-
-Only Allow Edit For
-→ Desk/state edit policy
-→ не самостоятельная server-side immutability
-
-No Copy workflow-state field
-→ требуется с момента включения Workflow
-
-Senior role
-→ получает только минимальные rights из текущей ответственности
-```
-
-Если будущий requirement требует server-side запрет менять Pending Request независимо от Desk/API path, это отдельная архитектурная задача, а не скрытое обещание `Only Allow Edit For`.
 
 ## Нормативная база
 
