@@ -18,15 +18,15 @@ PLT Rejected → PLT Pending Approval
 
 Это уже штатная ответственность `Workflow`.
 
-## 1. Не создавать второй state field
+## 1. Не создавать второе поле состояния
 
-У нас уже есть Standard field:
+У нас уже есть поле Standard DocType:
 
 ```text
 status : Select
 ```
 
-Он и станет:
+Оно и станет:
 
 ```text
 Workflow State Field = status
@@ -42,7 +42,7 @@ Frappe умеет автоматически создать Custom Field, есл
 
 Источник: [`Workflow.create_custom_field_for_workflow_state()` v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/workflow/doctype/workflow/workflow.py).
 
-## 2. Защитить process state от обычного Duplicate
+## 2. Не копировать состояние процесса при Duplicate
 
 Откройте Standard DocType `Purchase Request`, найдите поле `status` и включите:
 
@@ -56,11 +56,11 @@ No Copy : yes
 Allow on Submit : no
 ```
 
-`No Copy` нужен потому, что обычная копия нового Purchase Request не должна наследовать process state исходного документа.
+`No Copy` нужен потому, что обычная копия Purchase Request не должна наследовать состояние процесса исходного документа.
 
-`Allow on Submit` сейчас не нужен: все Workflow States на S03 имеют `docstatus = 0`.
+`Allow on Submit` сейчас не нужен: все состояния Workflow на S03 имеют `docstatus = 0`.
 
-## 3. Создать Workflow State records
+## 3. Создать Workflow State
 
 Через Desk откройте `Workflow State` и создайте:
 
@@ -71,7 +71,7 @@ PLT Rejected
 PLT Approved
 ```
 
-Префикс `PLT` нужен потому, что `Workflow State` — отдельные setup records Site, а не значения, автоматически изолированные namespace Python package.
+Префикс `PLT` нужен потому, что `Workflow State` — отдельные записи настройки Site. Их имена не изолируются автоматически именем Python package.
 
 Style и icon для практикума не важны.
 
@@ -85,7 +85,7 @@ Reject
 Review
 ```
 
-Это Framework-owned records, их не нужно копировать под своим именем.
+Это стандартные записи Framework, их не нужно дублировать под своими именами.
 
 Для действия заявителя создайте новый `Workflow Action Master`:
 
@@ -109,11 +109,11 @@ Workflow State Field : status
 Send Email Alert     : no
 ```
 
-Email не является условием существования самого Workflow или server transition.
+Email не является условием существования самого Workflow или серверного перехода.
 
-## 6. Добавить states
+## 6. Добавить состояния
 
-На S03 все states остаются draft-state в системном смысле:
+На S03 все состояния соответствуют `docstatus = 0`:
 
 | State | Doc Status | Only Allow Edit For |
 |---|---:|---|
@@ -126,18 +126,18 @@ Email не является условием существования само
 
 Источник: [`validate_workflow()` v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/workflow.py).
 
-На этом этапе `PLT Approved` **не Submitted**:
+На этом этапе `PLT Approved` ещё не переводит Document в Submitted:
 
 ```text
 status    = PLT Approved
 docstatus = 0
 ```
 
-Мы ещё не предъявляли требование зафиксировать approval как системный транзакционный факт.
+Требования фиксировать окончательное согласование через Submit пока нет.
 
-`Only Allow Edit For` используем как state/Desk edit policy. Не выдавайте эту настройку за самостоятельную универсальную server-side immutability business fields.
+`Only Allow Edit For` задаёт, какая роль может редактировать Document в конкретном состоянии Workflow. Не используйте эту настройку как доказательство отдельной универсальной серверной защиты всех полей.
 
-## 7. Добавить transitions
+## 7. Добавить переходы
 
 ### Draft → Pending Approval
 
@@ -163,7 +163,7 @@ Allow Self Approval : yes
 Condition           : пусто
 ```
 
-На S03 self approval ещё не запрещён отдельным требованием. Мы намеренно оставляем его разрешённым, чтобы на S04 увидеть появление новой policy отдельно.
+На S03 self approval ещё не запрещён отдельным требованием. Мы намеренно оставляем его разрешённым, чтобы на S04 добавить новое правило отдельно.
 
 ### Pending Approval → Rejected
 
@@ -235,9 +235,9 @@ status    = PLT Approved
 docstatus = 0
 ```
 
-## 9. Проверить, что прямой прыжок больше не является нормальным Save
+## 9. Проверить запрет прямого перехода
 
-Создайте ещё одну Draft-заявку под Requester и попробуйте через server path сразу записать `PLT Approved`:
+Создайте ещё одну Draft-заявку под Requester и через Bench Console попробуйте сразу записать `PLT Approved`:
 
 ```bash
 bench --site purchase-lifecycle.localhost console
@@ -257,7 +257,7 @@ doc.status = "PLT Approved"
 doc.save()
 ```
 
-С активным Workflow такой прямой переход не должен считаться допустимым Workflow transition. Frappe валидирует изменение state относительно доступных transitions.
+С активным Workflow такой прямой переход не должен считаться допустимым переходом Workflow. Frappe проверяет изменение состояния относительно доступных transitions.
 
 Источник: [`validate_workflow()` v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/workflow.py).
 
@@ -268,7 +268,7 @@ frappe.set_user("Administrator")
 exit()
 ```
 
-## 10. Наблюдать Workflow Action
+## 10. Посмотреть Workflow Action
 
 Когда заявка находится в `PLT Pending Approval`, откройте Desk под Approver и посмотрите ожидающие Workflow Actions.
 
@@ -282,21 +282,21 @@ Workflow Action
 → показывает ожидающую работу
 ```
 
-Но это не один и тот же слой. На следующем этапе мы специально увидим случай, когда пользователь имеет подходящую роль, но server-side self-approval policy всё равно запрещает transition.
+Это разные части механизма. На следующем этапе пользователь будет иметь подходящую роль, но серверная проверка `Allow Self Approval` всё равно запретит одобрение собственной заявки.
 
 ## Результат
 
 После S03:
 
 ```text
-status остаётся одним Standard field
+status остаётся одним полем Standard DocType
 Workflow State Field = status
 No Copy = yes
 Allow on Submit = no
 есть Draft / Pending Approval / Rejected / Approved
-Reject можно исправить и отправить повторно
-Approved пока docstatus 0
-Workflow Action наблюдается как runtime-механизм
+Rejected можно исправить и отправить повторно
+Approved пока остаётся docstatus 0
+Workflow Action показывает ожидающее действие
 ```
 
 Следующий этап: [`S04_SELF_APPROVAL.md`](S04_SELF_APPROVAL.md).
