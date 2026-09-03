@@ -23,7 +23,21 @@ Frappe хранит эти данные разными механизмами:
 
 ## Стенд
 
-Нужен отдельный Site с простым Standard DocType:
+Нужен рабочий Bench с Frappe v16.33.0. Установка самого Bench в этот Lab не входит.
+
+Создать отдельные App и Site:
+
+```bash
+bench new-app work_management_lab
+bench new-site work-management.localhost
+bench --site work-management.localhost install-app work_management_lab
+bench --site work-management.localhost set-config developer_mode 1
+bench --site work-management.localhost clear-cache
+```
+
+Если процессы Bench уже запущены, перезапустить их после включения Developer Mode.
+
+В Desk создать Standard DocType в модуле `work_management_lab`:
 
 ```text
 Work Item
