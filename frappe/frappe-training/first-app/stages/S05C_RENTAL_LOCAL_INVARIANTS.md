@@ -33,8 +33,8 @@ V02  одно Equipment не повторяется внутри одного Re
 - [`S05B_DESK_VERTICAL_SCENARIO.md`](S05B_DESK_VERTICAL_SCENARIO.md);
 - [`../APPLICATION_MODEL.md`](../APPLICATION_MODEL.md);
 - [`../ROADMAP.md`](../ROADMAP.md);
-- [`../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md`](../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md);
-- [`../../frappe-architecture-standard/06_TRANSACTIONS_ASYNC.md`](../../frappe-architecture-standard/06_TRANSACTIONS_ASYNC.md).
+- [`../../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md`](../../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md);
+- [`../../../frappe-architecture-standard/06_TRANSACTIONS_ASYNC.md`](../../../frappe-architecture-standard/06_TRANSACTIONS_ASYNC.md).
 
 Первичные источники:
 
