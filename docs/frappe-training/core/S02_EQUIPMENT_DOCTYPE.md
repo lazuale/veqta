@@ -1074,7 +1074,7 @@ Customer
 ```text
 Link
 Child DocType
-Table
+Table MultiSelect
 ```
 
 а не к изучению этих функций ради самих функций.
