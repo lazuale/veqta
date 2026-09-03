@@ -494,9 +494,13 @@ frappe
 
 # 12. Включить developer mode только для dev-site
 
-На следующих этапах мы будем создавать **Standard DocType, принадлежащие App**, и их metadata должны сохраняться в исходниках. Для этого developer mode нужен именно разработческому Site `rental.localhost`.
+На следующих этапах мы будем создавать **Standard DocType, принадлежащие App**, и их metadata должны сохраняться в исходниках. Для разработки Standard metadata нужен developer mode.
 
-Включите его как Site-local настройку:
+**Факт Frappe:** developer mode — штатный режим разработки; официальные материалы Frappe могут показывать его включение на уровне Bench/common config.
+
+**Решение этого практикума:** ограничить developer mode только разработческим Site `rental.localhost`. Это нужно не потому, что Frappe требует именно Site-local область, а чтобы второй Site на S09 был независимой acceptance-проверкой установки готового App без developer mode.
+
+Включите Site-local настройку:
 
 ```bash
 bench --site rental.localhost set-config developer_mode 1
@@ -511,7 +515,7 @@ bench --site rental.localhost show-config | grep developer_mode
 
 Должно быть значение `1`/`true`.
 
-### Почему здесь нет `-g`
+### Почему в этом практикуме нет `-g`
 
 ```text
 bench set-config -g ...
@@ -519,9 +523,9 @@ bench set-config -g ...
 → настройка наследуется другими Sites этого Bench
 ```
 
-Для режима разработки это слишком широкая область. В S09 появится второй чистый acceptance-site, который должен доказать установку App **без developer mode**.
+Для нашего учебного стенда такая область помешала бы S09 отличить разработческий Site от чистого acceptance-site.
 
-Поэтому граница такая:
+Поэтому граница практикума такая:
 
 ```text
 rental.localhost
@@ -626,7 +630,7 @@ bench --site rental.localhost show-config | grep developer_mode
 - на Site уже установлен ERPNext или другое прикладное App;
 - вы работаете внутри существующего VEQTA Bench;
 - developer mode не включён на `rental.localhost`;
-- developer mode включён глобально без причины;
+- developer mode включён глобально без причины в рамках этого учебного стенда;
 - вы начали создавать DocType до появления собственного App.
 
 ---
