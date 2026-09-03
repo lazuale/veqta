@@ -1,6 +1,6 @@
-# S07A. Добавить официальный Cancel path
+# S07A. Добавить штатную отмену через Cancel
 
-После S06 окончательное согласование стало Submitted fact:
+После S06 окончательно согласованная заявка становится Submitted Document:
 
 ```text
 PLT Approved
@@ -15,13 +15,13 @@ docstatus = 1
 
 ## 1. Добавить Cancelled в status
 
-В Standard field `status` добавьте option:
+В поле `status` добавьте option:
 
 ```text
 PLT Cancelled
 ```
 
-Финальный набор values теперь:
+Итоговый набор значений теперь:
 
 ```text
 PLT Draft
@@ -46,9 +46,9 @@ PLT Cancelled
 PLT Cancel Request
 ```
 
-Мы не переиспользуем `Reject`: отклонение draft-заявки и отмена уже Submitted fact имеют разную семантику.
+Мы не переиспользуем `Reject`: отклонение Draft-заявки и отмена уже Submitted Document имеют разный смысл.
 
-## 3. Добавить Cancelled state в Workflow
+## 3. Добавить состояние Cancelled в Workflow
 
 В `PLT Purchase Request Approval` добавьте:
 
@@ -56,9 +56,9 @@ PLT Cancel Request
 |---|---:|---|
 | `PLT Cancelled` | 2 | `PLT Approver` |
 
-`Only Allow Edit For` является обязательным полем state row. Для `docstatus = 2` оно не превращает отменённый Document обратно в редактируемый факт и не выдаёт право Amend. Право Amend появится отдельно на S07B.
+`Only Allow Edit For` является обязательным полем строки состояния Workflow. Для `docstatus = 2` оно не делает отменённый Document снова редактируемым и не выдаёт право Amend. Право Amend появится отдельно на S07B.
 
-## 4. Добавить transition Approved → Cancelled
+## 4. Добавить переход Approved → Cancelled
 
 ```text
 State               : PLT Approved
@@ -69,7 +69,7 @@ Allow Self Approval : yes
 Condition           : пусто
 ```
 
-Почему здесь `Allow Self Approval = yes`: текущая бизнес-политика запрещает self **approval**, но не требует отдельного независимого canceller. Мы не переносим правило одного действия на другое без требования.
+Здесь `Allow Self Approval = yes`, потому что текущее правило запрещает одобрять собственную заявку, но не запрещает отменять её после согласования. Не переносим ограничение одного действия на другое без отдельного требования.
 
 ## 5. Выдать отдельный Cancel permission
 
@@ -81,9 +81,9 @@ PLT Approver         Cancel yes
 PLT Senior Approver  Cancel no
 ```
 
-Senior умеет final approve большие заявки, но из этого не следует право отменять любые Submitted Purchase Requests.
+Senior может окончательно согласовать большую заявку, но из этого не следует право отменять любые Submitted Purchase Requests.
 
-## 6. Проверить реальный cancel transition
+## 6. Проверить настоящий Cancel
 
 Возьмите любую Submitted заявку:
 
@@ -124,9 +124,9 @@ next docstatus    = 2
 status.Allow on Submit = no
 ```
 
-`Approved → Cancelled` — не обычное редактирование уже Submitted документа. Это системный Cancel path с переходом `docstatus 1 → 2`.
+`Approved → Cancelled` — не обычное редактирование Submitted Document. Это системный Cancel с переходом `docstatus 1 → 2`.
 
-Автоматически создаваемый Frappe workflow Custom Field действительно получает `allow_on_submit = 1`, но это универсальный fallback для поля, которого не было в Meta. Наш Standard `status` уже существует, и мы включаем только свойства, которые нужны конкретному контракту.
+Автоматически создаваемый Frappe workflow Custom Field действительно получает `allow_on_submit = 1`, но это общее поведение для поля, которого не было в Meta. Наш Standard `status` уже существует, и мы включаем только свойства, которые нужны текущему требованию.
 
 Источник: [`Workflow.create_custom_field_for_workflow_state()`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/workflow/doctype/workflow/workflow.py).
 
