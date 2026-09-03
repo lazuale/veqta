@@ -1,118 +1,121 @@
-# VEQTA Brand Architecture
+# Архитектура бренда VEQTA
 
-Status: **foundation baseline candidate**
+Статус: **кандидат в foundation baseline**
 
-## 1. Brand role
+## 1. Роль бренда
 
-VEQTA is the umbrella brand for an open-source product studio built on Frappe Framework.
+VEQTA — зонтичный бренд открытой инженерной и продуктовой экосистемы, построенной на Frappe Framework.
 
-The brand must communicate engineering discipline first. It must not look or behave primarily like an online school, consultancy, generic low-code vendor, ERP clone or community portal.
+Бренд должен прежде всего передавать инженерную дисциплину. VEQTA не должна выглядеть как онлайн-школа, консалтинг, безликий low-code поставщик, клон ERP или портал сообщества.
 
-The brand promise is simple:
+Обещание бренда:
 
-> VEQTA makes the path from understanding Frappe to shipping reliable software explicit, evidence-based and reproducible.
+> VEQTA делает путь от понимания Frappe до выпуска надёжного программного обеспечения явным, доказательным и воспроизводимым.
 
-## 2. Brand architecture
+## 2. Архитектура бренда
 
 ```text
 VEQTA
 │
 ├── Engineering
-│   └── standards, evidence, patterns, decisions
+│   └── стандарты, доказательства, паттерны, решения
 │
 ├── Learn
-│   └── learning paths, courses, practicums, exercises
+│   └── учебные маршруты, курсы, практикумы, упражнения
 │
 ├── Labs
-│   └── experiments, prototypes, reference implementations
+│   └── эксперименты, прототипы, эталонные реализации
 │
 └── Products
-    └── independent production applications
+    └── самостоятельные продукты для реальной эксплуатации
 ```
 
-The four domains are functional categories, not four separate corporate brands.
+Четыре направления — функциональные части одной VEQTA, а не четыре отдельных корпоративных бренда.
 
-## 3. Positioning
+## 3. Позиционирование
 
-### VEQTA is
+### VEQTA — это
 
-- builder-facing;
-- Frappe-native;
-- evidence-based;
-- architecture-first;
-- product-led;
+- проект для тех, кто создаёт решения;
+- Frappe-native подход;
+- решения, основанные на доказательствах;
+- архитектура до реализации;
+- ориентация на реальные продукты;
 - open-source-first;
-- practical rather than academic;
-- explicit about what is Frappe fact and what is VEQTA opinion.
+- практический, а не академический подход;
+- чёткое разделение фактов Frappe и выводов VEQTA;
+- русскоязычная инженерная среда с точным использованием оригинальной технической терминологии.
 
-### VEQTA is not
+### VEQTA — это не
 
-- "the better Frappe";
-- a Frappe fork;
-- a wrapper framework;
-- a translated copy of official documentation;
-- an academy whose final product is education itself;
-- a marketplace of unrelated templates;
-- an ERP brand by definition;
-- an AI-first brand unless a particular product genuinely requires AI.
+- «улучшенный Frappe»;
+- форк Frappe;
+- framework-обёртка;
+- перевод официальной документации Frappe;
+- академия, для которой обучение является конечным продуктом;
+- каталог несвязанных шаблонов;
+- ERP-бренд по определению;
+- AI-first бренд, если конкретный Product действительно не требует AI.
 
-## 4. Audience architecture
+## 4. Архитектура аудиторий
 
-### Umbrella audience
+### Аудитория VEQTA
 
-The umbrella brand primarily speaks to builders:
+Зонтичный бренд прежде всего говорит с теми, кто создаёт решения:
 
-- developers;
-- architects;
-- technical leads;
-- implementation specialists;
-- contributors;
-- teams evaluating Frappe for product development.
+- разработчиками;
+- архитекторами;
+- техническими руководителями;
+- специалистами по внедрению;
+- участниками open-source проектов;
+- командами, оценивающими Frappe как основу собственных продуктов.
 
-### Product audience
+Основная аудитория русскоязычная.
 
-Each product owns its end-user message.
+### Аудитория Product
 
-A product may target operations, HR, service, logistics, analytics or another domain. Its home page and product documentation must not require the end user to understand VEQTA Engineering or the learning ecosystem.
+Каждый Product отвечает за собственное сообщение конечному пользователю.
 
-This separation prevents the umbrella brand from becoming overloaded with business-domain language.
+Product может быть предназначен для operations, HR, service, logistics, analytics или другой предметной области. Его главная страница и пользовательская документация не должны требовать понимания VEQTA Engineering или учебной экосистемы.
 
-## 5. Message hierarchy
+Так зонтичный бренд не перегружается языком отдельных предметных областей.
 
-The preferred hierarchy is:
+## 5. Иерархия сообщения
+
+Предпочтительный порядок:
 
 ```text
-1. What VEQTA is
-2. Why it exists
+1. Что такое VEQTA
+2. Зачем она существует
 3. Engineering / Learn / Labs / Products
-4. Current useful assets
-5. How to contribute or use them
+4. Что уже реально доступно
+5. Как этим воспользоваться или как участвовать
 ```
 
-Avoid leading with internal project history, prototype versions or framework terminology that a first-time visitor does not need yet.
+Не начинаем публичное представление с внутренней истории проекта, версий прототипа или терминов Framework, которые новому посетителю пока не нужны.
 
-## 6. Naming system
+## 6. Система именования
 
-### 6.1 Umbrella
+### 6.1 VEQTA
 
-Use `VEQTA` alone only for the ecosystem / organization / initiative.
+Имя `VEQTA` без уточнения используется для экосистемы, организации или инициативы в целом.
 
-Do not use `VEQTA` as the technical name of a generic Frappe App merely because it belongs to the ecosystem.
+Не называем технический Frappe `App` просто `VEQTA` только потому, что он относится к экосистеме.
 
-### 6.2 Permanent domains
+### 6.2 Постоянные направления
 
-Use these stable labels:
+Канонические обозначения:
 
-- `VEQTA Engineering`
-- `VEQTA Learn`
-- `VEQTA Labs`
-- `VEQTA Products`
+- `VEQTA Engineering`;
+- `VEQTA Learn`;
+- `VEQTA Labs`;
+- `VEQTA Products`.
 
-They describe navigation and responsibility, not independent companies.
+В русскоязычной коммуникации рядом с ними используется понятное русское объяснение. Эти названия описывают навигацию и ответственность, а не отдельные компании.
 
 ### 6.3 Labs
 
-Labs use descriptive names, for example:
+Labs получают описательные имена, например:
 
 ```text
 VEQTA Labs / Work Management
@@ -120,132 +123,134 @@ VEQTA Labs / Permissions Model
 VEQTA Labs / Operational UI
 ```
 
-Lab names should describe the hypothesis or problem space rather than imitate a finished product brand.
+Название Lab должно описывать гипотезу или область проблемы, а не имитировать бренд готового Product.
 
 ### 6.4 Products
 
-A product receives its own name only after reaching the incubation/product gate defined in `PRODUCT_LIFECYCLE.md`.
+Product получает постоянное имя только после прохождения стадии инкубации, определённой в `PRODUCT_LIFECYCLE.md`.
 
-Two naming patterns are allowed:
+Допустимы две модели:
 
 ```text
 VEQTA <Product Name>
 ```
 
-or
+или
 
 ```text
 <Product Name>
 by VEQTA
 ```
 
-The choice depends on future brand strength, audience and trademark availability. No universal `VEQTA <category>` naming rule is imposed in advance.
+Выбор зависит от силы бренда, аудитории и доступности товарного знака. Универсальное правило `VEQTA <категория>` заранее не вводится.
 
-### 6.5 Reserved / discouraged naming
+### 6.5 Ограничения
 
-Avoid names that falsely imply official Frappe status, such as `Frappe Certified`, `Frappe Official`, or similar formulations without authorization.
+Нельзя использовать названия, создающие ложное впечатление официального статуса Frappe: `Frappe Certified`, `Frappe Official` и аналогичные без соответствующего разрешения.
 
-Avoid `VEQTA Academy` as a default education label. `VEQTA Learn` is the canonical learning domain.
+`VEQTA Academy` не используется как стандартное название обучения. Каноническое направление — `VEQTA Learn`.
 
-## 7. Voice and writing
+## 7. Язык и стиль
 
-VEQTA writing should be:
+Основной язык VEQTA — русский. Полные правила определены в [`LANGUAGE_POLICY.md`](LANGUAGE_POLICY.md).
 
-- precise;
-- concrete;
-- technically literate;
-- readable by a motivated newcomer;
-- explicit about evidence and uncertainty;
-- free of inflated startup language.
+Текст VEQTA должен быть:
 
-Preferred:
+- точным;
+- конкретным;
+- технически грамотным;
+- понятным мотивированному новичку;
+- честным в отношении доказательств и неопределённости;
+- без раздутого startup-языка;
+- без ненужного смешения русского и английского.
 
-> This Lab tests whether the standard Assignment mechanism is sufficient for the requirement.
+Предпочтительно:
 
-Avoid:
+> Этот Lab проверяет, достаточно ли штатного механизма `Assignment` для требования.
+
+Не нужно:
 
 > We revolutionize next-generation workflow orchestration with a unique low-code paradigm.
 
-Technical terms should retain official Frappe names when precision matters (`DocType`, `Document`, `Workflow`, `Assignment`, `Site`, `App`, `Bench`). Explanations around them should remain accessible.
+Официальные имена Frappe сохраняются, когда это важно для точности: `DocType`, `Document`, `Workflow`, `Assignment`, `Site`, `App`, `Bench`.
 
-## 8. Visual direction
+## 8. Визуальное направление
 
-The VEQTA umbrella should visually signal:
+Зонтичная VEQTA должна визуально передавать:
 
-- systems;
-- precision;
-- structure;
-- clarity;
-- engineering;
-- open-source collaboration.
+- системность;
+- точность;
+- структуру;
+- ясность;
+- инженерность;
+- открытое сотрудничество.
 
-It should not default to visual clichés of education or generic SaaS:
+Не используем как основу идентичности типовые клише образования и SaaS:
 
-- graduation caps;
-- light bulbs;
-- random code brackets as a logo;
-- excessive neon gradients;
-- AI sparkle motifs;
-- low-code puzzle pieces;
-- ERP dashboard collages as the primary identity.
+- академические шапочки;
+- лампочки;
+- случайные скобки кода в логотипе;
+- агрессивные неоновые градиенты;
+- AI sparkle-мотивы;
+- пазлы low-code;
+- коллажи ERP-дашбордов.
 
-### 8.1 Design system principle
+### 8.1 Принцип дизайн-системы
 
-The umbrella brand owns a shared visual grammar:
+Зонтичный бренд задаёт общую визуальную грамматику:
 
 ```text
-typography
-layout grid
-spacing
-icon language
-documentation patterns
-brand marks
+типографика
+модульная сетка
+отступы
+язык иконок
+паттерны документации
+фирменные знаки
 ```
 
-Products may own additional accent systems and product-specific UI identity.
+Products могут получать собственные акценты и продуктовую UI-идентичность.
 
-### 8.2 Frappe UI rule
+### 8.2 Правило Frappe UI
 
-Branding is not a valid reason to replace a suitable native Frappe interaction with a custom frontend.
+Брендинг сам по себе не является причиной заменять подходящий штатный интерфейс Frappe собственным frontend.
 
-The product interface is an engineering decision first and a branding surface second.
+Интерфейс продукта сначала является инженерным и UX-решением, а уже потом площадкой для брендинга.
 
-## 9. Relationship to Frappe
+## 9. Отношение к Frappe
 
-Always make the dependency explicit and respectful:
+Зависимость должна быть явной и уважительной:
 
-> Built on Frappe Framework.
+> Построено на Frappe Framework.
 
-VEQTA does not claim ownership of Frappe mechanisms and must distinguish its architectural guidance from official Frappe documentation.
+VEQTA не присваивает себе механизмы Frappe и всегда отделяет собственные архитектурные рекомендации от официальной документации Frappe.
 
-Where appropriate:
+При необходимости:
 
-> VEQTA does not replace or fork Frappe Framework.
+> VEQTA не заменяет и не форкает Frappe Framework.
 
-## 10. Relationship between knowledge and products
+## 10. Знания и продукты
 
-A product should be able to benefit from VEQTA Engineering without turning its product documentation into an architecture course.
+Product должен пользоваться VEQTA Engineering, не превращая свою пользовательскую документацию в курс архитектуры.
 
-A Learn course may use a Product or Lab as an example, but must not become marketing material for it.
+Курс Learn может использовать Product или Lab как пример, но не должен превращаться в его рекламу.
 
-A Lab may demonstrate a future product direction, but must remain visibly experimental until graduation.
+Lab может демонстрировать потенциальное направление Product, но остаётся явно экспериментальным до прохождения критериев зрелости.
 
-## 11. Brand clearance
+## 11. Проверка бренда
 
-The project name, product names, domains, social handles and logos must be treated separately from source-code licensing.
+Имя проекта, имена Products, домены, аккаунты в социальных сетях и логотипы проверяются отдельно от лицензирования исходного кода.
 
-Before major public commercialization, VEQTA requires proper naming and trademark clearance in relevant jurisdictions and classes.
+До масштабного публичного коммерческого использования VEQTA требуется полноценная проверка naming/trademark в релевантных юрисдикциях и классах.
 
-Until that work is complete, the brand identity is operational but not assumed to be legally cleared for every market.
+## 12. Проверка публичного артефакта
 
-## 12. Brand test
+Новый публичный материал соответствует бренду VEQTA, если новый посетитель может ответить:
 
-A new public artifact passes the VEQTA brand test when a first-time visitor can answer:
+1. Это Engineering, Learn, Lab или Product?
+2. Это официальный материал Frappe или материал VEQTA?
+3. Это эксперимент или готовое решение?
+4. Для кого он предназначен?
+5. Какой полезный результат он даёт?
+6. Написан ли основной текст естественно по-русски с английским только там, где он действительно нужен?
 
-1. Is this Engineering, Learn, a Lab or a Product?
-2. Is it official Frappe material or VEQTA material?
-3. Is it experimental or production-ready?
-4. Who is it for?
-5. What useful outcome does it provide?
-
-If those answers are unclear, the artifact is not ready for publication.
+Если ответы неясны, материал не готов к публикации.
