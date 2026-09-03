@@ -1,155 +1,149 @@
-# Исполняемая спецификация CORE-практикума Frappe
+# Точная спецификация CORE-практикума Frappe
 
-Статус: **черновик для финальной методической и инженерной проверки**.
+Статус: **исполняемая спецификация CORE**.
 
-Продолжает:
+Этот документ фиксирует точную модель, которую пошаговый практикум должен построить. Он не заменяет архитектурный паспорт, матрицу требований и граф зависимостей, а снимает двусмысленность перед написанием/прохождением практических этапов.
+
+Связанные документы:
 
 - [`ARCHITECTURE_PASSPORT.md`](ARCHITECTURE_PASSPORT.md);
 - [`REQUIREMENTS_MATRIX.md`](REQUIREMENTS_MATRIX.md);
 - [`STAGE_DEPENDENCY_GRAPH.md`](STAGE_DEPENDENCY_GRAPH.md);
 - [`PRACTICUM_ROADMAP.md`](PRACTICUM_ROADMAP.md).
 
-Этот документ фиксирует **что именно должен построить ученик в CORE**: точную модель, поля, naming, контрольные данные, права, тесты и критерий `ГОТОВО / НЕ ГОТОВО`.
+Нормативная база:
 
-Это ещё не инструкция «куда нажать». Подробные практические задания пишутся только после согласования спецификации.
-
-Нормативная база — [`docs/frappe-architecture-standard`](../frappe-architecture-standard/README.md).
+- [`../frappe-architecture-standard/README.md`](../frappe-architecture-standard/README.md).
 
 ---
 
-# 1. Правило спецификации
+# 1. Граница CORE
 
-Каждый элемент обязан отвечать на требование:
+CORE строит ровно одно небольшое Frappe App без ERPNext-зависимости.
 
 ```text
-требование
-→ ответственность
-→ штатный механизм Frappe
-→ конкретная конфигурация
-→ контрольные данные
-→ наблюдаемая проверка
+App: rental_training
+Module: Rental Training
 ```
 
-Запрещено добавлять поле, DocType, Script, Workflow, Report или иной механизм только ради знакомства с функцией.
+Предметная область нейтральна относительно VEQTA.
+
+CORE должен работать на чистом совместимом Frappe v16 Site, где до установки App установлен только `frappe`.
+
+В CORE нет обязательных:
+
+```text
+ERPNext
+HRMS
+сторонних Apps
+собственного frontend
+собственного REST CRUD
+Workflow
+Is Submittable
+Server Script
+Background Jobs
+```
 
 ---
 
-# 2. Граница учебной среды
+# 2. Финальная структура App
 
-CORE проходит на **отдельном чистом Site Frappe v16**.
-
-До установки учебного App:
+Смысловая структура:
 
 ```text
-installed apps:
-frappe
-```
-
-После установки:
-
-```text
-installed apps:
-frappe
 rental_training
+└── Rental Training
+    ├── Equipment
+    ├── Customer
+    ├── Rental
+    │   └── Rental Item
+    └── tests
 ```
 
-ERPNext и другие прикладные Apps для CORE не требуются.
-
-Это не ограничение Frappe как Framework. Это граница практикума: ученик должен видеть, что именно предоставляет Frappe и что добавляет его собственный App, без случайных зависимостей от чужих моделей.
+Физические generated-пути определяются штатным scaffold Frappe и не проектируются вручную заранее.
 
 ---
 
-# 3. Имена учебных объектов
+# 3. Обязательные самостоятельные Documents
 
-```text
-App       : rental_training
-Module    : Rental Training
-
-DocTypes:
-Equipment
-Customer
-Rental
-Rental Item
-
-Roles:
-Rental Operator
-Rental Manager
-```
-
-Предметная область учебная и нейтральная, не связана с VEQTA.
-
----
-
-# 4. Naming и отображаемый title
-
-У каждого самостоятельного Document есть системный `name`. В CORE он не строится из изменяемого отображаемого названия.
-
-Используем штатный Expression naming:
-
-```text
-Equipment → EQ-.#####
-Customer  → CUST-.#####
-Rental    → RENT-.#####
-```
-
-Ожидаемый вид:
-
-```text
-EQ-00001
-CUST-00001
-RENT-00001
-```
-
-Для человекочитаемой работы Desk отдельно используются штатные title-настройки:
-
-```text
-Equipment
-  Title Field               = equipment_name
-  Show Title in Link Fields = yes
-
-Customer
-  Title Field               = customer_name
-  Show Title in Link Fields = yes
-```
-
-Ученик должен увидеть разницу:
-
-```text
-name            = стабильная identity Document
-Title Field     = человекочитаемое представление
-equipment_name  = изменяемое название Equipment
-customer_name   = изменяемое имя Customer
-```
-
-Изменение title-поля не должно менять `name` и ломать Link.
-
-`Rental Item` — Child DocType, отдельная naming-стратегия для него не проектируется.
-
-## Не используем
-
-- серийный номер Equipment как `name`;
-- имя Customer как `name`;
-- Python `autoname()` без отдельного требования;
-- UUID только ради демонстрации UUID;
-- отдельный `naming_series` field, когда одного фиксированного Expression достаточно.
-
----
-
-# 5. CORE-модель
+CORE содержит три самостоятельных DocTypes:
 
 ```text
 Equipment
 Customer
+Rental
+```
+
+У каждого:
+
+```text
+Standard = yes
+Custom   = no
+Single   = no
+Child    = no
+```
+
+`Rental Item` является единственным Child DocType CORE.
+
+---
+
+# 4. Naming
+
+Naming принимается до накопления ссылок и данных.
+
+## Equipment
+
+```text
+EQ-.#####
+```
+
+## Customer
+
+```text
+CUST-.#####
+```
+
+## Rental
+
+```text
+RENT-.#####
+```
+
+Для всех трёх самостоятельных DocTypes системный `name` отделён от изменяемого человекочитаемого title.
+
+```text
+Equipment.title → equipment_name
+Customer.title  → customer_name
+```
+
+Для Equipment и Customer включается `Show Title in Link Fields`.
+
+Rental может отображаться своим стабильным системным `name`; отдельный декоративный title для него не вводится без требования.
+
+---
+
+# 5. Минимальная модель данных
+
+```text
+Equipment
+├── equipment_name
+├── equipment_type
+└── serial_number
+
+Customer
+├── customer_name
+├── phone
+└── email
 
 Rental
-├── customer        → Link → Customer
-├── start_date      → Date
-├── end_date        → Date
-├── status          → Select
-└── items           → Table MultiSelect → Rental Item
+├── customer
+├── start_date
+├── end_date
+├── status
+└── items
 
 Rental Item
-└── equipment       → Link → Equipment
+└── equipment
 ```
 
 В CORE нет дополнительных самостоятельных DocTypes.
@@ -701,7 +695,7 @@ Form вообще существует
 - Frappe v16 работает;
 - отдельный учебный Site открывается;
 - до установки App на Site установлен только `frappe`;
-- developer mode применим;
+- developer mode включён только на dev-site, где создаётся Standard metadata;
 - Git доступен.
 
 ### НЕ ГОТОВО
@@ -857,15 +851,20 @@ developer_mode / allow_tests  → Site-local config
 На новом чистом совместимом Site:
 
 1. до установки есть только `frappe`;
-2. `rental_training` устанавливается;
-3. migrate проходит;
-4. Standard DocTypes появляются из App;
-5. обязательные Role появляются из fixture;
-6. тесты проходят;
-7. создаются Site-local учебные Users и контрольные business data;
-8. валидный Rental сохраняется;
-9. невалидные сценарии блокируются;
-10. permissions соответствуют спецификации.
+2. CORE DocTypes и Role до установки отсутствуют;
+3. текущий App repository clean, а commit SHA зафиксирован;
+4. acceptance-site не требует `developer_mode`;
+5. `rental_training` устанавливается штатным `install-app`;
+6. Module, Standard DocTypes, default permissions и обязательные Role появляются из App;
+7. скрытых обязательных `Custom Field`, `Property Setter` и `Custom DocPerm` нет;
+8. Bench services доступны и `migrate` проходит;
+9. Site-local `allow_tests` включается отдельно, а полный suite проходит;
+10. Site-local учебные Users и контрольные business data создаются только после установки;
+11. Manager проходит полный `Equipment → Customer → Rental`;
+12. Operator получает ровно заданные permission limits;
+13. V03 блокируется через обычный Desk path;
+14. tests остаются зелёными после появления обычных business Documents;
+15. App Git остаётся clean и на том же commit SHA.
 
 ---
 
@@ -916,7 +915,7 @@ custom frontend
 
 ---
 
-# 17. Контроль перед написанием пошаговых заданий
+# 17. Контроль перед прохождением/аудитом CORE
 
 На все вопросы должен быть ответ `да`:
 
@@ -932,7 +931,7 @@ custom frontend
 9. Контрольные данные однозначно проверяют happy path и ошибки?
 10. Тесты проверяют наши контракты, а не Frappe ради coverage?
 11. CORE не содержит NEXT/GATE/EXT ради знакомства?
-12. Финальный критерий — clean install, а не «работает на моём dev-site»?
+12. Финальный критерий — clean install без developer mode, а не «работает на моём dev-site»?
 ```
 
 Если хотя бы один ответ отрицательный, сначала исправляется спецификация.
