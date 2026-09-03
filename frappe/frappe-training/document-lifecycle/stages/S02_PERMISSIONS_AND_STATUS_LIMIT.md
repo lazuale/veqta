@@ -11,7 +11,9 @@
 
 Это ещё не Workflow. Сначала используем штатные Role и DocType Permissions, а затем проверяем, чего они не умеют выразить.
 
-## 1. Создать две роли на dev Site
+---
+
+# 1. Создать две роли на dev Site
 
 Через Desk откройте `Role` и создайте:
 
@@ -24,7 +26,9 @@ PLT Approver
 
 На этом этапе не экспортируйте их как fixtures.
 
-## 2. Настроить Standard DocType Permissions
+---
+
+# 2. Настроить Standard DocType Permissions
 
 Откройте `Purchase Request` → Permissions.
 
@@ -58,7 +62,9 @@ Amend   no
 
 Официальное описание модели пользователей, ролей и DocType Permissions: https://docs.frappe.io/framework/user/en/basics/users-and-permissions
 
-## 3. Проверить permissions в исходниках App
+---
+
+# 3. Проверить permissions в исходниках App
 
 ```bash
 cd ~/frappe/rental-training-bench
@@ -76,7 +82,9 @@ PLT Approver
 
 Это важно для дальнейшей поставки App: default DocPerm собственного Standard DocType хранятся в его metadata.
 
-## 4. Создать пользователей Site
+---
+
+# 4. Создать пользователей Site
 
 Через Desk создайте двух пользователей, например:
 
@@ -94,7 +102,9 @@ approver@example.test  → PLT Approver
 
 Пароли и сами User records — данные конкретного Site. В Git их не экспортируем.
 
-## 5. Проверить обычный доступ
+---
+
+# 5. Проверить обычный доступ
 
 Под `requester@example.test`:
 
@@ -115,7 +125,9 @@ approver@example.test  → PLT Approver
 может ли роль работать с Document вообще?
 ```
 
-## 6. Провести главный отрицательный опыт
+---
+
+# 6. Провести главный отрицательный опыт
 
 Вернитесь под `requester@example.test`.
 
@@ -160,7 +172,9 @@ frappe.set_user("Administrator")
 exit()
 ```
 
-## 7. Что именно доказал опыт
+---
+
+# 7. Что именно доказал опыт
 
 DocPerm решает задачу:
 
@@ -186,13 +200,17 @@ Requester:
 
 Именно теперь появляется основание использовать `Workflow`.
 
-## 8. Вернуть контрольные данные в понятное состояние
+---
+
+# 8. Вернуть контрольные данные в понятное состояние
 
 Запись, на которой вручную ставили `PLT Approved`, является временной учебной записью. Удалите её или верните в `PLT Draft` до следующего этапа.
 
 Нам важно не сохранить искусственный «одобренный» Document как будто он прошёл настоящий процесс.
 
-## Результат
+---
+
+# Результат
 
 После S02:
 
