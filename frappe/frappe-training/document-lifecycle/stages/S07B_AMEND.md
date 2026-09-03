@@ -11,7 +11,7 @@ docstatus = 2
 
 > Заявитель должен уметь создать новую версию отменённой заявки, не переписывая исходный Document.
 
-Для этого используется штатный Amend path Frappe.
+Для этого используется штатный Amend Frappe.
 
 ## 1. Выдать отдельный Amend permission
 
@@ -33,7 +33,7 @@ Create yes
 
 ## 2. Не создавать amended_from вручную
 
-После включения `Is Submittable` Frappe уже добавил Standard field:
+После включения `Is Submittable` Frappe уже добавил поле:
 
 ```text
 amended_from
@@ -64,7 +64,7 @@ no copy
 
 ## 3. Не связывать Amend с Only Allow Edit For
 
-На S07A `PLT Cancelled` получил `Only Allow Edit For = PLT Approver`, потому что это обязательное поле Workflow state row.
+На S07A `PLT Cancelled` получил `Only Allow Edit For = PLT Approver`, потому что это обязательное поле строки состояния Workflow.
 
 Для появления Amend **не нужно** менять эту настройку на Requester.
 
@@ -72,10 +72,10 @@ no copy
 
 ```text
 Only Allow Edit For
-→ политика редактирования текущего workflow-state
+→ определяет редактирование Document в текущем состоянии Workflow
 
 Amend permission
-→ право создать новый Document из cancelled original
+→ разрешает создать новый Document из отменённого
 ```
 
 Это разные обязанности.
@@ -84,9 +84,9 @@ Amend permission
 
 Источник: [`frappe/public/js/frappe/form/toolbar.js` v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/form/toolbar.js).
 
-Именно поэтому на этом этапе меняется DocPerm `Amend`, а не state edit-policy как будто отменённый факт снова становится редактируемым.
+Поэтому на этом этапе меняется DocPerm `Amend`, а не настройка редактирования состояния Workflow.
 
-## 4. Пройти реальный Desk scenario
+## 4. Пройти сценарий через Desk
 
 Используйте заявку, которая уже прошла:
 
@@ -100,7 +100,7 @@ PLT Approved  docstatus 1
 
 Выполните штатное действие **Amend**.
 
-Frappe должен создать новый local Document.
+Frappe должен создать новый Draft Document.
 
 Проверьте до сохранения:
 
@@ -140,15 +140,15 @@ exit()
 Должна быть видна пара по смыслу:
 
 ```text
-original
+исходная заявка
 status = PLT Cancelled
 docstatus = 2
 amended_from = пусто
 
-new version
+новая версия
 status = PLT Draft
 docstatus = 0
-amended_from = original.name
+amended_from = name исходной заявки
 ```
 
 ## 6. Повторно отправить новую версию
@@ -161,17 +161,17 @@ PLT Draft
 → ...
 ```
 
-Amend не создаёт отдельный параллельный процесс согласования. Он создаёт новый Draft, который снова входит в уже существующий lifecycle.
+Amend не создаёт отдельный процесс согласования. Он создаёт новый Draft, который снова проходит уже существующий маршрут.
 
 ## 7. Проверить отрицательные роли
 
-`PLT Approver` и `PLT Senior Approver` не должны получать Amend только потому, что участвуют в approval.
+`PLT Approver` и `PLT Senior Approver` не должны получать Amend только потому, что участвуют в согласовании.
 
-Это отдельное бизнес-право заявителя.
+Это отдельное право заявителя.
 
 ## Результат
 
-После S07B полный пользовательский lifecycle уже собран:
+После S07B полный пользовательский маршрут уже собран:
 
 ```text
 Draft
