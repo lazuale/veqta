@@ -1,12 +1,10 @@
 # Матрица требований второго учебного практикума Frappe
 
-Статус: **черновик после архитектурного паспорта и первого злого аудита**.
+Статус: **аудированная матрица-кандидат перед dependency graph**.
 
 Этот документ продолжает [`ARCHITECTURE_PASSPORT.md`](ARCHITECTURE_PASSPORT.md).
 
-Матрица пока **не является дорожной картой занятий**. Она отвечает на более ранний вопрос: действительно ли каждый механизм второго практикума появляется из нового требования, а не из желания «пройти Workflow» или другую возможность Frappe.
-
-Для каждого требования фиксируется одна и та же цепочка:
+Матрица не является roadmap. Она проверяет причинность архитектуры:
 
 ```text
 требование
@@ -17,9 +15,9 @@
     ↓
 почему его семантика подходит
     ↓
-где проходит граница
+где граница
     ↓
-что должно быть проверено наблюдаемым действием
+что можно наблюдаемо доказать
 ```
 
 Нормативная база:
@@ -29,29 +27,23 @@
 - [`04_SECURITY.md`](../frappe-architecture-standard/04_SECURITY.md);
 - [`05_TRANSACTIONS_ASYNC.md`](../frappe-architecture-standard/05_TRANSACTIONS_ASYNC.md);
 - [`09_DEPLOYMENT_TESTING.md`](../frappe-architecture-standard/09_DEPLOYMENT_TESTING.md);
-- актуальная документация и исходный код Frappe v16.
+- актуальная документация и исходный код Frappe v16.33.0.
 
 ---
 
 # 1. Уровни требований
 
-## CORE — обязательный lifecycle-маршрут
+## CORE
 
 ```text
 R01–R17
 ```
 
-CORE отвечает только на вопрос:
+CORE отвечает на один вопрос:
 
-> Как собственный Frappe Document проходит от обычного рабочего состояния к управляемому согласованию и затем к системно зафиксированному транзакционному факту?
+> Как собственный Frappe Document проходит от обычного рабочего состояния к управляемому согласованию и затем к системно зафиксированному факту?
 
-## NEXT — естественные операционные спутники
-
-```text
-N01–N04
-```
-
-Они не входят в CORE автоматически:
+## NEXT
 
 ```text
 N01 Assignment / ToDo
@@ -60,17 +52,17 @@ N03 File / Comment / Version
 N04 Print
 ```
 
-## GATE — архитектурные развилки
+NEXT не становится обязательным только потому, что механизм существует во Frappe.
+
+## GATE
 
 ```text
 D00–D04
 ```
 
-Механизм из GATE не включается только ради знакомства.
+GATE включается только после нового требования.
 
-## За пределами второго практикума
-
-Не входят автоматически:
+## Вне второго практикума
 
 ```text
 REST API
@@ -96,7 +88,7 @@ production deployment
 
 # 2. CORE — минимальный Document
 
-## R01. Внутренняя заявка существует как самостоятельный Document
+## R01. Purchase Request — самостоятельный Document
 
 **Требование:** сотруднику нужен самостоятельный документ внутренней заявки на закупку.
 
@@ -104,16 +96,14 @@ production deployment
 
 ```text
 subject
-description
-requested_amount
-needed_by
+ description
+ requested_amount
+ needed_by
 ```
 
 **Ответственность:** хранить одну заявку с собственной identity и lifecycle.
 
-**Первый штатный механизм:** Standard `DocType` `Purchase Request` собственного учебного App.
-
-**Почему подходит:** заявка создаётся, открывается, изменяется, согласуется и позднее может стать Submitted Document.
+**Первый механизм:** Standard `DocType` `Purchase Request` собственного учебного App.
 
 **Не создаются заранее:**
 
@@ -129,49 +119,41 @@ Executor
 Purchase Request Status DocType
 ```
 
-**Граница:** второй практикум не повторяет первый CORE через искусственно большую модель данных.
+**Граница:** второй практикум не повторяет первый через искусственно большую модель данных.
 
-**Проверка:** создать Purchase Request через обычный Desk Form, найти его через List и повторно открыть.
+**Проверка:** создать Purchase Request через Desk, найти через List, открыть повторно.
 
 ---
 
-## R02. Requester в CORE равен системному owner
+## R02. Requester в CORE равен `Document.owner`
 
 **Требование:** заявку подаёт пользователь, который сам её создаёт.
 
-**Ответственность:** определить, кто является инициатором для правил self approval.
+**Ответственность:** определить инициатора для self-approval policy.
 
-**Первый механизм:** системный `Document.owner`.
-
-CORE-семантика:
+**Первый механизм:** системный `owner`.
 
 ```text
 requester = owner
 ```
 
-**Почему подходит:** в обязательном сценарии отдельного предметного requester пока нет, а штатный Workflow Frappe проверяет self approval именно относительно `doc.owner`.
+**Почему подходит:** Frappe Workflow проверяет self approval именно относительно `doc.owner`.
 
-**Не создаётся:**
+**Не создаётся:** `requester → Link → User` только ради дублирования owner.
 
-```text
-requester → Link → User
-```
+**Граница:** создание от имени другого сотрудника — `D02`.
 
-только ради дублирования `owner`.
-
-**Граница:** если пользователь должен создавать заявку от имени другого человека, `owner` перестаёт полностью выражать requester — см. `D02`.
-
-**Проверка:** создать Document под конкретным test User и подтвердить, что `owner` равен этому пользователю.
+**Проверка:** документ, созданный test User, имеет этого пользователя в `owner`.
 
 ---
 
 # 3. CORE — состояние до Workflow
 
-## R03. Пользователь видит обычное бизнес-состояние заявки
+## R03. Обычное business state существует раньше Workflow
 
 **Требование:** пользователь должен понимать, где находится заявка.
 
-Начальный набор:
+Начальная семантика:
 
 ```text
 Draft
@@ -180,7 +162,7 @@ Approved
 Rejected
 ```
 
-На этом этапе намеренно отсутствуют:
+На этом этапе нет:
 
 ```text
 Pending Senior
@@ -189,80 +171,83 @@ Workflow
 Is Submittable
 ```
 
-**Ответственность:** хранить предметный смысл текущего рабочего состояния.
+**Ответственность:** хранить текущий business state.
 
-**Первый штатный механизм:** Standard поле `status` типа `Select`.
+**Первый механизм:** Standard `status : Select`.
 
-**Почему подходит:** пока требуется только хранение состояния; требований к разрешённым переходам ещё нет.
+**Граница:** несколько значений не являются доказательством необходимости Workflow.
 
-**Граница:** несколько значений поля сами по себе не являются причиной Workflow.
-
-**Проверка:** создать записи с разными status и фильтровать их в List.
+**Проверка:** создать записи с разными status и отфильтровать в List.
 
 ---
 
-## R04. Обычный status не выдаётся за политику переходов
+## R04. Обычный status не выдаётся за transition policy
 
-**Требование:** ученик должен увидеть ограничение обычного поля до появления Workflow.
+**Требование:** показать ограничение простой модели до появления нового механизма.
 
-**Ответственность:** отделить хранение state от управления transition.
+**Ответственность:** отделить хранение state от разрешения transition.
 
-**Первый механизм:** никакой новый механизм не добавляется; проверяется текущая модель.
+**Новый механизм:** не добавляется.
 
-**Контрольный отрицательный опыт:** пользователь, который имеет обычное `Write` на Purchase Request, технически может изменить:
+**Отрицательный опыт:** пользователь с обычным Write может технически изменить:
 
 ```text
 Pending Manager → Approved
 ```
 
-если пока существует только обычный `status`.
+если существует только обычный Select.
 
-**Архитектурный вывод:**
+**Вывод:**
 
 ```text
-Select/status
-= хранит состояние
+status
+= хранит state
 
-но не выражает автоматически
-= кто имеет право выполнить конкретный переход
+но сам по себе не выражает
+= кто может выполнить конкретный transition
 ```
 
-Это не «дыра Frappe». Это отсутствие соответствующего требования и механизма в нашей модели.
-
-**Проверка:** до появления Workflow показать обычное изменение status и зафиксировать, почему этого уже недостаточно для нового процесса.
+Это не «дыра Frappe», а отсутствующая ответственность модели.
 
 ---
 
-# 4. CORE — базовая безопасность процесса
+# 4. CORE — базовые права
 
-## R05. Участники базового согласования имеют доступ к Purchase Request
+## R05. Requester и первый Approver имеют базовый доступ к DocType
 
-**Требование:** Requester и первый Approver должны иметь право работать с Purchase Request, но это право не должно автоматически означать право выполнить любой workflow transition.
+**Требование:** участники могут работать с Purchase Request, но базовый доступ не означает право любого transition.
 
-На этом этапе нужны только роли:
+На этом этапе существуют только:
 
 ```text
 Purchase Requester
 Purchase Approver
 ```
 
-`Senior Purchase Approver` пока **не создаётся**: второго уровня согласования ещё нет.
+`Senior Purchase Approver` пока не создаётся.
 
-**Ответственность:** базовая авторизация DocType.
+**Ответственность:** базовая авторизация Document operations.
 
-**Первый механизм:** `Role` + `DocType Permissions`.
+**Первый механизм:** `Role + DocType Permissions`.
 
-**Почему подходит:** DocPerm отвечает на вопрос, может ли пользователь вообще Read/Create/Write конкретный DocType.
+Baseline до Submittable:
 
-**Граница:** право выполнить `Approve` не кодируется отдельным custom ACL, если им владеет Workflow transition.
+| Role | Read | Create | Write | Delete |
+|---|---:|---:|---:|---:|
+| Purchase Requester | yes | yes | yes | no |
+| Purchase Approver | yes | no | yes | no |
 
-**Проверка:** до Workflow подтвердить реальные CRUD-права тестовых пользователей через server-side permission checks и обычные операции Document.
+Submit/Cancel ещё не используются, потому что Purchase Request пока не Submittable.
+
+**Граница:** Workflow transition role не заменяет DocPerm.
+
+**Проверка:** реальные server-side create/read/write/delete operations под test Users.
 
 ---
 
 # 5. CORE — появление Workflow
 
-## R06. Переходы ограничены ролями
+## R06. Role-controlled transitions требуют Workflow
 
 Новое требование:
 
@@ -278,38 +263,57 @@ Purchase Requester:
 не может Pending Manager → Approved
 ```
 
-**Ответственность:** политика допустимых переходов между состояниями.
+**Ответственность:** политика допустимых переходов.
 
-**Первый штатный механизм:** `Workflow`.
+**Первый механизм:** `Workflow`.
 
-**Почему подходит:** появились одновременно states, transitions, allowed roles и ограничения действий.
+**Почему подходит:** появились одновременно states, transitions, roles и правила допустимого действия.
 
 **Не создаются:**
 
 ```text
-custom approve() только ради обхода Workflow
-if role == ... в разных lifecycle hooks
+custom approve()
+if role == ... в разных hooks
 JS-кнопка как единственная защита
 Approval Log как собственный workflow engine
 ```
 
-**Граница:** если будущая логика согласования станет динамической и перестанет естественно выражаться Workflow states/transitions/conditions, решение пересматривается отдельно.
+### Обязательная state edit policy
+
+`Workflow Document State.allow_edit` (`Only Allow Edit For`) является обязательной частью конфигурации Workflow. Его нельзя заполнять случайно.
+
+Baseline:
+
+```text
+Draft           → Purchase Requester
+Pending Manager → Purchase Approver
+Rejected        → Purchase Requester
+```
+
+Позднее:
+
+```text
+Pending Senior → Senior Purchase Approver
+Approved       → Purchase Approver
+Cancelled      → Purchase Approver
+```
+
+**Граница:** `allow_edit`, DocPerm и transition role — разные уровни.
 
 **Проверка:**
 
 ```text
-Requester может: Draft → Pending Manager
-Requester не может: Pending Manager → Approved
-Purchase Approver может: Pending Manager → Approved/Rejected
+Requester может Draft → Pending Manager
+Requester не может Approve
+Approver может Approve/Reject
+Requester не может обычным edit менять Pending Manager при принятой state policy
 ```
-
-Проверяется реальное действие Workflow, а не только наличие строк в настройке.
 
 ---
 
-## R07. Состояние имеет один source of truth
+## R07. У состояния остаётся один Standard source of truth
 
-**Требование:** после включения Workflow у Purchase Request не должно появиться второе конкурирующее поле состояния.
+**Требование:** включение Workflow не должно создавать второе обязательное поле состояния.
 
 Запрещённая модель:
 
@@ -319,59 +323,89 @@ status
 workflow_state
 ```
 
-если оба означают одно и то же состояние процесса.
+если оба означают одно и то же.
 
-**Ответственность:** единое хранение business/workflow state.
+**Ответственность:** единое хранение state.
 
-**Первый механизм:** существующее Standard поле `status` собственного DocType эволюционирует:
+**Первый механизм:** использовать уже существующее Standard поле:
 
 ```text
-до Workflow:
 status = Select
-
-после Workflow:
-status = Link → Workflow State
 Workflow State Field = status
 ```
 
-**Почему именно так в этом практикуме:** Frappe v16.33.0 автоматически создаёт `Custom Field → Link → Workflow State`, если указанного Workflow State Field нет в Meta. Для собственного Standard DocType обязательное state field должно принадлежать App, а не появляться скрытым site-local Custom Field.
+**Ключевая коррекция после аудита:** менять `status` с Select на `Link → Workflow State` **не требуется**.
 
-**Важно:** это архитектурное решение практикума, а не универсальный запрет Frappe на автоматически созданное workflow field для чужих/customized DocTypes.
+**Почему:** в Frappe v16.33.0 `Workflow.create_custom_field_for_workflow_state()` создаёт Link field только когда указанного field вообще нет в Meta. Существующее Standard поле может быть Workflow State Field без лишней смены типа.
 
-**Предусловие:** необходимые `Workflow State` records существуют до перехода `status` на Link, а значения совпадают по именам.
+Следовательно:
 
-**Граница:** реальная миграция поддерживаемых production-данных рассматривается отдельно в `D00`.
+```text
+никакой обязательной Select → Link migration
+никакого site-local workflow_state Custom Field
+один Standard field в App source
+```
+
+После появления Workflow для `status` фиксируется:
+
+```text
+No Copy = yes
+```
+
+чтобы обычное Duplicate не переносило текущий workflow-state как старт нового документа.
+
+После появления Submittable-семантики в R12 дополнительно включается:
+
+```text
+Allow on Submit = yes
+```
+
+для workflow-state field. Это не разрешает обходить transitions: серверный Workflow всё равно проверяет переход.
 
 **Проверка:**
 
 ```text
-Meta Purchase Request содержит один status
-status = Link → Workflow State
+Purchase Request Meta содержит один status
+status остаётся Standard Select
 Workflow.workflow_state_field = status
-обязательного site-local Custom Field workflow_state нет
+обязательного Custom Field workflow_state нет
 ```
 
 ---
 
-## R08. Ожидающее согласование видно штатным механизмом Workflow
+## R08. Workflow Action используется как штатная очередь действий
 
-**Требование:** Approver должен видеть, что у него есть ожидающее действие процесса.
+**Требование:** Approver должен видеть ожидающее процессное действие без собственного Approval Inbox.
 
-**Ответственность:** рабочее представление доступных Workflow actions.
+**Ответственность:** представить ожидающие Workflow actions.
 
-**Первый механизм:** штатный `Workflow Action`.
+**Первый механизм:** `Workflow Action`.
 
-**Почему подходит:** это часть подсистемы Workflow Frappe; отдельный Approval Inbox для базового approval не нужен.
+**Важная граница текущего Frappe:** Workflow Action создаётся с `permitted_roles`. Это role-scoped runtime record, а не отдельная окончательная ACL конкретного пользователя.
 
-**Граница:** email не является обязательной предпосылкой CORE. `Send Email Alert` зависит от почтовой конфигурации, но сам Workflow должен быть проверяем и без неё.
+Поэтому проверка разделяется:
 
-**Проверка:** после отправки заявки Approver видит доступное Workflow Action/действие, Requester не получает действие, которого его роль не разрешает.
+```text
+чистый Requester без Approver role
+→ не видит Approver Workflow Action
+
+Approver role
+→ видит role-permitted Workflow Action
+
+owner + Approver role + allow_self_approval=false
+→ наличие role-permitted action не отменяет
+  серверный запрет фактического apply_workflow()
+```
+
+Нельзя использовать только присутствие/отсутствие Workflow Action как доказательство self-approval security.
+
+Email не обязателен для CORE.
 
 ---
 
 # 6. CORE — условное согласование
 
-## R09. Дорогая заявка требует второго уровня approval
+## R09. Большая сумма создаёт второй уровень approval
 
 Новое требование:
 
@@ -380,132 +414,117 @@ requested_amount <= LIMIT
 → достаточно Purchase Approver
 
 requested_amount > LIMIT
-→ после Purchase Approver нужен Senior Purchase Approver
+→ нужен Senior Purchase Approver
 ```
 
-**Новая роль появляется только теперь:**
+Только теперь появляются:
 
 ```text
 Senior Purchase Approver
+Pending Senior
 ```
 
-и получает необходимые базовые DocType Permissions.
-
-**Ответственность:** условно выбрать допустимый дальнейший transition на основании данных текущего Document и дать второму уровню согласования собственную роль.
+**Ответственность:** условно выбрать дальнейший transition и дать второму уровню свою роль.
 
 **Первый механизм:**
 
 ```text
-Role + DocType Permissions
+Role + базовый DocPerm
 +
-Condition в Workflow Transition
+Workflow Transition Condition
 ```
 
-**Новое состояние появляется только теперь:**
+Senior baseline до Submittable:
 
-```text
-Pending Senior
-```
+| Role | Read | Create | Write | Delete |
+|---|---:|---:|---:|---:|
+| Senior Purchase Approver | yes | no | yes | no |
 
-Смысл:
+`status` Select получает новое допустимое значение `Pending Senior`; создаётся соответствующий Workflow State record.
+
+Схема:
 
 ```text
 Draft
 → Pending Manager
 
-небольшая сумма:
+маленькая сумма:
 Pending Manager → Approved
 
 большая сумма:
 Pending Manager → Pending Senior → Approved
 ```
 
-**Почему подходит:** Frappe Workflow condition вычисляется относительно Document и предназначен для условной применимости transition.
+**Граница:** LIMIT пока является фиксированной частью учебного сценария. Настраиваемый LIMIT — `D03`.
 
-**Граница:** LIMIT пока является зафиксированной частью учебного сценария, а не настраиваемой бизнес-сущностью. Настройки — `D03`.
-
-**Проверка:** две контрольные заявки по разные стороны LIMIT должны получить разные доступные переходы; Senior Approver участвует только в большой заявке.
+**Проверка:** две заявки по разные стороны LIMIT получают разные доступные transitions.
 
 ---
 
 ## R10. Self approval запрещён штатной политикой Workflow
 
-**Требование:** пользователь с ролью Approver не может одобрить Purchase Request, который создал сам.
-
-CORE-политика:
+**Требование:** Approver не может одобрить документ, который создал сам.
 
 ```text
 allow_self_approval = false
 ```
 
-**Ответственность:** запретить self approval конкретного workflow transition.
+**Ответственность:** запретить self approval transition.
 
-**Первый механизм:** штатный `Allow Self Approval` / `allow_self_approval` transition.
+**Первый механизм:** штатный `Allow Self Approval` transition.
 
-**Почему подходит:** текущая реализация Frappe проверяет пользователя относительно `doc.owner`, а R02 специально фиксирует requester = owner.
+**Не пишется:** собственная `doc.owner == frappe.session.user` проверка.
 
-**Не пишется:**
+**Граница:** корректно только пока R02 (`requester = owner`) истинно.
 
-```python
-if doc.owner == frappe.session.user:
-    frappe.throw(...)
-```
-
-пока штатный Workflow уже выражает требование.
-
-**Граница:** если requester перестаёт совпадать с owner, см. `D02`.
-
-**Проверка:** пользователь одновременно с ролью Requester + Approver создаёт заявку сам и не может выполнить собственный Approve; другой Approver может.
+**Проверка:** dual-role owner не может фактически выполнить `apply_workflow()` Approve; другой Approver может.
 
 ---
 
-## R11. Rejected остаётся draft-состоянием процесса
+## R11. Rejected остаётся draft-state и может быть переотправлен
 
-**Требование:** отрицательное решение до окончательного approval не является системной отменой Submitted Document.
-
-CORE-семантика:
+**Требование:** отрицательное решение до final approval не является системной отменой Submitted Document.
 
 ```text
 Rejected → docstatus 0
 ```
 
-**Ответственность:** выразить отрицательное решение на рабочей draft-стадии.
+**Ответственность:** выразить отрицательное решение на draft-стадии и дать понятный путь исправления.
 
-**Первый механизм:** Workflow State `Rejected` с `Doc Status = 0`.
-
-**Почему подходит:** документ ещё не был превращён в зафиксированный Submitted факт.
-
-**Не используется:**
+**Первый механизм:** Workflow State `Rejected` с `Doc Status = 0` + явный transition:
 
 ```text
-Rejected = Cancelled
-Rejected = docstatus 2
+Rejected
+→ Purchase Requester edits
+→ Submit for Review
+→ Pending Manager
 ```
 
-**Граница:** будущий граф может разрешить `Rejected → Pending Manager` после исправления заявки, но это должно быть отдельным принятым transition, а не неявным редактированием state.
+**Не используется:** `Rejected = Cancelled`.
 
-**Проверка:** после Reject:
-
-```text
-status = Rejected
-docstatus = 0
-```
+**Проверка:** после Reject документ имеет `docstatus 0`, Requester может исправить его и повторно отправить только разрешённым Workflow transition.
 
 ---
 
-# 7. CORE — final approval становится транзакционным фактом
+# 7. CORE — final approval становится системным фактом
 
-## R12. Окончательно одобренную заявку нельзя бесследно переписать
+## R12. Final Approved становится Submitted только после отдельного требования
 
 Новое требование:
 
-> После final approval сумма, назначение и срок считаются согласованным разрешением на закупку. Обычный Save не должен позволять незаметно изменить смысл этого факта.
+> После final approval сумма, назначение и срок считаются зафиксированным разрешением и не должны бесследно переписываться обычным Save.
 
 **Ответственность:** системно зафиксировать подтверждённый Document.
 
-**Первый штатный механизм:** `Is Submittable` + `docstatus`.
+**Первый механизм:** `Is Submittable + docstatus`.
 
-Новая семантика:
+Теперь появляется:
+
+```text
+Cancelled
+```
+
+и mapping:
 
 ```text
 Draft            → docstatus 0
@@ -516,39 +535,49 @@ Approved         → docstatus 1
 Cancelled        → docstatus 2
 ```
 
-**Почему подходит:** Frappe использует `Draft → Submitted → Cancelled` для транзакционного lifecycle и ограничивает обычное редактирование Submitted/Cancelled Documents.
+`status` остаётся тем же Standard Select; добавляется значение `Cancelled`, а самому field включается `Allow on Submit = yes` как workflow-state field.
+
+### DocPerm тоже меняется
+
+Workflow transition role не выдаёт системное право `submit()`/`cancel()`.
+
+Поэтому вместе с Submittable-семантикой роли Approver получают:
+
+| Role | Submit | Cancel |
+|---|---:|---:|
+| Purchase Approver | yes | yes |
+| Senior Purchase Approver | yes | yes |
+| Purchase Requester | no | no |
+
+**Почему:** final Approve реально вызывает `submit()`, а Cancel transition — `cancel()`.
 
 **Ключевой вывод:**
 
 ```text
-Approved получает docstatus 1
-не потому, что называется Approved,
-а потому что появилось отдельное требование зафиксировать этот факт.
+Approved = docstatus 1
+не из-за слова Approved,
+а из-за требования зафиксировать факт.
 ```
-
-**Граница:** Approved Purchase Request — это разрешение на закупку, а не сама покупка, платёж или складская операция.
-
-**Проверка:** final approval должен приводить к реальному `submit()` path и `docstatus = 1`.
 
 ---
 
-## R13. Workflow полностью владеет submit/cancel transitions
+## R13. Workflow полностью описывает submit/cancel path
 
-**Требование:** после включения `Is Submittable` lifecycle не должен одновременно управляться и Workflow, и отдельным ручным Save/Submit сценарием.
+**Требование:** после `Is Submittable` не должно существовать параллельной неуправляемой модели lifecycle.
 
-**Ответственность:** связать workflow states с системным Doc Status.
+**Ответственность:** связать Workflow State с системным Doc Status.
 
-**Первый механизм:** Workflow States с `Doc Status` + Workflow Transitions.
+**Первый механизм:** Workflow State `Doc Status` + Workflow Transitions.
 
-Frappe должен получить валидный путь:
+Допустимый путь:
 
 ```text
-Draft-state (0)
-→ Approved (1)
-→ Cancelled (2)
+Draft-state 0
+→ Approved 1
+→ Cancelled 2
 ```
 
-и не получить нелегальные переходы:
+Не проектируются:
 
 ```text
 Draft → Cancelled
@@ -556,424 +585,365 @@ Submitted → Draft
 Cancelled → другой state
 ```
 
-**Почему подходит:** активный Workflow для submittable DocType управляет обычным save/submit/cancel flow; текущая реализация `apply_workflow()` вызывает `save()`, `submit()` или `cancel()` согласно Doc Status следующего состояния.
+**Почему:** Frappe `apply_workflow()` вызывает `save()`, `submit()` или `cancel()` в зависимости от Doc Status следующего state.
 
-**Граница:** Workflow state и `docstatus` остаются разными понятиями, хотя один transition может менять оба.
+**Граница:** Workflow state и docstatus остаются разными понятиями.
 
-**Проверка:**
-
-```text
-final Approve → docstatus 1
-Draft сразу Cancel → невозможно
-Submitted через допустимый Cancel transition → docstatus 2
-Cancelled → дальнейший transition невозможен
-```
+**Проверка:** final Approve реально приводит к `docstatus 1`; Cancel transition — к `docstatus 2`; незаконные переходы отклоняются.
 
 ---
 
-## R14. Ошибка после final approval исправляется через Cancel / Amend
+## R14. Смысловая ошибка после approval исправляется через Cancel / Amend
 
-**Требование:** после approval обнаружена ошибка в сумме или назначении, меняющая смысл согласованного факта.
+**Требование:** после final approval обнаружена ошибка, меняющая смысл согласованного факта.
 
-**Ответственность:** исправить зафиксированный Document без бесследного переписывания Submitted записи.
+**Ответственность:** исправить факт без переписывания Submitted записи.
 
-**Первый штатный механизм:** `Cancel` → `Amend`.
+**Первый механизм:** `Cancel → Amend`.
 
-**Почему подходит:** это штатный lifecycle submittable Documents.
-
-**Не используется как обычное решение:**
+**Не используется:**
 
 ```text
-вернуть docstatus 1 → 0
-разрешить Edit всех полей
+вернуть 1 → 0
+редактировать все Submitted fields
 ручной SQL
 Allow on Submit для смысловых полей
 ```
 
-**Граница:** безопасное изменение отдельного несмыслового поля после submit — отдельный `D01`.
+### Amend не принимается на веру
 
-**Проверка:**
+Desk Frappe копирует cancelled Document через отдельный `from_amend` path, а workflow UI для local Document устанавливает default state его текущего docstatus.
+
+Поэтому CORE ожидает:
 
 ```text
-Approved исходный Document → Cancelled
-Amend → новый исправленный Document
-исходный зафиксированный факт не переписан задним числом
+Cancelled original
+→ Amend
+→ new docstatus 0
+→ initial Draft workflow-state
+→ amended_from = original
 ```
+
+Но это поведение обязательно проверяется на принятой версии Frappe реальным Desk scenario. `No Copy` не выдаётся за механизм сброса state при Amend: `from_amend` имеет отдельную copy semantics.
+
+**Граница:** если фактический v16 runtime расходится с ожидаемым native path, сначала фиксируется поведение Framework; workaround не проектируется заранее.
 
 ---
 
-# 8. CORE — доставка состояния процесса
+# 8. CORE — App-owned delivery
 
-## R15. Обязательный Workflow принадлежит App, а не dev-site
+## R15. Roles и Workflow конфигурация воспроизводятся из App source
 
-**Требование:** новый совместимый Site после установки второго App должен получить тот же обязательный процесс без ручной настройки Workflow.
-
-**Ответственность:** воспроизводимая доставка configuration records.
+**Требование:** новый Site после установки App получает тот же обязательный процесс без ручной донастройки.
 
 Source of truth:
 
 ```text
-Purchase Request schema + status field
+Purchase Request schema + status
 → Standard DocType metadata
 
-Purchase Requester
-Purchase Approver
-Senior Purchase Approver
+Purchase Requester / Purchase Approver / Senior Purchase Approver
 → filtered Role fixtures
 
-Workflow State records CORE
-→ filtered fixtures
+нужные Workflow State records
+→ filtered Workflow State fixtures
 
-Workflow
-+ child states
-+ transitions
-+ conditions
-→ filtered fixture
+Workflow + child states/transitions/conditions
+→ filtered Workflow fixture
 
 test Users
-→ Site-local data
+→ Site-local
+
+Workflow Actions
+→ runtime Site data, НЕ fixture
 ```
 
-**Первый механизм:** App `fixtures` + Standard DocType source.
+**Первый механизм:** Standard metadata + filtered App fixtures.
 
-**Почему подходит:** Workflow, Workflow State и Role — database records конфигурации, которые должны синхронизироваться вместе с устанавливаемым App.
+### Fixture dependency order обязателен
 
-**Запрещённый результат:** после clean install приходится вручную:
+Frappe v16 импортирует fixture files в сортированном порядке имён. Без явной последовательности стандартные файлы дали бы:
 
 ```text
-создавать Workflow
-создавать Workflow States
-создавать Roles
-добавлять workflow_state Custom Field
+role.json
+workflow.json
+workflow_state.json
 ```
 
-**Граница:** точные fixture filters/order должны быть доказаны исполняемой спецификацией; нельзя экспортировать все системные Workflow/Role records Site.
+что ставит `Workflow` раньше `Workflow State`.
 
-**Проверка:** `export-fixtures → Git clean`, затем clean-site install восстанавливает только обязательные records второго App.
+Поэтому delivery contract обязан обеспечить:
+
+```text
+Role
+→ Workflow State
+→ Workflow
+```
+
+штатным ordering/prefix-механизмом. Первый кандидат v16:
+
+```text
+fixture_auto_order = True
++
+fixtures hook в dependency order
+```
+
+Точный код фиксируется исполняемой спецификацией и проверяется clean install.
+
+### Глобальная граница Workflow State
+
+`Workflow State.workflow_state_name` уникален на весь Site.
+
+Следовательно, будущая спецификация обязана решить naming сознательно:
+
+```text
+либо App-scoped state names
+либо явно доказанное переиспользование общих state records
+```
+
+Случайно экспортировать/перезаписывать глобальную запись другого App нельзя.
+
+### Запрещено
+
+```text
+fixtures = все Role
+fixtures = все Workflow
+fixtures = все Workflow State
+```
+
+**Проверка:** `export-fixtures → Git clean`, clean install восстанавливает только обязательную конфигурацию в правильном порядке.
 
 ---
 
-# 9. CORE — автоматические контракты
+# 9. CORE — automated contracts
 
-## R16. Lifecycle проверяется автоматическими Frappe-aware tests
+## R16. Lifecycle защищён автоматическими Frappe-aware tests
 
-**Требование:** критические правила второго практикума не должны зависеть от ручного прокликивания Workflow.
+**Требование:** критические правила не зависят от ручного прокликивания.
 
-**Ответственность:** повторяемо доказать собственную конфигурацию процесса и её интеграцию с Document lifecycle.
+**Первый механизм:** Frappe v16 `IntegrationTestCase` + Bench test runner.
 
-**Первый механизм:** актуальный Frappe v16 `IntegrationTestCase` + Bench test runner.
-
-Минимальный набор будущих контрактов:
+Минимальные контракты:
 
 ```text
 Requester может Draft → Pending Manager
 Requester не может Approve
-Purchase Approver может допустимый Approve/Reject
+Approver может Approve/Reject
+Requester не может обычным Edit менять Pending Manager при принятой state policy
 маленькая сумма не требует Senior
 большая сумма требует Pending Senior
-Senior может завершить большой approval
-self approval запрещён
+Senior завершает большой approval
+self approval отклоняется фактическим apply_workflow
 Rejected остаётся docstatus 0
-final Approved становится docstatus 1
+Rejected можно исправить и снова отправить
+Approved после R12 становится docstatus 1
+Requester не имеет submit/cancel permission
+Approver roles имеют submit/cancel permission
 Draft нельзя сразу Cancel
 Submitted можно Cancel через допустимый transition
-Cancelled становится docstatus 2
-Cancelled не может перейти дальше
+Cancelled = docstatus 2
+Cancelled не переходит дальше
+обязательного Custom Field workflow_state нет
+status остаётся Standard Select
 ```
 
-Также проверяется delivery contract:
+Amend дополнительно проверяется manual acceptance и, где возможно без имитации browser semantics, server contract.
 
-```text
-на clean Site
-обязательный Workflow существует
-обязательные Workflow State существуют
-status является Standard field
-скрытого обязательного workflow_state Custom Field нет
-```
-
-**Не тестируется ради coverage:**
-
-```text
-Frappe вообще умеет Workflow
-Frappe вообще умеет submit()
-```
-
-**Граница:** тестируются наши state/transition/permission/delivery decisions.
+Не тестируется Frappe «вообще» ради coverage.
 
 ---
 
 ## R17. Lifecycle воспроизводится на чистом Site
 
-**Требование:** доказать, что процесс принадлежит App, а не истории ручной настройки dev-site.
+**Требование:** доказать, что процесс принадлежит App, а не истории dev-site.
 
-**Ответственность:** clean-site acceptance обязательного lifecycle CORE.
-
-**Первый механизм:** штатная установка App + `migrate` + tests + реальный Desk/server scenario.
+**Первый механизм:** `install-app + migrate + tests + реальный scenario`.
 
 Финальный критерий:
 
 ```text
-чистый совместимый Frappe Site
-+ committed второй учебный App
-+ install-app / migrate
-+ обязательные Role / Workflow State / Workflow
-+ Standard status field без скрытого Custom Field
-+ automated tests
-+ реальный requester/approver scenario
-= воспроизводимый lifecycle
+clean compatible Frappe Site
++ committed App
++ Standard Purchase Request metadata
++ ordered filtered fixtures
++ mandatory Roles / Workflow States / Workflow
++ automated contracts
++ requester/approver lifecycle
+= reproducible lifecycle
 ```
 
-Site-local остаются:
+На новом Site нельзя вручную:
+
+```text
+создавать Roles
+создавать Workflow State
+создавать Workflow
+добавлять workflow_state Custom Field
+```
+
+Site-local:
 
 ```text
 test Users
 runtime Purchase Requests
+runtime Workflow Actions
 пароли
 local test config
 ```
 
-**Граница:** это acceptance Frappe App на чистом Site, а не production deployment test.
-
-**Проверка:** после установки не требуется вручную создавать Role, Workflow State, Workflow или state Custom Field; полный lifecycle и tests проходят на новом Site.
+Это App acceptance, а не production deployment.
 
 ---
 
-# 10. NEXT — операционные спутники
+# 10. NEXT
 
-## N01. После approval работу нужно назначить конкретному сотруднику
+## N01. Assignment / ToDo
 
-**Возможное требование:** конкретный сотрудник должен выполнить закупку.
+Если после approval конкретный сотрудник должен выполнить закупку, первый кандидат — Assignment.
 
-**Первый кандидат:** `Assignment` / `ToDo`.
-
-Смысл:
-
-```text
-кто сейчас должен выполнить работу
-→ Assignment
-```
-
-**Не создавать автоматически:**
-
-```text
-executor → Link → User
-```
-
-если нужен только текущий рабочий исполнитель.
-
-Assignment уже создаёт `ToDo` и имеет собственное поведение уведомления; отдельная Notification не добавляется для дублирования назначения.
+Не создавать `executor → User`, если нужен только текущий рабочий исполнитель.
 
 ---
 
-## N02. Нужно отдельное напоминание по дате
+## N02. Notification
 
-**Возможное требование:** например, за два дня до `needed_by` напомнить ответственному по актуальной заявке.
+Если нужно отдельное date-based reminder, первый кандидат — Notification.
 
-**Первый кандидат:** `Notification` с date-based event.
-
-**Граница:** не дублировать:
+Не дублировать:
 
 ```text
 Workflow Action
-Workflow Send Email Alert
+Workflow email alert
 Assignment notification
 ```
 
-Date-based Notification зависит от scheduler infrastructure Frappe. Поэтому её включение должно быть осознанным расширением эксплуатационной границы, а не скрытым «ещё одним полем» CORE.
+Date-based Notification имеет scheduler dependency и поэтому не прячется внутри lifecycle CORE.
 
 ---
 
-## N03. Нужны файлы, обсуждение и обычная история изменений
-
-Типовые требования:
+## N03. File / Comment / Version
 
 ```text
-коммерческое предложение
+приложить файл
 → File / Attach
 
-обсуждение заявки
+обсудить
 → Comment / Timeline
 
-кто менял сумму/описание
+обычная история изменений
 → Track Changes / Version
 ```
 
-**Не создавать автоматически:**
+Не создавать автоматически собственные Attachment/Comment/Approval History DocTypes.
+
+---
+
+## N04. Print
+
+Сначала Standard Print View. `Print Format` — только при реальной недостаточности.
+
+---
+
+# 11. GATE
+
+## D00. Эволюция dev/test данных
+
+После аудита **нет** обязательной смены:
 
 ```text
-Purchase Request Attachment
-Purchase Request Comment
-Approval History
+status Select → Link
 ```
 
-Если нужен отдельный юридически значимый журнал, это будет другая ответственность.
+Поэтому этот искусственный migration step удалён.
 
----
-
-## N04. Одобренную заявку нужно представить как документ
-
-**Возможное требование:** показать/сохранить Approved Purchase Request в печатном виде/PDF.
-
-**Первый шаг:** Standard Print View.
-
-**Следующий кандидат только при недостаточности:** `Print Format`.
-
-Собственный PDF generator не вводится без другого требования.
-
----
-
-# 11. GATE — архитектурные развилки
-
-## D00. Что делать с данными при эволюции учебной модели
-
-Внутри практикума модель меняется минимум дважды:
+Модель всё равно эволюционирует:
 
 ```text
-status Select
-→ status Link → Workflow State
-
-Approved docstatus 0
-→ Approved docstatus 1 после появления Submittable-семантики
+добавляется Pending Senior
+добавляется Cancelled
+Approved получает новую docstatus-семантику 1
 ```
 
-На dev/test Site к этому моменту уже могут существовать контрольные Purchase Requests.
+Disposable dev/test records можно явно пересоздать штатным Document-путём.
 
-**Правило:** такие данные не объявляются поддерживаемой предыдущей production-версией только потому, что ученик создал их на предыдущем этапе.
-
-Разрешённый учебный путь должен быть явным:
-
-```text
-зафиксировать наблюдение предыдущего этапа
-→ удалить/пересоздать disposable control data штатным Document-путём
-→ применить новую конфигурацию
-→ создать новый контрольный набор
-```
-
-Без ручного SQL.
-
-Если бы существовала поддерживаемая предыдущая версия App с реальными пользовательскими данными, изменение semantics/type/state потребовало бы отдельного migration plan и при необходимости patch.
-
-**Цель D00:** не приучать ни к фиктивным patches ради учебника, ни к игнорированию реальной data migration.
+Это не означает, что production migration «не нужна вообще»: поддерживаемая предыдущая версия с реальными данными потребовала бы отдельного migration plan/patch по фактическому изменению.
 
 ---
 
-## D01. Безопасное поле можно изменить после Submit
+## D01. Отдельное business field можно менять после Submit
 
-Новое требование, например:
+Например внешний номер заказа, который не меняет согласованный смысл.
 
-> После approval можно записать внешний номер заказа, но это не меняет согласованную сумму, назначение и срок.
+Первый кандидат — `Allow on Submit` только для этого field.
 
-Первый кандидат: `Allow on Submit` только для конкретного поля.
-
-Не использовать его для смысловых полей согласованного факта.
+Не путать с техническим `Allow on Submit` workflow-state field `status`.
 
 ---
 
-## D02. Заявку можно создавать от имени другого сотрудника
+## D02. Requester перестал совпадать с owner
 
-Теперь:
-
-```text
-requester ≠ всегда owner
-```
-
-Потребуется отдельное предметное поле requester и повторный анализ self-approval semantics.
-
-Нельзя продолжать считать штатную owner-based проверку Workflow полной реализацией новой политики.
+Появляется отдельное предметное requester field и повторно анализируется self approval.
 
 ---
 
-## D03. Лимит approval должен менять администратор как данные системы
+## D03. LIMIT должен быть данными системы
 
-Только здесь фиксированный `LIMIT` перестаёт быть частью учебной конфигурации процесса.
-
-Первый кандидат для одного значения уровня Site — `Single DocType` Settings.
-
-После этого Workflow condition должен читать настоящий источник настройки только если такая зависимость остаётся простой и понятной.
+Если администратор должен менять LIMIT без редактирования Workflow, первый кандидат для одного Site-level значения — `Single DocType` Settings.
 
 ---
 
-## D04. Маршрут согласования стал динамическим
+## D04. Approval route стал динамическим
 
-Пример нового требования:
+Если маршрут зависит от подразделения, категории, организации, бюджета, внешнего решения и перестаёт естественно выражаться Workflow states/transitions/conditions, выполняется новый fit analysis.
 
-```text
-approver зависит от подразделения
-+ категории расходов
-+ организации
-+ бюджета
-+ внешнего решения
-```
-
-Наличие слова «approval» больше не гарантирует, что один статический Workflow остаётся естественной моделью.
-
-Первый шаг — повторный architectural fit analysis:
-
-```text
-можно ли честно выразить процесс
-Workflow states/transitions/conditions?
-```
-
-Если нет, только тогда появляется отдельная предметная ответственность и рассматривается собственный код/модель.
+Наличие слова approval не обязывает бесконечно растягивать Standard Workflow.
 
 ---
 
-# 12. Явные неправильные решения
+# 12. Явно неправильные решения
 
-## Неправильно: Workflow с первого дня
+## Workflow с первого дня
 
 ```text
-есть четыре status
+есть status values
 → сразу Workflow
 ```
 
-Почему плохо: ученик не видит, какая новая ответственность потребовала механизм.
-
-Правильно:
-
-```text
-status хранит состояние
-↓
-появилась политика переходов
-↓
-Workflow
-```
+Неправильно: механизм появляется до новой ответственности.
 
 ---
 
-## Неправильно: Senior role заранее
+## Лишняя смена state field типа
 
 ```text
-когда-нибудь будет второй уровень approval
-→ сразу создать Senior Purchase Approver
+status Select
+→ Workflow появился
+→ обязательно Link → Workflow State
 ```
 
-Почему плохо: механизм появляется до требования.
-
-Правильно: Senior role и `Pending Senior` появляются вместе с R09.
+Неправильно для нашего собственного Standard DocType: Framework умеет использовать уже существующий field как Workflow State Field.
 
 ---
 
-## Неправильно: два состояния рядом
+## Senior role заранее
 
-```text
-status
-workflow_state
-```
-
-при одинаковом смысле.
-
-Почему плохо: два source of truth и скрытая site-local конфигурация.
-
-Правильно: один Standard state field собственного DocType.
+Неправильно: role и Pending Senior появляются только вместе с R09.
 
 ---
 
-## Неправильно: Rejected = Cancelled
+## `status + workflow_state`
 
-Почему плохо: отрицательное draft-решение смешано с отменой ранее Submitted Document.
+Неправильно при одинаковом смысле: два source of truth.
 
-Правильно:
+---
+
+## Workflow Action = окончательная ACL
+
+Неправильно: это role-scoped runtime action; фактический transition дополнительно проверяет Workflow, включая self approval.
+
+---
+
+## Rejected = Cancelled
 
 ```text
 Rejected  → docstatus 0
@@ -982,72 +952,61 @@ Cancelled → docstatus 2
 
 ---
 
-## Неправильно: Approved = Submitted потому что названия похожи
+## Approved = Submitted только из-за названия
 
-Правильно: docstatus 1 появляется только после отдельного требования о фиксации согласованного факта.
-
----
-
-## Неправильно: custom approve() поверх обычного status
-
-если штатный Workflow уже выражает роли и transitions.
+Неправильно: docstatus 1 появляется только из требования зафиксировать факт.
 
 ---
 
-## Неправильно: Workflow role заменяет DocPerm
+## Workflow transition role заменяет Submit/Cancel DocPerm
 
-```text
-роль есть в Transition
-→ значит пользователь автоматически имеет все права на Document
-```
-
-Это разные уровни ответственности.
+Неправильно: `submit()`/`cancel()` остаются системными Document operations со своими permissions.
 
 ---
 
-## Неправильно: Notification дублирует всё подряд
+## Fixtures без dependency order
 
-Не нужна отдельная Notification только потому, что:
-
-```text
-есть Workflow Action
-есть Assignment
-```
-
-У каждого механизма уже есть собственная notification semantics.
+Неправильно: clean install должен доказать порядок Role → Workflow State → Workflow.
 
 ---
 
-# 13. Контроль матрицы перед dependency graph
+## Notification дублирует Workflow/Assignment
+
+Неправильно без отдельного notification requirement.
+
+---
+
+# 13. Контроль перед dependency graph
 
 Перед построением графа нужно ответить `да`:
 
 ```text
-1. R01–R17 являются реальными требованиями, а не списком функций?
-2. Минимальная модель не повторяет первый практикум ради количества DocTypes?
-3. Requester = owner явно является границей CORE, а не универсальным утверждением?
-4. Обычный status появляется раньше Workflow?
-5. Есть отрицательный опыт, показывающий ограничение обычного status?
-6. До R09 не существуют Senior role и Pending Senior?
-7. Workflow появляется только из role-controlled transitions?
-8. После Workflow остаётся один source of truth состояния?
-9. Обязательный state field принадлежит Standard DocType App?
-10. Workflow Action используется раньше собственного Approval Inbox?
-11. Senior role и Pending Senior появляются только вместе с amount-based требованием?
-12. Self approval использует штатную owner-based семантику только пока R02 истинно?
-13. Rejected остаётся docstatus 0?
-14. Approved становится docstatus 1 только после требования о фиксации факта?
-15. Cancelled появляется только вместе с submittable lifecycle?
-16. Workflow описывает реальный submit/cancel path?
-17. Cancel / Amend используется для смыслового исправления Submitted факта?
-18. Role / Workflow State / Workflow имеют App-owned delivery path?
-19. Не экспортируются все системные Roles/Workflow records Site?
-20. Lifecycle защищён автоматическими tests?
-21. Финал является отдельным clean-site acceptance R17?
-22. Эволюция disposable dev data не выдана за production migration?
-23. Реальная production migration не объявлена ненужной вообще?
-24. Assignment/Notification/File/Comment/Version/Print остаются NEXT?
-25. API/async/extension/integration не попали в CORE ради покрытия?
+1. R01–R17 — реальные требования, а не список функций?
+2. Requester = owner явно ограничен CORE?
+3. status появляется раньше Workflow?
+4. отрицательный опыт R04 показывает реальную границу status?
+5. до R09 нет Senior role/state?
+6. Workflow появляется только из role-controlled transitions?
+7. allow_edit policy задана осознанно?
+8. после Workflow остаётся один Standard status?
+9. status не меняет тип без необходимости?
+10. обязательный site-local workflow_state Custom Field не появляется?
+11. Workflow Action не выдаётся за окончательную authorization check?
+12. self approval проверяется на apply_workflow?
+13. Rejected = docstatus 0 и имеет явный resubmit path?
+14. Approved становится docstatus 1 только после отдельного требования?
+15. Submit/Cancel DocPerm учтены отдельно от transition roles?
+16. Cancelled появляется только вместе с Submittable lifecycle?
+17. Workflow описывает реальный submit/cancel path?
+18. Amend проверяется фактически, а не объясняется выдуманным no_copy поведением?
+19. fixtures имеют доказанный dependency order?
+20. глобальная уникальность Workflow State не игнорируется?
+21. lifecycle защищён automated contracts?
+22. финал — отдельный clean Site acceptance?
+23. disposable dev data не выдана за production migration?
+24. production migration не объявлена ненужной вообще?
+25. NEXT остаётся вне lifecycle CORE?
+26. API/async/extension/integration не добавлены ради покрытия?
 ```
 
-Если какой-то ответ отрицательный, сначала исправляется матрица. Dependency graph и roadmap строятся только после этого.
+Если хотя бы один ответ отрицательный, сначала исправляется матрица. Dependency graph строится только после этого.
