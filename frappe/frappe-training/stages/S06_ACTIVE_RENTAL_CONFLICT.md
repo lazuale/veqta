@@ -15,17 +15,17 @@ Rental Operator / Rental Manager
 
 > Одна единица Equipment не может одновременно находиться в двух Rentals со статусом `Active`, если их периоды пересекаются.
 
-Это уже не проверка только текущего Document. Решение требует прочитать другие Rental Documents и их child rows.
+Это уже не проверка только текущего Document. Решение требует прочитать другие Rental Documents и их дочерние строки.
 
 Связанные документы:
 
 - [`S05C_RENTAL_LOCAL_INVARIANTS.md`](S05C_RENTAL_LOCAL_INVARIANTS.md);
 - [`S05D_ROLES_AND_PERMISSIONS.md`](S05D_ROLES_AND_PERMISSIONS.md);
-- [`../CORE_STAGE_SPECIFICATION.md`](../CORE_STAGE_SPECIFICATION.md);
-- [`../REQUIREMENTS_MATRIX.md`](../REQUIREMENTS_MATRIX.md);
-- [`../PRACTICUM_ROADMAP.md`](../PRACTICUM_ROADMAP.md);
+- [`../APPLICATION_MODEL.md`](../APPLICATION_MODEL.md);
+- [`../REQUIREMENTS.md`](../REQUIREMENTS.md);
+- [`../ROADMAP.md`](../ROADMAP.md);
 - [`../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md`](../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md);
-- [`../../frappe-architecture-standard/05_TRANSACTIONS_ASYNC.md`](../../frappe-architecture-standard/05_TRANSACTIONS_ASYNC.md).
+- [`../../frappe-architecture-standard/06_TRANSACTIONS_ASYNC.md`](../../frappe-architecture-standard/06_TRANSACTIONS_ASYNC.md).
 
 Первичные источники Frappe:
 
@@ -37,7 +37,7 @@ Rental Operator / Rental Manager
 
 # 1. Сначала зафиксировать бизнес-семантику
 
-В CORE Equipment считается занятым только когда:
+В учебном приложении Equipment считается занятым только когда:
 
 ```text
 status = Active
@@ -51,15 +51,15 @@ Active   → блокирует
 Returned → не блокирует
 ```
 
-Это решение учебного продукта, а не встроенное свойство Frappe.
+Это решение предметной модели практикума, а не встроенное свойство Frappe.
 
-Если позже бизнес скажет, что `Planned` уже резервирует Equipment, изменится правило участвующих статусов. Для этого не нужно автоматически вводить Workflow, новый DocType или отдельный reservation framework.
+Если позже требования изменятся и `Planned` начнёт резервировать Equipment, изменится правило участвующих статусов. Для этого не нужно автоматически вводить Workflow, новый DocType или отдельный механизм резервирования.
 
 ---
 
 # 2. Формула пересечения дат
 
-`start_date` и `end_date` — поля `Date`, а границы периода в CORE включительны.
+`start_date` и `end_date` — поля `Date`, а границы периода в практикуме включительны.
 
 Два периода конфликтуют, если:
 
@@ -87,7 +87,7 @@ V03 читает другие Documents, но отвечает на тот же 
 
 > Допустимо ли сохранить текущий Rental в его текущем состоянии?
 
-Поэтому в CORE правило остаётся в `Rental Controller` и вызывается из `validate()`.
+Поэтому правило остаётся в `Rental Controller` и вызывается из `validate()`.
 
 Пока не нужны:
 
@@ -97,10 +97,10 @@ ReservationService
 Availability Engine
 Booking Rule DocType
 Server Script
-custom API
+собственный API
 ```
 
-Отдельный service станет кандидатом только после появления действительно отдельной ответственности, а не из-за того, что один validator сделал запрос к другим Documents.
+Отдельный Service станет кандидатом только после появления действительно самостоятельной ответственности, а не из-за того, что один validator сделал запрос к другим Documents.
 
 ---
 
@@ -113,16 +113,16 @@ frappe.get_list(...)
 → учитывает permissions текущего пользователя
 
 frappe.get_all(...)
-→ не применяет обычную permission filtering
+→ не применяет обычную фильтрацию по permissions
 ```
 
-Для пользовательских списков нормальный выбор — permission-aware путь.
+Для пользовательских списков нормальный выбор — путь с учётом permissions.
 
 Но V03 — внутренний инвариант данных. Если конфликт уже существует в базе, текущий Rental нельзя разрешать только потому, что пользователь не видит конфликтующую запись в своём List.
 
 Поэтому **внутри V03 `get_all()` используется намеренно**.
 
-Это не означает «если права мешают — всегда используйте get_all». На S05D уже зафиксировано противоположное правило: permission bypass должен иметь конкретную системную причину.
+Это не означает «если права мешают — всегда используйте get_all». На S05D уже зафиксировано противоположное правило: обход permissions должен иметь конкретную системную причину.
 
 Также внутренний запрос не должен без необходимости раскрывать пользователю данные скрытого Rental. Поэтому ошибка сообщает о занятости Equipment, но не обязана показывать имя конфликтующего Rental, его Customer или owner.
 
@@ -132,13 +132,13 @@ frappe.get_all(...)
 
 Текущий Rental содержит Equipment через `Rental Item`.
 
-Сначала находим child rows с теми же Equipment:
+Сначала находим дочерние строки с теми же Equipment:
 
 ```text
 current.items
-→ Equipment names
-→ Rental Item rows
-→ parent Rental names
+→ имена Equipment
+→ строки Rental Item
+→ имена родительских Rental
 ```
 
 Затем среди найденных родителей ищем:
@@ -267,9 +267,9 @@ if self.status != "Active":
 not self.start_date or not self.end_date
 ```
 
-не заменяют `Mandatory` metadata. Ранний `return` только не позволяет междокументному запросу работать с неполным периодом раньше штатной mandatory validation.
+не заменяют `Mandatory` metadata. Ранний `return` только не позволяет междокументному запросу работать с неполным периодом раньше штатной проверки обязательных полей.
 
-## Child rows
+## Дочерние строки
 
 `Rental Item` имеет системные поля:
 
@@ -292,7 +292,7 @@ parentfield = items
 
 # 8. Не забыть исключить текущий Rental
 
-При редактировании существующего Rental его старые child rows уже находятся в БД.
+При редактировании существующего Rental его старые дочерние строки уже находятся в БД.
 
 Если не выполнить:
 
@@ -302,7 +302,7 @@ row.parent != self.name
 
 Active Rental сможет найти самого себя и объявить собственное состояние конфликтом.
 
-Self-exclusion — часть корректности V03, а не оптимизация.
+Исключение текущего Document — часть корректности V03, а не оптимизация.
 
 ---
 
@@ -379,13 +379,13 @@ Planned → Active
 
 # 12. Проверить `Returned`
 
-`Returned` Rental по текущей CORE-семантике не блокирует Equipment.
+`Returned` Rental по текущей семантике не блокирует Equipment.
 
 Создайте пересекающийся `Returned` Rental либо переведите контрольный Rental в `Returned`, затем убедитесь, что новый `Active` Rental не блокируется только из-за этой Returned-записи.
 
 ---
 
-# 13. Проверить отсутствие self-conflict
+# 13. Проверить отсутствие конфликта с самим собой
 
 Откройте валидный Active Rental A и сохраните его повторно без изменения периода либо измените Customer.
 
@@ -410,7 +410,7 @@ bench --site rental.localhost console
 frappe.set_user("operator@example.test")
 ```
 
-Здесь мы выбираем тестовые данные **permission-aware способом**:
+Здесь мы выбираем тестовые данные **с учётом permissions**:
 
 ```python
 customer = frappe.get_list("Customer", pluck="name", limit_page_length=1)[0]
@@ -419,7 +419,7 @@ equipment = frappe.get_list("Equipment", pluck="name", limit_page_length=1)[0]
 
 Это важно: `get_all()` нужен внутри системного инварианта V03, но не нужен оператору просто для выбора доступных ему Documents.
 
-Создайте baseline на свободном периоде:
+Создайте контрольную запись на свободном периоде:
 
 ```python
 baseline = frappe.get_doc(
@@ -440,7 +440,7 @@ baseline = frappe.get_doc(
 frappe.db.commit()
 ```
 
-Этот `commit()` относится только к ручной console-сессии. Его не должно быть в Controller: обычной транзакционной границей web request/job управляет Frappe.
+Этот `commit()` относится только к ручной console-сессии. Его не должно быть в Controller: обычной транзакционной границей web request или job управляет Frappe.
 
 Теперь конфликтующий Document:
 
@@ -475,7 +475,7 @@ V03 всё равно сработал
 
 ---
 
-# 15. Почему это ещё не concurrency guarantee
+# 15. Что эта проверка не гарантирует при конкурентных запросах
 
 Обычная `validate()`-проверка не исключает сценарий:
 
@@ -495,16 +495,16 @@ S06 доказывает только:
 
 Он не доказывает строгую сериализацию параллельных бронирований.
 
-Production-задача может потребовать отдельной доказанной стратегии:
+Реальная задача с конкурентными запросами может потребовать отдельной доказанной стратегии:
 
 ```text
-transaction/locking strategy
-reservation model
-serializable critical section
+транзакции и блокировки
+модель резервирования
+сериализованный критический участок
 другая схема конкурентного доступа
 ```
 
-Какой именно механизм нужен, определяется реальной нагрузкой и требованием. В CORE не добавляем SQL locks или reservation service ради демонстрации возможностей.
+Какой именно механизм нужен, определяется реальной нагрузкой и требованием. В практикуме не добавляем SQL locks или Reservation Service ради демонстрации возможностей.
 
 ---
 
@@ -526,7 +526,7 @@ permission-aware get_list внутри инварианта,
 
 ---
 
-# 17. Git checkpoint
+# 17. Зафиксировать изменение в Git
 
 Проверьте изменение:
 
@@ -555,13 +555,13 @@ git -C apps/rental_training status --short
 
 Ожидается пустой вывод.
 
-Как и на S05C, schema не менялась, поэтому `bench migrate` не выполняется просто из-за изменения Python Controller.
+Как и на S05C, схема не менялась, поэтому `bench migrate` не выполняется просто из-за изменения Python Controller.
 
 ---
 
-# 18. ГОТОВО
+# 18. Проверка перед S07
 
-S06 принят, если доказано всё ниже.
+Перед переходом дальше должно быть проверено:
 
 ```text
 Active 10–12 + Active 11–13, same Equipment → запрещено
@@ -573,33 +573,33 @@ Returned overlap                        → не блокирует
 повторный save самого Active Rental     → разрешён
 ```
 
-Конфликт также блокируется обычным `Document.insert()` без Form/Client Script.
+Конфликт также должен блокироваться обычным `Document.insert()` без Form/Client Script.
 
-Ученик объясняет:
+Ученик должен объяснить:
 
 ```text
 почему V03 читает другие Documents
-почему внутренний invariant использует get_all
+почему внутренний инвариант использует get_all
 почему пользовательский поиск от этого не становится get_all
-почему validate-check ≠ concurrency guarantee
+почему обычная validate-проверка не гарантирует защиту от конкурентных запросов
 ```
 
 `rental.py` находится в Git, рабочее дерево App чистое.
 
 ---
 
-# 19. НЕ ГОТОВО
+# 19. Когда не переходить к S07
 
-S06 не принят, если:
+Сначала исправьте проблему, если:
 
 - конфликт проверяется только JavaScript-кодом формы;
 - текущий Rental конфликтует сам с собой;
 - общая граничная дата ошибочно считается непересечением;
-- `Planned` или `Returned` блокируют Equipment вопреки CORE-семантике;
-- реальный конфликт может исчезнуть из-за permission filtering пользовательского List;
+- `Planned` или `Returned` блокируют Equipment вопреки принятой семантике;
+- реальный конфликт может исчезнуть из-за фильтрации permissions пользовательского List;
 - в Controller появился ручной `frappe.db.commit()`;
 - заявлено, что обычная `validate()` полностью решает конкурентное бронирование;
-- появился отдельный reservation/service/rule слой без нового требования;
+- появился отдельный слой резервирования, Service или Rule Engine без нового требования;
 - изменение Controller не находится в Git.
 
 ---
@@ -613,6 +613,6 @@ Rental.validate()
 └── V03 cross-document: overlapping Active Rental
 ```
 
-На этом все три согласованных бизнес-инварианта CORE реализованы.
+На этом все три согласованных бизнес-инварианта учебного приложения реализованы.
 
-Следующий этап — S07: ручные проверки S05C/S05D/S06 превращаются в повторяемые автоматические контракты Frappe test runner.
+Следующий этап — S07: ручные проверки S05C/S05D/S06 превращаются в повторяемые автоматические проверки Frappe test runner.
