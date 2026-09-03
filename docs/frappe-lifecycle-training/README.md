@@ -39,6 +39,25 @@ CORE_STAGE_SPECIFICATION
 
 Нельзя начинать executable specification только по roadmap, игнорируя `ROADMAP_AUDIT.md`.
 
+## Что дополнительно доказал аудит roadmap
+
+```text
+Allow Self Approval
+→ свойство каждой transition row, а не глобальная policy Workflow
+
+Only Allow Edit For
+→ Desk/state edit policy
+→ не самостоятельная server-side immutability
+
+No Copy workflow-state field
+→ требуется с момента включения Workflow
+
+Senior role
+→ получает только минимальные rights из текущей ответственности
+```
+
+Если будущий requirement требует server-side запрет менять Pending Request независимо от Desk/API path, это отдельная архитектурная задача, а не скрытое обещание `Only Allow Edit For`.
+
 ## Нормативная база
 
 - [`docs/frappe-architecture-standard`](../frappe-architecture-standard/README.md);
