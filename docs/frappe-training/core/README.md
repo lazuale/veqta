@@ -41,3 +41,162 @@ CORE учит фундаменту архитектуры собственног
 | [`S09`](S09_CLEAN_INSTALL_ACCEPTANCE.md) | clean Site install + tests + Desk/permission acceptance | написан |
 
 `NEXT`, `GATE` и `EXT` не смешиваются с этим маршрутом автоматически. Они подключаются только после соответствующего требования, как определено в архитектурных документах.
+
+## CORE завершён как маршрут
+
+S09 закрывает обязательную цепочку CORE:
+
+```text
+совместимый Frappe Bench
+        ↓
+App boundary
+        ↓
+Standard metadata
+        ↓
+Document relations
+        ↓
+status
+        ↓
+Desk
+        ↓
+server invariants
+        ↓
+permissions
+        ↓
+cross-document invariant
+        ↓
+automated contracts
+        ↓
+delivery audit
+        ↓
+clean Site acceptance
+```
+
+Финальная проверка выполняется не на старом dev-site, а на новом:
+
+```text
+rental-acceptance.localhost
+```
+
+До установки на нём должен быть только:
+
+```text
+frappe
+```
+
+После установки текущего committed `rental_training` без `developer_mode` должны штатно появиться:
+
+```text
+Rental Training Module
+Equipment
+Customer
+Rental Item
+Rental
+Rental Operator
+Rental Manager
+default DocType Permissions
+Rental Controller behavior
+```
+
+Затем:
+
+```text
+bench migrate
+→ success
+
+bench run-tests
+→ green
+
+Manager
+→ Equipment → Customer → Rental
+
+Operator
+→ permission limits работают
+
+Active overlap
+→ блокируется
+
+App Git
+→ clean
+```
+
+## Что является App-owned
+
+После S08/S09 граница должна быть понятна без догадок:
+
+```text
+Rental Training Module
+→ modules.txt
+
+Equipment / Customer / Rental Item / Rental
+→ Standard DocType JSON
+
+naming / fields / default DocPerm
+→ Standard DocType metadata
+
+V01 / V02 / V03
+→ rental.py
+
+Rental Operator / Rental Manager
+→ hooks.py + fixtures/role.json
+
+automated contracts
+→ test_rental.py
+```
+
+Экземплярное состояние остаётся у Site:
+
+```text
+Users
+Equipment/Customer/Rental records
+developer_mode на dev-site
+allow_tests на test-site
+runtime naming state
+```
+
+## Важная поправка среды
+
+В рамках этого учебного стенда `developer_mode` включается **только на `rental.localhost`**, а не глобально на Bench.
+
+Это архитектурное решение практикума, чтобы второй acceptance-site мог доказать:
+
+```text
+установка и работа App
+≠
+зависимость от developer mode
+```
+
+Оно не утверждается как обязательная область настройки, предписанная самим Frappe.
+
+Если практикум проходился по старой версии с глобальным `developer_mode`, S00 и S09 содержат точную команду очистки `common_site_config.json` через штатный `bench set-config`.
+
+## Что дальше
+
+CORE закончен не потому, что «мы прошли все возможности Frappe».
+
+Наоборот, следующие механизмы остаются вне CORE до появления реального требования:
+
+```text
+Single DocType
+Notification
+Report
+Print Format
+Web Form
+REST integration
+Webhook
+Background Jobs
+Workflow
+Is Submittable / docstatus
+Permission Level / User Permission / Share
+Server Script
+custom frontend
+```
+
+Следующий учебный блок должен начинаться не с выбора очередной функции Frappe, а с нового требования и повторять тот же принцип:
+
+```text
+требование
+→ ответственность
+→ штатный механизм
+→ проверяемый результат
+```
