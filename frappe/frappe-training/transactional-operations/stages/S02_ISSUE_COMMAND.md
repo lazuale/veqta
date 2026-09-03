@@ -2,48 +2,41 @@
 
 S01 дал нам журнал `Equipment Movement`, но пока он пуст.
 
-Теперь появляется сама бизнес-операция:
+Теперь появляется бизнес-операция:
 
 > Выдать Rental: перевести его из `Planned` в `Active` и создать `Issue` Movement для каждого Equipment.
 
-Эта операция должна быть серверной и атомарной.
+Операция должна быть серверной и атомарной.
 
 ---
 
 ## 1. Почему обычного изменения status уже недостаточно
 
-До появления Movement пользователь мог изменить:
-
-```text
-Planned → Active
-```
-
-как обычное поле Rental.
-
-Теперь такой переход без журнала создаёт противоречие:
+После появления Movement состояние:
 
 ```text
 Rental = Active
-но факта выдачи Equipment нет
 ```
 
-Поэтому после S02:
+без журнала выдачи становится противоречивым.
+
+Поэтому:
 
 ```text
+новый Rental
+→ только Planned
+
 Planned → Active
+→ только Issue Rental
 ```
 
-становится не просто новым значением поля, а командой:
-
-```text
-Issue Rental
-```
+Нельзя защитить только редактирование существующего Document и оставить возможность вставить новый Rental сразу как `Active`.
 
 ---
 
 ## 2. Почему команда остаётся в Rental Controller
 
-Операция относится к конкретному Rental и использует его данные:
+Операция относится к конкретному Rental и использует его:
 
 ```text
 status
@@ -51,42 +44,43 @@ items
 permissions
 ```
 
-Пока нет отдельной ответственности, которая требовала бы создавать `RentalService` или собственный command bus.
+Отдельный `RentalService` или command bus текущему требованию не нужен.
 
-Поэтому используем обычный controller method:
+Используем controller method:
 
 ```python
 Rental.issue()
 ```
 
-Frappe Form умеет вызывать whitelisted controller method через `frm.call()`.
+Frappe Form вызывает whitelisted controller method через `frm.call()`.
 
-Первичный источник:
+Первичные источники:
 
 - https://docs.frappe.io/framework/user/en/api/form#frmcall
-
-В Frappe v16.33.0 серверный `run_doc_method` также проверяет write permission для POST-вызова Document method и проверяет, что метод whitelisted.
-
-Исходный код:
-
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/api/v2.py
 
-Мы всё равно оставим явный `self.check_permission("write")` внутри команды, потому что permission boundary является частью самой бизнес-команды, а не только особенностью конкретного транспорта вызова.
+В v16.33.0 POST-вызов Document method проверяет write permission и whitelist метода. В самой команде всё равно оставляем явный:
+
+```python
+self.check_permission("write")
+```
+
+чтобы permission boundary была частью бизнес-команды, а не зависела только от конкретного транспорта вызова.
 
 ---
 
-## 3. Сделать status read-only для обычной Form
+## 3. Сделать status read-only в Form
 
 Откройте Desk → `DocType` → `Rental`.
 
-Найдите поле:
+У поля:
 
 ```text
 Status
 fieldname = status
 ```
 
-Включите:
+включите:
 
 ```text
 Read Only = yes
@@ -94,13 +88,11 @@ Read Only = yes
 
 Сохраните DocType.
 
-Это убирает обычный пользовательский путь редактирования состояния.
-
-Но это **не единственная защита**. На сервере будет отдельная validation перехода.
+Это убирает обычный UI-путь редактирования состояния, но серверная защита всё равно обязательна.
 
 ---
 
-## 4. Добавить серверную защиту перехода
+## 4. Добавить серверный контракт status
 
 Откройте:
 
@@ -113,7 +105,7 @@ apps/rental_training/
                 └── rental.py
 ```
 
-В существующий `validate()` добавьте новую проверку:
+В существующий `validate()` добавьте:
 
 ```python
 def validate(self):
@@ -123,10 +115,15 @@ def validate(self):
     self.validate_active_equipment_conflicts()
 ```
 
-Добавьте метод:
+Добавьте:
 
 ```python
 def validate_status_transition(self):
+    if self.is_new():
+        if self.status != "Planned":
+            frappe.throw(_("A new Rental must start as Planned."))
+        return
+
     previous = self.get_doc_before_save()
 
     if not previous or previous.status == self.status:
@@ -142,11 +139,14 @@ def validate_status_transition(self):
     )
 ```
 
-### Что делает эта проверка
+На S02 это даёт:
 
 ```text
-создание нового Planned Rental
-→ разрешено
+new Rental / Planned
+→ разрешён
+
+new Rental / Active или Returned
+→ запрещён
 
 обычное сохранение без изменения status
 → разрешено
@@ -154,26 +154,24 @@ def validate_status_transition(self):
 Planned → Active внутри issue()
 → разрешено
 
-прямой Planned → Active через обычный save
+прямой Planned → Active через save()
 → запрещён
 
-любой другой прямой переход
-→ пока запрещён
+прочие прямые переходы
+→ пока запрещены
 ```
 
-`Active → Returned` будет разрешён на S06, когда появится реальная команда Return.
+`Active → Returned` появится на S06 вместе с реальной командой Return.
 
 ---
 
 ## 5. Добавить helper создания Movement
 
-В imports добавьте:
+В imports добавьте `now_datetime`:
 
 ```python
 from frappe.utils import getdate, now_datetime
 ```
-
-Если `getdate` уже импортирован, просто дополните существующий import.
 
 Добавьте в `Rental`:
 
@@ -193,27 +191,22 @@ def create_equipment_movements(self, movement_type):
         ).insert(ignore_permissions=True)
 ```
 
-Почему `ignore_permissions=True` здесь осознанный:
+Почему здесь осознанно используется `ignore_permissions=True`:
 
 ```text
-Equipment Movement
-→ system-generated journal
-→ пользователям Create не выдан
+Movement = system-generated journal
+→ прикладным ролям Create не выдан
 
-Rental.issue()
-→ сначала проверит write на Rental
-→ только после этого создаст внутренние Movement
+issue()
+→ сначала проверяет write на Rental
+→ затем внутренне создаёт Movement
 ```
 
 Не переносите `ignore_permissions=True` на `self.save()` самого Rental.
 
-Пользовательская команда обязана сохранить обычную permission boundary Rental.
-
 ---
 
 ## 6. Добавить issue()
-
-Добавьте:
 
 ```python
 @frappe.whitelist()
@@ -235,13 +228,9 @@ def issue(self):
 
 ### Почему `self.reload()`
 
-`frm.call()` вызывает controller method для текущего Document.
+Перед бизнес-командой нужен последний persisted Rental, а не случайные незаписанные изменения клиента.
 
-Перед бизнес-командой нам нужен именно последний сохранённый Rental из БД, а не случайные незаписанные изменения клиента.
-
-Поэтому после permission check команда перечитывает persisted state.
-
-UI дополнительно не будет запускать Issue на dirty Form, но серверная команда не должна зависеть только от UI.
+UI дополнительно не будет запускать Issue на dirty Form, но сервер не должен зависеть только от UI.
 
 ---
 
@@ -259,9 +248,9 @@ self.save()
 movement.insert(...)
 ```
 
-в БД уже выполнены SQL writes, но транзакция request ещё не обязана быть зафиксирована.
+SQL writes уже выполнены, но request-транзакция ещё не обязана быть зафиксирована.
 
-Frappe Database API описывает модель так:
+Frappe Database API описывает:
 
 ```text
 успешный POST/PUT
@@ -271,17 +260,12 @@ Frappe Database API описывает модель так:
 → rollback request
 ```
 
-Первичный источник:
+Источники:
 
 - https://docs.frappe.io/framework/user/en/api/database#database-transaction-model
-
-В исходном коде v16.33.0 request handler при исключении вызывает `db.rollback(...)`, а успешный путь проходит `sync_database()`.
-
-Источник:
-
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/app.py
 
-Поэтому в `issue()` **не добавляйте**:
+Поэтому внутри `issue()` не добавляйте:
 
 ```python
 frappe.db.commit()
@@ -289,20 +273,9 @@ frappe.db.commit()
 
 ---
 
-## 8. Добавить кнопку Issue в rental.js
+## 8. Добавить кнопку Issue
 
-Откройте:
-
-```text
-apps/rental_training/
-└── rental_training/
-    └── rental_training/
-        └── doctype/
-            └── rental/
-                └── rental.js
-```
-
-Добавьте:
+Откройте `rental.js` и добавьте:
 
 ```javascript
 frappe.ui.form.on("Rental", {
@@ -321,91 +294,38 @@ frappe.ui.form.on("Rental", {
 });
 ```
 
-Кнопка — только способ вызвать серверную команду.
-
-Она не содержит:
-
-```text
-изменения status
-создания Movement
-permission logic
-transaction logic
-```
+Кнопка не содержит бизнес-логики. Она только вызывает серверную команду.
 
 ---
 
-## 9. Проверить итоговый Controller
+## 9. Проверить начальное состояние на сервере
 
-Смысловая структура после S02:
+В console под Administrator попробуйте создать новый Rental сразу как `Active`:
 
 ```python
-class Rental(Document):
-    def validate(self):
-        self.validate_date_range()
-        self.validate_duplicate_equipment()
-        self.validate_status_transition()
-        self.validate_active_equipment_conflicts()
-
-    ... существующие validators ...
-
-    def validate_status_transition(self):
-        previous = self.get_doc_before_save()
-
-        if not previous or previous.status == self.status:
-            return
-
-        transition = (previous.status, self.status)
-
-        if transition == ("Planned", "Active") and self.flags.rental_operation == "issue":
-            return
-
-        frappe.throw(
-            _("Rental status must be changed through the corresponding operation.")
-        )
-
-    def create_equipment_movements(self, movement_type):
-        movement_at = now_datetime()
-
-        for row in self.items:
-            frappe.get_doc(
-                {
-                    "doctype": "Equipment Movement",
-                    "equipment": row.equipment,
-                    "rental": self.name,
-                    "movement_type": movement_type,
-                    "movement_at": movement_at,
-                }
-            ).insert(ignore_permissions=True)
-
-    @frappe.whitelist()
-    def issue(self):
-        self.check_permission("write")
-        self.reload()
-
-        if self.status != "Planned":
-            frappe.throw(_("Only a Planned Rental can be issued."))
-
-        self.flags.rental_operation = "issue"
-        self.status = "Active"
-        self.save()
-        self.create_equipment_movements("Issue")
-
-        return {"status": self.status}
+frappe.get_doc(
+    {
+        "doctype": "Rental",
+        "customer": "ВАШ_CUSTOMER",
+        "start_date": "2026-11-01",
+        "end_date": "2026-11-02",
+        "status": "Active",
+        "items": [{"equipment": "ВАШ_EQUIPMENT"}],
+    }
+).insert()
 ```
 
-Не переписывайте существующие validators, если для нового требования это не требуется.
+Ожидается:
+
+```text
+A new Rental must start as Planned.
+```
+
+Это доказывает, что read-only Form не является единственной защитой.
 
 ---
 
-## 10. Проверить прямое изменение status через Document API
-
-До успешной Issue полезно проверить серверную границу.
-
-Откройте console:
-
-```bash
-bench --site rental.localhost console
-```
+## 10. Проверить прямой Planned → Active
 
 Возьмите контрольный Rental `success` из S00:
 
@@ -415,25 +335,23 @@ rental.status = "Active"
 rental.save()
 ```
 
-Ожидается ошибка:
+Ожидается:
 
 ```text
 Rental status must be changed through the corresponding operation.
 ```
 
-Проверьте:
+Проверьте persisted state:
 
 ```python
 frappe.db.get_value("Rental", rental.name, "status")
 ```
 
-Ожидается:
+Остаётся:
 
 ```text
 Planned
 ```
-
-Завершите console.
 
 ---
 
@@ -445,19 +363,19 @@ Planned
 operator-a@example.test
 ```
 
-Откройте контрольный Rental `success`.
+Откройте Rental `success`.
 
-Form должна показывать:
+Ожидается:
 
 ```text
 Status = Planned
-Status нельзя редактировать вручную
+Status read-only
 кнопка Issue доступна
 ```
 
 Нажмите **Issue**.
 
-После успешного ответа Form должна перезагрузиться:
+После успешного ответа:
 
 ```text
 Status = Active
@@ -465,26 +383,13 @@ Status = Active
 
 ---
 
-## 12. Проверить Movement под менеджером
+## 12. Проверить полный журнал
 
-Войдите как:
+Под `manager@example.test` откройте `Equipment Movement` List.
 
-```text
-manager@example.test
-```
+Для Rental `success` с двумя Equipment должны существовать две строки `Issue`.
 
-Откройте `Equipment Movement` List.
-
-Для контрольного Rental должны появиться две строки:
-
-```text
-Issue → Equipment 1 → Rental success
-Issue → Equipment 2 → Rental success
-```
-
-Обе должны иметь одинаковый `movement_at`, потому что это одна операция выдачи.
-
-Проверьте через console при необходимости:
+При необходимости через console:
 
 ```python
 frappe.get_all(
@@ -498,49 +403,37 @@ frappe.get_all(
 )
 ```
 
-Количество строк должно совпадать с количеством `Rental Item`.
+Количество Movement должно совпадать с количеством `Rental Item`.
+
+Одинаковый `movement_at` показывает, что timestamp был сформирован один раз для всей команды.
 
 ---
 
-## 13. Проверить operator permission boundary
+## 13. Проверить operator boundary
 
-Под `operator-a@example.test` попытайтесь открыть `Equipment Movement` через поиск Desk.
+Под `operator-a@example.test` прямой доступ к `Equipment Movement` не должен появляться.
 
-Оператор не должен получать обычный прямой доступ к журналу.
+При этом Issue собственного Rental уже создал Movement.
 
-При этом Issue собственного Rental уже успешно создал Movement.
-
-Именно это подтверждает границу:
+Граница:
 
 ```text
-нет Create на Equipment Movement
+нет Create на Movement
 ≠
-команда не может создать внутреннюю запись
+серверная команда не может создать внутренний журнал
 ```
 
-Авторизация команды находится на Rental.
+Авторизация находится на Rental.
 
 ---
 
-## 14. Проверить Git diff
+## 14. Проверить diff
 
 ```bash
 cd ~/frappe/rental-training-bench/apps/rental_training
 
 git status --short
-```
 
-Ожидаются изменения как минимум в:
-
-```text
-rental.json
-rental.py
-rental.js
-```
-
-Посмотрите diff:
-
-```bash
 git diff -- \
   rental_training/rental_training/doctype/rental/rental.json \
   rental_training/rental_training/doctype/rental/rental.py \
@@ -550,17 +443,18 @@ git diff -- \
 Проверьте:
 
 ```text
-status стал read_only
+status read_only
+new Rental обязан стартовать Planned
 validate_status_transition добавлен
 issue() добавлен
 Movement создаётся через Document API
 ручного commit нет
-кнопка только вызывает серверный method
+JS только вызывает серверный method
 ```
 
 ---
 
-## 15. Зафиксировать рабочую Issue-команду
+## 15. Зафиксировать Issue-команду
 
 ```bash
 git add \
@@ -571,13 +465,7 @@ git add \
 git commit -m "feat: add atomic rental issue operation"
 ```
 
-Проверьте:
-
-```bash
-git status --short
-```
-
-Должно быть чисто.
+Проверьте чистое дерево.
 
 ---
 
@@ -586,6 +474,7 @@ git status --short
 Готово, если:
 
 ```text
+новый Rental может стартовать только Planned
 Rental.status read-only в Form
 прямой Planned → Active через save запрещён
 issue() whitelisted
@@ -597,4 +486,4 @@ issue() не делает ручной commit
 Git App чист
 ```
 
-Следующий этап намеренно сломает эту команду и проверит настоящий rollback: [`S03_ROLLBACK.md`](S03_ROLLBACK.md).
+Следующий этап намеренно оборвёт эту рабочую команду и проверит настоящий rollback: [`S03_ROLLBACK.md`](S03_ROLLBACK.md).
