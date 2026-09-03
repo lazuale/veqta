@@ -34,13 +34,91 @@
 | [`S06`](S06_ACTIVE_RENTAL_CONFLICT.md) | междокументный инвариант пересекающихся Active Rentals | написан |
 | [`S07`](S07_AUTOMATED_CONTRACT_TESTS.md) | автоматические Frappe-aware tests собственных контрактов | написан |
 | [`S08`](S08_APP_STATE_DELIVERY_AUDIT.md) | audit manifest App-owned/Site-owned состояния и migrate/fixture delivery | написан |
-| S09 | чистая установка и финальная приёмка | следующий |
+| [`S09`](S09_CLEAN_INSTALL_ACCEPTANCE.md) | clean Site install + tests + Desk/permission acceptance | написан |
 
 `NEXT`, `GATE` и `EXT` не смешиваются с этим маршрутом автоматически. Они подключаются только после соответствующего требования, как определено в архитектурных документах.
 
-## Текущая точка
+## CORE завершён как маршрут
 
-После S08 для каждого обязательного элемента CORE должен быть известен владелец и source of truth.
+S09 закрывает обязательную цепочку CORE:
+
+```text
+совместимый Frappe Bench
+        ↓
+App boundary
+        ↓
+Standard metadata
+        ↓
+Document relations
+        ↓
+status
+        ↓
+Desk
+        ↓
+server invariants
+        ↓
+permissions
+        ↓
+cross-document invariant
+        ↓
+automated contracts
+        ↓
+delivery audit
+        ↓
+clean Site acceptance
+```
+
+Финальная проверка выполняется не на старом dev-site, а на новом:
+
+```text
+rental-acceptance.localhost
+```
+
+До установки на нём должен быть только:
+
+```text
+frappe
+```
+
+После установки текущего committed `rental_training` без `developer_mode` должны штатно появиться:
+
+```text
+Rental Training Module
+Equipment
+Customer
+Rental Item
+Rental
+Rental Operator
+Rental Manager
+default DocType Permissions
+Rental Controller behavior
+```
+
+Затем:
+
+```text
+bench migrate
+→ success
+
+bench run-tests
+→ green
+
+Manager
+→ Equipment → Customer → Rental
+
+Operator
+→ permission limits работают
+
+Active overlap
+→ блокируется
+
+App Git
+→ clean
+```
+
+## Что является App-owned
+
+После S08/S09 граница должна быть понятна без догадок:
 
 ```text
 Rental Training Module
@@ -62,50 +140,57 @@ automated contracts
 → test_rental.py
 ```
 
-При этом экземплярное состояние остаётся у Site:
+Экземплярное состояние остаётся у Site:
 
 ```text
 Users
 Equipment/Customer/Rental records
-developer_mode
-allow_tests
+developer_mode на dev-site
+allow_tests на test-site
 runtime naming state
 ```
 
-S08 отдельно проверяет отсутствие скрытой обязательной конфигурации в:
+## Важная поправка среды
+
+`developer_mode` включается **только на `rental.localhost`**, а не глобально на Bench.
+
+Это нужно, чтобы второй acceptance-site мог доказать:
 
 ```text
-Custom Field
-Property Setter
-Custom DocPerm
+установка и работа App
+≠
+зависимость от developer mode
 ```
 
-и выполняет два round-trip:
+Если практикум проходился по старой версии с глобальным `developer_mode`, S00 и S09 содержат точную команду очистки `common_site_config.json` через штатный `bench set-config`.
+
+## Что дальше
+
+CORE закончен не потому, что «мы прошли все возможности Frappe».
+
+Наоборот, следующие механизмы остаются вне CORE до появления реального требования:
 
 ```text
-Site Role config
-→ export-fixtures
-→ committed fixture
-→ Git clean
-
-App source
-→ bench migrate
-→ current Site
-→ tests green
-→ Git clean
+Single DocType
+Notification
+Report
+Print Format
+Web Form
+REST integration
+Webhook
+Background Jobs
+Workflow
+Is Submittable / docstatus
+Permission Level / User Permission / Share
+Server Script
+custom frontend
 ```
 
-Patch в CORE не создаётся ради демонстрации: пока строится первый baseline и нет поддерживаемой старой версии данных, отсутствует реальная одноразовая data migration.
-
-Следующий и последний CORE-этап — S09:
+Следующий учебный блок должен начинаться не с выбора очередной функции Frappe, а с нового требования и повторять тот же принцип:
 
 ```text
-новый clean Frappe Site
-+ текущий rental_training из Git
-+ install-app
-+ migrate
-+ tests
-+ основной Desk/permission scenario
-=
-доказательство воспроизводимости CORE
+требование
+→ ответственность
+→ штатный механизм
+→ проверяемый результат
 ```
