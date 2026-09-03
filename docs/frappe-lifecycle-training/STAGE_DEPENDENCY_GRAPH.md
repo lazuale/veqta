@@ -1,13 +1,13 @@
 # Граф зависимостей второго учебного практикума Frappe
 
-Статус: **аудированный dependency graph-кандидат перед roadmap**.
+Статус: **аудированный dependency graph; основание для roadmap**.
 
 Этот документ построен из [`REQUIREMENTS_MATRIX.md`](REQUIREMENTS_MATRIX.md) и не является дорожной картой занятий.
 
 Его задача — отделить:
 
 ```text
-что должно существовать раньше технически
+что действительно зависит от предыдущего результата
 ```
 
 от:
@@ -16,13 +16,55 @@
 что нам просто удобно показать раньше методически
 ```
 
-В граф попадает только реальная зависимость результата. Если два механизма можно доказать независимо после общего основания, они остаются параллельными ветками.
+В граф попадает только реальная зависимость результата или архитектурная причинность требования. Тип зависимости фиксируется отдельно, чтобы не выдавать учебную аргументацию за runtime prerequisite.
 
 Нормативная база — [`docs/frappe-architecture-standard`](../frappe-architecture-standard/README.md) и решения `R01–R17` из матрицы.
 
 ---
 
-# 1. Техническое предусловие
+# 1. Типы зависимостей
+
+Граф различает несколько причин появления ребра.
+
+```text
+STRUCTURAL
+→ без предыдущего объекта следующий технически не существует
+
+ARCHITECTURAL_CAUSE
+→ предыдущее наблюдение создаёт новую ответственность и обосновывает механизм
+
+PROCESS
+→ следующий кусок процесса расширяет уже существующую state machine
+
+TRANSACTIONAL
+→ следующий lifecycle step возможен только из предыдущего docstatus
+
+DELIVERY
+→ source должен уже содержать полный обязательный contract
+
+VERIFICATION
+→ проверка собирает несколько ранее определённых результатов
+
+ACCEPTANCE
+→ финальная чистая установка проверяет готовый source/contract
+```
+
+Это важно, например:
+
+```text
+P04 → P05
+```
+
+не означает, что Frappe технически запрещает создать Workflow раньше. Это означает:
+
+```text
+мы не имеем архитектурного основания включать Workflow,
+пока не доказана новая responsibility transition policy
+```
+
+---
+
+# 2. Техническое предусловие
 
 ## P00. Второй учебный App установлен на dev/test Site
 
@@ -46,7 +88,7 @@ Git
 
 ---
 
-# 2. Узлы CORE
+# 3. Узлы CORE
 
 ## P01. Минимальный Purchase Request существует как Standard DocType
 
@@ -66,21 +108,44 @@ Purchase Request
 
 ---
 
-## P02. Requester semantics и обычный business status доказаны
+## P02A. Requester semantics доказана независимо от status
 
-Покрывает `R02–R03`.
+Покрывает `R02`.
 
 Результат:
 
 ```text
 requester = Document.owner
-
-status = Standard Select
-Draft
-Pending Manager
-Approved
-Rejected
 ```
+
+Это отдельная ветка модели.
+
+Она потребуется self-approval policy, но **не является prerequisite обычного status или самого факта существования Workflow**.
+
+Если потом появится `requester != owner`, меняется именно эта ветка.
+
+---
+
+## P02B. Обычный business status существует до Workflow
+
+Покрывает `R03`.
+
+Результат:
+
+```text
+status = Standard Select
+```
+
+Physical values сразу App-scoped, потому что будущие `Workflow State` records глобально уникальны на Site:
+
+```text
+PR Draft
+PR Pending Manager
+PR Approved
+PR Rejected
+```
+
+В схемах используются короткие aliases `Draft / Pending Manager / Approved / Rejected`.
 
 Это ещё только хранение состояния.
 
@@ -106,6 +171,8 @@ DocPerm
 
 Здесь ещё нет процессного права `Approve` как Workflow transition и нет `Submit/Cancel/Amend` permissions без соответствующего требования.
 
+На dev-site роли могут быть созданы вручную для настройки DocPerm, но их финальная delivery semantics будет проверена позднее: Standard DocType sync умеет создавать missing Role из DocPerm.
+
 ---
 
 ## P04. Ограничение обычного status доказано отрицательным опытом
@@ -115,10 +182,12 @@ DocPerm
 Предусловия:
 
 ```text
-P02 status
+P02B обычный status
 +
 P03 пользователь с обычным Write
 ```
+
+`P02A requester=owner` здесь не нужен.
 
 Наблюдение:
 
@@ -138,7 +207,18 @@ P03 пользователь с обычным Write
 
 Покрывает `R06–R07`.
 
-Появляется только после `P04`.
+Появляется только после архитектурной причины `P04`.
+
+До создания Workflow уже существуют App-scoped `Workflow State` records для текущих persisted values:
+
+```text
+PR Draft
+PR Pending Manager
+PR Approved
+PR Rejected
+```
+
+То есть namespace global Workflow State не откладывается до delivery-аудита.
 
 Результат:
 
@@ -154,7 +234,7 @@ Pending Manager → Approved
 Pending Manager → Rejected
 ```
 
-Также для каждого Workflow Document State принимается осознанный `Only Allow Edit For` (`allow_edit`).
+Для каждого Workflow Document State принимается осознанный `Only Allow Edit For` (`allow_edit`).
 
 Важно:
 
@@ -170,7 +250,7 @@ Workflow
 
 ---
 
-## P06. Workflow Action наблюдаем как штатная очередь действий
+## P06. Workflow Action наблюдаем как штатную очередь действий
 
 Покрывает `R08`.
 
@@ -207,7 +287,7 @@ Self approval проверяется отдельным узлом `P08`.
 
 ```text
 Senior Purchase Approver
-Pending Senior
+PR Pending Senior
 Workflow Transition Condition
 ```
 
@@ -234,7 +314,7 @@ requested_amount > LIMIT
 Требует одновременно:
 
 ```text
-P02 requester = owner
+P02A requester = owner
 +
 P05 Workflow transitions
 ```
@@ -246,6 +326,8 @@ owner + Approver role
 + allow_self_approval = false
 → собственный Approve отклонён
 ```
+
+`P02B status` уже входит в `P05` через другую ветку, но requester semantics остаётся отдельным prerequisite.
 
 `P06 Workflow Action` не является prerequisite этого правила: наличие role-scoped action не заменяет серверную проверку `apply_workflow()`.
 
@@ -269,6 +351,8 @@ Rejected
 
 `Rejected` не смешивается с системным `Cancelled`.
 
+Этот resubmit transition входит в финальную обязательную Workflow-конфигурацию и поэтому позже должен попасть в delivery join `P13`.
+
 ---
 
 ## P10. Final Approved становится Submitted fact
@@ -282,6 +366,16 @@ P05 базовый Workflow
 +
 P07 оба final approval path
 ```
+
+Почему `P07` здесь реальный prerequisite выбранной модели:
+
+```text
+к моменту перехода к Submitted
+мы уже обязались поддерживать
+маленький и большой final approval path
+```
+
+Это не универсальное ограничение Frappe, а зависимость накопленного requirement set практикума.
 
 Новая ответственность:
 
@@ -305,17 +399,31 @@ Senior Purchase Approver → Submit yes
 Purchase Requester       → Submit no
 ```
 
-Почему оба Approver имеют Submit:
+`Cancel` и `Amend` ещё не выдаются: соответствующих обязанностей пока нет.
+
+### Автоматическое следствие Frappe: amended_from
+
+При сохранении Standard DocType с `Is Submittable` текущий Frappe вызывает `DocType.make_amendable()` и сам добавляет Standard Link:
 
 ```text
-маленькая заявка
-→ final Purchase Approver
-
-большая заявка
-→ final Senior Purchase Approver
+amended_from → Purchase Request
 ```
 
-`Cancel` и `Amend` ещё не выдаются: соответствующих обязанностей пока нет.
+если такого field ещё нет.
+
+Это часть Framework capability и App metadata после сохранения DocType.
+
+Но:
+
+```text
+поле amended_from существует
+≠
+Amend уже разрешён бизнесом
+≠
+кому-то уже выдан Amend DocPerm
+```
+
+Amend responsibility появится только в `P12`.
 
 ---
 
@@ -348,13 +456,19 @@ Purchase Requester
 Результат:
 
 ```text
-status += Cancelled
-Cancelled → docstatus 2
+status += PR Cancelled
+PR Cancelled → docstatus 2
 status.Allow on Submit = yes
 
 Purchase Approver        → Cancel yes
 Senior Purchase Approver → Cancel no
 Purchase Requester       → Cancel no
+```
+
+На этом шаге `Only Allow Edit For` нового Cancelled state соответствует текущей ответственности:
+
+```text
+Cancelled → Purchase Approver
 ```
 
 Полный system path:
@@ -412,6 +526,14 @@ Senior Purchase Approver → Amend no
 
 У Requester уже есть `Create = yes` из `P03`.
 
+`amended_from` вручную не создаётся: оно уже появилось как штатное следствие `Is Submittable` в `P10`.
+
+Одновременно state/edit policy эволюционирует вместе с новой ответственностью:
+
+```text
+Cancelled → Purchase Requester
+```
+
 `Amend` является стандартным permission type Frappe и в Desk описан как право создать amended copy cancelled Document. Но CORE не выдаёт сам permission bit за полное доказательство серверной невозможности вручную сконструировать иной Document path.
 
 Поэтому доказательство разделяется:
@@ -447,36 +569,39 @@ Amend runtime behaviour
 
 ---
 
-## P13. Обязательный lifecycle имеет App-owned delivery path
+## P13. Весь обязательный lifecycle имеет один App-owned delivery path
 
 Покрывает `R15`.
 
-Этот узел требует уже сформированной обязательной конфигурации процесса:
+Это **join полного mandatory configuration**, а не только основной happy path.
+
+К этому моменту должны быть определены:
 
 ```text
-P03 base Roles/DocPerm
+P08 self-approval policy
 +
-P07 Senior Role / Pending Senior
+P09 reject/resubmit branch
 +
-P11 final Workflow submit/cancel states/transitions
-+
-P12 final Amend DocPerm policy
+P12 полный transactional path
 ```
+
+Через `P12` транзитивно уже существуют базовые DocPerm, базовый Workflow, Senior branch, Submit, Cancel и Amend policy.
 
 Source of truth:
 
 ```text
-Purchase Request schema/status/DocPerm
+Purchase Request schema/status/amended_from/DocPerm
 → Standard DocType metadata
 
-Role records
-→ filtered fixtures
+Role records из Purchase Request DocPerm
+→ missing records создаются Framework при Standard DocType sync
+→ Role fixtures не нужны текущему CORE
 
-Workflow State records
-→ filtered fixtures
+PR-* Workflow State records
+→ filtered Workflow State fixture
 
-Workflow + child states/transitions/conditions
-→ filtered fixture
+Workflow + child states/transitions/conditions/self-approval/resubmit
+→ filtered Workflow fixture
 
 Workflow Actions
 → runtime Site data, НЕ fixture
@@ -485,46 +610,65 @@ Users/passwords/runtime Purchase Requests
 → Site-local
 ```
 
-Delivery dependency:
+### Delivery dependency
+
+После удаления лишнего Role fixture обязательный fixture order:
 
 ```text
-Role
-→ Workflow State
+Workflow State
 → Workflow
 ```
 
-потому что Frappe импортирует fixture files по сортированным именам.
+потому что Workflow ссылается на уже существующие Workflow State records.
 
 Исполняемая спецификация должна доказать штатный ordering/prefix mechanism, а не полагаться на случайный filesystem order.
 
-Также здесь принимается сознательное решение по namespace глобальных `Workflow State` records:
+Первый кандидат:
 
 ```text
-App-scoped names
-или
-явно доказанное shared-state reuse
+fixture_auto_order = True
++
+fixtures hook в порядке:
+1. Workflow State
+2. Workflow
+```
+
+### Role delivery не дублируется
+
+Текущий Frappe `DocType.make_module_and_roles()` во время Standard DocType sync создаёт отсутствующие Role из его permissions с `desk_access=1`.
+
+Пока роль не несёт дополнительных App-owned свойств, отдельный Role fixture был бы вторым механизмом доставки одной ответственности.
+
+### Workflow State namespace к P13 уже выбран
+
+P13 не принимает naming decision заново. Он экспортирует ровно App-scoped records, существующие с предыдущих узлов:
+
+```text
+PR Draft
+PR Pending Manager
+PR Approved
+PR Rejected
+PR Pending Senior
+PR Cancelled
 ```
 
 ---
 
-## P14. Lifecycle защищён automated contracts
+## P14. Verification gate собирает server contracts и observed behavior
 
 Покрывает `R16`.
 
-Автотесты появляются после того, как обязательный server contract и permissions определены.
+`P14` не является ещё одним механизмом продукта. Это join проверки уже определённого lifecycle.
 
-Зависимости:
+Требует:
 
 ```text
-P05 base Workflow
-P07 conditional approval
-P08 self approval
-P09 reject/resubmit
-P10 submit
-P11 cancel
-P12 amend permission policy
-P13 App-owned mandatory configuration
+P06 Workflow Action runtime branch
++
+P13 полный App-owned mandatory configuration
 ```
+
+Через `P13` уже включены self-approval, reject/resubmit и transactional path.
 
 Server contracts проверяют:
 
@@ -544,6 +688,7 @@ Cancelled docstatus 2
 illegal transitions
 single Standard status field
 mandatory configuration presence
+Role records из Standard DocPerm
 ```
 
 Observed/UI checks отдельно:
@@ -553,6 +698,8 @@ Only Allow Edit For presentation
 Workflow Action presentation
 Requester Amend Desk path
 ```
+
+`amended_from` не тестируется как внутренний механизм Frappe ради coverage, но его наличие проверяется как acceptance dependency нашего Amend scenario.
 
 ---
 
@@ -565,12 +712,12 @@ Requester Amend Desk path
 Требует:
 
 ```text
-P12 native Cancel / Amend scenario verified
-+
 P13 App-owned delivery
 +
-P14 automated contracts green
+P14 verification gate пройден
 ```
+
+Прямое ребро `P12 → P15` удалено после аудита: предварительное наблюдение Amend на dev-site — полезный учебный шаг, но не отдельный технический prerequisite clean install. На чистом Site acceptance сам повторяет native Amend path.
 
 Финал:
 
@@ -578,97 +725,120 @@ P14 automated contracts green
 чистый совместимый Frappe Site
 + committed lifecycle App
 + install-app / migrate
-+ Standard Purchase Request metadata/DocPerm
-+ ordered mandatory Role / Workflow State / Workflow config
++ Standard Purchase Request metadata/DocPerm/amended_from
++ missing Role records созданы Standard DocType sync
++ ordered PR-* Workflow State / Workflow fixtures
 + tests
 + requester/approver/senior scenario
++ Workflow Action observation
 + Cancel / Amend observed path
 = воспроизводимый lifecycle CORE
 ```
 
-На clean Site запрещено вручную достраивать обязательный Workflow, Roles, Workflow States, permissions или второе state field.
+На clean Site запрещено вручную достраивать обязательный Workflow, Roles, Workflow States, permissions, второе state field или `amended_from`.
 
 Это не production deployment test.
 
 ---
 
-# 3. Граф зависимостей
+# 4. Граф зависимостей
 
 ```text
 P00 App/Site prerequisite
   ↓
 P01 Purchase Request
-  ├──────────────→ P03 base Roles + DocPerm
-  ↓
-P02 owner + status
-  │                 │
-  └──────┬──────────┘
-         ↓
-P04 prove plain status limitation
-         ↓
-P05 base Workflow + one Standard state field
-  ├────────→ P06 Workflow Action
-  ├────────→ P09 Rejected + resubmit
-  ├───┐
-  │   └──── P02 ───→ P08 self approval
-  │
-  └────────→ P07 conditional Senior approval
+  ├────────→ P02A requester = owner
+  ├────────→ P02B plain namespaced status
+  └────────→ P03 base Roles + DocPerm
+
+P02B ──────┐
+P03 ───────┴──→ P04 prove plain status limitation
                   ↓
-             P10 Is Submittable + Submit DocPerm
+             P05 base Workflow + one Standard state field
+               ├────────→ P06 Workflow Action
+               ├────────→ P07 conditional Senior approval
+               └────────→ P09 Rejected + resubmit
+
+P02A ──────┐
+P05 ───────┴──→ P08 self approval
+
+P05 ───────┐
+P07 ───────┴──→ P10 Is Submittable + Submit + amended_from capability
                   ↓
-             P11 Cancelled + Cancel DocPerm
+             P11 Cancelled + Cancel
                   ↓
-             P12 Amend responsibility + Amend DocPerm
-                  ↓
-             P13 App-owned ordered delivery
-                  ↓
-             P14 automated contracts
+             P12 Amend responsibility + Amend
+
+P08 ───────┐
+P09 ───────┼──→ P13 complete App-owned delivery
+P12 ───────┘
+
+P06 ───────┐
+P13 ───────┴──→ P14 verification gate
                   ↓
              P15 clean Site acceptance
 ```
 
-В реальности `P06`, `P08`, `P09` являются параллельными обязательными ветками после `P05`, а `P14` собирает их обратно. Линейный хвост `P10→P15` показан компактно только для основного transactional path.
+Главное отличие от предыдущей версии: owner/self-approval и ordinary-status ветки больше не склеены искусственно.
 
 ---
 
-# 4. Таблица рёбер
+# 5. Таблица рёбер
 
-| Откуда | Куда | Почему зависимость реальная |
-|---|---|---|
-| P00 | P01 | Нужен App/Site, чтобы создать Standard DocType |
-| P01 | P02 | owner/status относятся к существующему Purchase Request |
-| P01 | P03 | DocPerm настраивается для существующего DocType |
-| P02 | P04 | Нужно обычное state field |
-| P03 | P04 | Нужен реальный пользователь с Write для отрицательного опыта |
-| P04 | P05 | Именно ограничение plain status обосновывает Workflow |
-| P05 | P06 | Workflow Action возникает из работающего Workflow |
-| P05 | P07 | Condition/Senior branch расширяют существующий Workflow |
-| P02 | P08 | Self approval привязан к semantics requester = owner |
-| P05 | P08 | Нужен реальный Workflow transition |
-| P05 | P09 | Rejected/resubmit — часть Workflow state machine |
-| P05 | P10 | Final approval должен быть workflow state |
-| P07 | P10 | Должны существовать оба маршрута final approval |
-| P10 | P11 | Cancel policy имеет смысл только после появления Submitted fact |
-| P11 | P12 | Amend требует корректно Cancelled original |
-| P03 | P13 | Base Role/DocPerm входят в delivery |
-| P07 | P13 | Senior Role/State входят в final mandatory config |
-| P11 | P13 | Final Cancel state/transition/permission входят в config |
-| P12 | P13 | Final Amend DocPerm входит в Standard metadata |
-| P05 | P14 | Tests проверяют базовый Workflow |
-| P07 | P14 | Tests проверяют amount branching |
-| P08 | P14 | Tests проверяют self approval |
-| P09 | P14 | Tests проверяют reject/resubmit |
-| P10 | P14 | Tests проверяют submit semantics/permission |
-| P11 | P14 | Tests проверяют cancel semantics/permission |
-| P12 | P14 | Tests проверяют amend permission matrix |
-| P13 | P14 | Tests должны работать на App-owned mandatory config |
-| P12 | P15 | Финальная приёмка включает native Amend observation |
-| P13 | P15 | Clean Site должен воспроизвести config из App |
-| P14 | P15 | Перед финальной приёмкой automated contracts должны быть green |
+| Откуда | Куда | Тип | Почему зависимость реальная |
+|---|---|---|---|
+| P00 | P01 | STRUCTURAL | Нужен App/Site, чтобы создать Standard DocType |
+| P01 | P02A | STRUCTURAL | owner semantics относится к существующему Purchase Request |
+| P01 | P02B | STRUCTURAL | status относится к существующему Purchase Request |
+| P01 | P03 | STRUCTURAL | DocPerm настраивается для существующего DocType |
+| P02B | P04 | VERIFICATION | Нужен обычный state field для отрицательного опыта |
+| P03 | P04 | VERIFICATION | Нужен реальный пользователь с Write |
+| P04 | P05 | ARCHITECTURAL_CAUSE | Именно ограничение plain status создаёт ответственность transition policy |
+| P05 | P06 | PROCESS | Workflow Action возникает из работающего Workflow |
+| P05 | P07 | PROCESS | Condition/Senior branch расширяют существующий Workflow |
+| P02A | P08 | PROCESS | Self approval привязан к requester = owner |
+| P05 | P08 | PROCESS | Нужен реальный Workflow transition |
+| P05 | P09 | PROCESS | Rejected/resubmit — ветка Workflow state machine |
+| P05 | P10 | TRANSACTIONAL | Final approval должен быть Workflow state |
+| P07 | P10 | PROCESS | При переходе к Submitted уже обязаны сохраниться оба final approval path |
+| P10 | P11 | TRANSACTIONAL | Cancel policy имеет смысл только после Submitted fact |
+| P11 | P12 | TRANSACTIONAL | Amend требует Cancelled original |
+| P08 | P13 | DELIVERY | Self-approval policy входит в финальный Workflow source |
+| P09 | P13 | DELIVERY | Resubmit transition входит в финальный Workflow source |
+| P12 | P13 | DELIVERY | Через полный transactional path собраны финальные metadata/permissions/states |
+| P06 | P14 | VERIFICATION | Verification gate включает штатный Workflow Action runtime branch |
+| P13 | P14 | VERIFICATION | Contracts проверяются на полном обязательном App-owned config |
+| P13 | P15 | ACCEPTANCE | Clean Site должен воспроизвести source из App |
+| P14 | P15 | ACCEPTANCE | Перед финальной приёмкой contracts/observed checks должны быть пройдены |
 
 ---
 
-# 5. Что намеренно НЕ является зависимостью
+# 6. Что намеренно НЕ является зависимостью
+
+## Requester semantics не блокирует появление ordinary status
+
+Неверно склеивать:
+
+```text
+requester = owner
++
+status
+→ один обязательный P02
+```
+
+Почему: это две независимые ответственности.
+
+Правильно:
+
+```text
+P02A requester = owner
+→ нужен P08 self approval
+
+P02B status
+→ нужен P04/P05
+```
+
+---
 
 ## Workflow Action не блокирует self approval
 
@@ -684,7 +854,7 @@ P06 Workflow Action
 Правильно:
 
 ```text
-P02 requester = owner
+P02A requester = owner
 +
 P05 Workflow
 → P08
@@ -694,13 +864,15 @@ P05 Workflow
 
 ## Rejected/resubmit не нужен для появления Submittable
 
-`P09` полезен для полного процесса, но системная возможность final Approved стать Submitted не зависит технически от reject branch.
+`P09` обязателен для полного процесса, но системная возможность final Approved стать Submitted не зависит технически от reject branch.
 
 Поэтому нет искусственного ребра:
 
 ```text
 P09 → P10
 ```
+
+При этом `P09 → P13` обязательно: resubmit должен попасть в финальную поставляемую Workflow-конфигурацию.
 
 ---
 
@@ -713,6 +885,37 @@ P09 → P10
 ```text
 P08 → P10
 ```
+
+Но `P08 → P13` есть, потому что self-approval flags входят в финальный source Workflow.
+
+---
+
+## Dev-site Amend observation не является отдельным prerequisite clean install
+
+После аудита удалено прямое ребро:
+
+```text
+P12 → P15
+```
+
+Почему: `P13` уже содержит финальный Amend policy/source, `P14` проверяет обязательный contract, а clean acceptance `P15` само повторяет native Amend scenario на новом Site.
+
+Предварительное наблюдение в P12 полезно методически, но это не независимая delivery dependency.
+
+---
+
+## Role fixture не является prerequisite delivery
+
+В текущем CORE нет ребра:
+
+```text
+Role fixture
+→ P13
+```
+
+Роли уже перечислены в Standard Purchase Request DocPerm, а текущий Frappe создаёт отсутствующие Role при DocType sync.
+
+Отдельный Role fixture появится только если у Role возникнет новая App-owned responsibility, которую DocPerm sync не выражает.
 
 ---
 
@@ -732,7 +935,7 @@ Print
 
 ---
 
-# 6. Архитектурные развилки вне основного графа
+# 7. Архитектурные развилки вне основного графа
 
 `D00–D04` из матрицы не превращаются в последовательные этапы автоматически.
 
@@ -755,34 +958,75 @@ D04 динамический approval route
 → повторный fit analysis Workflow
 ```
 
-Ни одна ветка GATE не включена в `P00–P15` по умолчанию.
+Ни одна ветка GATE не включена в основной граф по умолчанию.
 
 ---
 
-# 7. Gate перед roadmap
+# 8. Результаты злого аудита графа
+
+Аудит нашёл и исправил следующие реальные дефекты:
+
+```text
+1. P02 ложно склеивал requester=owner и status
+   → разделено на P02A / P02B
+
+2. Workflow State namespace решался слишком поздно в delivery
+   → App-scoped physical values фиксируются до базового Workflow
+
+3. P13 не зависел от self-approval и resubmit веток
+   → добавлены P08 → P13 и P09 → P13
+
+4. P12 → P15 было методическим повтором, а не реальной dependency
+   → прямое ребро удалено
+
+5. Role fixtures дублировали Standard DocPerm delivery
+   → Role fixture удалён из CORE delivery model
+
+6. Is Submittable скрыто приносил amended_from
+   → capability зафиксирована в P10, вручную field не создаётся
+
+7. Cancelled allow_edit был заранее прибит к роли
+   → P11 вводит текущую cancel-policy, P12 меняет её только из нового Amend requirement
+```
+
+Циклов после исправлений нет.
+
+---
+
+# 9. Gate перед roadmap
 
 Перед построением `PRACTICUM_ROADMAP.md` нужно подтвердить:
 
 ```text
 1. Каждый P-узел производит наблюдаемый результат, а не просто знакомит с функцией?
-2. P04 действительно предшествует Workflow и объясняет его появление?
-3. P05 не создаёт второго state field?
-4. P06 не используется как ACL?
-5. P07 впервые вводит Senior role/state?
-6. P08 зависит от requester=owner, а не от Workflow Action?
-7. P09 не смешивает Rejected и Cancelled?
-8. P10 вводит только Is Submittable/Submit responsibility, без преждевременного Cancel/Amend?
-9. P11 впервые вводит Cancelled и только необходимый Cancel DocPerm?
-10. Senior не получает Cancel без требования?
-11. P12 впервые вводит Amend responsibility и Amend DocPerm Requester?
-12. Amend permission bit не выдаётся за более сильную гарантию, чем доказано Frappe?
-13. Cancel и Amend принадлежат разным явно принятым обязанностям?
-14. P12 проверяет native Amend через реальный user/Desk scenario?
-15. P13 учитывает fixture dependency order и глобальность Workflow State names?
-16. P14 разделяет server contracts и UI/observed checks?
-17. P15 зависит только от обязательного CORE, а не от NEXT?
-18. Ни один GATE не превратился в обязательный этап без нового требования?
-19. Граф описывает зависимости результатов, а не желаемый порядок лекций?
+2. P02A requester semantics независима от P02B status?
+3. P02B использует App-scoped physical state values до Workflow?
+4. P04 действительно предшествует Workflow и объясняет его появление?
+5. P05 не создаёт второго state field и не откладывает namespace decision до delivery?
+6. P06 не используется как ACL?
+7. P07 впервые вводит Senior role/state?
+8. P08 зависит от requester=owner, а не от Workflow Action?
+9. P09 не смешивает Rejected и Cancelled и входит в final delivery?
+10. P10 вводит только Is Submittable/Submit responsibility, без преждевременного Cancel/Amend?
+11. P10 признаёт auto-added amended_from, но не считает его бизнес-разрешением Amend?
+12. P11 впервые вводит Cancelled и только необходимый Cancel DocPerm?
+13. Senior не получает Cancel без требования?
+14. P12 впервые вводит Amend responsibility и Amend DocPerm Requester?
+15. Cancelled allow_edit меняется только вместе с новой Amend responsibility?
+16. Amend permission bit не выдаётся за более сильную гарантию, чем доказано Frappe?
+17. Cancel и Amend принадлежат разным явно принятым обязанностям?
+18. P13 собирает self-approval + resubmit + полный transactional path?
+19. P13 не использует Role fixture без дополнительной ответственности?
+20. P13 имеет fixture dependency order Workflow State → Workflow?
+21. P14 разделяет server contracts и UI/observed checks?
+22. P15 не зависит от предварительного dev-наблюдения только ради порядка занятий?
+23. P15 зависит только от обязательного CORE, а не от NEXT?
+24. Ни один GATE не превратился в обязательный этап без нового требования?
+25. Граф не содержит циклов?
+26. Рёбра различают structural/runtime dependency и architectural cause?
+27. Граф описывает зависимости результатов, а не желаемый порядок лекций?
 ```
 
-Если любой ответ отрицательный, сначала исправляется граф. Roadmap строится только после этого gate.
+После текущего аудита все ответы — `да`.
+
+Граф считается **готовым основанием для PRACTICUM_ROADMAP**, но сам roadmap ещё не создан.
