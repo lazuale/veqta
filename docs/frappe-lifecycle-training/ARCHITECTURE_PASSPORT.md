@@ -272,7 +272,7 @@ Approval Log как собственный workflow engine
 
 Workflow становится владельцем политики переходов.
 
-## Only Allow Edit For — не случайная колонка
+## Only Allow Edit For — обязательная state policy
 
 Каждая строка `Workflow Document State` в текущем Frappe требует `Only Allow Edit For` (`allow_edit`). Поэтому будущая спецификация обязана выбрать эту роль осознанно.
 
@@ -287,7 +287,9 @@ Approved        → Purchase Approver
 Cancelled       → Purchase Approver
 ```
 
-`allow_edit` не заменяет DocType Permissions и не заменяет transition role. Это отдельная часть state policy.
+`allow_edit` не заменяет DocType Permissions и не заменяет transition role.
+
+По результатам аудита ему также **не приписывается неподтверждённая серверная гарантия**. В CORE он рассматривается как обязательная state/edit policy стандартного Workflow и проверяется через Desk/observed behavior. Критическая серверная авторизация процесса доказывается отдельно через DocPerm, допустимые transitions, self-approval check и docstatus.
 
 ---
 
@@ -578,13 +580,12 @@ Role
 
 Второй практикум не завершается фразой «покликали Workflow — работает».
 
-Минимальные контракты:
+Минимальные серверные контракты:
 
 ```text
 Requester может Draft → Pending Manager
 Requester не может Approve
 Approver может Approve/Reject
-Requester не может обычным Edit менять Pending Manager, если state policy этого не разрешает
 маленькая сумма не требует Senior
 большая сумма идёт в Pending Senior
 Senior завершает большой approval
@@ -598,10 +599,17 @@ Draft нельзя сразу Cancel
 Submitted можно Cancel только допустимым Workflow transition
 Cancelled становится docstatus 2
 Cancelled не переходит дальше
+```
+
+Отдельные observed/UI checks:
+
+```text
+Only Allow Edit For отражается в Desk ожидаемым образом
+Workflow Action отображается согласно permitted roles
 Amend создаёт новую draft-запись, связанную через amended_from
 ```
 
-Тестируется собственная конфигурация процесса и её интеграция с Frappe lifecycle, а не внутренности Framework ради coverage.
+Так мы не выдаём UI/state policy за неподтверждённую серверную ACL.
 
 ---
 
@@ -754,6 +762,12 @@ production deployment
 
 Автоматически создаваемое поле имеет `Link → Workflow State`, `allow_on_submit=1` и `no_copy=1`. Это показывает fallback Framework, но не означает, что существующее Standard state field обязано менять тип на Link.
 
+**[ИСХОДНЫЙ КОД FRAPPE v16.33.0]** `Workflow Document State`:
+
+- `frappe/workflow/doctype/workflow_document_state/workflow_document_state.json`
+
+`allow_edit` является обязательным полем конфигурации state. В этом практикуме оно рассматривается как штатная state/edit policy, но не используется как единственная доказанная серверная защита критического инварианта.
+
 **[ИСХОДНЫЙ КОД FRAPPE v16.33.0]** `apply_workflow()` и self approval:
 
 - `frappe/model/workflow.py`
@@ -799,10 +813,10 @@ Local Document получает default Workflow state по своему docstat
 2. Requester = owner явно ограничен CORE.
 3. status появляется раньше Workflow.
 4. Workflow не появляется только из-за количества status values.
-5. После Workflow остаётся один Standard state field.
+5. после Workflow остаётся один Standard state field.
 6. status не меняет тип без реальной необходимости.
 7. Workflow не создаёт обязательный site-local workflow_state Custom Field.
-8. Only Allow Edit For задан осознанно для каждого state.
+8. Only Allow Edit For задан осознанно и не выдан за неподтверждённую server ACL.
 9. Workflow Action не выдаётся за окончательную ACL.
 10. Senior role/state появляются только из amount-based requirement.
 11. self approval использует штатную owner-based семантику.
@@ -813,10 +827,11 @@ Local Document получает default Workflow state по своему docstat
 16. Amend проверяется фактически при активном Workflow.
 17. App-owned fixtures имеют доказанный dependency order.
 18. Workflow State global namespace не игнорируется.
-19. Lifecycle contracts автоматизированы.
-20. Clean Site acceptance не требует ручной настройки процесса.
-21. NEXT не перегружает обязательный lifecycle CORE.
-22. API/async/extension/integration не добавлены ради покрытия.
+19. server lifecycle contracts автоматизированы.
+20. UI/state policies проверяются отдельно от server security contracts.
+21. Clean Site acceptance не требует ручной настройки процесса.
+22. NEXT не перегружает обязательный lifecycle CORE.
+23. API/async/extension/integration не добавлены ради покрытия.
 ```
 
 Если какой-то пункт не подтверждён, сначала исправляется архитектура. Dependency graph строится только после этого.
