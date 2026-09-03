@@ -598,8 +598,8 @@ Customer
 ```text
 Rental
 ├── customer → Link → Customer
-└── items    → Table → Rental Item
-                    └── equipment → Link → Equipment
+└── items    → Table MultiSelect → Rental Item
+                                 └── equipment → Link → Equipment
 ```
 
 Именно реальное требование «Rental использует существующего Customer» создаёт причину для `Link`.
@@ -740,8 +740,8 @@ Customer
 ```text
 Rental
 ├── Link → Customer
-└── Table → Rental Item
-              └── Link → Equipment
+└── Table MultiSelect → Rental Item
+                          └── Link → Equipment
 ```
 
-На S04 впервые вместе появятся `Link`, `Child DocType` и `Table` — не как набор функций, а как прямое следствие модели операции проката.
+На S04 впервые вместе появятся `Link`, `Child DocType` и `Table MultiSelect` — не как набор функций, а как прямое следствие модели операции проката.
