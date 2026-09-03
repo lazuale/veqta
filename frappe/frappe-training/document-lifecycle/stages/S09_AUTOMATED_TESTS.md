@@ -57,6 +57,7 @@ apps/purchase_lifecycle_training/
 ```python
 import frappe
 from frappe.model.workflow import apply_workflow
+from frappe.permissions import has_permission
 from frappe.tests import IntegrationTestCase
 
 
@@ -99,10 +100,12 @@ class IntegrationTestPurchaseRequest(IntegrationTestCase):
                     "first_name": email.split("@", 1)[0],
                     "enabled": 1,
                     "send_welcome_email": 0,
+                    "user_type": "System User",
                 }
             ).insert()
 
         user.add_roles(*roles)
+        frappe.clear_cache(user=user.name)
         return user.name
 
     def make_request(self, *, owner=None, amount=500, subject="Test request"):
@@ -180,6 +183,52 @@ class IntegrationTestPurchaseRequest(IntegrationTestCase):
         self.assertEqual(doc.status, "PLT Cancelled")
         self.assertEqual(doc.docstatus, 2)
 
+    def test_required_permissions(self):
+        expected = {
+            self.requester: {
+                "read": True,
+                "create": True,
+                "write": True,
+                "delete": False,
+                "submit": False,
+                "cancel": False,
+                "amend": True,
+            },
+            self.approver: {
+                "read": True,
+                "create": False,
+                "write": True,
+                "delete": False,
+                "submit": True,
+                "cancel": True,
+                "amend": False,
+            },
+            self.senior: {
+                "read": True,
+                "create": False,
+                "write": True,
+                "delete": False,
+                "submit": True,
+                "cancel": False,
+                "amend": False,
+            },
+        }
+
+        for user, permissions in expected.items():
+            for ptype, allowed in permissions.items():
+                self.assertEqual(
+                    bool(
+                        has_permission(
+                            "Purchase Request",
+                            ptype=ptype,
+                            user=user,
+                            print_logs=False,
+                        )
+                    ),
+                    allowed,
+                    msg=f"{user}: expected {ptype}={allowed}",
+                )
+
     def test_required_configuration_exists(self):
         self.assertTrue(frappe.db.exists("Role", "PLT Requester"))
         self.assertTrue(frappe.db.exists("Role", "PLT Approver"))
@@ -207,6 +256,12 @@ class IntegrationTestPurchaseRequest(IntegrationTestCase):
         self.assertTrue(status.no_copy)
         self.assertFalse(status.allow_on_submit)
 ```
+
+Проверка `test_required_permissions()` закрепляет именно итоговую модель прав нашего App. Она должна падать не только при потере нужного права, но и если роль случайно получает лишний `Submit`, `Cancel`, `Amend`, `Create` или `Delete`.
+
+Для проверки используется штатный `frappe.permissions.has_permission()`. В v16.33.0 он принимает `doctype`, тип права и пользователя и проверяет Role Permission System для указанного DocType.
+
+Источник: [`frappe/permissions.py` v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/permissions.py).
 
 ---
 
@@ -259,7 +314,7 @@ amended_from указывает на исходную заявку
 
 # 7. Дополнительные проверки
 
-После базового набора полезно добавить отдельные тесты для точных границ:
+После базового набора полезно добавить отдельные тесты для точных границ процесса:
 
 ```text
 1000     → PLT Approved
@@ -267,13 +322,11 @@ amended_from указывает на исходную заявку
 Requester не может Approve
 owner не может одобрить собственную большую заявку на первом уровне
 owner не может одобрить собственную большую заявку на втором уровне
-PLT Requester не получает Cancel
-PLT Senior Approver не получает Cancel
-PLT Requester имеет Amend
-Approver/Senior не получают Amend
 ```
 
-Каждый такой test method должен проверять одно понятное правило приложения.
+Права `Create / Write / Submit / Cancel / Amend / Delete` уже входят в обязательный `test_required_permissions()` и не должны оставаться только дополнительными проверками.
+
+Каждый дополнительный test method должен проверять одно понятное правило приложения.
 
 ---
 
