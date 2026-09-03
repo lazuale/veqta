@@ -1,259 +1,253 @@
-# VEQTA Product Lifecycle
+# Жизненный цикл продукта VEQTA
 
-Status: **foundation baseline candidate**
+Статус: **кандидат в foundation baseline**
 
-## 1. Purpose
+## 1. Назначение
 
-This lifecycle prevents experiments, teaching examples and unfinished applications from being presented as products merely because code exists.
+Этот жизненный цикл не позволяет экспериментам, учебным примерам и незавершённым приложениям становиться Products только потому, что у них уже есть код.
 
-The lifecycle is:
+Базовая последовательность:
 
 ```text
-Problem
+Проблема
   ↓
 Lab
   ↓
-Reference
+Эталон
   ↓
-Incubating Product
+Инкубация Product
   ↓
 Product
   ↓
-Maintain / Evolve / Retire
+Поддержка / развитие / вывод из эксплуатации
 ```
 
-Not every initiative must reach the final stage.
+Не каждая инициатива обязана пройти весь путь.
 
-## 2. Stage 0 — Problem
+## 2. Стадия 0 — Проблема
 
-A product direction starts with a real problem, not with a desired technology feature or brand slot.
+Направление Product начинается с реальной проблемы, а не с желаемой функции Framework или пустого места в продуктовой линейке.
 
-Minimum record:
+Минимально фиксируются:
 
-- target user or team;
-- problem being solved;
-- current workaround / alternative;
-- why the problem matters;
-- what evidence would disprove the opportunity.
+- целевой пользователь или команда;
+- решаемая проблема;
+- текущий workaround или альтернатива;
+- почему проблема важна;
+- какие данные могут опровергнуть необходимость Product.
 
-No product name is required at this stage.
+Постоянное название Product на этой стадии не требуется.
 
-Examples of invalid starting points:
+Неверные точки старта:
 
-- "we need a CRM product because the ecosystem should have one";
-- "we should use Workflow in a product";
-- "we need something like ERPNext".
+- «нужен CRM, потому что в экосистеме должен быть CRM»;
+- «нужно сделать Product с Workflow»;
+- «нужно что-то вроде ERPNext».
 
-## 3. Stage 1 — Lab
+## 3. Стадия 1 — Lab
 
-A Lab validates uncertain assumptions.
+Lab проверяет неопределённые допущения.
 
-A Lab must define:
+Для Lab определяются:
 
-- hypothesis;
-- scope;
-- Frappe mechanisms being evaluated;
-- experiment procedure;
-- PASS / FAIL criteria;
-- known shortcuts;
-- expected evidence output.
+- гипотеза;
+- границы;
+- проверяемые механизмы Frappe;
+- процедура эксперимента;
+- критерии PASS / FAIL;
+- известные упрощения;
+- ожидаемый результат в виде доказательств.
 
-A Lab may use a disposable App/Site and may contain temporary code.
+Lab может использовать одноразовый `App` / `Site` и временный код.
 
-A Lab must be visibly marked experimental.
+Экспериментальный статус должен быть виден явно.
 
-### Lab exits
-
-A Lab ends in one or more outcomes:
+### Возможные исходы Lab
 
 ```text
-FAIL        → hypothesis rejected / knowledge retained
-LEARN       → useful educational material
-ENGINEERING → evidence updates architecture guidance
-REFERENCE   → implementation worth preserving as an example
-INCUBATE    → validated product opportunity
+FAIL        → гипотеза отвергнута, знание сохранено
+LEARN       → материал полезен для обучения
+ENGINEERING → доказательства меняют инженерные рекомендации
+REFERENCE   → реализацию стоит сохранить как эталон
+INCUBATE    → подтверждена продуктовая возможность
 ```
 
-Keeping a Lab indefinitely without an explicit outcome is not a lifecycle state.
+Lab без явного исхода не может бесконечно считаться активной стадией.
 
-## 4. Stage 2 — Reference
+## 4. Стадия 2 — Эталон
 
-A Reference is a preserved implementation demonstrating an accepted pattern or decision.
+Эталон — сохранённая реализация, демонстрирующая принятый паттерн или решение.
 
-It is not necessarily a user-facing product.
+Он не обязан быть пользовательским Product.
 
-Reference criteria:
+Критерии:
 
-- purpose is explicit;
-- architecture is explained;
-- setup is reproducible;
-- unsupported shortcuts are removed or documented;
-- compatibility baseline is stated;
-- tests exist for the behavior the reference claims to demonstrate, where practical.
+- назначение сформулировано;
+- архитектура объяснена;
+- развёртывание воспроизводимо;
+- необоснованные shortcuts удалены или обозначены;
+- указан baseline совместимости;
+- поведение, которое реализация обещает демонстрировать, покрыто тестами там, где это практически оправдано.
 
-References may live in VEQTA Labs or Engineering depending on their purpose.
+Эталоны могут находиться в VEQTA Labs или Engineering в зависимости от назначения.
 
-## 5. Stage 3 — Incubating Product
+## 5. Стадия 3 — Инкубация Product
 
-A candidate becomes an Incubating Product only when it has both technical and product evidence.
+Кандидат переходит в инкубацию только при наличии одновременно продуктовых и технических доказательств.
 
-### Required product evidence
+### Продуктовые требования
 
-- clearly defined user;
-- clearly defined problem;
-- coherent minimum product scope;
-- reason the solution deserves to exist independently;
-- expected alternative products / workflows acknowledged;
-- initial adoption or validation plan.
+- пользователь определён;
+- проблема определена;
+- минимальный цельный scope сформулирован;
+- есть причина существовать как самостоятельному решению;
+- признаны реальные альтернативы и существующие процессы;
+- есть план первичной проверки востребованности.
 
-### Required engineering evidence
+### Инженерные требования
 
-- product boundary is defined;
-- primary Frappe App boundary is defined;
-- any additional frontend/service/App boundary is justified if present;
-- critical data model has passed architecture review;
-- no unexplained framework duplication exists;
-- install / migration path is reproducible;
-- permission model is explicit;
-- test strategy is defined;
-- compatibility baseline is explicit.
+- граница Product определена;
+- граница Frappe `App` определена;
+- критичная модель данных прошла архитектурное review;
+- нет необъяснимого дублирования Framework;
+- install / migrate путь воспроизводим;
+- модель permissions явная;
+- стратегия тестирования определена;
+- baseline совместимости указан.
 
-### Repository rule
+### Правило репозитория
 
-An Incubating Product should move out of the Lab area once its production software has an independent lifecycle. The normal case is a dedicated repository for the primary Frappe App. Additional repositories are introduced only when a separate component has a genuine independent build/release responsibility.
+Когда кандидат становится реально самостоятельно устанавливаемым Frappe `App`, его исходный код должен перейти в собственный репозиторий, а не оставаться внутренним артефактом Lab.
 
-At this stage it may receive a provisional product name.
+На этой стадии Product может получить предварительное имя.
 
-## 6. Stage 4 — Product
+## 6. Стадия 4 — Product
 
-A Product is an independent maintained application or coherent software product intended for real users.
+Product — самостоятельное поддерживаемое приложение, предназначенное для реальных пользователей.
 
-Minimum graduation gate:
+Минимальный gate зрелости:
 
-### Product
+### Продукт
 
-- value proposition is understandable without VEQTA internal context;
-- audience and supported use cases are explicit;
-- unsupported / non-goals are explicit;
-- versioning and release status are visible.
+- ценностное предложение понятно без внутреннего контекста VEQTA;
+- аудитория и поддерживаемые сценарии указаны;
+- ограничения и non-goals явны;
+- версия и статус релиза видимы.
 
-### Architecture
+### Архитектура
 
-- primary App installs cleanly on the supported Frappe baseline;
-- additional components, if any, have explicit boundaries and deployment contracts;
-- migrations are reproducible;
-- critical server-side invariants are tested;
-- permissions are tested;
-- important upgrade-sensitive extensions are documented;
-- no Lab-only manual configuration is required.
+- `App` устанавливается на поддерживаемый baseline Frappe;
+- migrations воспроизводимы;
+- критичные серверные инварианты тестируются;
+- permissions тестируются;
+- важные upgrade-sensitive расширения документированы;
+- ручная настройка Lab не требуется для получения рабочего состояния.
 
-### Operations
+### Эксплуатация
 
-- installation path is documented;
-- upgrade path is documented;
-- backup / migration expectations are documented where product-specific;
-- failure modes of integrations or background jobs are observable.
+- установка документирована;
+- обновление документировано;
+- ожидания по backup / migration описаны там, где они специфичны для Product;
+- ошибки интеграций и background jobs наблюдаемы.
 
 ### Open source
 
-- production source is public unless a temporary security exception is documented;
-- software license is explicit;
-- contribution path is explicit;
-- security reporting path exists before significant adoption.
+- репозиторий публичен, кроме явно документированного временного исключения по безопасности;
+- software license указан;
+- путь для contributions указан;
+- до заметного внедрения существует канал для сообщения об уязвимостях.
 
-### Experience
+### Пользовательский опыт
 
-- onboarding has a deliberate path;
-- empty states and primary workflows are understandable;
-- custom UI exists only where justified;
-- product branding does not misrepresent experimental features as stable.
+- onboarding спроектирован;
+- пустые состояния и основные сценарии понятны;
+- собственный UI существует только там, где он обоснован;
+- брендинг не выдаёт экспериментальные возможности за стабильные.
 
-## 7. Stage 5 — Maintain / Evolve
+## 7. Стадия 5 — Поддержка и развитие
 
-A maintained Product has an explicit support matrix.
+Поддерживаемый Product имеет явную матрицу поддержки.
 
-Changes are classified as:
+Изменения классифицируются как:
 
 ```text
-product capability
-architecture / platform adaptation
-bug / regression
-security
-compatibility / Frappe upgrade
-migration
-experience improvement
+продуктовая возможность
+адаптация архитектуры / платформы
+ошибка / регрессия
+безопасность
+совместимость / обновление Frappe
+миграция
+улучшение пользовательского опыта
 ```
 
-New major hypotheses should return to a Lab when they create significant architectural uncertainty rather than being tested directly on production architecture.
+Крупные новые гипотезы при существенной архитектурной неопределённости возвращаются в Lab, а не проверяются непосредственно на production-архитектуре.
 
-## 8. Retirement
+## 8. Вывод из эксплуатации
 
-Open source does not mean eternal maintenance.
+Open source не означает вечную поддержку.
 
-A Product or Lab may be retired when:
+Product или Lab могут быть завершены, если:
 
-- the problem is no longer relevant;
-- a better solution makes continued development unjustified;
-- maintenance burden exceeds value;
-- architecture depends on unsupported platform behavior;
-- no responsible maintainer remains.
+- проблема потеряла актуальность;
+- появилась заведомо лучшая альтернатива;
+- стоимость сопровождения превышает ценность;
+- архитектура зависит от неподдерживаемого поведения платформы;
+- не осталось ответственного maintainer.
 
-Retirement must be explicit:
+Вывод должен быть явным:
 
-- mark repository/status clearly;
-- state last supported versions;
-- preserve history when useful;
-- do not leave users assuming active maintenance.
+- статус репозитория отмечается;
+- последние поддерживаемые версии указываются;
+- полезная история сохраняется;
+- пользователи не должны ошибочно считать проект активно поддерживаемым.
 
-## 9. Promotion is evidence-based
+## 9. Переход между стадиями основан на доказательствах
 
-Movement between stages is a decision, not a rename.
+Следующее само по себе не доказывает зрелость:
 
-The following are not sufficient evidence of product maturity:
+- логотип;
+- наличие GitHub-репозитория;
+- большое число `DocType`;
+- рабочее demo;
+- использование в курсе;
+- большой README;
+- техническая интересность решения.
 
-- having a logo;
-- having a GitHub repository;
-- having many DocTypes;
-- having a working demo;
-- being used in a course;
-- having a large README;
-- being technically interesting.
+## 10. Gate именования
 
-## 10. Product naming gate
+Постоянное имя и полноценная визуальная идентичность Product появляются после прохождения стадии инкубации, а не на первом Lab.
 
-Permanent product naming and visual identity should occur after the Incubating Product gate, not at the initial Lab stage.
+Это не даёт вложениям в бренд заставлять нас сохранять неудачную техническую гипотезу.
 
-This prevents brand investment from creating pressure to preserve a failed technical hypothesis.
+## 11. Связь с Learn
 
-## 11. Relationship to Learn
+Learn может использовать Labs и Products как примеры, но учебная последовательность не определяет Product roadmap.
 
-Learn may use Labs and Products as examples, but educational sequencing must not drive the Product roadmap.
+Product также не получает функцию только потому, что из неё получится удобный урок.
 
-Likewise, a Product feature must not be added merely because it would make a convenient lesson.
+## 12. Связь с Engineering
 
-## 12. Relationship to Engineering
+Labs и Products создают доказательства.
 
-Labs and Products are evidence producers.
+Если они выявляют конфликт с текущими рекомендациями VEQTA Engineering, конфликт фиксируется и пересматривается. Product может подтвердить корректное исключение; тогда Engineering описывает границу применимости, а не делает вид, что исходное правило было универсальным.
 
-When they reveal a conflict with current VEQTA Engineering guidance, the conflict is recorded and reviewed. The product may demonstrate a valid exception; Engineering then documents the boundary rather than pretending the original rule was universal.
+## 13. Текущая миграция
 
-## 13. Current migration
-
-The existing `Work Type` / `Work Item` prototype is reclassified as:
+Существующий prototype `Work Type` / `Work Item` классифицируется как:
 
 ```text
 VEQTA Labs / Work Management / v0.1
 ```
 
-It is no longer treated as the domain model of VEQTA itself.
+Он больше не считается предметной моделью самой VEQTA.
 
-Its next outcome must be decided by Lab evidence:
+Его следующий исход определяется только результатами Lab:
 
 ```text
-reject
-reference
-learn
-incubate
+отклонить
+сохранить как эталон
+использовать в Learn
+перевести в инкубацию
 ```
 
-No product status is assumed in advance.
+Статус Product заранее не предполагается.
