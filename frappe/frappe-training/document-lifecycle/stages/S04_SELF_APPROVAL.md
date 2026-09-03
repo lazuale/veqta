@@ -1,4 +1,4 @@
-# S04. Запретить self approval штатной политикой Workflow
+# S04. Запретить одобрение собственной заявки
 
 После S03 пользователь с ролью `PLT Approver` может выполнить переход `PLT Pending Approval → PLT Approved`.
 
@@ -8,7 +8,7 @@
 
 В нашей учебной модели заявитель совпадает с `Document.owner`, поэтому это правило уже умеет выражать сам Workflow.
 
-## 1. Создать dual-role пользователя
+## 1. Создать пользователя с двумя ролями
 
 Через Desk создайте пользователя, например:
 
@@ -46,9 +46,9 @@ owner  = dual@example.test
 status = PLT Pending Approval
 ```
 
-Поскольку у пользователя есть роль `PLT Approver`, без дополнительной policy он является кандидатом на `Approve`.
+Поскольку у пользователя есть роль `PLT Approver`, без дополнительного правила он может попытаться выполнить `Approve`.
 
-## 3. Изменить только positive approval transition
+## 3. Запретить self approval для Approve
 
 Откройте Workflow `PLT Purchase Request Approval`.
 
@@ -74,32 +74,32 @@ Pending Approval → Reject       self yes
 Rejected → Submit for Review    self yes
 ```
 
-Почему: новое требование запрещает именно одобрение собственной заявки. Мы не расширяем его автоматически на отправку своей заявки или отрицательное решение.
+Новое требование запрещает именно одобрение собственной заявки. Не нужно автоматически распространять его на отправку своей заявки или Reject.
 
-## 4. Проверить через реальный Workflow path
+## 4. Проверить настоящий переход Workflow
 
 Оставаясь под `dual@example.test`, попробуйте выполнить `Approve`.
 
 Переход должен быть отклонён.
 
-Это не UI-фильтр. В Frappe v16.33.0 `apply_workflow()` после выбора transition вызывает `has_approval_access()`, где при `allow_self_approval = 0` сравниваются текущий пользователь и `doc.owner`.
+Это не только ограничение интерфейса. В Frappe v16.33.0 `apply_workflow()` после выбора transition вызывает `has_approval_access()`, где при `allow_self_approval = 0` сравниваются текущий пользователь и `doc.owner`.
 
 Источник:
 
 - [`apply_workflow()` и `has_approval_access()`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/workflow.py).
 
-Текущая логика Framework по смыслу:
+Логика Framework по смыслу:
 
 ```text
 Administrator
 или allow_self_approval = true
 или current user != doc.owner
-→ transition разрешён по self-policy
+→ переход разрешён проверкой self approval
 ```
 
-Поэтому наш выбор `requester = owner` на S01 здесь становится важной частью модели.
+Поэтому правило `requester = owner`, принятое на S01, здесь становится важной частью модели.
 
-## 5. Проверить успешный approval другим пользователем
+## 5. Проверить одобрение другим пользователем
 
 Войдите как:
 
@@ -115,15 +115,15 @@ approver@example.test
 status = PLT Approved
 ```
 
-На S04 документ всё ещё остаётся:
+На S04 Document всё ещё остаётся:
 
 ```text
 docstatus = 0
 ```
 
-Self-approval policy и Submit — разные ответственности.
+Запрет self approval и Submit — разные правила.
 
-## 6. Проверить server path напрямую
+## 6. Проверить через Bench Console
 
 Для отрицательной проверки можно использовать Bench Console:
 
@@ -157,7 +157,7 @@ exit()
 
 ## 7. Граница штатного механизма
 
-Текущая self-policy сравнивает пользователя именно с `doc.owner`.
+Текущая проверка self approval сравнивает пользователя именно с `doc.owner`.
 
 Поэтому она подходит нашему учебному сценарию только при принятом правиле:
 
@@ -168,21 +168,21 @@ requester = owner
 Если позже секретарь сможет создать заявку за другого сотрудника, то:
 
 ```text
-business requester != owner
+requester != owner
 ```
 
-и это требование придётся анализировать заново. Не нужно заранее писать собственный validator для сценария, которого пока нет.
+и требование придётся анализировать заново. Не нужно заранее писать собственный validator для сценария, которого пока нет.
 
 ## Результат
 
 После S04:
 
 ```text
-обычный role access сохранён
-positive approval имеет Allow Self Approval = no
-owner с Approver role не может одобрить свой Document
-другой Approver может
-Requester self-transitions остаются рабочими
+обычные Role и DocPerm сохраняются
+Approve имеет Allow Self Approval = no
+owner с ролью Approver не может одобрить свой Document
+другой Approver может выполнить Approve
+отправка своей заявки и Reject остаются разрешёнными
 ```
 
 Следующий этап: [`S05_CONDITIONAL_APPROVAL.md`](S05_CONDITIONAL_APPROVAL.md).
