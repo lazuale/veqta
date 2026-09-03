@@ -88,10 +88,10 @@ def create_equipment_movements(self, movement_type):
 На время эксперимента замените конец `issue()`:
 
 ```python
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def issue(self):
-    self.check_permission("write")
     self.reload()
+    self.check_permission("write")
 
     if self.status != "Planned":
         frappe.throw(_("Only a Planned Rental can be issued."))
@@ -103,7 +103,6 @@ def issue(self):
     try:
         self.create_equipment_movements("Issue")
     except Exception:
-        frappe.log_error(title="Caught exception experiment")
         return {"ok": False}
 
     return {"ok": True, "status": self.status}
@@ -114,6 +113,8 @@ def issue(self):
 ```text
 исключение больше не выходит из controller method
 ```
+
+Логирование здесь специально не добавляется: оно не относится к проверяемой транзакционной границе.
 
 Не добавляйте `rollback()`.
 
@@ -141,7 +142,13 @@ operator-a@example.test
 
 UI текущего минимального button code не интерпретирует бизнес-смысл `ok=False`; promise считается успешно завершённым и Form перезагрузится.
 
-Это отдельный полезный сигнал: transport success и business success — не одно и то же.
+Это отдельный полезный сигнал:
+
+```text
+transport success
+≠
+business success
+```
 
 ---
 
@@ -187,9 +194,7 @@ request завершился успешно
 
 ## 7. Что говорит Database API
 
-Официальная документация прямо предупреждает:
-
-> если приложение само ловит исключение, database abstraction больше не знает, что что-то пошло не так; ответственность за правильный rollback переходит к коду.
+Официальная документация предупреждает: если приложение само ловит исключение, database abstraction больше не знает, что операция должна считаться неуспешной; ответственность за rollback переходит к коду приложения.
 
 Первичный источник:
 
