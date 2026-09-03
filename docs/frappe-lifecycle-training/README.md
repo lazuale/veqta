@@ -1,6 +1,6 @@
 # Второй учебный практикум Frappe — lifecycle
 
-Статус: **архитектурная база и roadmap прошли аудит; executable specification ещё не создана**.
+Статус: **архитектурная база и roadmap прошли аудит; CORE specification создана и ожидает отдельного аудита; executable exercises ещё не начаты**.
 
 Практикум изучает управляемый lifecycle собственного `Purchase Request`:
 
@@ -27,30 +27,47 @@ plain Document
 3. [`REQUIREMENTS_MATRIX.md`](REQUIREMENTS_MATRIX.md) — требования `R01–R17`, NEXT и GATE.
 4. [`STAGE_DEPENDENCY_GRAPH.md`](STAGE_DEPENDENCY_GRAPH.md) — реальные зависимости `P00–P15`.
 5. [`PRACTICUM_ROADMAP.md`](PRACTICUM_ROADMAP.md) — практический маршрут `S00–S10`.
-6. [`ROADMAP_AUDIT.md`](ROADMAP_AUDIT.md) — обязательный gate после злого аудита roadmap; его точечные corrections имеют приоритет до финальной консолидации документов.
+6. [`ROADMAP_AUDIT.md`](ROADMAP_AUDIT.md) — обязательный gate после злого аудита roadmap.
+7. [`CORE_STAGE_SPECIFICATION.md`](CORE_STAGE_SPECIFICATION.md) — точные App/Site/Module names, schema, naming, roles/DocPerm, Workflow, LIMIT, transitions, fixtures, control data, tests и clean-site contract.
 
-Roadmap gate пройден. Stage map `S00–S10` сохранён, но следующий слой обязан учитывать найденные corrections:
+Roadmap gate пройден. Stage map `S00–S10` сохранён.
+
+CORE specification уже фиксирует, в частности:
+
+```text
+App = purchase_lifecycle_training
+Module = Purchase Lifecycle Training
+Dev Site = purchase-lifecycle.localhost
+Acceptance Site = purchase-lifecycle-acceptance.localhost
+Namespace = PLT
+Naming = PLT-PR-.#####
+APPROVAL_LIMIT = 1000
+```
+
+а также:
 
 ```text
 transition-level Allow Self Approval policy
 status.No Copy = yes после включения Workflow
+status.Allow on Submit = no для текущего CORE
 минимальный Senior DocPerm
 reset несовместимых disposable Approved/docstatus0 records перед S06
 Only Allow Edit For = Desk policy, не server immutability
+Role provisioning из Standard DocPerm
+ordered Workflow Action Master → Workflow State → Workflow fixtures
 source-backed native Amend expectation
-inherited naming checkpoint
-окончательный Workflow State namespace после фиксации App identifier
 ```
 
-Следующий слой создаётся только из **всех шести** документов выше:
+Следующий gate:
 
 ```text
-CORE_STAGE_SPECIFICATION
-→ executable exercises
-→ clean-site acceptance
+злой аудит CORE_STAGE_SPECIFICATION
+↓
+только после него
+executable exercises S00–S10
 ```
 
-Нельзя начинать executable specification только по roadmap, игнорируя `ROADMAP_AUDIT.md`.
+Executable exercises нельзя начинать по одной specification без её отдельного аудита.
 
 ## Нормативная база
 
