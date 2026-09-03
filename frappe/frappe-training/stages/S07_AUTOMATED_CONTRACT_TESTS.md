@@ -861,7 +861,7 @@ git -C apps/rental_training add \
   rental_training/rental_training/doctype/rental/test_rental.py
 
 git -C apps/rental_training commit \
-  -m "test: cover rental core contracts"
+  -m "test: cover rental rules"
 ```
 
 Проверьте:
