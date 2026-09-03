@@ -1,4 +1,4 @@
-# S06. Сделать final approval Submitted fact
+# S06. Зафиксировать окончательное согласование через Submit
 
 До S06 `PLT Approved` означал только состояние процесса:
 
@@ -11,7 +11,7 @@ docstatus = 0
 
 > После окончательного согласования заявка считается зафиксированным разрешением и не должна переписываться обычным Draft Save как будто решения ещё не было.
 
-Именно это создаёт основание использовать системный lifecycle Frappe.
+Для этого используется системный жизненный цикл Document во Frappe.
 
 ## 1. Сначала очистить несовместимые учебные записи
 
@@ -22,14 +22,14 @@ status = PLT Approved
 docstatus = 0
 ```
 
-После изменения Workflow тот же state будет означать:
+После изменения Workflow то же состояние будет означать:
 
 ```text
 status = PLT Approved
 docstatus = 1
 ```
 
-Старые учебные записи не нужно «чинить» SQL. Это disposable dev data, созданные только для предыдущих упражнений.
+Старые контрольные записи не нужно «чинить» SQL. Это временные данные dev Site, созданные только для предыдущих упражнений.
 
 Посмотрите существующие заявки:
 
@@ -46,7 +46,7 @@ for row in frappe.get_all(
     print(row)
 ```
 
-Если Site используется только для этого практикума, удалите контрольные Purchase Requests обычным Document path:
+Если Site используется только для этого практикума, удалите контрольные Purchase Requests штатным способом через Frappe:
 
 ```python
 frappe.set_user("Administrator")
@@ -61,10 +61,10 @@ exit()
 ```text
 UPDATE tabPurchase Request SET docstatus = ...
 ручное изменение docstatus в БД
-patch только ради disposable учебных данных
+patch только ради временных учебных данных
 ```
 
-В production с реальными данными изменение такого контракта было бы migration responsibility. Здесь это не production migration.
+В рабочей системе с реальными данными такое изменение потребовало бы отдельной миграции данных. В учебном dev Site сохранять контрольные записи предыдущих этапов не требуется.
 
 ## 2. Включить Is Submittable
 
@@ -76,7 +76,7 @@ Is Submittable : yes
 
 Сохраните DocType.
 
-Frappe добавляет Standard field `amended_from` для amendable DocType. Его не нужно создавать вручную.
+Frappe добавляет Standard field `amended_from` для submittable DocType. Его не нужно создавать вручную.
 
 Проверьте metadata в Git:
 
@@ -87,7 +87,7 @@ git -C apps/purchase_lifecycle_training diff -- \
   purchase_lifecycle_training/purchase_lifecycle_training/doctype/purchase_request/purchase_request.json
 ```
 
-## 3. Выдать Submit только final approvers
+## 3. Выдать Submit только согласующим
 
 В Permissions `Purchase Request` измените только `Submit`:
 
@@ -97,27 +97,27 @@ PLT Approver         Submit yes
 PLT Senior Approver  Submit yes
 ```
 
-Почему оба approver получают Submit:
+Почему Submit нужен обеим ролям согласования:
 
 ```text
-маленькая заявка → final PLT Approver
-большая заявка   → final PLT Senior Approver
+маленькая заявка → окончательное решение принимает PLT Approver
+большая заявка   → окончательное решение принимает PLT Senior Approver
 ```
 
 Requester не получает Submit, потому что он не выполняет окончательное согласование.
 
-## 4. Изменить docstatus только у final state
+## 4. Изменить docstatus только у Approved
 
 Откройте Workflow `PLT Purchase Request Approval`.
 
-Измените state row:
+Измените строку состояния:
 
 ```text
 PLT Approved
 Doc Status: 0 → 1
 ```
 
-Остальные текущие states остаются:
+Остальные текущие состояния остаются:
 
 ```text
 PLT Draft             0
@@ -148,9 +148,9 @@ No Copy         : yes
 Allow on Submit : no
 ```
 
-На этом этапе state меняется одновременно с переходом Draft → Submitted через `doc.submit()`.
+На этом этапе состояние меняется одновременно с переходом Draft → Submitted через `doc.submit()`.
 
-`Allow on Submit` нужен для другой ответственности: когда поле должно изменяться у уже Submitted Document через обычный update-after-submit path. Такого требования у нас нет.
+`Allow on Submit` нужен, когда поле должно изменяться уже после Submit у существующего Submitted Document. Такого требования у нас нет.
 
 ## 6. Проверить малую заявку
 
@@ -224,13 +224,13 @@ PLT Senior Approver
 docstatus = 1
 ```
 
-То есть разные approval paths заканчиваются одной и той же системной семантикой final fact.
+Оба маршрута согласования заканчиваются одинаково: окончательно согласованный Document становится Submitted.
 
-## 8. Проверить permissions, а не только кнопки
+## 8. Проверить права, а не только кнопки
 
-Под Requester убедитесь, что он не получает право Submit.
+Под Requester убедитесь, что у него нет права Submit.
 
-Под Approver и Senior должны существовать только те Submit capabilities, которые нужны их final transitions.
+Approver и Senior должны получать Submit только потому, что именно их переходы завершают согласование.
 
 Не выдавайте сейчас:
 
@@ -239,7 +239,7 @@ Cancel
 Amend
 ```
 
-Техническая способность Submittable Document быть отменённым и исправленным ещё не означает, что бизнес уже разрешил эти операции конкретным ролям.
+Техническая возможность Submittable Document поддерживать Cancel и Amend ещё не означает, что эти операции уже разрешены текущими бизнес-требованиями.
 
 ## Результат
 
@@ -248,8 +248,8 @@ Amend
 ```text
 Purchase Request = Is Submittable
 PLT Approved      = docstatus 1
-маленькая заявка  = submit через PLT Approver
-большая заявка    = submit через PLT Senior Approver
+маленькая заявка  = Submit через PLT Approver
+большая заявка    = Submit через PLT Senior Approver
 Requester         = no Submit
 amended_from      = Standard field Framework
 status Allow on Submit = no
