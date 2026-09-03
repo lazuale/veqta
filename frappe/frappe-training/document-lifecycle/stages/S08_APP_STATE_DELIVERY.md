@@ -204,7 +204,7 @@ purchase_lifecycle_training/
             └── test_purchase_request.py
 ```
 
-`purchase_request.py` может оставаться без собственной бизнес-логики. В текущем CORE process semantics уже закрываются штатными Workflow/docstatus/permissions, поэтому Python не нужно добавлять просто ради наличия Controller.
+`purchase_request.py` может оставаться без собственной бизнес-логики. В текущем практикуме процесс уже выражается штатными `Workflow`, `docstatus` и permissions, поэтому Python не нужно добавлять просто ради наличия Controller.
 
 ## Результат
 
