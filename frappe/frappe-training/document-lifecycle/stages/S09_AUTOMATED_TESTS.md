@@ -1,16 +1,16 @@
-# S09. Закрепить lifecycle автоматическими tests
+# S09. Закрепить правила процесса автоматическими тестами
 
-К этому этапу процесс уже работает через Desk и его конфигурация принадлежит App.
+К этому этапу процесс уже работает через Desk, а его обязательная конфигурация поставляется вместе с App.
 
 Новое требование:
 
-> Критические контракты приложения должны проверяться повторяемо одной командой и падать, если Workflow или его permissions сломаны.
+> Критические правила приложения должны проверяться повторяемо одной командой и явно падать, если Workflow или permissions сломаны.
 
-Тестируем не «умеет ли Frappe делать Workflow вообще», а нашу конкретную конфигурацию и process semantics.
+Тестируем не стандартную способность Frappe выполнять Workflow, а нашу конкретную конфигурацию и ожидаемые переходы `Purchase Request`.
 
 ## 1. Использовать IntegrationTestCase
 
-Тесты создают Documents, переключают пользователей, читают БД и вызывают реальный Workflow path. Это интеграционные тесты.
+Тесты создают Documents, переключают пользователей, читают БД и выполняют реальные переходы Workflow. Это интеграционные тесты.
 
 Для Frappe v16 используйте:
 
@@ -22,7 +22,7 @@ from frappe.tests import IntegrationTestCase
 
 Сам Frappe тестирует Workflow через `IntegrationTestCase` и `apply_workflow()`; см. [`test_workflow.py` v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/workflow/doctype/workflow/test_workflow.py).
 
-## 2. Разрешить tests на dev Site
+## 2. Разрешить запуск тестов на dev Site
 
 ```bash
 cd ~/frappe/rental-training-bench
@@ -33,7 +33,7 @@ bench --site purchase-lifecycle.localhost show-config | grep allow_tests
 
 `allow_tests` принадлежит Site и не должен попадать в исходники App.
 
-## 3. Открыть generated test file
+## 3. Открыть файл тестов Purchase Request
 
 При создании Standard `Purchase Request` Frappe уже создал:
 
@@ -46,7 +46,7 @@ apps/purchase_lifecycle_training/
                 └── test_purchase_request.py
 ```
 
-Сохраните generated copyright/license header и замените содержательную часть следующим минимальным набором.
+Сохраните существующий copyright/license header и замените содержательную часть следующим минимальным набором.
 
 ```python
 import frappe
@@ -202,9 +202,9 @@ class IntegrationTestPurchaseRequest(IntegrationTestCase):
         self.assertFalse(status.allow_on_submit)
 ```
 
-## 4. Почему tests не создают Workflow как fallback
+## 4. Тесты не должны восстанавливать обязательную конфигурацию
 
-Тесты создают только Site-local test Users и business Documents.
+Тесты создают только тестовых Users и рабочие Documents, которые нужны конкретной проверке.
 
 Они **не должны** делать:
 
@@ -214,9 +214,9 @@ class IntegrationTestPurchaseRequest(IntegrationTestCase):
 если Workflow State отсутствует → создать его
 ```
 
-Это обязательная конфигурация App. Если S08 delivery сломан, suite должен упасть, а не тайно восстановить приложение внутри test setup.
+Это обязательная конфигурация App. Если поставка состояния из S08 сломана, тест должен упасть, а не тайно восстановить недостающую настройку внутри `setUp()`.
 
-## 5. Запустить tests
+## 5. Запустить тесты
 
 ```bash
 cd ~/frappe/rental-training-bench
@@ -225,49 +225,49 @@ bench --site purchase-lifecycle.localhost run-tests \
   --app purchase_lifecycle_training
 ```
 
-Исправляйте причину падения, а не ослабляйте test ради зелёного результата.
+Исправляйте причину падения, а не ослабляйте проверку ради зелёного результата.
 
 ## 6. Что проверить отдельно через Desk
 
-Не всё полезно превращать в server integration test.
+Не каждое поведение интерфейса нужно превращать в интеграционный тест.
 
-Отдельно наблюдаем через Desk:
+Отдельно проверьте через Desk:
 
 ```text
 Only Allow Edit For даёт ожидаемое состояние Form
 Workflow Action появляется у роли ожидающего действия
-Requester видит native Amend для cancelled document
+Requester видит штатный Amend для Cancelled Document
 Amend создаёт новый Draft
-amended_from указывает на original
+amended_from указывает на исходную заявку
 ```
 
-Особенно важно не выдавать `Only Allow Edit For` за самостоятельную универсальную server immutability. Критические server transitions тестируются через `apply_workflow()`.
+`Only Allow Edit For` не является самостоятельной универсальной серверной защитой полей. Критические переходы Workflow проверяются через `apply_workflow()`.
 
-## 7. Дополнительные контракты
+## 7. Дополнительные проверки
 
-После базового набора полезно добавить отдельные tests для точных границ:
+После базового набора полезно добавить отдельные тесты для точных границ:
 
 ```text
-1000     → direct Approved
-1000.01  → Pending Senior
+1000     → PLT Approved
+1000.01  → PLT Pending Senior
 Requester не может Approve
-owner не может first-level approve собственной большой заявки
-owner не может Senior-approve собственной большой заявки
+owner не может одобрить собственную большую заявку на первом уровне
+owner не может одобрить собственную большую заявку на втором уровне
 PLT Requester не получает Cancel
 PLT Senior Approver не получает Cancel
 PLT Requester имеет Amend
 Approver/Senior не получают Amend
 ```
 
-Добавляйте их как самостоятельные методы с одним понятным контрактом на test.
+Каждый такой test method должен проверять одно понятное правило приложения.
 
 ## Результат
 
-После S09 критический lifecycle можно проверить одной командой:
+После S09 критические правила процесса можно проверить одной командой:
 
 ```text
-изменили обязательный Workflow или permissions неправильно
-→ tests красные
+сломали обязательный Workflow или permissions
+→ автоматические тесты падают
 ```
 
 Следующий этап: [`S10_CLEAN_INSTALL.md`](S10_CLEAN_INSTALL.md).
