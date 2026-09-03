@@ -52,7 +52,7 @@ ignore_permissions=True
 - [`../APPLICATION_MODEL.md`](../APPLICATION_MODEL.md);
 - [`../REQUIREMENTS.md`](../REQUIREMENTS.md);
 - [`../ROADMAP.md`](../ROADMAP.md);
-- [`../../frappe-architecture-standard/04_SECURITY.md`](../../frappe-architecture-standard/04_SECURITY.md).
+- [`../../../frappe-architecture-standard/04_SECURITY.md`](../../../frappe-architecture-standard/04_SECURITY.md).
 
 Первичные источники Frappe:
 

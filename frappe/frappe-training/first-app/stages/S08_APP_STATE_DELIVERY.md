@@ -23,7 +23,7 @@ S08 не добавляет новую функцию. Это проверка �
 - [`S07_AUTOMATED_CONTRACT_TESTS.md`](S07_AUTOMATED_CONTRACT_TESTS.md);
 - [`../APPLICATION_MODEL.md`](../APPLICATION_MODEL.md);
 - [`../ROADMAP.md`](../ROADMAP.md);
-- [`../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md`](../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md).
+- [`../../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md`](../../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md).
 
 Первичные источники Frappe:
 

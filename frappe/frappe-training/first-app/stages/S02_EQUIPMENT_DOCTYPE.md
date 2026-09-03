@@ -15,7 +15,7 @@
 - [`S01_APP_AND_SITE.md`](S01_APP_AND_SITE.md) — обязательное входное состояние;
 - [`../APPLICATION_MODEL.md`](../APPLICATION_MODEL.md) — модель `Equipment`;
 - [`../ROADMAP.md`](../ROADMAP.md) — место этапа в практикуме;
-- [`../../frappe-architecture-standard/02_DATA_MODEL.md`](../../frappe-architecture-standard/02_DATA_MODEL.md) — правило выбора DocType и поля.
+- [`../../../frappe-architecture-standard/02_DATA_MODEL.md`](../../../frappe-architecture-standard/02_DATA_MODEL.md) — правило выбора DocType и поля.
 
 ---
 

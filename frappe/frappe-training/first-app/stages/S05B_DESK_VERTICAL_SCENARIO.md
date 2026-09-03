@@ -59,7 +59,7 @@ Report
 - [`S04_RENTAL_COMPOSITION.md`](S04_RENTAL_COMPOSITION.md);
 - [`S05A_RENTAL_STATUS.md`](S05A_RENTAL_STATUS.md);
 - [`../ROADMAP.md`](../ROADMAP.md);
-- [`../../frappe-architecture-standard/09_UI_REPORTING.md`](../../frappe-architecture-standard/09_UI_REPORTING.md).
+- [`../../../frappe-architecture-standard/09_UI_REPORTING.md`](../../../frappe-architecture-standard/09_UI_REPORTING.md).
 
 Первичные источники Frappe:
 

@@ -28,7 +28,7 @@ S07 **не добавляет новую бизнес-функцию**. Он п�
 - [`../APPLICATION_MODEL.md`](../APPLICATION_MODEL.md);
 - [`../REQUIREMENTS.md`](../REQUIREMENTS.md);
 - [`../ROADMAP.md`](../ROADMAP.md);
-- [`../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md`](../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md).
+- [`../../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md`](../../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md).
 
 Первичные источники Frappe:
 

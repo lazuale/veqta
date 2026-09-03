@@ -13,7 +13,7 @@ VEQTA строится на Frappe Framework, не заменяет его и н
 В разделе [`frappe/`](frappe/README.md) находятся два основных направления:
 
 - **VEQTA Engineering** — [архитектурный стандарт Frappe](frappe/frappe-architecture-standard/README.md);
-- **VEQTA Learn** — [практикум по разработке собственного Frappe App](frappe/frappe-training/README.md).
+- **VEQTA Learn** — [практикумы по разработке на Frappe Framework](frappe/frappe-training/README.md).
 
 ### Labs
 
