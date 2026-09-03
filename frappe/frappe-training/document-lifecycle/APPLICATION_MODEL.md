@@ -1,6 +1,6 @@
 # Модель учебного приложения
 
-Практикум использует один предметный объект — внутреннюю заявку на закупку `Purchase Request`. Модель намеренно маленькая: цель не в количестве DocTypes, а в том, чтобы на одном понятном Document увидеть разницу между предметным состоянием, `Workflow` и системным `docstatus`.
+Практикум использует один предметный объект — внутреннюю заявку на закупку `Purchase Request`. Модель намеренно небольшая: цель не в количестве DocTypes, а в том, чтобы на одном понятном Document увидеть разницу между предметным состоянием, `Workflow` и системным `docstatus`.
 
 ## Purchase Request
 
@@ -26,7 +26,7 @@ PLT-PR-00001
 PLT-PR-00002
 ```
 
-`subject` используется как `Title Field`: системный `name` остаётся стабильной identity, а заголовок можно исправлять без переименования Document.
+`subject` используется как `Title Field`: системный `name` остаётся стабильным идентификатором, а заголовок можно исправлять без переименования Document.
 
 ## Кто является заявителем
 
@@ -42,7 +42,7 @@ requester = Document.owner
 
 ## Состояния
 
-Практикум использует один Standard field:
+Практикум использует одно поле Standard DocType:
 
 ```text
 status : Select
@@ -59,9 +59,9 @@ PLT Approved
 PLT Cancelled
 ```
 
-В начале практикума это обычный предметный `Select`. Позже тот же field становится `Workflow State Field`.
+В начале практикума это обычный предметный `Select`. Позже то же поле становится `Workflow State Field`.
 
-Отдельный обязательный `workflow_state` не создаётся: Frappe позволяет использовать уже существующее поле, если оно указано в Workflow. Если подходящего поля нет, Framework умеет создать `Custom Field` автоматически, но в нашем App такой второй источник состояния не нужен. См. [`Workflow.create_custom_field_for_workflow_state()` в v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/workflow/doctype/workflow/workflow.py).
+Отдельный обязательный `workflow_state` не создаётся: Frappe позволяет использовать уже существующее поле, если оно указано в Workflow. Если подходящего поля нет, Framework умеет создать `Custom Field` автоматически, но в нашем App второй источник состояния не нужен. См. [`Workflow.create_custom_field_for_workflow_state()` в v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/workflow/doctype/workflow/workflow.py).
 
 ## Роли
 
@@ -73,9 +73,9 @@ PLT Approver
 PLT Senior Approver
 ```
 
-Они отвечают за возможности работать с `Purchase Request` через обычные DocType Permissions. Право выполнить конкретный процессный переход задаётся отдельно в `Workflow Transition`.
+Они определяют возможности работы с `Purchase Request` через обычные DocType Permissions. Право выполнить конкретный переход процесса задаётся отдельно в `Workflow Transition`.
 
-К концу практикума permission-модель выглядит так:
+К концу практикума модель прав выглядит так:
 
 | Role | Read | Create | Write | Submit | Cancel | Amend |
 |---|---:|---:|---:|---:|---:|---:|
@@ -87,7 +87,7 @@ PLT Senior Approver
 
 ## Маршрут согласования
 
-Финальный процесс:
+Итоговый процесс:
 
 ```text
 PLT Draft
@@ -111,52 +111,52 @@ PLT Pending Approval
                └─ Approve → PLT Approved
 ```
 
-После появления транзакционного требования:
+После появления требования фиксировать окончательное решение через Submit:
 
 ```text
 PLT Approved  → docstatus 1
 PLT Cancelled → docstatus 2
 ```
 
-До этого `PLT Approved` остаётся обычным workflow-state с `docstatus 0`.
+До этого `PLT Approved` остаётся обычным состоянием Workflow с `docstatus = 0`.
 
-Это принципиально: название `Approved` само по себе не делает Document Submitted.
+Название `Approved` само по себе не переводит Document в `docstatus = 1`.
 
-## Self approval
+## Одобрение собственной заявки
 
 Пользователь может одновременно иметь `PLT Requester` и `PLT Approver`, но не должен одобрять собственную заявку.
 
-Frappe уже предоставляет transition-level настройку `Allow Self Approval`. В v16.33.0 серверная проверка сравнивает текущего пользователя с `doc.owner`; поэтому она подходит именно потому, что в учебной модели requester совпадает с owner. См. [`has_approval_access()`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/workflow.py).
+Frappe предоставляет настройку `Allow Self Approval` на уровне перехода. В v16.33.0 серверная проверка сравнивает текущего пользователя с `doc.owner`; поэтому штатный механизм подходит нашей модели, где requester совпадает с owner. См. [`has_approval_access()`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/workflow.py).
 
 Собственный validator для этого правила не нужен.
 
 ## Cancel и Amend
 
-После того как окончательное согласование становится Submitted fact:
+После того как окончательное согласование фиксируется через Submit:
 
 ```text
 Approved → Cancelled
 ```
 
-идёт штатным `doc.cancel()` через Workflow, потому что `apply_workflow()` выбирает Document operation по `docstatus` следующего Workflow State. Переход `1 → 2` обрабатывается как Cancel, а не как обычный update-after-submit. Источник: [`apply_workflow()` v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/workflow.py).
+переход выполняется штатным `doc.cancel()` через Workflow. `apply_workflow()` выбирает операцию Document по `docstatus` следующего Workflow State, поэтому переход `1 → 2` является Cancel, а не обычным изменением Submitted Document. Источник: [`apply_workflow()` v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/workflow.py).
 
-После Cancel заявитель получает отдельное право `Amend` и создаёт новую draft-версию с `amended_from`, не переписывая отменённый факт.
+После Cancel заявитель получает отдельное право `Amend` и создаёт новый Draft с `amended_from`, не переписывая отменённый Document.
 
-## Что принадлежит App
+## Что хранится в App
 
 В финальном состоянии App должен воспроизводимо поставлять:
 
 ```text
-Purchase Request Standard metadata
+метаданные Standard DocType Purchase Request
 DocType Permissions
-Workflow Action Master для собственных действий
-Workflow State records
-Workflow с states/transitions/conditions
-автоматические tests
+собственные Workflow Action Master
+Workflow State
+Workflow с его states, transitions и conditions
+автоматические тесты
 ```
 
 Пользователи, их пароли и созданные Purchase Requests остаются данными конкретного Site.
 
-Role fixture для трёх ролей не нужен, пока роль существует только как имя в Standard DocPerm собственного DocType: Frappe создаёт отсутствующие Role при синхронизации metadata. Это тот же принцип, который уже используется в первом практикуме.
+Отдельный Role fixture для трёх ролей не нужен, пока роли существуют только как имена в Standard DocPerm собственного DocType: Frappe создаёт отсутствующие Role при синхронизации metadata. Тот же принцип уже используется в первом практикуме.
 
 Последовательность развития модели описана в [`ROADMAP.md`](ROADMAP.md).
