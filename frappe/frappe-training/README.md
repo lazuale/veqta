@@ -25,8 +25,8 @@ Rental
 
 Справочные материалы:
 
-- [модель учебного приложения](CORE_STAGE_SPECIFICATION.md);
-- [требования к приложению](REQUIREMENTS_MATRIX.md);
-- [маршрут практикума](PRACTICUM_ROADMAP.md).
+- [модель учебного приложения](APPLICATION_MODEL.md);
+- [требования к приложению](REQUIREMENTS.md);
+- [маршрут практикума](ROADMAP.md).
 
 Архитектурные объяснения, на которые ссылаются задания, находятся в соседнем [архитектурном стандарте Frappe](../frappe-architecture-standard/README.md).
