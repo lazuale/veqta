@@ -8,11 +8,11 @@ S08 показал, откуда должен восстанавливаться
 
 Связанные документы:
 
-- [`S08_APP_STATE_DELIVERY_AUDIT.md`](S08_APP_STATE_DELIVERY_AUDIT.md);
+- [`S08_APP_STATE_DELIVERY.md`](S08_APP_STATE_DELIVERY.md);
 - [`S07_AUTOMATED_CONTRACT_TESTS.md`](S07_AUTOMATED_CONTRACT_TESTS.md);
 - [`S05D_ROLES_AND_PERMISSIONS.md`](S05D_ROLES_AND_PERMISSIONS.md);
-- [`../CORE_STAGE_SPECIFICATION.md`](../CORE_STAGE_SPECIFICATION.md);
-- [`../PRACTICUM_ROADMAP.md`](../PRACTICUM_ROADMAP.md);
+- [`../APPLICATION_MODEL.md`](../APPLICATION_MODEL.md);
+- [`../ROADMAP.md`](../ROADMAP.md);
 - [`../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md`](../../frappe-architecture-standard/11_DEPLOYMENT_TESTING.md).
 
 Первичные источники Frappe:
@@ -53,7 +53,7 @@ App воспроизводим
 На S09 создаётся второй Site:
 
 ```text
-rental-acceptance.localhost
+rental-clean.localhost
 ```
 
 Он находится в том же совместимом Bench, но имеет:
@@ -199,9 +199,9 @@ bench --site rental.localhost show-config | grep developer_mode
 Сначала убедитесь, что имя ещё не занято:
 
 ```bash
-test ! -d sites/rental-acceptance.localhost \
-  && echo "OK: acceptance Site does not exist yet" \
-  || echo "STOP: acceptance Site already exists"
+test ! -d sites/rental-clean.localhost \
+  && echo "OK: clean Site does not exist yet" \
+  || echo "STOP: clean Site already exists"
 ```
 
 Если Site уже существует, **не используйте `--force` и не переустанавливайте его молча**. Проверка должна начинаться с действительно нового экземпляра.
@@ -209,7 +209,7 @@ test ! -d sites/rental-acceptance.localhost \
 Создайте Site:
 
 ```bash
-bench new-site rental-acceptance.localhost \
+bench new-site rental-clean.localhost \
   --db-root-username frappe_admin
 ```
 
@@ -236,7 +236,7 @@ Bench запросит:
 Проверьте установленные Apps:
 
 ```bash
-bench --site rental-acceptance.localhost list-apps -f text
+bench --site rental-clean.localhost list-apps -f text
 ```
 
 Ожидается ровно:
@@ -260,21 +260,21 @@ App установлен на Site
 Откройте console нового Site:
 
 ```bash
-bench --site rental-acceptance.localhost console
+bench --site rental-clean.localhost console
 ```
 
 Выполните:
 
 ```python
-core_doctypes = ["Equipment", "Customer", "Rental", "Rental Item"]
-core_roles = ["Rental Operator", "Rental Manager"]
+app_doctypes = ["Equipment", "Customer", "Rental", "Rental Item"]
+app_roles = ["Rental Operator", "Rental Manager"]
 
 print("Installed Apps:", frappe.get_installed_apps())
 
-for doctype in core_doctypes:
+for doctype in app_doctypes:
     print("DocType", doctype, frappe.db.exists("DocType", doctype))
 
-for role in core_roles:
+for role in app_roles:
     print("Role", role, frappe.db.exists("Role", role))
 ```
 
@@ -307,7 +307,7 @@ exit()
 Выполните:
 
 ```bash
-bench --site rental-acceptance.localhost show-config | grep developer_mode || true
+bench --site rental-clean.localhost show-config | grep developer_mode || true
 ```
 
 При правильной настройке ожидается отсутствие включённого `developer_mode`.
@@ -325,13 +325,13 @@ bench --site rental-acceptance.localhost show-config | grep developer_mode || tr
 Теперь выполняем единственное действие, которое должно принести модель приложения на Site:
 
 ```bash
-bench --site rental-acceptance.localhost install-app rental_training
+bench --site rental-clean.localhost install-app rental_training
 ```
 
 Проверьте:
 
 ```bash
-bench --site rental-acceptance.localhost list-apps -f text
+bench --site rental-clean.localhost list-apps -f text
 ```
 
 Ожидается:
@@ -382,7 +382,7 @@ Python-код
 Откройте console:
 
 ```bash
-bench --site rental-acceptance.localhost console
+bench --site rental-clean.localhost console
 ```
 
 ## 8.1. Module
@@ -396,11 +396,11 @@ frappe.db.exists("Module Def", "Rental Training")
 ## 8.2. Standard DocTypes
 
 ```python
-core_doctypes = ["Equipment", "Customer", "Rental", "Rental Item"]
+app_doctypes = ["Equipment", "Customer", "Rental", "Rental Item"]
 
 frappe.get_all(
     "DocType",
-    filters={"name": ["in", core_doctypes]},
+    filters={"name": ["in", app_doctypes]},
     fields=["name", "module", "custom", "istable"],
     order_by="name asc",
 )
@@ -411,9 +411,9 @@ frappe.get_all(
 Смысл:
 
 ```text
-Equipment   → Rental Training / Standard / normal
-Customer    → Rental Training / Standard / normal
-Rental      → Rental Training / Standard / normal
+Equipment   → Rental Training / Standard / обычный
+Customer    → Rental Training / Standard / обычный
+Rental      → Rental Training / Standard / обычный
 Rental Item → Rental Training / Standard / Child
 ```
 
@@ -533,14 +533,14 @@ bench start
 
 Поэтому следующая команда не является «магическим вторым install».
 
-Мы запускаем её, чтобы проверить ещё один контракт:
+Мы запускаем её, чтобы проверить ещё одно свойство:
 
-> Текущее зафиксированное состояние App можно безопасно провести через обычный путь update/migrate без ручного восстановления модели.
+> Текущее зафиксированное состояние App можно безопасно провести через обычный `migrate` без ручного восстановления модели.
 
 Выполните:
 
 ```bash
-bench --site rental-acceptance.localhost migrate
+bench --site rental-clean.localhost migrate
 ```
 
 Ожидается успешное завершение без:
@@ -556,7 +556,7 @@ bench --site rental-acceptance.localhost migrate
 После migrate снова проверьте Apps:
 
 ```bash
-bench --site rental-acceptance.localhost list-apps -f text
+bench --site rental-clean.localhost list-apps -f text
 ```
 
 Должны остаться:
@@ -575,19 +575,19 @@ rental_training
 Для штатного test runner нужна только настройка конкретного Site:
 
 ```bash
-bench --site rental-acceptance.localhost set-config allow_tests 1 --parse
+bench --site rental-clean.localhost set-config allow_tests 1 --parse
 ```
 
 Проверьте:
 
 ```bash
-bench --site rental-acceptance.localhost show-config | grep allow_tests
+bench --site rental-clean.localhost show-config | grep allow_tests
 ```
 
 Теперь запустите все тесты App:
 
 ```bash
-bench --site rental-acceptance.localhost run-tests --app rental_training
+bench --site rental-clean.localhost run-tests --app rental_training
 ```
 
 Тесты должны пройти **на Site, где приложение до установки вообще не существовало**.
@@ -595,18 +595,18 @@ bench --site rental-acceptance.localhost run-tests --app rental_training
 Этой командой повторно проверяются:
 
 ```text
-V01 date range
-V02 duplicate Equipment
-V03 Active overlap
-V03 touching boundary
-V03 non-overlap
-Planned overlap
-self-save Active
-Operator permissions
-Manager permissions
+V01: неверный период
+V02: повтор Equipment
+V03: пересечение Active Rentals
+V03: общая граничная дата
+V03: непересекающиеся периоды
+пересечение Planned
+повторное сохранение Active Rental
+permissions Operator
+permissions Manager
 ```
 
-Если тесты проходят только на `rental.localhost`, но падают здесь — контракт чистой установки не выполнен.
+Если тесты проходят только на `rental.localhost`, но падают здесь — чистая установка не воспроизводится.
 
 ---
 
@@ -629,7 +629,7 @@ git -C apps/rental_training status --short
 Откройте:
 
 ```text
-http://rental-acceptance.localhost:8000/app
+http://rental-clean.localhost:8000/app
 ```
 
 Войдите как:
@@ -638,7 +638,7 @@ http://rental-acceptance.localhost:8000/app
 Administrator
 ```
 
-с паролем, заданным при создании `rental-acceptance.localhost`.
+с паролем, заданным при создании `rental-clean.localhost`.
 
 Не открывайте старый `rental.localhost`: финальный сценарий должен пройти именно на новом Site.
 
@@ -683,8 +683,8 @@ Role уже должны быть на Site после синхронизаци�
 ## Operator
 
 ```text
-Email              : operator.acceptance@example.test
-First Name         : Acceptance Operator
+Email              : operator.clean@example.test
+First Name         : Rental Operator Test
 User Type          : System User
 Send Welcome Email : off
 Role               : Rental Operator
@@ -700,8 +700,8 @@ System Manager
 ## Manager
 
 ```text
-Email              : manager.acceptance@example.test
-First Name         : Acceptance Manager
+Email              : manager.clean@example.test
+First Name         : Rental Manager Test
 User Type          : System User
 Send Welcome Email : off
 Role               : Rental Manager
@@ -737,15 +737,15 @@ git -C apps/rental_training status --short
 Выйдите из Administrator и войдите как:
 
 ```text
-manager.acceptance@example.test
+manager.clean@example.test
 ```
 
 ## 16.1. Создать Equipment №1
 
 ```text
-Equipment Name : Acceptance Bosch Drill
+Equipment Name : Test Bosch Drill
 Equipment Type : Tool
-Serial Number  : ACC-TOOL-01
+Serial Number  : CLEAN-TOOL-01
 ```
 
 Сохраните и запомните сгенерированный `name`.
@@ -755,9 +755,9 @@ Serial Number  : ACC-TOOL-01
 ## 16.2. Создать Equipment №2
 
 ```text
-Equipment Name : Acceptance Canon Camera
+Equipment Name : Test Canon Camera
 Equipment Type : Camera
-Serial Number  : ACC-CAM-01
+Serial Number  : CLEAN-CAM-01
 ```
 
 Сохраните.
@@ -765,9 +765,9 @@ Serial Number  : ACC-CAM-01
 ## 16.3. Создать Customer
 
 ```text
-Customer Name : Acceptance Customer
+Customer Name : Test Customer
 Phone         : +31 6 10000901
-Email         : acceptance.customer@example.test
+Email         : clean.customer@example.test
 ```
 
 Сохраните.
@@ -775,13 +775,13 @@ Email         : acceptance.customer@example.test
 ## 16.4. Создать первый Active Rental
 
 ```text
-Customer   : Acceptance Customer
+Customer   : Test Customer
 Start Date : 2026-10-10
 End Date   : 2026-10-12
 Status     : Active
 Equipment:
-- Acceptance Bosch Drill
-- Acceptance Canon Camera
+- Test Bosch Drill
+- Test Canon Camera
 ```
 
 Сохраните.
@@ -828,7 +828,7 @@ Manager
 Выйдите и войдите как:
 
 ```text
-operator.acceptance@example.test
+operator.clean@example.test
 ```
 
 ## Equipment
@@ -846,7 +846,7 @@ Operator должен иметь возможность читать сущес�
 Создайте:
 
 ```text
-Customer Name : Operator Acceptance Customer
+Customer Name : Operator Test Customer
 Phone         : +31 6 10000902
 Email         : operator.customer@example.test
 ```
@@ -858,12 +858,12 @@ Email         : operator.customer@example.test
 Создайте непересекающийся Rental:
 
 ```text
-Customer   : Operator Acceptance Customer
+Customer   : Operator Test Customer
 Start Date : 2026-10-13
 End Date   : 2026-10-14
 Status     : Active
 Equipment:
-- Acceptance Bosch Drill
+- Test Bosch Drill
 ```
 
 Ожидание: сохраняется, потому что предыдущий Active Rental закончился 12 октября.
@@ -889,15 +889,15 @@ End Date : 2026-10-15
 Оставаясь под Operator, создайте ещё один Rental:
 
 ```text
-Customer   : Operator Acceptance Customer
+Customer   : Operator Test Customer
 Start Date : 2026-10-11
 End Date   : 2026-10-13
 Status     : Active
 Equipment:
-- Acceptance Canon Camera
+- Test Canon Camera
 ```
 
-`Acceptance Canon Camera` уже находится в Active Rental Manager за период:
+`Test Canon Camera` уже находится в Active Rental Manager за период:
 
 ```text
 2026-10-10 → 2026-10-12
@@ -931,18 +931,18 @@ Workflow
 
 Не нужно снова вручную перебирать каждое поле только ради количества действий.
 
-На **этом же `rental-acceptance.localhost`** уже выполнялась команда:
+На **этом же `rental-clean.localhost`** уже выполнялась команда:
 
 ```bash
-bench --site rental-acceptance.localhost run-tests --app rental_training
+bench --site rental-clean.localhost run-tests --app rental_training
 ```
 
 Она проверила:
 
 ```text
-V01 invalid date → rejected
-V02 duplicate Equipment → rejected
-V03 overlap → rejected
+V01: неверная дата → отказ
+V02: повтор Equipment → отказ
+V03: пересечение → отказ
 ```
 
 Ручная проверка V03 в Desk нужна здесь как сквозной пользовательский сценарий.
@@ -956,7 +956,7 @@ V03 overlap → rejected
 После пользовательского сценария откройте console:
 
 ```bash
-bench --site rental-acceptance.localhost console
+bench --site rental-clean.localhost console
 ```
 
 Проверьте:
@@ -968,8 +968,8 @@ print("Customer", frappe.db.count("Customer"))
 print("Rental", frappe.db.count("Rental"))
 
 for user in [
-    "operator.acceptance@example.test",
-    "manager.acceptance@example.test",
+    "operator.clean@example.test",
+    "manager.clean@example.test",
 ]:
     print(user, frappe.db.exists("User", user))
 ```
@@ -1008,11 +1008,11 @@ git -C apps/rental_training rev-parse HEAD
 printf '\n=== APP GIT ===\n'
 git -C apps/rental_training status --short
 
-printf '\n=== ACCEPTANCE APPS ===\n'
-bench --site rental-acceptance.localhost list-apps -f text
+printf '\n=== CLEAN SITE APPS ===\n'
+bench --site rental-clean.localhost list-apps -f text
 
-printf '\n=== ACCEPTANCE CONFIG ===\n'
-bench --site rental-acceptance.localhost show-config | \
+printf '\n=== CLEAN SITE CONFIG ===\n'
+bench --site rental-clean.localhost show-config | \
   grep -E 'developer_mode|allow_tests' || true
 ```
 
@@ -1035,7 +1035,7 @@ allow_tests      → 1/true
 После ручного пользовательского сценария снова выполните:
 
 ```bash
-bench --site rental-acceptance.localhost run-tests --app rental_training
+bench --site rental-clean.localhost run-tests --app rental_training
 ```
 
 Тесты должны по-прежнему проходить.
@@ -1080,7 +1080,7 @@ bench --site rental-acceptance.localhost run-tests --app rental_training
 Практикум завершён, если одновременно верно:
 
 ```text
-[ ] создан новый rental-acceptance.localhost
+[ ] создан новый rental-clean.localhost
 [ ] до install-app на нём был только frappe
 [ ] до install-app DocTypes и Role приложения отсутствовали
 [ ] контрольный Site не требует developer_mode
@@ -1104,7 +1104,7 @@ bench --site rental-acceptance.localhost run-tests --app rental_training
 [ ] Operator видит Equipment, но не может создавать его
 [ ] Operator может создавать и изменять Customer и Rental
 [ ] Operator не может удалять Rental
-[ ] overlapping Active Rental блокируется через Desk
+[ ] пересекающийся Active Rental блокируется через Desk
 [ ] тесты остаются зелёными после создания обычных Documents
 [ ] Git App остаётся чистым после всех действий на Site
 ```
@@ -1118,7 +1118,7 @@ bench --site rental-acceptance.localhost run-tests --app rental_training
 ```text
 «после install откройте DocType и ещё раз Save»
 «создайте обязательные Role вручную»
-«добавьте missing field через Customize Form»
+«добавьте отсутствующее поле через Customize Form»
 «поправьте permissions через Role Permission Manager»
 «включите developer mode, иначе установленное App не работает»
 «выполните этот ALTER TABLE вручную»
@@ -1203,7 +1203,7 @@ REST wrapper
 Webhook
 background jobs
 Server Script
-custom frontend
+собственный frontend
 ```
 
 Потому что ни один из этих механизмов пока не нужен для поставленных требований.
