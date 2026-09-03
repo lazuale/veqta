@@ -17,9 +17,7 @@ VEQTA строится на Frappe Framework, не заменяет его и н
 
 ### Labs
 
-В [`labs/`](labs/README.md) сохраняются эксперименты, в которых спорные идеи проверяются на живом Frappe.
-
-Сейчас здесь находится [Work Management Lab](labs/work-management/README.md).
+В [`labs/`](labs/README.md) публикуются воспроизводимые исследования Frappe: постановка технического вопроса, реализация на живом `App` и `Site`, наблюдаемый результат и инженерный вывод.
 
 ### Products
 
