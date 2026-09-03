@@ -1,239 +1,225 @@
-# VEQTA Foundation Audit
+# Аудит foundation VEQTA
 
-Status: **review record**  
-Scope: `PROJECT_CHARTER.md`, `BRAND_ARCHITECTURE.md`, `ENGINEERING_PRINCIPLES.md`, `PRODUCT_LIFECYCLE.md`, `REPOSITORY_STRUCTURE.md`, root `README.md`
+Статус: **запись о проверке**  
+Область: `PROJECT_CHARTER.md`, `BRAND_ARCHITECTURE.md`, `ENGINEERING_PRINCIPLES.md`, `PRODUCT_LIFECYCLE.md`, `REPOSITORY_STRUCTURE.md`, `LANGUAGE_POLICY.md`, корневой `README.md`
 
-## Verdict
+## Вердикт
 
 **PASS WITH FOLLOW-UP WORK.**
 
-The proposed foundation is internally coherent enough to become the direction of the project and to drive repository restructuring.
+Foundation достаточно согласован, чтобы стать направлением проекта и основанием для перестройки репозитория.
 
-No blocking contradiction remains between the five reviewed perspectives:
+Блокирующих противоречий между проверенными позициями не осталось:
 
 1. Frappe engineering;
 2. software architecture;
-3. learning methodology;
-4. product / marketing;
-5. brand / design.
+3. методика обучения;
+4. продукт и маркетинг;
+5. бренд и дизайн.
 
-The remaining work concerns execution policies and migration, not a change of strategic direction.
+Дополнительно проверена языковая модель для основной русскоязычной аудитории.
 
----
-
-## 1. Frappe engineering audit
-
-### PASS — Frappe remains the platform
-
-The foundation does not introduce a parallel framework or mandatory `veqta_core` layer.
-
-This is consistent with the Frappe model in which an App is the installable software package, a Site is the tenant/runtime instance with its own database and Bench manages Apps/Sites.
-
-### PASS — native mechanisms are evaluated before custom mechanisms
-
-The `native-mechanism-first` rule matches the existing Frappe Architecture Standard and prevents VEQTA from teaching or shipping accidental reimplementations of Framework responsibilities.
-
-### FIXED — one Product was initially treated too rigidly as exactly one App
-
-Risk:
-
-```text
-Product = exactly one App forever
-```
-
-would be unnecessarily restrictive for a future product that legitimately needs a dedicated frontend, companion service or another App.
-
-Resolution applied:
-
-```text
-normal/default software boundary = independent Frappe App
-additional component = allowed when real responsibility justifies it
-```
-
-The exception must be an architectural decision, not a branding decision.
-
-### PASS — Site is not treated as source of truth
-
-Reproducibility is correctly defined through version-controlled application/configuration artifacts rather than undocumented dev-site state.
-
-### PASS — compatibility is explicit
-
-The foundation requires a Frappe version baseline and makes upgrade-sensitive mechanisms visible.
-
-### Frappe engineering conclusion
-
-No foundational redesign required.
+Оставшаяся работа касается governance, лицензирования, brand clearance и физической миграции, а не изменения стратегического направления.
 
 ---
 
-## 2. Software architecture audit
+## 1. Аудит Frappe engineering
 
-### PASS — responsibilities are separated
+### PASS — Frappe остаётся платформой
 
-The four-domain model has clear ownership:
+Foundation не вводит параллельный framework или обязательный слой `veqta_core`.
+
+Это соответствует модели Frappe, где `App` является устанавливаемым программным пакетом, `Site` — экземпляром с собственной базой, а `Bench` управляет Apps и Sites.
+
+### PASS — штатные механизмы проверяются раньше собственных
+
+Правило «сначала штатный механизм» соответствует существующему Frappe Architecture Standard и защищает VEQTA от обучения случайным переизобретениям ответственности Framework.
+
+### FIXED — Product сначала был слишком жёстко приравнен к одному App
+
+Опасная формула:
 
 ```text
-Engineering → accepted engineering knowledge
-Learn       → educational transformation of that knowledge
-Labs        → uncertainty reduction / experiments
-Products    → maintained user-facing software
+Product = ровно один App навсегда
 ```
 
-This removes the current category error where architecture, training and a product prototype coexist under one generic `docs/` tree while VEQTA itself is defined as the prototype.
+ограничивала бы продукт, которому обоснованно нужен отдельный frontend, companion service или дополнительный `App`.
 
-### PASS — no universal domain model
+Принято:
 
-The foundation explicitly prevents `Work Item` or another business entity from becoming the base model of all future VEQTA software.
+```text
+нормальное техническое ядро = самостоятельный Frappe App
+дополнительный компонент = допустим при доказанной ответственности
+```
 
-This is critical because VEQTA is an ecosystem, not a bounded business domain.
+Исключение является архитектурным решением, а не решением брендинга.
 
-### PASS — shared code is extracted from evidence
+### PASS — Site не является источником истины
 
-The shared-code rule prevents speculative common libraries and release coupling before at least two real consumers prove the same responsibility.
+Воспроизводимость определяется через version-controlled артефакты приложения и конфигурации, а не через недокументированное состояние dev `Site`.
 
-### PASS — lifecycle boundaries are explicit
+### PASS — совместимость с версиями явная
 
-A Lab cannot silently become a Product. Promotion is evidence-based and has technical and product gates.
+Foundation требует baseline Frappe и отдельного внимания к механизмам, чувствительным к обновлениям.
 
-### FOLLOW-UP — governance authority
+### Вывод
 
-The foundation defines document authority but does not yet define human/project authority for:
-
-- accepting Charter changes;
-- approving Product graduation;
-- accepting major architecture exceptions;
-- maintainer roles;
-- external contribution decisions.
-
-This does **not** block repository restructuring, but `GOVERNANCE.md` is required before VEQTA actively recruits external maintainers/contributors.
-
-### Architecture conclusion
-
-Foundation is structurally sound.
+Перепроектирование технического фундамента не требуется.
 
 ---
 
-## 3. Methodology audit
+## 2. Архитектурный аудит
 
-### PASS — Learn has a real educational thesis
+### PASS — ответственности разделены
 
-VEQTA Learn is not defined as a feature catalogue.
-
-The learning model is:
+Четырёхчастная модель имеет понятные границы:
 
 ```text
-requirement
-→ responsibility
-→ Frappe mechanism
-→ architectural decision
-→ implementation
-→ verification
+Engineering → принятые инженерные знания
+Learn       → учебное преобразование этих знаний
+Labs        → снижение неопределённости / эксперименты
+Products    → поддерживаемое пользовательское ПО
 ```
 
-This creates a defensible educational identity and matches the current architecture passport of the new practicum.
+Она устраняет текущую ошибку, когда architecture, training и prototype одного Product смешаны внутри общего `docs/`, а VEQTA определяется через этот prototype.
 
-### PASS — training cannot weaken engineering rules
+### PASS — нет универсальной предметной модели
 
-The rule that Learn consumes Engineering prevents a common failure: selecting an architecture because it makes a lesson easier.
+Foundation прямо запрещает превращать `Work Item` или другую бизнес-сущность в базовую модель всех будущих VEQTA Products.
 
-### PASS — training is separated from product roadmap
+### PASS — общий код извлекается из реального опыта
 
-Products are not required to add features for teaching value, and courses do not determine production scope.
+Shared code не создаётся заранее. Общая зависимость появляется только после доказанной одинаковой ответственности у нескольких независимых потребителей.
 
-### FOLLOW-UP — course contract
+### PASS — Lab не может молча стать Product
 
-Every future course should define its own:
+Переход между стадиями основан на доказательствах и имеет технические и продуктовые gates.
 
-- audience prerequisites;
-- learning outcomes;
-- practical artifact;
-- assessment criteria;
-- covered Frappe baseline;
-- explicit non-goals.
+### FOLLOW-UP — governance
 
-This belongs to Learn governance, not the project Charter.
+Ещё предстоит определить человеческие полномочия:
 
-### Methodology conclusion
+- кто принимает изменения Хартии;
+- кто разрешает перевод Product на новую стадию;
+- кто принимает крупные архитектурные исключения;
+- роли maintainers;
+- правила внешних contributions.
 
-The direction is strong enough to scale from one practicum to multiple learning paths without redefining VEQTA.
+Это не блокирует реорганизацию, но `GOVERNANCE.md` потребуется до активного привлечения внешних maintainers.
+
+### Вывод
+
+Структура архитектурно устойчива.
 
 ---
 
-## 4. Product and marketing audit
+## 3. Методический аудит
 
-### PASS — umbrella and product audiences are separated
+### PASS — у Learn есть собственный методический тезис
 
-VEQTA speaks primarily to builders. Future Products speak to their own end users.
+VEQTA Learn не является каталогом функций.
 
-This avoids forcing technical architecture messaging into a business product's value proposition.
-
-### FIXED — primary positioning was initially too compound
-
-Initial formulation:
+Учебная модель:
 
 ```text
-architecture-first open-source product studio and ecosystem for Frappe
+требование
+→ ответственность
+→ механизм Frappe
+→ архитектурное решение
+→ реализация
+→ проверка
 ```
 
-mixed organizational model, positioning and ecosystem definition in one phrase.
+Это даёт самостоятельную образовательную ценность и соответствует текущему архитектурному паспорту практикума.
 
-Resolution applied:
+### PASS — обучение не ослабляет инженерные правила
 
-> VEQTA is an independent open-source engineering and product ecosystem built on Frappe Framework.
+Learn использует Engineering и не меняет архитектуру только ради более простого урока.
 
-Then separately:
+### PASS — обучение отделено от Product roadmap
 
-> It operates as an architecture-first product studio.
+Products не добавляют функции ради учебной ценности, а курсы не определяют production scope.
 
-This cleanly separates **what VEQTA is** from **how VEQTA operates**.
+### FOLLOW-UP — контракт курса
 
-### PASS — product-led does not mean product-first chaos
+Каждый будущий курс должен отдельно определять:
 
-Engineering and Learn remain first-class assets, while the strategy still requires useful production software over time.
+- входные требования к ученику;
+- результаты обучения;
+- практический артефакт;
+- критерии оценки;
+- baseline Frappe;
+- явные non-goals.
 
-The project therefore avoids both extremes:
+### Вывод
+
+Модель масштабируется от одного практикума к нескольким учебным маршрутам без переопределения VEQTA.
+
+---
+
+## 4. Продуктовый и маркетинговый аудит
+
+### PASS — аудитории VEQTA и Product разделены
+
+VEQTA прежде всего разговаривает с теми, кто строит решения. Будущие Products говорят со своими конечными пользователями.
+
+Это не заставляет бизнес-продукт объяснять пользователю внутреннюю инженерную систему VEQTA.
+
+### FIXED — исходное позиционирование было перегружено
+
+Первоначальная формулировка смешивала организационную модель, позиционирование и понятие экосистемы.
+
+Принято разделение:
+
+> VEQTA — независимая открытая инженерная и продуктовая экосистема, построенная на Frappe Framework.
+
+И отдельно:
+
+> VEQTA работает как инженерная продуктовая студия.
+
+Так разделяется **что такое VEQTA** и **как она работает**.
+
+### PASS — product-led не означает хаотичный выпуск Apps
+
+Engineering и Learn остаются полноценными активами, но стратегия требует со временем создавать полезное production ПО.
+
+VEQTA избегает обоих тупиков:
 
 ```text
-only documentation / education
+только документация / обучение
 ```
 
-and
+и
 
 ```text
-ship random Apps without reusable engineering knowledge
+случайные Apps без общей инженерной дисциплины
 ```
 
-### PASS — product categories are not invented to fill a portfolio
+### PASS — продуктовые категории не придумываются ради витрины
 
-The `Problem → Lab → Incubation` lifecycle prevents startup theatre such as creating CRM/HR/ERP products merely to make the product grid look complete.
+Lifecycle `Проблема → Lab → Инкубация` не позволяет создавать CRM/HR/ERP только ради заполнения продуктовой сетки.
 
 ### FOLLOW-UP — naming clearance
 
-`VEQTA` remains a working brand until legal/trademark/domain clearance is completed for relevant markets and classes.
+`VEQTA` остаётся рабочим брендом до проверки названия, доменов и товарных знаков для релевантных рынков и классов.
 
-This is a brand execution risk, not a reason to change the ecosystem architecture.
+### Вывод
 
-### Product / marketing conclusion
-
-Positioning is differentiated enough to guide public communication and product selection.
+Позиционирование достаточно определённое, чтобы направлять публичную коммуникацию и выбор будущих Product candidates.
 
 ---
 
-## 5. Brand and design audit
+## 5. Аудит бренда и дизайна
 
-### PASS — one visual system can support multiple responsibilities
+### PASS — одна визуальная система может поддерживать разные направления
 
-The umbrella owns a shared visual grammar while future Products can have product-specific accents and UI identity.
+VEQTA задаёт общую визуальную грамматику, а будущие Products могут иметь собственные акценты и UI-идентичность.
 
-This is scalable and avoids forcing every Product into identical visual branding.
+### PASS — дизайн не переопределяет архитектуру Framework
 
-### PASS — design does not override framework architecture
+Foundation прямо запрещает заменять подходящий штатный Frappe UI только ради того, чтобы скрыть технологическую основу.
 
-The foundation explicitly rejects replacing suitable native Frappe UI merely to hide the fact that the software is built on Frappe.
-
-This protects both engineering quality and design honesty.
-
-### PASS — permanent navigation vocabulary is simple
+### PASS — навигационная модель проста
 
 ```text
 Engineering
@@ -242,87 +228,126 @@ Labs
 Products
 ```
 
-is short, distinct and usable both in GitHub information architecture and a future website.
+коротка, различима и пригодна для GitHub и будущего сайта. В русскоязычной коммуникации каждое направление получает ясное русское объяснение.
 
-### FOLLOW-UP — visual identity is intentionally not finalized
+### FOLLOW-UP — визуальная идентичность ещё не финализируется
 
-Do not design a full logo system, product icon family or expensive public brand package before naming clearance.
+До naming clearance безопасно проектировать:
 
-Safe work before clearance:
+- информационную архитектуру;
+- типографику;
+- grid / spacing;
+- оформление документации;
+- нейтральные схемы;
+- принципы Product UI.
 
-- information architecture;
-- typography direction;
-- grid / spacing principles;
-- documentation layout;
-- neutral diagrams;
-- product UI principles.
+Полная система логотипов и дорогостоящий публичный branding должны следовать после проверки названия.
 
-### Brand / design conclusion
+### Вывод
 
-The information architecture is ready; final identity execution should follow naming clearance rather than precede it.
+Информационная архитектура готова; визуальная реализация не должна опережать brand clearance.
 
 ---
 
-## 6. Cross-document consistency audit
+## 6. Языковой аудит
 
-The following statements are now consistent across the foundation:
+### PASS — русскоязычная аудитория зафиксирована как основная
+
+Русский теперь является основным языком:
+
+- foundation;
+- Engineering;
+- Learn;
+- Labs;
+- governance;
+- основной публичной коммуникации.
+
+Это соответствует реальной целевой аудитории и устраняет ненужный барьер, когда русскоязычный проект выглядит англоязычным только ради технического имиджа.
+
+### PASS — техническая точность не жертвуется локализацией
+
+Официальные сущности и механизмы Frappe сохраняют реальные имена: `DocType`, `Document`, `Workflow`, `App`, `Site`, `Bench`, hooks, методы, API и кодовые идентификаторы.
+
+Обычное объяснение вокруг них пишется по-русски.
+
+### PASS — русская версия является смысловым источником истины
+
+Будущие английские переводы могут использоваться для международного распространения, но не становятся причиной вести основной материал на английском.
+
+### FOLLOW-UP — аудит существующих материалов
+
+При физической миграции старых файлов нужно проверить не только старую модель VEQTA, но и ненужное смешение русского и английского языка.
+
+### Вывод
+
+Языковая стратегия согласована с методикой, маркетингом, брендом и технической точностью Frappe.
+
+---
+
+## 7. Междокументная согласованность
+
+Следующие утверждения теперь единообразны:
 
 ```text
-VEQTA ≠ single Frappe App
+VEQTA ≠ один Frappe App
 VEQTA ≠ Frappe fork
-VEQTA ≠ mandatory runtime layer
-VEQTA ≠ one business domain
+VEQTA ≠ обязательный runtime layer
+VEQTA ≠ одна предметная область
 
-Engineering / Learn / Labs / Products = permanent domains
+Engineering / Learn / Labs / Products = постоянные направления
 
 Lab ≠ Product
-Product candidate starts from a problem
-normal product core = independently installable Frappe App
-additional components require explicit justification
+Product candidate начинается с проблемы
+нормальное ядро Product = independently installable Frappe App
+дополнительные компоненты требуют явного обоснования
 
-umbrella audience = builders
-product audience = product-specific end users
+основная umbrella-аудитория = русскоязычные builders
+аудитория Product = его конкретные end users
 
-open-source-first ≠ open-core by default
+основной язык = русский
+официальная терминология Frappe сохраняется
+
+open-source-first ≠ open-core по умолчанию
 ```
 
-No contradictory statement was found in the new foundation documents after corrections.
+После исправлений противоречий между новыми foundation-документами не найдено.
 
 ---
 
-## 7. Known conflicts with the old repository model
+## 8. Известные конфликты со старой моделью репозитория
 
-The **existing pre-rebrand content** still contains statements that conflict with the new baseline, including concepts equivalent to:
+Старые материалы до ребрендинга всё ещё содержат утверждения, эквивалентные следующим:
 
-- VEQTA is one application for work management;
-- VEQTA itself owns `Work Type` / `Work Item`;
-- architecture standard is outside the VEQTA product model;
-- training is separate from VEQTA;
-- `lazuale/veqta` is the source of truth of one product.
+- VEQTA — одно приложение для управления работой;
+- VEQTA сама владеет `Work Type` / `Work Item`;
+- архитектурный стандарт находится вне модели VEQTA;
+- обучение отделено от VEQTA;
+- `lazuale/veqta` — источник истины одного Product.
 
-These are expected migration conflicts, not foundation conflicts.
+Это ожидаемые миграционные конфликты, а не конфликт foundation.
 
-They must be removed by the repository migration defined in `REPOSITORY_STRUCTURE.md`.
-
----
-
-## 8. Follow-up work that does not change direction
-
-After foundation acceptance, execute in this order:
-
-1. restructure repository into `engineering/`, `learn/`, `labs/`, `products/`, `brand/`;
-2. reclassify Work Management as a Lab and rewrite its local wording;
-3. repair all internal links;
-4. add licensing policy separating software/content/trademarks;
-5. add governance before active external contributor recruitment;
-6. perform VEQTA naming/trademark/domain clearance;
-7. only then finalize public visual identity;
-8. select future Product candidates through the defined lifecycle rather than portfolio planning.
+Они устраняются при реорганизации по `REPOSITORY_STRUCTURE.md`.
 
 ---
 
-## Final decision
+## 9. Дальнейшая работа без изменения направления
 
-**The foundation passes the five-discipline audit and is suitable as the baseline for VEQTA repository restructuring.**
+После принятия foundation:
 
-Future disagreements should be resolved inside this model unless new evidence proves that one of the Charter assumptions itself is wrong.
+1. перестроить репозиторий на `engineering/`, `learn/`, `labs/`, `products/`, `brand/`;
+2. переклассифицировать Work Management как Lab и переписать локальные формулировки;
+3. исправить внутренние ссылки;
+4. провести языковой аудит переносимых материалов;
+5. определить лицензионную политику отдельно для software/content/trademarks;
+6. добавить governance до активного привлечения внешних contributors;
+7. провести naming/trademark/domain clearance VEQTA;
+8. только после этого завершать публичную визуальную идентичность;
+9. выбирать будущие Products через принятый lifecycle, а не через план заполнения портфеля.
+
+---
+
+## Итоговое решение
+
+**Foundation проходит аудит пяти дисциплин и дополнительную проверку языковой стратегии и подходит как baseline для перестройки VEQTA.**
+
+Будущие разногласия решаются внутри этой модели, пока новые доказательства не покажут, что одно из базовых допущений Хартии действительно неверно.
