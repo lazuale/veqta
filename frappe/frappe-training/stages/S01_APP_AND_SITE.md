@@ -23,8 +23,8 @@ Bench ≠ Site ≠ App ≠ Module
 Связанные документы:
 
 - [`S00_ENVIRONMENT.md`](S00_ENVIRONMENT.md) — обязательное входное состояние;
-- [`../CORE_STAGE_SPECIFICATION.md`](../CORE_STAGE_SPECIFICATION.md) — согласованное имя App и Module;
-- [`../PRACTICUM_ROADMAP.md`](../PRACTICUM_ROADMAP.md) — архитектурный смысл этапа.
+- [`../APPLICATION_MODEL.md`](../APPLICATION_MODEL.md) — модель учебного приложения;
+- [`../ROADMAP.md`](../ROADMAP.md) — место этапа в практикуме.
 
 ---
 
@@ -60,7 +60,7 @@ frappe
 
 # 2. Что такое App в этом практикуме
 
-Frappe App — это Python package, использующий Framework. Apps живут в каталоге `apps` Bench и должны быть установлены на конкретный Site, прежде чем их модели станут частью этого Site.
+Frappe App — это Python-пакет, использующий Framework. Apps живут в каталоге `apps` Bench и должны быть установлены на конкретный Site, прежде чем их модели станут частью этого Site.
 
 Официальная документация:
 
@@ -90,7 +90,7 @@ cd ~/frappe/rental-training-bench
 bench find .
 ```
 
-Запустите штатный scaffold:
+Запустите штатное создание App:
 
 ```bash
 bench new-app rental_training
@@ -102,7 +102,7 @@ Bench задаст несколько вопросов.
 
 ```text
 App Title       : Rental Training
-App Description : Training app for Frappe Framework practicum
+App Description : Учебное приложение для практикума Frappe Framework
 App Publisher   : ваше имя или название организации
 App Email       : ваш email
 App License     : MIT
@@ -120,7 +120,7 @@ App License     : MIT
 --no-git
 ```
 
-В обычном учебном сценарии нам нужен собственный Git repository App, потому что далее мы будем проверять, какие изменения действительно принадлежат устанавливаемому приложению.
+В обычном учебном сценарии нам нужен собственный Git-репозиторий App, потому что далее мы будем проверять, какие изменения действительно принадлежат устанавливаемому приложению.
 
 ---
 
@@ -138,7 +138,7 @@ ls -la apps/rental_training
 git -C apps/rental_training status
 ```
 
-Команда должна работать как внутри самостоятельного Git repository.
+Команда должна работать внутри самостоятельного Git-репозитория.
 
 Посмотрите верхний уровень:
 
@@ -146,7 +146,7 @@ git -C apps/rental_training status
 find apps/rental_training -maxdepth 2 -type f | sort
 ```
 
-Точный список вспомогательных файлов может меняться между версиями scaffold. Для архитектуры нам важны следующие элементы:
+Точный список вспомогательных файлов может меняться между версиями `bench new-app`. Для архитектуры нам важны следующие элементы:
 
 ```text
 apps/rental_training/
@@ -171,7 +171,7 @@ apps/rental_training/
 cat apps/rental_training/rental_training/modules.txt
 ```
 
-Ожидается default Module, созданный scaffold для App:
+Ожидается Module, созданный по умолчанию для App:
 
 ```text
 Rental Training
@@ -200,10 +200,10 @@ rental_training [App]
 
 `Rental Training` Module:
 
-- не является отдельным Python package верхнего уровня;
+- не является отдельным Python-пакетом верхнего уровня;
 - не устанавливается на Site отдельно от App;
 - не является вторым приложением;
-- не обязан автоматически быть отдельным bounded context.
+- не обязан автоматически становиться отдельной предметной областью.
 
 ---
 
@@ -213,7 +213,7 @@ rental_training [App]
 
 ## `pyproject.toml`
 
-Описание Python package и его зависимостей.
+Описание Python-пакета и его зависимостей.
 
 Не добавляйте сторонние библиотеки «на будущее».
 
@@ -241,9 +241,9 @@ Rental Training
 
 ### Главный вывод
 
-Файлы существуют не потому, что ученик обязан немедленно использовать каждую возможность scaffold.
+Файлы существуют не потому, что ученик обязан немедленно использовать каждую возможность, созданную `bench new-app`.
 
-Scaffold показывает **предусмотренные Frappe места для будущих ответственностей**.
+Они показывают предусмотренные Frappe места для ответственностей, которые могут появиться позже.
 
 ---
 
@@ -323,7 +323,7 @@ frappe
 rental_training
 ```
 
-Официальная документация прямо разделяет создание/получение App и его установку на Site:
+Официальная документация прямо разделяет создание или получение App и его установку на Site:
 
 - https://docs.frappe.io/framework/user/en/basics/apps
 - https://docs.frappe.io/framework/user/en/bench/reference/list-apps
@@ -371,7 +371,7 @@ Module: Rental Training
 
 ---
 
-# 11. Открыть Desk и проверить, что «ничего не произошло» — это нормально
+# 11. Открыть Desk и убедиться, что пустой App — это нормально
 
 Если `bench start` не запущен, откройте отдельный терминал:
 
@@ -402,7 +402,7 @@ DocTypes предметной области пока нет
 
 ---
 
-# 12. Проверить Git-границу App
+# 12. Проверить границу Git-репозитория App
 
 ```bash
 cd ~/frappe/rental-training-bench/apps/rental_training
@@ -411,7 +411,7 @@ git status
 git log --oneline -5
 ```
 
-Убедитесь, что это Git repository именно учебного App.
+Убедитесь, что это Git-репозиторий именно учебного App.
 
 Вернитесь в Bench:
 
@@ -421,7 +421,7 @@ cd ~/frappe/rental-training-bench
 
 ## Зачем App имеет собственный Git
 
-Финальный экзамен практикума требует:
+Финальная проверка практикума требует:
 
 ```text
 чистый Site
@@ -433,11 +433,11 @@ cd ~/frappe/rental-training-bench
 
 Значит предметная модель не может жить только в базе текущего `rental.localhost`.
 
-### Пока не нужен remote
+### Пока не нужен удалённый репозиторий
 
-На S01 достаточно локального Git repository App.
+На S01 достаточно локального Git-репозитория App.
 
-Создание отдельного GitHub repository/remote — вопрос хранения исходников, а не условие понимания Frappe App. Его можно сделать отдельно, когда потребуется переносить App между машинами.
+Создание отдельного GitHub-репозитория и remote — вопрос хранения исходников, а не условие понимания Frappe App. Это можно сделать отдельно, когда потребуется переносить App между машинами.
 
 ---
 
@@ -464,7 +464,7 @@ printf '\n=== APP GIT ===\n'
 git -C apps/rental_training status --short --branch
 ```
 
-Ожидаем смысловой результат:
+Ожидаемый смысл:
 
 ```text
 apps/
@@ -479,19 +479,19 @@ Module:
   Rental Training
 
 rental_training:
-  Git repository работает
+  Git-репозиторий работает
 ```
 
 ---
 
-# 14. S01 — ГОТОВО
+# 14. Проверка перед S02
 
-Переход к созданию `Equipment` разрешён, если одновременно верно:
+Переход к созданию `Equipment` возможен, если одновременно верно:
 
 ```text
 [ ] App называется rental_training
 [ ] App находится в apps/rental_training
-[ ] App имеет собственный Git repository
+[ ] App имеет собственный Git-репозиторий
 [ ] внутри App существует Module Rental Training
 [ ] rental_training установлен на rental.localhost
 [ ] list-apps показывает frappe + rental_training
@@ -502,18 +502,18 @@ rental_training:
 
 ---
 
-# 15. S01 — НЕ ГОТОВО
+# 15. Когда не переходить к S02
 
-Не переходите дальше, если:
+Сначала исправьте проблему, если:
 
 - `rental_training` создан вне Bench и Bench его не видит;
 - App есть в `apps/`, но не установлен на Site;
 - Module воспринимается как отдельное App;
-- предметные DocTypes созданы как случайные Site customizations;
+- предметные DocTypes созданы как случайные локальные настройки Site;
 - для «красоты» уже добавлен Workspace, frontend или отдельный UI;
 - ERPNext установлен только ради готовых сущностей;
 - исходники предметного App начали складывать в `apps/frappe`;
-- вы редактируете Frappe core вместо собственного App.
+- вы редактируете исходники Frappe вместо собственного App.
 
 ---
 
@@ -535,13 +535,13 @@ bench --site ... install-app
 
 ## «Почему не создаём Module отдельной командой?»
 
-Scaffold App уже создаёт default Module. На текущей модели нам достаточно одного Module `Rental Training`.
+`bench new-app` уже создаёт Module по умолчанию. Для текущей модели нам достаточно одного Module `Rental Training`.
 
 Новый Module появится только если возникнет реальная организационная причина.
 
 ## «Может сразу создать Equipment Type, Rental Status и Settings?»
 
-Нет. Их отсутствие сейчас намеренное и закреплено архитектурой CORE.
+Нет. Для текущих требований они не нужны.
 
 ## «Почему не пишем hooks.py?»
 
@@ -549,7 +549,7 @@ Scaffold App уже создаёт default Module. На текущей моде�
 
 ## «Почему не создаём роли сейчас?»
 
-Права имеют смысл относительно уже существующих DocTypes и операций. Они появятся после предметной модели на соответствующей ветке практикума.
+Права имеют смысл относительно уже существующих DocTypes и операций. Они появятся после предметной модели на соответствующем этапе практикума.
 
 ---
 
@@ -567,7 +567,7 @@ Scaffold App уже создаёт default Module. На текущей моде�
 
 ### Что такое App?
 
-Устанавливаемый Python package с исходным кодом и метаданными, использующий Frappe.
+Устанавливаемый Python-пакет с исходным кодом и метаданными, использующий Frappe.
 
 ### Что такое Module?
 
@@ -582,13 +582,13 @@ Bench
 │   └── rental_training
 └── Sites
     └── rental.localhost
-         └── installed: frappe + rental_training
+         └── установлены: frappe + rental_training
 
 rental_training App
 └── Rental Training Module
 ```
 
-S01 выполнен правильно.
+этап выполнен правильно.
 
 ---
 
@@ -603,4 +603,4 @@ Equipment
 → App: rental_training
 ```
 
-Следующий практикум — **S02: Equipment как самостоятельный Document**.
+Следующий этап — **S02: Equipment как самостоятельный Document**.
