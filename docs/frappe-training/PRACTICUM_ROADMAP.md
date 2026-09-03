@@ -1,6 +1,6 @@
 # Дорожная карта учебного практикума Frappe
 
-Статус: **черновик для согласования**.
+Статус: **CORE-маршрут полностью написан; готов к финальному аудиту**.
 
 Продолжает:
 
@@ -711,40 +711,54 @@ Patch становится обязательным, когда реальная
 
 # 14. Этап 9 — чистая установка и финальная приёмка
 
+**Исполняемая инструкция:** [`core/S09_CLEAN_INSTALL_ACCEPTANCE.md`](core/S09_CLEAN_INSTALL_ACCEPTANCE.md).
+
 **Опорный узел:** `P12`.
+
+**Покрывает:** `R24`.
 
 **Зависит от:** этапов 7 и 8.
 
 ## Требование
 
-Нужно доказать, что приложение существует не только на том Site, где его разрабатывали.
+Нужно доказать, что приложение существует не только на dev-site, где его разрабатывали.
 
 ## Ученик делает
 
-1. Создаёт второй чистый совместимый Site.
-2. Устанавливает `rental_training` из repository App.
-3. Выполняет migrate.
-4. Включает/подготавливает test environment штатным способом.
-5. Запускает тесты.
-6. Проходит основной пользовательский сценарий.
+1. Фиксирует clean Git и commit SHA текущего `rental_training`.
+2. Убеждается, что `developer_mode` не включён глобально для всего Bench.
+3. Создаёт новый `rental-acceptance.localhost` без `--install-app`.
+4. Доказывает, что до установки на Site есть только `frappe`, а CORE DocTypes/Role отсутствуют.
+5. Устанавливает `rental_training` штатным `install-app` без developer mode.
+6. Проверяет Module, четыре Standard DocTypes, Role fixtures, default permissions и отсутствие скрытых Site-customizations.
+7. Выполняет `migrate` как обычный update-path.
+8. Включает только Site-local `allow_tests` и запускает полный App suite.
+9. Создаёт Site-local Operator/Manager Users после установки.
+10. Под Manager проходит `Equipment → Customer → Rental`.
+11. Под Operator проверяет разрешённые/запрещённые действия и реальный V03 через Desk.
+12. Повторно запускает tests после появления обычных business Documents.
+13. Проверяет, что App Git остался clean.
 
 ## Критерий
 
 ```text
 чистый совместимый Frappe Site
-+ repository rental_training
-+ install-app
++ committed rental_training
++ install-app без developer_mode
 + migrate
 + tests
-+ основной сценарий
++ реальный Desk/permission scenario
++ Git clean
 = воспроизводимый CORE
 ```
 
-После установки обязательная модель, Role и permissions существуют без ручного восстановления схемы через UI.
+## Что этот этап не доказывает
+
+S09 проверяет воспроизводимость App на новом Site того же совместимого Bench. Это не production deployment test и не проверка reverse proxy, TLS, backup, HA, container image или отдельной машины.
 
 ## Архитектурный вывод
 
-Это главный доказательный тест архитектуры CORE.
+Clean Site acceptance является финальным доказательством того, что обязательная модель действительно принадлежит App, а не истории ручных действий на dev-site.
 
 ---
 
