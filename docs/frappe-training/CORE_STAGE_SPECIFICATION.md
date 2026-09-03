@@ -1,149 +1,155 @@
-# Точная спецификация CORE-практикума Frappe
+# Исполняемая спецификация CORE-практикума Frappe
 
-Статус: **исполняемая спецификация CORE**.
+Статус: **CORE полностью специфицирован; готов к финальной методической и инженерной проверке**.
 
-Этот документ фиксирует точную модель, которую пошаговый практикум должен построить. Он не заменяет архитектурный паспорт, матрицу требований и граф зависимостей, а снимает двусмысленность перед написанием/прохождением практических этапов.
-
-Связанные документы:
+Продолжает:
 
 - [`ARCHITECTURE_PASSPORT.md`](ARCHITECTURE_PASSPORT.md);
 - [`REQUIREMENTS_MATRIX.md`](REQUIREMENTS_MATRIX.md);
 - [`STAGE_DEPENDENCY_GRAPH.md`](STAGE_DEPENDENCY_GRAPH.md);
 - [`PRACTICUM_ROADMAP.md`](PRACTICUM_ROADMAP.md).
 
-Нормативная база:
+Этот документ фиксирует **что именно должен построить ученик в CORE**: точную модель, поля, naming, контрольные данные, права, тесты и критерий `ГОТОВО / НЕ ГОТОВО`.
 
-- [`../frappe-architecture-standard/README.md`](../frappe-architecture-standard/README.md).
-
----
-
-# 1. Граница CORE
-
-CORE строит ровно одно небольшое Frappe App без ERPNext-зависимости.
-
-```text
-App: rental_training
-Module: Rental Training
-```
-
-Предметная область нейтральна относительно VEQTA.
-
-CORE должен работать на чистом совместимом Frappe v16 Site, где до установки App установлен только `frappe`.
-
-В CORE нет обязательных:
-
-```text
-ERPNext
-HRMS
-сторонних Apps
-собственного frontend
-собственного REST CRUD
-Workflow
-Is Submittable
-Server Script
-Background Jobs
-```
+Нормативная база — [`docs/frappe-architecture-standard`](../frappe-architecture-standard/README.md).
 
 ---
 
-# 2. Финальная структура App
+# 1. Правило спецификации
 
-Смысловая структура:
+Каждый элемент обязан отвечать на требование:
 
 ```text
+требование
+→ ответственность
+→ штатный механизм Frappe
+→ конкретная конфигурация
+→ контрольные данные
+→ наблюдаемая проверка
+```
+
+Запрещено добавлять поле, DocType, Script, Workflow, Report или иной механизм только ради знакомства с функцией.
+
+---
+
+# 2. Граница учебной среды
+
+CORE проходит на **отдельном чистом Site Frappe v16**.
+
+До установки учебного App:
+
+```text
+installed apps:
+frappe
+```
+
+После установки:
+
+```text
+installed apps:
+frappe
 rental_training
-└── Rental Training
-    ├── Equipment
-    ├── Customer
-    ├── Rental
-    │   └── Rental Item
-    └── tests
 ```
 
-Физические generated-пути определяются штатным scaffold Frappe и не проектируются вручную заранее.
+ERPNext и другие прикладные Apps для CORE не требуются.
+
+Это не ограничение Frappe как Framework. Это граница практикума: ученик должен видеть, что именно предоставляет Frappe и что добавляет его собственный App, без случайных зависимостей от чужих моделей.
+
+`developer_mode` включается только на разработческом `rental.localhost`, где создаётся Standard metadata. Финальный acceptance-site обязан устанавливать и использовать App без developer mode.
 
 ---
 
-# 3. Обязательные самостоятельные Documents
+# 3. Имена учебных объектов
 
-CORE содержит три самостоятельных DocTypes:
+```text
+App       : rental_training
+Module    : Rental Training
+
+DocTypes:
+Equipment
+Customer
+Rental
+Rental Item
+
+Roles:
+Rental Operator
+Rental Manager
+```
+
+Предметная область учебная и нейтральная, не связана с VEQTA.
+
+---
+
+# 4. Naming и отображаемый title
+
+У каждого самостоятельного Document есть системный `name`. В CORE он не строится из изменяемого отображаемого названия.
+
+Используем штатный Expression naming:
+
+```text
+Equipment → EQ-.#####
+Customer  → CUST-.#####
+Rental    → RENT-.#####
+```
+
+Ожидаемый вид:
+
+```text
+EQ-00001
+CUST-00001
+RENT-00001
+```
+
+Для человекочитаемой работы Desk отдельно используются штатные title-настройки:
+
+```text
+Equipment
+  Title Field               = equipment_name
+  Show Title in Link Fields = yes
+
+Customer
+  Title Field               = customer_name
+  Show Title in Link Fields = yes
+```
+
+Ученик должен увидеть разницу:
+
+```text
+name            = стабильная identity Document
+Title Field     = человекочитаемое представление
+equipment_name  = изменяемое название Equipment
+customer_name   = изменяемое имя Customer
+```
+
+Изменение title-поля не должно менять `name` и ломать Link.
+
+`Rental Item` — Child DocType, отдельная naming-стратегия для него не проектируется.
+
+## Не используем
+
+- серийный номер Equipment как `name`;
+- имя Customer как `name`;
+- Python `autoname()` без отдельного требования;
+- UUID только ради демонстрации UUID;
+- отдельный `naming_series` field, когда одного фиксированного Expression достаточно.
+
+---
+
+# 5. CORE-модель
 
 ```text
 Equipment
 Customer
-Rental
-```
-
-У каждого:
-
-```text
-Standard = yes
-Custom   = no
-Single   = no
-Child    = no
-```
-
-`Rental Item` является единственным Child DocType CORE.
-
----
-
-# 4. Naming
-
-Naming принимается до накопления ссылок и данных.
-
-## Equipment
-
-```text
-EQ-.#####
-```
-
-## Customer
-
-```text
-CUST-.#####
-```
-
-## Rental
-
-```text
-RENT-.#####
-```
-
-Для всех трёх самостоятельных DocTypes системный `name` отделён от изменяемого человекочитаемого title.
-
-```text
-Equipment.title → equipment_name
-Customer.title  → customer_name
-```
-
-Для Equipment и Customer включается `Show Title in Link Fields`.
-
-Rental может отображаться своим стабильным системным `name`; отдельный декоративный title для него не вводится без требования.
-
----
-
-# 5. Минимальная модель данных
-
-```text
-Equipment
-├── equipment_name
-├── equipment_type
-└── serial_number
-
-Customer
-├── customer_name
-├── phone
-└── email
 
 Rental
-├── customer
-├── start_date
-├── end_date
-├── status
-└── items
+├── customer        → Link → Customer
+├── start_date      → Date
+├── end_date        → Date
+├── status          → Select
+└── items           → Table MultiSelect → Rental Item
 
 Rental Item
-└── equipment
+└── equipment       → Link → Equipment
 ```
 
 В CORE нет дополнительных самостоятельных DocTypes.
@@ -915,7 +921,7 @@ custom frontend
 
 ---
 
-# 17. Контроль перед прохождением/аудитом CORE
+# 17. Контроль перед финальным аудитом CORE
 
 На все вопросы должен быть ответ `да`:
 
