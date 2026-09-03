@@ -63,10 +63,10 @@ permissions
 11. **[S07 — тесты](stages/S07_AUTOMATED_CONTRACT_TESTS.md)**  
     Закрепить критические правила автоматическими проверками.
 
-12. **[S08 — поставка состояния](stages/S08_APP_STATE_DELIVERY_AUDIT.md)**  
+12. **[S08 — поставка состояния](stages/S08_APP_STATE_DELIVERY.md)**  
     Разобрать, что принадлежит App и что остаётся данными Site.
 
-13. **[S09 — чистая установка](stages/S09_CLEAN_INSTALL_ACCEPTANCE.md)**  
+13. **[S09 — чистая установка](stages/S09_CLEAN_INSTALL.md)**  
     Установить приложение на новый Site и проверить воспроизводимость результата.
 
 Описание модели: [`APPLICATION_MODEL.md`](APPLICATION_MODEL.md). Требования: [`REQUIREMENTS.md`](REQUIREMENTS.md).
