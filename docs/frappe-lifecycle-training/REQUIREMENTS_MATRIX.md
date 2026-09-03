@@ -96,9 +96,9 @@ production deployment
 
 ```text
 subject
- description
- requested_amount
- needed_by
+description
+requested_amount
+needed_by
 ```
 
 **Ответственность:** хранить одну заявку с собственной identity и lifecycle.
@@ -300,13 +300,15 @@ Cancelled      → Purchase Approver
 
 **Граница:** `allow_edit`, DocPerm и transition role — разные уровни.
 
+По результатам аудита `allow_edit` **не используется как единственное доказательство серверного запрета изменения полей**. В CORE это обязательная state/edit policy стандартного Workflow, проверяемая через Desk/observed behavior. Серверная безопасность процесса доказывается transitions, DocPerm, self-approval check и docstatus.
+
 **Проверка:**
 
 ```text
 Requester может Draft → Pending Manager
 Requester не может Approve
 Approver может Approve/Reject
-Requester не может обычным edit менять Pending Manager при принятой state policy
+Desk отражает принятую Only Allow Edit For policy
 ```
 
 ---
@@ -723,13 +725,12 @@ fixtures = все Workflow State
 
 **Первый механизм:** Frappe v16 `IntegrationTestCase` + Bench test runner.
 
-Минимальные контракты:
+Минимальные server contracts:
 
 ```text
 Requester может Draft → Pending Manager
 Requester не может Approve
 Approver может Approve/Reject
-Requester не может обычным Edit менять Pending Manager при принятой state policy
 маленькая сумма не требует Senior
 большая сумма требует Pending Senior
 Senior завершает большой approval
@@ -747,7 +748,15 @@ Cancelled не переходит дальше
 status остаётся Standard Select
 ```
 
-Amend дополнительно проверяется manual acceptance и, где возможно без имитации browser semantics, server contract.
+Отдельные observed/UI checks:
+
+```text
+Only Allow Edit For отражается в Desk ожидаемым образом
+Workflow Action отображается согласно permitted roles
+Amend создаёт новую draft-запись, связанную через amended_from
+```
+
+Так state/UI policy не выдаётся за неподтверждённую server ACL.
 
 Не тестируется Frappe «вообще» ради coverage.
 
@@ -937,6 +946,12 @@ status Select
 
 ---
 
+## `Only Allow Edit For` = доказанная server ACL
+
+Неправильно без отдельного доказательства server enforcement. В этом практикуме это обязательная Workflow state/edit policy, а критическая server authorization проверяется другими штатными слоями.
+
+---
+
 ## Workflow Action = окончательная ACL
 
 Неправильно: это role-scoped runtime action; фактический transition дополнительно проверяет Workflow, включая self approval.
@@ -987,7 +1002,7 @@ Cancelled → docstatus 2
 4. отрицательный опыт R04 показывает реальную границу status?
 5. до R09 нет Senior role/state?
 6. Workflow появляется только из role-controlled transitions?
-7. allow_edit policy задана осознанно?
+7. allow_edit policy задана осознанно и не выдана за неподтверждённую server ACL?
 8. после Workflow остаётся один Standard status?
 9. status не меняет тип без необходимости?
 10. обязательный site-local workflow_state Custom Field не появляется?
@@ -1001,12 +1016,13 @@ Cancelled → docstatus 2
 18. Amend проверяется фактически, а не объясняется выдуманным no_copy поведением?
 19. fixtures имеют доказанный dependency order?
 20. глобальная уникальность Workflow State не игнорируется?
-21. lifecycle защищён automated contracts?
-22. финал — отдельный clean Site acceptance?
-23. disposable dev data не выдана за production migration?
-24. production migration не объявлена ненужной вообще?
-25. NEXT остаётся вне lifecycle CORE?
-26. API/async/extension/integration не добавлены ради покрытия?
+21. server lifecycle защищён automated contracts?
+22. state/UI policies проверяются отдельно?
+23. финал — отдельный clean Site acceptance?
+24. disposable dev data не выдана за production migration?
+25. production migration не объявлена ненужной вообще?
+26. NEXT остаётся вне lifecycle CORE?
+27. API/async/extension/integration не добавлены ради покрытия?
 ```
 
 Если хотя бы один ответ отрицательный, сначала исправляется матрица. Dependency graph строится только после этого.
