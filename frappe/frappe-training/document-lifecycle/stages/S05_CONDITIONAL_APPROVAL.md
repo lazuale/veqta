@@ -10,9 +10,9 @@ requested_amount > 1000
 → после PLT Approver нужен PLT Senior Approver
 ```
 
-Это первая настоящая условная ветка Workflow.
+Это первая условная ветка Workflow.
 
-## 1. Не создавать отдельный approval engine
+## 1. Не создавать собственную систему согласования
 
 Требование пока очень простое:
 
@@ -21,7 +21,7 @@ requested_amount > 1000
 → два предсказуемых маршрута
 ```
 
-Поэтому первый штатный механизм — `Workflow Transition.condition`.
+Поэтому сначала используем штатный `Workflow Transition.condition`.
 
 Не создавайте:
 
@@ -34,7 +34,7 @@ Settings для лимита
 
 Значение `1000` является частью текущего учебного требования. Настраиваемым параметром оно станет только после отдельного требования администратора менять лимит без редактирования Workflow.
 
-## 2. Добавить Senior role
+## 2. Добавить роль второго согласующего
 
 Через Desk создайте:
 
@@ -54,9 +54,9 @@ Cancel  no
 Amend   no
 ```
 
-`Write` сейчас нужен потому, что до S06 все states остаются `docstatus = 0`, а final transition заканчивается обычным save-path.
+`Write` сейчас нужен потому, что до S06 все состояния остаются с `docstatus = 0`, а окончательный переход заканчивается обычным Save.
 
-## 3. Добавить новое состояние в Standard status
+## 3. Добавить новое состояние в status
 
 В поле `status` добавьте option:
 
@@ -64,7 +64,7 @@ Amend   no
 PLT Pending Senior
 ```
 
-Финальный порядок options на этом этапе:
+Порядок options на этом этапе:
 
 ```text
 PLT Draft
@@ -80,7 +80,7 @@ PLT Approved
 PLT Pending Senior
 ```
 
-## 4. Добавить state в Workflow
+## 4. Добавить состояние в Workflow
 
 В `PLT Purchase Request Approval` добавьте:
 
@@ -88,9 +88,9 @@ PLT Pending Senior
 |---|---:|---|
 | `PLT Pending Senior` | 0 | `PLT Senior Approver` |
 
-Все остальные states пока остаются с прежним `docstatus = 0`.
+Все остальные состояния пока остаются с прежним `docstatus = 0`.
 
-## 5. Разделить Approve на две взаимоисключающие ветки
+## 5. Разделить Approve на две ветки
 
 Существующий переход:
 
@@ -131,9 +131,9 @@ Condition           : doc.requested_amount > 1000
 > 1000
 ```
 
-При конкретной сумме должен оставаться ровно один подходящий `Approve` transition.
+Для конкретной суммы должен оставаться ровно один подходящий переход `Approve`.
 
-## 6. Добавить final Senior approval
+## 6. Добавить окончательное согласование Senior
 
 Добавьте:
 
@@ -146,9 +146,9 @@ Allow Self Approval : no
 Condition           : пусто
 ```
 
-Self approval запрещён сразу. Новая approval-ветка не должна случайно получить более слабую policy, чем первый уровень.
+Self approval запрещён сразу. Второй уровень согласования не должен случайно получить более слабое правило, чем первый.
 
-## 7. Создать Senior test User
+## 7. Создать пользователя для проверки
 
 Через Desk создайте, например:
 
@@ -162,7 +162,7 @@ senior@example.test
 PLT Senior Approver
 ```
 
-Для отдельной self-approval проверки можно также добавить `PLT Senior Approver` пользователю `dual@example.test`.
+Для отдельной проверки self approval можно также добавить `PLT Senior Approver` пользователю `dual@example.test`.
 
 ## 8. Проверить малую заявку
 
@@ -182,7 +182,7 @@ PLT Draft
 → PLT Approved
 ```
 
-Не должно появляться `PLT Pending Senior`.
+`PLT Pending Senior` появляться не должен.
 
 На этом этапе результат всё ещё:
 
@@ -224,13 +224,13 @@ PLT Draft
 Ожидается:
 
 ```text
-1000    → direct Approved
-1000.01 → Pending Senior
+1000    → PLT Approved
+1000.01 → PLT Pending Senior
 ```
 
-Это полезнее проверки только на `500` и `1500`: мы доказываем точную границу условия.
+Это полезнее проверки только на `500` и `1500`: так мы проверяем точную границу условия.
 
-## 11. Проверить Senior self approval
+## 11. Проверить self approval на втором уровне
 
 Если `dual@example.test` имеет все три роли, создайте большую заявку именно этим пользователем.
 
@@ -240,7 +240,7 @@ PLT Draft
 PLT Pending Senior
 ```
 
-После этого `dual@example.test` не должен суметь выполнить final `Approve`, потому что он остаётся owner исходного Document и Senior transition имеет:
+После этого `dual@example.test` не должен суметь выполнить `Approve`, потому что он остаётся owner исходного Document и переход Senior имеет:
 
 ```text
 Allow Self Approval = no
@@ -253,8 +253,8 @@ Allow Self Approval = no
 ```text
 PLT Senior Approver появился только из реального требования
 PLT Pending Senior появился только из реального маршрута
-<= 1000 и > 1000 используют разные transitions
-оба positive approval transitions запрещают self approval
+<= 1000 и > 1000 используют разные переходы
+оба перехода Approve запрещают self approval
 Approved пока остаётся docstatus 0
 ```
 
