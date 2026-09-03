@@ -1,11 +1,13 @@
 # VEQTA Project Charter
 
 Status: **foundation baseline candidate**  
-Scope: VEQTA as an open-source initiative built around Frappe Framework
+Scope: VEQTA as an independent open-source initiative built on Frappe Framework
 
 ## 1. Definition
 
-VEQTA is an **architecture-first open-source product studio and ecosystem for Frappe Framework**.
+VEQTA is an **independent open-source engineering and product ecosystem built on Frappe Framework**.
+
+It operates as an architecture-first product studio: engineering knowledge is made explicit, taught through reproducible practice, tested in isolated Labs and applied to independent production products.
 
 VEQTA exists to connect four activities that are usually separated:
 
@@ -14,7 +16,7 @@ VEQTA exists to connect four activities that are usually separated:
 3. testing uncertain decisions in isolated experiments;
 4. turning mature solutions into independent production applications.
 
-VEQTA is not a Frappe App, a replacement for Frappe Framework, a fork of Frappe, or a generic collection of tutorials.
+VEQTA is not a Frappe App, a replacement for Frappe Framework, a fork of Frappe, an official Frappe project, or a generic collection of tutorials.
 
 ## 2. Mission
 
@@ -42,7 +44,7 @@ VEQTA Learn       VEQTA Labs
 users · contributors · services · community
 ```
 
-The ecosystem is an outcome of useful engineering assets and useful products. Community size is not treated as a substitute for product value.
+The ecosystem is built through useful engineering assets and useful products. Community size is not treated as a substitute for product value.
 
 ## 4. Four permanent domains
 
@@ -74,7 +76,9 @@ A Lab is not a production product and must never be presented as one.
 
 The production layer.
 
-Products solve real user problems. A production product built on Frappe is an independent Frappe App with its own scope, repository, release lifecycle, documentation and product identity.
+Products solve real user problems. For a product built on Frappe, the **default software boundary** is an independently installable Frappe App with its own scope, release lifecycle, documentation and product identity.
+
+A product may legitimately include additional components — for example a dedicated frontend, companion service or more than one App — when the product responsibility requires them. Such a deviation must be an explicit architectural decision rather than a branding choice or speculative platform layer.
 
 VEQTA itself does not need its own DocTypes or runtime package.
 
@@ -96,6 +100,7 @@ Individual products address their own end users and must be understandable witho
 VEQTA does not aim to:
 
 - replace official Frappe documentation;
+- imply official affiliation with Frappe Technologies;
 - create a parallel framework over Frappe;
 - create a mandatory `veqta_core` dependency for all products;
 - reproduce ERPNext under another name;
@@ -142,6 +147,8 @@ VEQTA is an umbrella identity, not the default name of every application.
 Products may use a VEQTA-endorsed name or a standalone product name, but each production product must have its own identity, audience and value proposition.
 
 The current VEQTA name is treated as a working brand until formal trademark and naming clearance is complete.
+
+Names and logos belonging to Frappe Technologies or other projects are treated as third-party marks. VEQTA's use of the words `Frappe Framework` is descriptive of the upstream technology and must not imply endorsement or official status.
 
 ## 11. Decision rules
 
