@@ -14,7 +14,9 @@ purchase_lifecycle_training
 purchase-lifecycle.localhost
 ```
 
-## 1. Проверить исходную среду
+---
+
+# 1. Проверить исходную среду
 
 Перейдите в Bench первого практикума:
 
@@ -46,7 +48,9 @@ App установлен на Site
 
 Эту границу мы используем намеренно: второй практикум не зависит от модели Rental.
 
-## 2. Создать новый App
+---
+
+# 2. Создать новый App
 
 Из корня Bench:
 
@@ -76,7 +80,9 @@ apps/purchase_lifecycle_training
 test -d apps/purchase_lifecycle_training && echo 'App: OK'
 ```
 
-## 3. Создать отдельный Site
+---
+
+# 3. Создать отдельный Site
 
 ```bash
 bench new-site purchase-lifecycle.localhost
@@ -90,7 +96,9 @@ bench new-site purchase-lifecycle.localhost
 ls -1 sites
 ```
 
-## 4. Установить только новый учебный App
+---
+
+# 4. Установить только новый учебный App
 
 ```bash
 bench --site purchase-lifecycle.localhost install-app purchase_lifecycle_training
@@ -111,7 +119,9 @@ purchase_lifecycle_training
 
 `rental_training` на этот Site устанавливать не нужно.
 
-## 5. Включить developer mode только на dev Site
+---
+
+# 5. Включить developer mode только на dev Site
 
 Для создания Standard metadata через Desk:
 
@@ -134,7 +144,9 @@ developer_mode  1
 
 Это настройка конкретного Site, а не свойство всего Bench.
 
-## 6. Запустить Desk
+---
+
+# 6. Запустить Desk
 
 Если Bench ещё не запущен:
 
@@ -150,7 +162,9 @@ http://purchase-lifecycle.localhost:8000/app
 
 Войдите как `Administrator`.
 
-## 7. Проверить границу исходников App
+---
+
+# 7. Проверить границу исходников App
 
 Новый App уже является отдельным Git-репозиторием внутри Bench. Проверьте:
 
@@ -160,7 +174,9 @@ git -C apps/purchase_lifecycle_training status --short
 
 На следующих этапах Standard DocType и его код будут появляться именно здесь.
 
-## Результат
+---
+
+# Результат
 
 После S00 должно быть одновременно верно:
 
