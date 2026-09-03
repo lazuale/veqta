@@ -59,13 +59,13 @@ Frappe Form вызывает whitelisted controller method через `frm.call(
 - https://docs.frappe.io/framework/user/en/api/form#frmcall
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/api/v2.py
 
-В v16.33.0 POST-вызов Document method проверяет write permission и whitelist метода. В самой команде всё равно оставляем явный:
+Поскольку команда изменяет данные, она будет whitelisted только для POST:
 
 ```python
-self.check_permission("write")
+@frappe.whitelist(methods=["POST"])
 ```
 
-чтобы permission boundary была частью бизнес-команды, а не зависела только от конкретного транспорта вызова.
+В v16.33.0 Document method, вызванный POST-запросом, также проходит штатную write-permission проверку транспорта. В самой команде мы всё равно оставляем явный `self.check_permission("write")`, чтобы permission boundary принадлежала самой бизнес-операции.
 
 ---
 
@@ -198,7 +198,7 @@ Movement = system-generated journal
 → прикладным ролям Create не выдан
 
 issue()
-→ сначала проверяет write на Rental
+→ авторизует изменение на persisted Rental
 → затем внутренне создаёт Movement
 ```
 
@@ -209,10 +209,10 @@ issue()
 ## 6. Добавить issue()
 
 ```python
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def issue(self):
-    self.check_permission("write")
     self.reload()
+    self.check_permission("write")
 
     if self.status != "Planned":
         frappe.throw(_("Only a Planned Rental can be issued."))
@@ -226,9 +226,17 @@ def issue(self):
     return {"status": self.status}
 ```
 
-### Почему `self.reload()`
+### Почему сначала `reload()`, потом permission check
 
-Перед бизнес-командой нужен последний persisted Rental, а не случайные незаписанные изменения клиента.
+Для команды нужен именно persisted Rental из БД.
+
+После `self.reload()` явная проверка:
+
+```python
+self.check_permission("write")
+```
+
+оценивает permission boundary по сохранённому Document, включая реальный `owner` и `If Owner`, а не по присланному клиентом состоянию Form.
 
 UI дополнительно не будет запускать Issue на dirty Form, но сервер не должен зависеть только от UI.
 
@@ -446,7 +454,8 @@ git diff -- \
 status read_only
 new Rental обязан стартовать Planned
 validate_status_transition добавлен
-issue() добавлен
+issue() POST-only
+issue() перечитывает persisted Rental до явной permission check
 Movement создаётся через Document API
 ручного commit нет
 JS только вызывает серверный method
@@ -477,8 +486,8 @@ git commit -m "feat: add atomic rental issue operation"
 новый Rental может стартовать только Planned
 Rental.status read-only в Form
 прямой Planned → Active через save запрещён
-issue() whitelisted
-issue() проверяет write permission
+issue() POST-only и whitelisted
+issue() проверяет write на persisted Rental
 issue() не делает ручной commit
 успешный Issue переводит Rental в Active
 создаётся Movement для каждого Equipment
