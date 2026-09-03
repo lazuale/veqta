@@ -20,7 +20,7 @@ PLT Requester
 PLT Approver
 ```
 
-Роли нужны на dev Site, чтобы настроить permission rows Standard DocType.
+Роли нужны на dev Site, чтобы настроить permissions Standard DocType.
 
 На этом этапе не экспортируйте их как fixtures.
 
@@ -54,11 +54,11 @@ Amend   no
 
 Сохраните DocType.
 
-Пока не включайте `If Owner`: текущие требования не говорят, что Requester должен видеть только собственные заявки. Не добавляйте ограничение, которого бизнес ещё не потребовал.
+Пока не включайте `If Owner`: текущие требования не говорят, что Requester должен видеть только собственные заявки. Не добавляйте ограничение, которого пока нет в требованиях.
 
 Официальное описание модели пользователей, ролей и DocType Permissions: https://docs.frappe.io/framework/user/en/basics/users-and-permissions
 
-## 3. Проверить, что permissions попали в source
+## 3. Проверить permissions в исходниках App
 
 ```bash
 cd ~/frappe/rental-training-bench
@@ -67,16 +67,16 @@ git -C apps/purchase_lifecycle_training diff -- \
   purchase_lifecycle_training/purchase_lifecycle_training/doctype/purchase_request/purchase_request.json
 ```
 
-В metadata `Purchase Request` должны появиться permission rows с именами:
+В metadata `Purchase Request` должны появиться строки permissions с именами:
 
 ```text
 PLT Requester
 PLT Approver
 ```
 
-Это важно для дальнейшей поставки App: default DocPerm собственного Standard DocType принадлежат его metadata.
+Это важно для дальнейшей поставки App: default DocPerm собственного Standard DocType хранятся в его metadata.
 
-## 4. Создать Site-local пользователей
+## 4. Создать пользователей Site
 
 Через Desk создайте двух пользователей, например:
 
@@ -92,7 +92,7 @@ requester@example.test → PLT Requester
 approver@example.test  → PLT Approver
 ```
 
-Пароли и сами User records — данные этого Site. В Git их не экспортируем.
+Пароли и сами User records — данные конкретного Site. В Git их не экспортируем.
 
 ## 5. Проверить обычный доступ
 
@@ -138,7 +138,7 @@ status — обычный Select
 Workflow отсутствует
 ```
 
-То же можно увидеть через обычный server Document path:
+То же можно проверить через Bench Console:
 
 ```bash
 bench --site purchase-lifecycle.localhost console
@@ -182,15 +182,15 @@ Requester:
 не может PLT Pending Approval → PLT Approved
 ```
 
-Это уже другая ответственность — политика переходов между состояниями.
+Это уже другая ответственность — допустимые переходы между состояниями.
 
 Именно теперь появляется основание использовать `Workflow`.
 
 ## 8. Вернуть контрольные данные в понятное состояние
 
-Запись, на которой вручную ставили `PLT Approved`, является disposable учебной записью. Удалите её или верните в `PLT Draft` до следующего этапа.
+Запись, на которой вручную ставили `PLT Approved`, является временной учебной записью. Удалите её или верните в `PLT Draft` до следующего этапа.
 
-Нам важно не сохранить искусственный «одобренный» документ как будто он прошёл настоящий процесс.
+Нам важно не сохранить искусственный «одобренный» Document как будто он прошёл настоящий процесс.
 
 ## Результат
 
@@ -198,9 +198,9 @@ Requester:
 
 ```text
 PLT Requester / PLT Approver существуют
-Standard DocPerm находятся в Purchase Request metadata
-Site-local Users созданы отдельно
-plain status доказан как недостаточный для transition policy
+Standard DocPerm находятся в metadata Purchase Request
+пользователи Site созданы отдельно
+обычного status недостаточно для правил переходов
 Workflow всё ещё отсутствует
 ```
 
