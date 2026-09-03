@@ -11,7 +11,7 @@
   ↓
 права на DocType
   ↓
-доказанная граница plain status
+доказанная граница обычного status
   ↓
 Workflow
   ↓
@@ -40,7 +40,7 @@ Amend
 2. **[S01 — обычный Purchase Request](stages/S01_PURCHASE_REQUEST.md)**  
    Создать минимальный Standard DocType, naming, связь заявителя с `owner` и обычный `status : Select` без Workflow.
 
-3. **[S02 — доступ и граница plain status](stages/S02_PERMISSIONS_AND_STATUS_LIMIT.md)**  
+3. **[S02 — доступ и граница обычного status](stages/S02_PERMISSIONS_AND_STATUS_LIMIT.md)**  
    Добавить `PLT Requester` и `PLT Approver`, настроить DocPerm и проверить, почему обычный `Write` не выражает допустимость конкретного перехода состояния.
 
 4. **[S03 — базовый Workflow](stages/S03_BASIC_WORKFLOW.md)**  
