@@ -24,8 +24,8 @@ Rental Operator / Rental Manager
 - [`../APPLICATION_MODEL.md`](../APPLICATION_MODEL.md);
 - [`../REQUIREMENTS.md`](../REQUIREMENTS.md);
 - [`../ROADMAP.md`](../ROADMAP.md);
-- [`../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md`](../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md);
-- [`../../frappe-architecture-standard/06_TRANSACTIONS_ASYNC.md`](../../frappe-architecture-standard/06_TRANSACTIONS_ASYNC.md).
+- [`../../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md`](../../../frappe-architecture-standard/03_DOCUMENT_LIFECYCLE.md);
+- [`../../../frappe-architecture-standard/06_TRANSACTIONS_ASYNC.md`](../../../frappe-architecture-standard/06_TRANSACTIONS_ASYNC.md).
 
 Первичные источники Frappe:
 
