@@ -58,8 +58,8 @@ Amend
 8. **[S07A — Cancel](stages/S07A_CANCEL.md)**  
    Добавить официальный путь `Approved → Cancelled` с `docstatus = 2` и отдельным Cancel permission.
 
-9. **[S07B — Amend](stages/S07B_AMEND.md)**  
-   Разрешить заявителю создавать исправленную draft-версию отменённого документа через штатный Amend path.
+9. **[S07B — новая версия отменённой заявки через Amend](stages/S07B_AMEND.md)**  
+   Разрешить заявителю создать новый Draft из отменённой заявки через штатный Amend path.
 
 10. **[S08 — поставка lifecycle-конфигурации](stages/S08_APP_STATE_DELIVERY.md)**  
     Разобрать, что уже поставляется Standard metadata, а что нужно экспортировать filtered fixtures.
