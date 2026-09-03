@@ -1,261 +1,261 @@
-# VEQTA Engineering Principles
+# Инженерные принципы VEQTA
 
-Status: **foundation baseline candidate**
+Статус: **кандидат в foundation baseline**
 
-## 1. Purpose
+## 1. Назначение
 
-This document defines the engineering discipline shared by VEQTA Engineering, Learn, Labs and Products.
+Этот документ определяет общую инженерную дисциплину для VEQTA Engineering, Learn, Labs и Products.
 
-It does not replace the detailed Frappe Architecture Standard. It defines the rules that determine how VEQTA approaches architecture and implementation across the ecosystem.
+Он не заменяет подробный Frappe Architecture Standard. Он фиксирует правила, по которым VEQTA подходит к архитектуре и реализации во всей экосистеме.
 
-## 2. Frappe is the platform
+Основной язык документации — русский. Официальные имена Frappe и технические контракты сохраняются в исходной форме согласно [`LANGUAGE_POLICY.md`](LANGUAGE_POLICY.md).
 
-Frappe Framework is the technological foundation.
+## 2. Frappe — платформа
 
-VEQTA does not introduce a mandatory architectural layer between Frappe and every product.
+Frappe Framework является технологическим фундаментом.
 
-The default relationship is:
+VEQTA не вводит обязательный архитектурный слой между Frappe и каждым Product.
+
+Нормальная схема:
 
 ```text
 Frappe Framework
        ↓
-product-specific Frappe App
+самостоятельный Product App
 ```
 
-Not:
+Не:
 
 ```text
 Frappe Framework
        ↓
 VEQTA Core Framework
        ↓
-VEQTA product
+VEQTA Product
 ```
 
-A shared runtime dependency may only be introduced later if real products prove that they share a stable responsibility that cannot reasonably remain independent.
+Общая runtime-зависимость может появиться только позднее, если реальные Products докажут наличие одной и той же стабильной ответственности, которую разумнее централизовать.
 
-## 3. Native-mechanism-first rule
+## 3. Сначала штатный механизм
 
-For every requirement:
+Для каждого требования:
 
 ```text
-requirement
+требование
     ↓
-what responsibility exists?
+какая ответственность появилась?
     ↓
-which native Frappe mechanism owns that responsibility?
+какой штатный механизм Frappe уже ей владеет?
     ↓
-does its semantics match?
-    ├── yes → use it
-    └── no  → use an official extension point if suitable
+совпадает ли его семантика с требованием?
+    ├── да → используем его
+    └── нет → проверяем официальную точку расширения
                     ↓
-          introduce custom architecture only when justified
+          собственная архитектура только при обоснованной необходимости
 ```
 
-Custom code is not a defect. Unnecessary duplication of framework responsibility is.
+Собственный код не является дефектом. Дефект — необоснованно дублировать ответственность Framework.
 
-## 4. Product and App boundary rule
+## 4. Граница Product App
 
-For a normal Frappe-based product, the default software boundary is an independently installable Frappe App.
+Нормальным техническим ядром Product является самостоятельный Frappe `App`.
 
-That App owns the product-specific:
+`App` владеет специфичными для Product:
 
-- DocTypes and controllers;
-- hooks and integrations;
-- fixtures and patches when required;
-- tests;
-- modules and reports;
-- release lifecycle.
+- `DocType` и controllers;
+- hooks и интеграциями;
+- fixtures и patches, когда они нужны;
+- тестами;
+- модулями и отчётами;
+- релизным циклом.
 
-A Product is not required to be forever identical to exactly one App. A dedicated frontend, companion service or additional App is acceptable when a real product responsibility requires it. Such a boundary must be documented explicitly and must not be introduced merely to create a proprietary-looking platform layer.
+`Site` остаётся экземпляром развертывания и выполнения и не должен становиться единственным источником продуктовой конфигурации.
 
-A Site remains a deployment/runtime tenant and must not become the only source of product configuration.
+Product может обоснованно включать дополнительный frontend, сервис или другой `App`, если это выражает самостоятельную ответственность. Исключение оформляется архитектурным решением, а не вводится ради брендинга.
 
-A Bench is an environment for managing Apps and Sites, not the product architecture itself.
+## 5. Нет универсальной предметной модели VEQTA
 
-## 5. No universal VEQTA domain model
+VEQTA — экосистема, а не одна предметная область.
 
-VEQTA is an ecosystem, not one application domain.
+Поэтому не существует универсального `Work Item`, `Customer`, `Asset`, `Case` или другой бизнес-сущности, от которой обязаны зависеть все VEQTA Products.
 
-Therefore there is no universal `Work Item`, `Customer`, `Asset`, `Case` or other business entity that every VEQTA Product must inherit from.
+Общая бизнес-абстракция появляется только тогда, когда несколько реальных Products независимо доказывают одинаковую устойчивую семантическую ответственность и цена общей зависимости ниже цены дублирования.
 
-A common business abstraction is introduced only when multiple real products independently prove the same stable semantic responsibility and the coupling cost is lower than duplication.
+## 6. Иерархия доказательств
 
-## 6. Evidence hierarchy
+Технические решения опираются на максимально сильные релевантные источники:
 
-Technical decisions should be grounded in the strongest relevant evidence available:
+1. официальная документация Frappe для целевой версии;
+2. исходный код Frappe целевой версии;
+3. release notes и migration guidance Frappe;
+4. официальная документация приложений экосистемы, если она релевантна;
+5. реализации в официальных приложениях Frappe как примеры, когда они действительно подходят;
+6. эксперименты и продуктовые данные VEQTA;
+7. архитектурные выводы VEQTA.
 
-1. official Frappe documentation for the target version;
-2. Frappe source code for the target version;
-3. Frappe release notes / migration guidance;
-4. official ecosystem documentation where applicable;
-5. implementations in official Frappe applications where they are relevant examples;
-6. VEQTA experiments and product evidence;
-7. VEQTA architectural conclusions.
+Вывод VEQTA никогда не выдаётся за гарантию или официальное правило Frappe.
 
-A VEQTA conclusion must never be presented as an official Frappe guarantee.
+## 7. Версионность
 
-## 7. Version awareness
+Существенные архитектурные рекомендации должны иметь явный baseline версии Frappe.
 
-All significant architecture guidance must have an explicit Frappe version baseline.
+Механизмы, зависящие от версии, отмечаются там, где поведение появилось, изменилось или было удалено.
 
-Version-sensitive mechanisms must be marked when guidance depends on behavior introduced, removed or changed in a particular release.
+Цель — не заморозить VEQTA на одной версии, а сделать совместимость видимой и проверяемой.
 
-The aim is not to freeze VEQTA to one Frappe version. The aim is to make compatibility visible and testable.
+## 8. Воспроизводимость
 
-## 8. Reproducibility
+Принятое состояние Product и Lab должно воспроизводиться из артефактов под контролем версий.
 
-Accepted product and Lab state must be reproducible from version-controlled artifacts.
-
-The target property is:
+Целевое свойство:
 
 ```text
-compatible clean Frappe environment
+чистое совместимое окружение Frappe
 + repository
-+ documented install / migrate process
-= accepted application state
++ документированный install / migrate процесс
+= принятое состояние приложения
 ```
 
-Manual configuration on a development Site that cannot be reproduced from Git is not considered complete engineering delivery.
+Ручная конфигурация dev `Site`, которую невозможно воспроизвести из Git, не считается завершённой инженерной поставкой.
 
-## 9. Data-model discipline
+## 9. Дисциплина модели данных
 
-Before introducing a DocType, field or relationship, identify its responsibility and lifecycle.
+Перед созданием `DocType`, поля или связи определяется его ответственность и жизненный цикл.
 
-Do not create new entities only because a noun exists in a requirement.
+Нельзя создавать новую сущность только потому, что в требовании встретилось существительное.
 
-Use the Frappe data model according to semantics:
+Используем модель Frappe по смыслу:
 
-- independent identity → candidate standalone DocType;
-- composition owned by one parent → candidate Child DocType;
-- small stable choice → consider `Select` before a separate dictionary;
-- one Site-wide configuration object → candidate Single DocType;
-- relationship to existing document → use `Link` when semantics fit.
+- самостоятельная идентичность → кандидат на отдельный `DocType`;
+- композиция, принадлежащая одному родителю → кандидат на Child DocType;
+- небольшой стабильный набор вариантов → сначала рассматриваем `Select`;
+- одна настройка на весь `Site` → кандидат на Single DocType;
+- связь с существующим документом → `Link`, если его семантика подходит.
 
-Detailed rules belong to the Frappe Architecture Standard.
+Детальные правила находятся в Frappe Architecture Standard.
 
-## 10. Lifecycle discipline
+## 10. Дисциплина жизненного цикла
 
-Do not introduce `Workflow`, submit/cancel behavior, custom state machines or separate status entities merely because a document has states.
+Не вводим `Workflow`, submit/cancel поведение, собственный state machine или отдельный справочник статусов только потому, что у документа есть несколько состояний.
 
-First identify:
+Сначала определяем:
 
-- what state means;
-- who may transition it;
-- whether transition history matters;
-- whether state changes carry irreversible business meaning;
-- whether native Document or Workflow semantics match.
+- что означает состояние;
+- кто может его менять;
+- важна ли история переходов;
+- несёт ли переход необратимый бизнес-смысл;
+- соответствует ли этому штатная семантика `Document` или `Workflow`.
 
-## 11. Permissions are architecture
+## 11. Permissions — часть архитектуры
 
-Permissions are not a final UI configuration step.
+Права доступа не являются финальной настройкой интерфейса.
 
-Product design must explicitly account for:
+Проектирование Product должно учитывать:
 
-- role model;
-- document-level access;
-- ownership / assignment where relevant;
-- server-side enforcement;
-- privileged code paths;
-- integration identities.
+- модель ролей;
+- доступ на уровне документов;
+- ownership / assignment, когда они нужны;
+- серверное enforcement;
+- привилегированные ветки кода;
+- учётные записи интеграций.
 
-Client-side hiding is not an authorization boundary.
+Скрытие элемента на клиенте не является границей авторизации.
 
-## 12. UI follows model
+## 12. UI следует модели
 
-Use Desk, standard views, Reports, Workspaces, Web Forms and other native surfaces when their semantics fit the user problem.
+Используем Desk, стандартные views, Reports, Workspaces, Web Forms и другие штатные поверхности, когда их смысл соответствует пользовательской задаче.
 
-A custom frontend is legitimate when the product experience genuinely requires one. It must not be introduced only to make the product look less like Frappe.
+Собственный frontend допустим, если его действительно требует продуктовый опыт. Он не создаётся только ради того, чтобы Product меньше выглядел как Frappe.
 
-UX quality matters, but architecture is not sacrificed to visual differentiation.
+Качество UX важно, но визуальная дифференциация не ломает архитектуру.
 
-## 13. Integration discipline
+## 13. Дисциплина интеграций
 
-Integrations must have explicit contracts.
+У интеграций должны быть явные контракты.
 
-For every external integration define:
+Для каждой внешней интеграции определяем:
 
-- source of truth;
-- authentication model;
-- data ownership;
-- idempotency expectations;
-- retry behavior;
-- failure visibility;
-- transaction boundary;
-- versioning / compatibility assumptions.
+- источник истины;
+- модель аутентификации;
+- владельца данных;
+- требования к идемпотентности;
+- поведение retry;
+- видимость ошибок;
+- границу транзакции;
+- допущения по версии и совместимости.
 
-Do not create hidden synchronization dependencies between products by convenience.
+Нельзя создавать скрытые синхронизационные зависимости между Products просто потому, что так быстрее связать две реализации.
 
-## 14. Testing discipline
+## 14. Тестирование
 
-Tests should protect responsibilities and invariants, not only implementation details.
+Тесты защищают ответственность и инварианты, а не только детали реализации.
 
-At minimum, important product behavior should be testable for:
+Критичное поведение Product должно, где это практически возможно, проверяться для:
 
-- server-side validation;
+- серверной валидации;
 - permissions;
-- lifecycle transitions;
-- migration / fixture reproducibility where applicable;
-- integration boundaries;
-- regressions discovered in Labs or production.
+- переходов жизненного цикла;
+- воспроизводимости migration / fixtures;
+- интеграционных границ;
+- регрессий, найденных в Labs или эксплуатации.
 
-A Lab may initially use explicit manual PASS/FAIL experiments, but a graduated Product must convert stable critical behavior into automated tests where practical.
+Lab может начинаться с явных ручных PASS/FAIL экспериментов, но при переходе в Product устойчивое критичное поведение переводится в автоматические тесты, где это рационально.
 
-## 15. Shared-code extraction rule
+## 15. Извлечение общего кода
 
-Do not create shared VEQTA libraries speculatively.
+Не создаём общие библиотеки VEQTA заранее.
 
-A candidate shared component requires evidence of all of the following:
+Кандидат на общий компонент требует доказательств всех условий:
 
-1. at least two independent consumers have the same responsibility;
-2. the semantics are genuinely the same, not merely similar code;
-3. the interface can be kept stable independently of either product;
-4. centralizing it reduces total complexity;
-5. the dependency does not create an unnecessary release bottleneck.
+1. минимум два независимых потребителя имеют одну и ту же ответственность;
+2. семантика действительно одинакова, а не просто похож код;
+3. интерфейс можно стабилизировать независимо от одного Product;
+4. централизация снижает общую сложность;
+5. зависимость не создаёт ненужный релизный bottleneck.
 
-Until then, duplication may be cheaper and safer than premature coupling.
+До этого локальное дублирование может быть дешевле и безопаснее преждевременной связанности.
 
-## 16. Architecture decision record
+## 16. Архитектурное решение
 
-A significant deviation from the Frappe-native default should record:
+Существенное отклонение от Frappe-native подхода фиксируется как минимум так:
 
 ```text
-Context
-Frappe mechanism considered
-Why it is insufficient
-Chosen extension / custom mechanism
-Trade-offs
-Evidence
-Compatibility impact
-Test strategy
+Контекст
+Рассмотренный механизм Frappe
+Почему его недостаточно
+Выбранная точка расширения / собственный механизм
+Компромиссы
+Доказательства
+Влияние на совместимость
+Стратегия тестирования
 ```
 
-The goal is not bureaucracy. The goal is to prevent accidental platform reimplementation.
+Цель — не бюрократия, а защита от случайного переизобретения платформы.
 
-## 17. Learn / Lab / Product separation
+## 17. Разделение Learn / Labs / Products
 
 ### Learn
 
-May simplify the problem scope, but may not teach an architecture known to be wrong merely because it is easier to explain.
+Может упрощать область задачи, но не может обучать архитектуре, которая заведомо неверна, только потому, что её проще объяснить.
 
 ### Labs
 
-May contain disposable code and explicit hypotheses. Experimental shortcuts must be marked and cannot silently become production architecture.
+Могут содержать одноразовый код и гипотезы. Экспериментальные shortcuts должны быть обозначены и не могут молча становиться production-архитектурой.
 
 ### Products
 
-Must meet reproducibility, maintenance, testing and release expectations appropriate to production software.
+Должны соответствовать требованиям воспроизводимости, сопровождения, тестирования и релизов, необходимым для реального использования.
 
-## 18. Upgrade principle
+## 18. Принцип обновления
 
-Prefer extension over fork and public contracts over patching framework internals.
+Предпочитаем extension вместо fork и публичные контракты вместо патчинга внутренних механизмов Framework.
 
-Every dependency on undocumented internal behavior creates an upgrade liability and must be treated as such.
+Каждая зависимость от недокументированного внутреннего поведения создаёт upgrade liability и учитывается как архитектурный риск.
 
-## 19. Engineering review question
+## 19. Контрольный вопрос
 
-Before accepting a design, the reviewer must be able to answer:
+Перед принятием решения ревьюер должен уметь ответить:
 
-> Which responsibility belongs to Frappe, which responsibility belongs to the product App or other product component, and what evidence justifies the boundary?
+> Какая ответственность принадлежит Frappe, какая — этому `App`, и какие доказательства подтверждают проведённую границу?
 
-If that boundary cannot be explained, the design is not ready.
+Если эту границу нельзя объяснить, решение не готово.
