@@ -31,7 +31,10 @@ Frappe остаётся ответственным за `DocType`, ORM, Desk, Ro
 - child DocType: https://docs.frappe.io/framework/user/en/basics/doctypes/child-doctype
 - controllers и lifecycle hooks: https://docs.frappe.io/framework/user/en/basics/doctypes/controllers
 - User Permissions: https://docs.frappe.io/framework/user/en/basics/users-and-permissions
+- Workflow: https://docs.frappe.io/framework/user/en/desk/workflow
 - naming: https://docs.frappe.io/framework/user/en/basics/doctypes/naming
+
+Правила совместимой кастомизации зафиксированы отдельно в [Compatibility Contract](compatibility.md).
 
 ## Общие решения
 
@@ -42,8 +45,6 @@ Work Unit  → WU-00001
 Work Type  → WT-00001
 Work Item  → WI-2026-00001
 ```
-
-Для этого используются стандартные naming expressions Frappe.
 
 `unit_name`, `type_name` и `subject` являются `title_field`. Их можно менять без переименования записи и без изменения ссылок.
 
@@ -76,19 +77,19 @@ track_changes = 1
 | `active` | Check | да | 1 | доступен ли Work Unit для новой работы |
 | `description` | Small Text | нет | — | краткое пояснение ответственности |
 
-`parent_work_unit` и `is_group` используются штатным Tree/NestedSet механизмом Frappe.
+`parent_work_unit` и `is_group` используют штатный Tree/NestedSet механизм Frappe.
 
 ### Что не хранится в Work Unit
 
 В Core нет таблицы участников Work Unit.
 
-Причина: членство сотрудников, штат, должности и доступ — разные ответственности. В одной установке пользователи могут быть синхронизированы из HRMS, в другой — из внешнего каталога, в третьей Work Unit вообще является сервисной очередью, а не подразделением.
+Членство пользователей, штат, должности и доступ — разные ответственности. В одной установке пользователи могут быть синхронизированы из HRMS, в другой — из внешнего каталога, в третьей Work Unit вообще является сервисной очередью, а не подразделением.
 
-Доступ к Work Item ограничивается штатными Roles и User Permissions по `responsible_unit`. Если конкретной организации нужна отдельная модель членства или мощности команды, она добавляется как самостоятельная capability, а не в Core.
+`Work Membership`, если используется, хранит организационный факт принадлежности к рабочей зоне. Он не является ACL. Доступ к Work Item определяется штатными Roles и User Permissions Frappe.
 
 ## Work Type
 
-`Work Type` классифицирует повторяющийся смысл работы и хранит только простые defaults.
+`Work Type` классифицирует повторяющийся смысл работы и хранит только простые общие defaults, которые не создают маршрутизацию.
 
 ### Настройки DocType
 
@@ -104,7 +105,6 @@ track_changes = 1
 | --- | --- | --- | --- | --- | --- |
 | `type_name` | Data | да | — | Unique | отображаемое имя вида работы |
 | `active` | Check | да | 1 | — | можно ли выбирать тип для новой работы |
-| `default_responsible_unit` | Link → Work Unit | нет | — | — | подразделение по умолчанию |
 | `default_priority` | Select | нет | — | — | приоритет по умолчанию |
 | `description` | Small Text | нет | — | — | пояснение назначения вида работы |
 
@@ -117,9 +117,9 @@ High
 Urgent
 ```
 
-Если `default_responsible_unit` задаётся или меняется, он должен быть active. Уже существующий Work Type не становится невалидным только потому, что его прежний default позднее отключили.
+`Work Type` не определяет ответственную очередь. Связь вида работы с конкретным Work Unit является routing policy конкретного `Site`, а не семантикой классификатора.
 
-Work Type не содержит source policy, routing rules, SLA engine, assignment strategy, Workflow или произвольные automation rules.
+Work Type также не содержит source policy, SLA engine, assignment strategy, Workflow или произвольные automation rules.
 
 ## Work Item
 
@@ -133,6 +133,8 @@ autoname      = WI-.YYYY.-.#####
 track_changes = 1
 ```
 
+`allow_auto_repeat` в v1 не включается. Повторяемая работа должна использовать Frappe Auto Repeat только после определения явной семантики копирования полей через штатный `on_recurring`.
+
 ### Поля
 
 | Fieldname | Type | Required | Default | Index | Назначение |
@@ -141,23 +143,21 @@ track_changes = 1
 | `description` | Text Editor | нет | — | нет | подробное описание |
 | `work_type` | Link → Work Type | да | — | да | классификация работы |
 | `responsible_unit` | Link → Work Unit | да | — | да | владелец очереди/ответственности |
-| `assignee` | Link → User | нет | — | да | текущий исполнитель |
-| `status` | Select | да | Open | да | текущее состояние |
+| `assignee` | Link → User | нет | — | да | текущий ответственный исполнитель |
+| `status` | Select | да | Open | да | текущее каноническое состояние |
 | `priority` | Select | да | — | нет | относительная важность |
 | `planned_start` | Datetime | нет | — | да | планируемое начало |
 | `due_at` | Datetime | нет | — | да | срок завершения |
 | `estimated_effort` | Duration | нет | — | нет | ожидаемый объём труда |
 | `waiting_reason` | Small Text | нет | — | нет | текущая причина ожидания |
+| `waiting_since` | Datetime, Read Only | нет | — | нет | начало текущего ожидания |
 | `next_action` | Small Text | нет | — | нет | ближайшее следующее действие |
-| `started_at` | Datetime, Read Only | нет | — | нет | первое фактическое начало работы |
-| `completed_at` | Datetime, Read Only | нет | — | нет | текущее время завершения |
+| `started_at` | Datetime, Read Only | нет | — | нет | первое фактическое начало выполнения |
+| `closed_at` | Datetime, Read Only | нет | — | нет | время текущего закрытия lifecycle |
 | `sources` | Table → Work Source | нет | — | — | основания возникновения работы |
 | `references` | Table → Work Reference | нет | — | — | связанные предметные документы |
 
-`priority` не имеет metadata-default. В `before_validate` сначала используется `Work Type.default_priority`, а если он не задан — `Medium`. Так default Work Type действительно может работать и при этом сохранённый Work Item не зависит от будущего изменения Work Type.
-
-Индексы задаются через стандартное свойство DocField `search_index`. Frappe при синхронизации схемы создаёт для таких полей обычные индексы БД:
-https://github.com/frappe/frappe/blob/version-16/frappe/database/schema.py
+`priority` не имеет metadata-default. В `before_validate` сначала используется `Work Type.default_priority`, а если он не задан — `Medium`. Значение копируется в Work Item и дальше является его собственным состоянием.
 
 Дополнительные compound indexes в v1 не вводятся: они должны появляться только после измерения реальных запросов.
 
@@ -174,7 +174,7 @@ Priority — только относительная важность работ
 
 ### Status
 
-Core фиксирует только пять состояний:
+Core фиксирует пять канонических состояний:
 
 ```text
 Open
@@ -186,94 +186,73 @@ Cancelled
 
 Их смысл одинаков для всех установок:
 
-- `Open` — работа существует, но исполнение не начато;
+- `Open` — работа существует, но выполнение не начато;
 - `In Progress` — работа выполняется;
 - `Waiting` — продолжение зависит от внешнего условия или ожидаемого действия;
 - `Done` — работа выполнена;
 - `Cancelled` — работа прекращена без выполнения.
 
-Core не задаёт допустимый граф переходов между статусами. Если организации нужен обязательный маршрут согласования, используется Frappe Workflow.
+Core не задаёт обязательный граф переходов. Если организации нужен собственный маршрут согласования, используется Frappe Workflow. Локальные workflow states могут обновлять канонический `status`, но не заменяют его семантику.
 
 ## Work Source
 
-`Work Source` — child DocType с одной фиксированной семантикой: **на основании чего возник Work Item**.
-
-### Настройки DocType
+`Work Source` — child DocType с фиксированной семантикой: **на основании чего возник Work Item**.
 
 ```text
-is_child_table = 1
+source_doctype   Link → DocType
+source_name      Dynamic Link, options=source_doctype
 ```
 
-### Поля
-
-| Fieldname | Type | Required | Index | Назначение |
-| --- | --- | --- | --- | --- |
-| `source_doctype` | Link → DocType | да | да | тип документа-источника |
-| `source_name` | Dynamic Link, options=`source_doctype` | да | да | конкретный документ-источник |
-
-Примеры источников в разных установках:
-
-```text
-Basis Document
-Support Ticket
-Monitoring Alert
-Contract
-Nonconformity
-Customer Request
-```
-
-Core не перечисляет допустимые source DocType, не создаёт их универсальные аналоги и не решает, для каких видов работы source обязателен. Такое требование является policy конкретного процесса или отдельной capability.
+Core не перечисляет допустимые source DocType и не решает, для каких видов работы source обязателен. Такое требование является policy конкретного процесса или отдельной capability.
 
 ## Work Reference
 
 `Work Reference` — child DocType с другой фиксированной семантикой: **к каким предметным документам относится Work Item**.
 
-### Настройки DocType
-
 ```text
-is_child_table = 1
+reference_doctype   Link → DocType
+reference_name      Dynamic Link, options=reference_doctype
 ```
 
-### Поля
+Одна работа может ссылаться на несколько предметных документов. Это не relation engine: произвольные relation types и relation rules в Core отсутствуют.
 
-| Fieldname | Type | Required | Index | Назначение |
-| --- | --- | --- | --- | --- |
-| `reference_doctype` | Link → DocType | да | да | тип связанного документа |
-| `reference_name` | Dynamic Link, options=`reference_doctype` | да | да | конкретный связанный документ |
+## Security contract для sources и references
 
-Одна работа может одновременно ссылаться, например, на Project, Employee и Tracked Asset. Это не превращает `references` в relation engine: типы отношений и произвольные relation rules в Core отсутствуют.
+Dynamic Link используется как связь данных, но не как новая граница авторизации.
+
+При добавлении или изменении строки `sources`/`references` пользователь должен иметь `read` на целевой документ. Проверяется только новая или изменённая связь; уже сохранённая историческая связь не должна делать Work Item невалидным после последующего изменения прав на target document.
+
+Пользователь, имеющий право читать Work Item, видит метаданные сохранённой связи (`doctype` и `name`). Сам связанный документ продолжает защищаться собственными permissions.
+
+Если сам факт существования связи чувствителен, такую ссылку нельзя хранить в Work Item, доступном более широкому кругу пользователей.
+
+Для rename/delete Core полагается на штатную обработку Dynamic Link в Frappe и не создаёт собственный механизм ссылочной целостности.
 
 ## Серверные инварианты
 
-Собственный Python v1 ограничивается понятными проверками и автоматическим заполнением текущего состояния.
-
-### Work Type.validate
-
-Если `default_responsible_unit` задаётся или меняется, он должен ссылаться на active Work Unit.
+Собственный Python v1 ограничивается проверками собственного контракта и заполнением текущего lifecycle state.
 
 ### Work Item.validate
 
-Проверяются только собственные контракты Work Item:
+Проверяются:
 
 1. Если заданы `planned_start` и `due_at`, `due_at` не может быть раньше `planned_start`.
 2. `Waiting` требует непустой `waiting_reason`.
-3. Внутри `sources` не допускается повтор одной пары `(source_doctype, source_name)`.
-4. Внутри `references` не допускается повтор одной пары `(reference_doctype, reference_name)`.
+3. Внутри `sources` не допускается повтор пары `(source_doctype, source_name)`.
+4. Внутри `references` не допускается повтор пары `(reference_doctype, reference_name)`.
 5. Новый или изменённый `work_type` должен быть active.
 6. Новый или изменённый `responsible_unit` должен быть active.
 7. Новый или изменённый `assignee` должен ссылаться на enabled Frappe User.
+8. Новая или изменённая source/reference должна указывать на документ, который текущий пользователь может читать.
 
 Frappe сам проверяет существование Link/Dynamic Link документов; Core не дублирует эту инфраструктурную проверку.
 
 ### Work Item.before_validate
 
-Если значение ещё не задано явно:
+Если `priority` ещё не задан явно:
 
-- `responsible_unit` копируется из `Work Type.default_responsible_unit`;
-- `priority` копируется из `Work Type.default_priority`;
-- если default priority у Work Type отсутствует, используется `Medium`.
-
-Defaults копируются в Work Item и дальше являются его собственным состоянием. Последующее изменение Work Type не переписывает уже созданные Work Item.
+- используется `Work Type.default_priority`;
+- если он отсутствует, используется `Medium`.
 
 ### Временные поля
 
@@ -285,37 +264,40 @@ started_at = now()
 
 Повторные входы в `In Progress` не переписывают первое `started_at`.
 
-При переходе в `Done`:
+При входе в `Waiting`:
 
 ```text
-completed_at = now()
+waiting_since = now()
 ```
 
-Если Work Item уходит из `Done`, `completed_at` очищается, потому что документ снова не завершён. Предыдущий факт изменения остаётся в штатном `Version` благодаря `Track Changes`.
+Пока Work Item остаётся в `Waiting`, timestamp не переписывается. При выходе из `Waiting` очищаются текущее `waiting_since` и `waiting_reason`.
 
-При выходе из `Waiting` текущее `waiting_reason` очищается. История старого значения остаётся в `Version`.
+При входе в `Done` или `Cancelled`:
 
-`Cancelled` не считается завершённой работой и не получает `completed_at`.
+```text
+closed_at = now()
+```
 
-## Что Core намеренно не проверяет
+Если Work Item возвращается из terminal state в активное состояние, `closed_at` очищается. Предыдущие значения остаются в штатной истории `Version` благодаря `Track Changes`.
 
-### Принадлежность assignee к Work Unit
+## Assignee и доступ
 
-Core не вводит собственную модель членства и не делает `assignee` зависимым от HR-модели конкретной организации.
+`responsible_unit` является основной организационной границей доступа к Work Item.
 
-Штатная безопасность строится по `responsible_unit` через Frappe User Permissions. Организация может дополнительно потребовать правило «исполнитель должен иметь доступ к Work Unit» или «исполнитель должен состоять в подразделении», но это site policy или extension capability, а не универсальный контракт Work Item.
+`assignee` обозначает одного текущего ответственного исполнителя, но сам по себе не является ACL. Пользователи с правом работы в общей очереди могут взаимодействовать с Work Item независимо от того, кто указан assignee, если это разрешено их Roles/User Permissions и Workflow.
 
-Так Core не привязывается к одной модели штатного расписания и не создаёт собственный permission engine.
+Если конкретной организации нужен принцип «редактирует только assignee», это дополнительная site policy, а не универсальный контракт Core.
 
-### Обязательность source
+## Work Membership и доступ
 
-Core хранит основания, но не определяет, когда они обязательны. Для одной компании источником любого исправления должен быть зарегистрированный документ, для другой Incident может возникнуть непосредственно из monitoring alert, а часть внутренних задач вообще не имеет внешнего основания.
+`Work Membership`, если capability используется, хранит организационный факт: пользователь относится к Work Unit в определённый период.
 
-Если процесс требует обязательного source, это правило добавляется Documentary Records capability, site-specific Server Script или extension App. Для такого требования не нужен новый механизм Core.
+Он может использоваться для фильтра выбора исполнителя, аналитики состава команды и валидации локального организационного правила. Он не заменяет Roles/User Permissions и не является вторым permission engine.
 
-### SLA, routing и автоматическое распределение
-
-Эти правила не входят в Work Type или Work Item. Используются стандартные Frappe механизмы либо отдельное предметное расширение, когда появляется реальная ответственность.
+```text
+Work Membership = organizational fact
+User Permission = access control
+```
 
 ## Permissions v1
 
@@ -326,7 +308,7 @@ Work User
 Work Manager
 ```
 
-Консервативная базовая матрица:
+Базовая матрица:
 
 | DocType | Work User | Work Manager |
 | --- | --- | --- |
@@ -338,24 +320,41 @@ Work Manager
 
 Delete не выдаётся этим ролям по умолчанию. Устаревшие Work Unit и Work Type отключаются через `active = 0`; Work Item сохраняет историю вместо обычного удаления.
 
-Доступ к Work Item ограничивается стандартными User Permissions по `Work Unit`. Поскольку `Work Unit` является Tree DocType, Frappe v16 распространяет User Permission родительского узла на descendants, если `hide_descendants` не включён:
-https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/user_permission/user_permission.py
+Доступ к Work Item строится стандартными User Permissions по `responsible_unit`. Поскольку это security dependency продукта, automated tests обязаны проверить не только чтение списка, но и:
 
-Пример:
+- создание Work Item в разрешённом и запрещённом Work Unit;
+- редактирование существующего Work Item;
+- перенос Work Item между Work Unit;
+- наследование разрешений родительского Work Unit на descendants.
+
+Custom `permission_query_conditions` и собственная таблица ACL не вводятся, пока штатные permissions Frappe проходят эти acceptance tests.
+
+## Auto Repeat
+
+Frappe Auto Repeat остаётся предпочтительным механизмом простой календарной повторяемости, но v1 не включает его для Work Item автоматически.
+
+Причина: Auto Repeat копирует исходный документ. Для Work Item необходимо явно определить, какие поля являются шаблонными, а какие относятся только к конкретному экземпляру работы. В частности нельзя бездумно переносить в следующий экземпляр текущее состояние, timestamps и документальные основания прошлого выполнения.
+
+Перед включением `allow_auto_repeat` отдельный контракт должен определить поведение `on_recurring` как минимум для:
 
 ```text
-Operations
-├── Dispatch
-└── Document Control
+status
+waiting_reason
+waiting_since
+started_at
+closed_at
+planned_start
+due_at
+assignee
+sources
+references
 ```
 
-User Permission на `Operations` для менеджера даёт доступ к дочерним Work Unit через штатную семантику NestedSet/User Permission. Пользователю отдельного направления можно выдать permission только на его Work Unit.
-
-Custom `permission_query_conditions` и собственная таблица ACL в v1 не используются.
+Собственный scheduler для этого не создаётся.
 
 ## Индексы v1
 
-Минимальный набор индексов ориентирован на основные рабочие выборки:
+Минимальный набор:
 
 ```text
 Work Item.work_type
@@ -372,44 +371,50 @@ Work Reference.reference_doctype
 Work Reference.reference_name
 ```
 
-Индексы на `started_at`, `completed_at`, `priority` и compound indexes не добавляются заранее. Если реальные отчёты покажут узкое место, индекс добавляется под измеренный запрос.
+Индексы на timestamps, priority и compound indexes не добавляются заранее. Они появляются под измеренные запросы.
 
 ## Обязательные тесты собственного контракта
 
 Минимальный automated test suite должен проверять:
 
-1. Work Item нельзя сохранить с `due_at < planned_start`.
-2. `Waiting` нельзя сохранить без `waiting_reason`.
-3. Повтор одного source в одном Work Item запрещён.
-4. Повтор одной reference в одном Work Item запрещён.
+1. `due_at < planned_start` запрещён.
+2. `Waiting` без `waiting_reason` запрещён.
+3. Duplicate source запрещён.
+4. Duplicate reference запрещена.
 5. Inactive Work Type нельзя назначить новой или изменяемой Work Item.
 6. Inactive Work Unit нельзя назначить новой или изменяемой Work Item.
 7. Disabled User нельзя назначить новой или изменяемой Work Item.
-8. Inactive Work Unit нельзя назначить новым или изменённым `default_responsible_unit` Work Type.
-9. Defaults Work Type копируются только в пустые поля Work Item и не меняют исторические Work Item задним числом.
-10. Если Work Type не задаёт priority, новый Work Item получает `Medium`.
-11. Первый переход в `In Progress` заполняет `started_at` один раз.
-12. `Done` заполняет `completed_at`, reopen очищает его.
-13. User Permission на Work Unit ограничивает доступ к Work Item через `responsible_unit`.
-14. User Permission на родительский Work Unit даёт менеджеру доступ к дочерним узлам в соответствии со штатной NestedSet-семантикой Frappe.
+8. Default priority копируется только в пустое поле и не меняет старые Work Item задним числом.
+9. При отсутствии default priority используется `Medium`.
+10. Первый вход в `In Progress` заполняет `started_at` один раз.
+11. Вход в `Waiting` заполняет `waiting_since`; выход очищает текущие waiting fields.
+12. `Done` и `Cancelled` заполняют `closed_at`; reopen очищает его.
+13. Новая source/reference на недоступный пользователю документ запрещена.
+14. Старая сохранённая source/reference не блокирует редактирование Work Item только из-за последующего изменения permissions target document.
+15. User Permission на Work Unit ограничивает чтение Work Item через `responsible_unit`.
+16. Нельзя создать Work Item в запрещённом Work Unit.
+17. Нельзя перенести Work Item в запрещённый Work Unit.
+18. User Permission на родительский Work Unit работает для descendants в соответствии со штатной NestedSet-семантикой Frappe.
+19. `assignee` не становится отдельной ACL-границей.
+20. Включение site Workflow не разрушает каноническую семантику `status`.
 
 Тесты не должны перепроверять ORM, Dynamic Link или NestedSet как самостоятельные возможности Framework. Проверяется только то, что приложение действительно опирается на них в собственном security/data contract.
 
 ## Что остаётся вне Data Model v1
 
-Не входят в Core и не должны добавляться в Work Item без отдельного доказанного основания:
+Не входят в Core:
 
 ```text
 Employee
 Work Membership
-Project
-Shift Log
+Work Request
+Work Project
+Work Shift
 Basis Document
 Tracked Asset
-Asset Movement
-Asset Composition
+Tracked Asset Movement
+Tracked Asset Composition Change
 Operational Location
-Contractor
 SLA
 Work Event
 custom workflow engine
@@ -420,15 +425,31 @@ relation engine
 
 Любой из этих объектов может появиться как отдельная capability или обычный DocType и связываться с Work Item через `sources` или `references`.
 
-## Критерий изменения Core
+`Work Event` специально не требуется для первой реализации Core: сначала используются `Track Changes` и lifecycle timestamps. Event-level история добавляется только когда появляется реальная потребность в точной аналитике времени в состояниях, reassignments, reopen или handover.
 
-Нового поля или DocType недостаточно обосновать фразой «может пригодиться».
+## Публичный контракт v1
+
+После появления стабильной версии следующие элементы считаются частью публичного data contract продукта:
+
+```text
+DocType names
+fieldnames
+canonical status values
+priority values
+required relations
+semantics of sources
+semantics of references
+```
+
+Добавление нового поля или capability совместимо. Переименование, удаление или изменение смысла существующего элемента требует миграции и не должно происходить как скрытая внутренняя правка.
+
+## Критерий изменения Core
 
 Core меняется только если новая ответственность одновременно:
 
 1. относится непосредственно к понятию операционной работы;
 2. не закрывается штатным механизмом Frappe;
 3. повторяется в нескольких независимых предметных областях;
-4. не может быть локально выражена отдельным DocType/capability без изменения Work Item.
+4. не может быть локализована отдельной capability или настройкой Site.
 
-Пока эти условия не выполнены, Data Model v1 остаётся стабильным контрактом.
+Один частный процесс отдельной организации не является основанием менять Core.
