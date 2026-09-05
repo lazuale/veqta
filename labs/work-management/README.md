@@ -23,7 +23,7 @@ Work Item
 Официальные механизмы Frappe, на которых строится граница:
 
 - DocType как основной building block: https://docs.frappe.io/framework/user/en/basics/doctypes
-- Link и Dynamic Link: https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes
+- Link, Dynamic Link и child tables: https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes
 - site-specific customization: https://docs.frappe.io/framework/user/en/basics/doctypes/customize
 - Modules: https://docs.frappe.io/framework/user/en/basics/doctypes/modules
 - hooks и `extend_doctype_class`: https://docs.frappe.io/framework/user/en/python-api/hooks
@@ -90,17 +90,34 @@ next_action
 started_at
 completed_at
 
-context_doctype
-context_name
-
 sources
+references
 ```
 
-`context_doctype` + `context_name` образуют штатный Frappe `Dynamic Link` и отвечают на вопрос **«к какому основному предметному документу относится эта работа?»**.
+### Sources
 
-`sources` — child table узкой семантики «на основании чего возникла работа». Каждая строка содержит `source_doctype` и `source_name` через `Dynamic Link`.
+`sources` — child table узкой семантики **«на основании чего возникла работа?»**.
 
-Так Core не знает, является источником служебная записка, клиентский запрос, alert, договор, производственное несоответствие или другой документ.
+Каждая строка содержит:
+
+```text
+source_doctype   Link → DocType
+source_name      Dynamic Link
+```
+
+Так Core не знает, является источником служебная записка, клиентский запрос, monitoring alert, договор, производственное несоответствие или другой документ.
+
+`Work Type.requires_source` может требовать хотя бы один источник для видов работ, которые нельзя выполнять без основания.
+
+### References
+
+`references` — отдельная child table узкой семантики **«к каким предметным документам относится работа?»**.
+
+Каждая строка также использует `DocType` + `Dynamic Link`.
+
+Это позволяет одной Work Item одновременно относиться, например, к Project, сотруднику и оборудованию без добавления этих полей в Core.
+
+`sources` и `references` не являются универсальным relation engine. Их семантика фиксирована самим понятием работы, а произвольные типы и правила отношений не моделируются.
 
 ### Жизненный цикл
 
@@ -127,6 +144,7 @@ Cancelled
 новый процесс согласования → Frappe Workflow
 новый предметный объект    → обычный DocType
 новый источник работы      → обычный DocType + Work Source
+новая связь с объектом     → Work Reference
 новая интеграция           → REST / Webhook / hooks / отдельный App
 ```
 
@@ -138,11 +156,11 @@ Cancelled
 
 Реальная установка может требовать больше трёх DocType. Это не делает их частью универсального Core.
 
-Примеры самостоятельных capabilities:
-
 ### Documentary Records
 
-`Basis Document` хранит зарегистрированное документальное основание, его метаданные и attachments. Организации, где работа должна быть доказуемо связана со служебным, кадровым, распорядительным или иным документом, используют `Basis Document` как один из `sources` Work Item.
+`Basis Document` может хранить зарегистрированное документальное основание, его метаданные и attachments. Организации, где работа должна быть доказуемо связана со служебным, кадровым, распорядительным или иным документом, используют `Basis Document` как один из `sources` Work Item.
+
+Сам `Basis Document` не входит в Core, потому что в других предметных областях источником может быть уже существующий Ticket, Alert, Contract, Nonconformity или другой DocType.
 
 ### Assets
 
@@ -165,7 +183,7 @@ Asset Composition Change
 
 ### Planning и Shift Operations
 
-Project, shift journal и handover могут быть самостоятельными capabilities. Организация, которой они не нужны, не должна менять модель Work Item.
+Project, shift journal и handover могут быть самостоятельными capabilities. Work Item связывается с ними через `references`; организация, которой они не нужны, не меняет Core.
 
 ## Проверка на разных организациях
 
@@ -180,10 +198,12 @@ Work Unit    → направления службы
 Work Type    → сверка, проверка, исправление, регистрация, перемещение
 Work Item    → конкретное действие сотрудника
 sources      → Basis Document
-context      → сотрудник, Asset Movement, другой предметный документ
+references   → сотрудник, площадка, Asset Movement, Project и другие документы
 ```
 
 Дополнительно используются Documentary Records, reference data, Assets и Shift Operations.
+
+Одна работа может одновременно ссылаться на сотрудника и документ перемещения либо на Project и оборудование. Для этого Core не требует отдельных полей.
 
 Изменение состава терминала или появление нового типа техники не меняет Core.
 
@@ -204,7 +224,7 @@ Work Type
 └── Preventive Maintenance
 ```
 
-Источниками Work Item являются support ticket, monitoring alert или approved change request. Контекстом может быть клиент, сервер, система или изменение конфигурации.
+Источниками Work Item являются support ticket, monitoring alert или approved change request. В `references` могут одновременно находиться клиент, сервер, система и Project.
 
 SLA, CMDB или специфический change-management являются отдельными предметными возможностями или настройками Site. Для них не требуется менять Work Unit, Work Type или Work Item.
 
@@ -227,7 +247,7 @@ Work Type
 
 Источники: production order, nonconformity report, maintenance request, customer complaint.
 
-Контекст: партия, оборудование, производственный заказ или запись несоответствия.
+В `references` могут одновременно находиться партия, оборудование, производственный заказ и проект улучшения.
 
 Смены, оборудование и будущая поверка подключаются как отдельные capabilities. Core остаётся прежним.
 
@@ -248,7 +268,7 @@ Work Type
 └── Reconciliation
 ```
 
-Источниками являются запрос клиента, договор, письмо или уведомление государственного органа. Контекстом — клиент, договор, дело или отчётный период.
+Источниками являются запрос клиента, договор, письмо или уведомление государственного органа. `references` связывают работу с клиентом, договором, делом и отчётным периодом.
 
 Assets и Shift Operations не используются вообще. Для работы достаточно Core и предметных DocType этой организации.
 
@@ -260,8 +280,10 @@ Assets и Shift Operations не используются вообще. Для р
 | другой набор операций | нет | `Work Type` data |
 | новый этап согласования | нет | Frappe Workflow |
 | дополнительное поле конкретной компании | нет | Custom Field |
-| новый тип предметного объекта | нет | обычный DocType |
-| новый тип источника работы | нет | `Work Source` Dynamic Link |
+| новый тип предметного объекта | нет | обычный DocType + `references` |
+| новый тип источника работы | нет | обычный DocType + `sources` |
+| несколько предметных объектов у одной работы | нет | несколько `references` |
+| несколько оснований одной работы | нет | несколько `sources` |
 | новая техника | нет | Asset capability / `Asset Type` |
 | новый специфический процесс техники | нет | отдельный предметный DocType |
 | сменная работа | нет | Shift capability |
