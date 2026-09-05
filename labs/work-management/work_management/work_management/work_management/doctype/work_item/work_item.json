@@ -16,7 +16,6 @@
   "classification_section",
   "work_type",
   "responsible_unit",
-  "assignee",
   "status",
   "priority",
   "planning_section",
@@ -55,6 +54,7 @@
   {
    "fieldname": "work_type",
    "fieldtype": "Link",
+   "ignore_user_permissions": 1,
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Work Type",
@@ -70,16 +70,6 @@
    "label": "Responsible Unit",
    "options": "Work Unit",
    "reqd": 1,
-   "search_index": 1
-  },
-  {
-   "fieldname": "assignee",
-   "fieldtype": "Link",
-   "ignore_user_permissions": 1,
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Assignee",
-   "options": "User",
    "search_index": 1
   },
   {
@@ -199,7 +189,7 @@
    "role": "System Manager"
   }
  ],
- "search_fields": "subject,work_type,responsible_unit,assignee",
+ "search_fields": "subject,work_type,responsible_unit",
  "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
