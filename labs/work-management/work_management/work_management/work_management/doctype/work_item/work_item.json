@@ -1,0 +1,198 @@
+{
+ "actions": [],
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "links": [],
+ "modified": "2026-09-05 00:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "states": [],
+ "allow_auto_repeat": 0,
+ "autoname": "WI-.YYYY.-.#####",
+ "creation": "2026-09-05 00:00:00.000000",
+ "field_order": [
+  "subject",
+  "description",
+  "classification_section",
+  "work_type",
+  "responsible_unit",
+  "status",
+  "priority",
+  "planning_section",
+  "planned_start",
+  "due_at",
+  "estimated_effort",
+  "execution_section",
+  "waiting_reason",
+  "waiting_since",
+  "next_action",
+  "started_at",
+  "closed_at",
+  "links_section",
+  "sources",
+  "references"
+ ],
+ "fields": [
+  {
+   "fieldname": "subject",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Subject",
+   "reqd": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "classification_section",
+   "fieldtype": "Section Break",
+   "label": "Classification and Responsibility"
+  },
+  {
+   "fieldname": "work_type",
+   "fieldtype": "Link",
+   "ignore_user_permissions": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Work Type",
+   "options": "Work Type",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "responsible_unit",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Responsible Unit",
+   "options": "Work Unit",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Open\nIn Progress\nWaiting\nDone\nCancelled",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Priority",
+   "options": "Low\nMedium\nHigh\nUrgent",
+   "reqd": 1
+  },
+  {
+   "fieldname": "planning_section",
+   "fieldtype": "Section Break",
+   "label": "Planning"
+  },
+  {
+   "fieldname": "planned_start",
+   "fieldtype": "Datetime",
+   "in_standard_filter": 1,
+   "label": "Planned Start",
+   "search_index": 1
+  },
+  {
+   "fieldname": "due_at",
+   "fieldtype": "Datetime",
+   "in_standard_filter": 1,
+   "label": "Due At",
+   "search_index": 1
+  },
+  {
+   "fieldname": "estimated_effort",
+   "fieldtype": "Duration",
+   "label": "Estimated Effort"
+  },
+  {
+   "fieldname": "execution_section",
+   "fieldtype": "Section Break",
+   "label": "Execution"
+  },
+  {
+   "fieldname": "waiting_reason",
+   "fieldtype": "Small Text",
+   "label": "Waiting Reason"
+  },
+  {
+   "fieldname": "waiting_since",
+   "fieldtype": "Datetime",
+   "label": "Waiting Since",
+   "read_only": 1
+  },
+  {
+   "fieldname": "next_action",
+   "fieldtype": "Small Text",
+   "label": "Next Action"
+  },
+  {
+   "fieldname": "started_at",
+   "fieldtype": "Datetime",
+   "label": "Started At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "closed_at",
+   "fieldtype": "Datetime",
+   "label": "Closed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "links_section",
+   "fieldtype": "Section Break",
+   "label": "Sources and References"
+  },
+  {
+   "fieldname": "sources",
+   "fieldtype": "Table",
+   "label": "Sources",
+   "options": "Work Source"
+  },
+  {
+   "fieldname": "references",
+   "fieldtype": "Table",
+   "label": "References",
+   "options": "Work Reference"
+  }
+ ],
+ "module": "Work Management",
+ "name": "Work Item",
+ "permissions": [
+  {
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "role": "Work User"
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "role": "Work Manager"
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "role": "System Manager"
+  }
+ ],
+ "search_fields": "subject,work_type,responsible_unit",
+ "show_title_field_in_link": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "subject",
+ "track_changes": 1
+}
