@@ -6,7 +6,7 @@ Work Management — прототип open-source приложения управ
 
 ## Граница продукта
 
-Frappe остаётся прикладной платформой и отвечает за `DocType`, `Document`, ORM, Desk, permissions, Workflow, Notifications, Reports, REST API, background jobs и штатные механизмы расширения.
+Frappe остаётся прикладной платформой и отвечает за `DocType`, `Document`, ORM, Desk, permissions, Assignments/ToDo, Workflow, Notifications, Reports, REST API, background jobs и штатные механизмы расширения.
 
 Work Management добавляет только семантику операционной работы.
 
@@ -47,7 +47,7 @@ Operations
 
 У другой организации дерево будет другим без изменения схемы приложения.
 
-Core не определяет модель членства сотрудников в Work Unit. Доступ настраивается штатными Roles и User Permissions Frappe; если конкретной организации нужна отдельная модель состава команды, должностей или мощности, она добавляется как самостоятельная capability.
+Core не определяет модель членства сотрудников в Work Unit и не использует Work Unit как обязательную ACL-границу. Базовый доступ задаётся штатными Roles/DocPerm Frappe. Конкретный Site при необходимости может дополнительно сужать доступ стандартными User Permissions или другими штатными механизмами, но это уже конфигурация установки, а не семантика очереди.
 
 ## Work Type
 
@@ -58,11 +58,10 @@ Core не определяет модель членства сотрудник�
 ```text
 title
 active
-default_responsible_unit   optional
-default_priority           optional
+default_priority   optional
 ```
 
-`Work Type` не является workflow engine, rule engine или системой маршрутизации.
+`Work Type` не является workflow engine, rule engine или системой маршрутизации и не определяет ответственную очередь.
 
 ## Work Item
 
@@ -76,7 +75,6 @@ description
 
 work_type
 responsible_unit
-assignee
 
 status
 priority
@@ -86,14 +84,17 @@ due_at
 estimated_effort
 
 waiting_reason
+waiting_since
 next_action
 
 started_at
-completed_at
+closed_at
 
 sources
 references
 ```
+
+Конкретный исполнитель не хранится отдельным Core field. Для назначения пользователя используется штатный Frappe Assignment/ToDo.
 
 ### Sources
 
@@ -134,6 +135,19 @@ Cancelled
 
 Специфические этапы согласования конкретной организации не добавляются в Core. Для них используется штатный Frappe `Workflow` и, при необходимости, отдельное `workflow_state`.
 
+### Исполнитель
+
+Персональная ответственность не дублируется полем `assignee` в Work Item.
+
+Для назначения используется штатный Frappe Assignment/ToDo. Это сохраняет стандартные механизмы назначения, уведомления и представления пользовательских задач и не создаёт параллельную модель исполнителей внутри продукта.
+
+`responsible_unit` и Assignment отвечают на разные вопросы:
+
+```text
+responsible_unit  = в какой очереди находится работа
+Frappe Assignment = кому персонально назначено выполнение
+```
+
 ## Расширение без изменения Core
 
 Универсальность достигается не новыми meta-сущностями, а обычными механизмами Frappe.
@@ -141,6 +155,7 @@ Cancelled
 ```text
 новое подразделение        → новая запись Work Unit
 новый вид работы           → новая запись Work Type
+новый исполнитель          → Frappe Assignment / ToDo
 новое поле компании        → Custom Field / Customize Form
 новый процесс согласования → Frappe Workflow
 новый предметный объект    → обычный DocType
@@ -279,6 +294,7 @@ Assets и Shift Operations не используются вообще. Для р
 | --- | --- | --- |
 | другая структура компании | нет | `Work Unit` data |
 | другой набор операций | нет | `Work Type` data |
+| новый исполнитель | нет | Frappe Assignment / ToDo |
 | новый этап согласования | нет | Frappe Workflow |
 | дополнительное поле конкретной компании | нет | Custom Field |
 | новый тип предметного объекта | нет | обычный DocType + `references` |
@@ -316,6 +332,7 @@ Work Management Core
 ├── Work Type
 └── Work Item
        │
+       ├── Frappe Assignment / ToDo
        ├── Site configuration
        ├── Frappe Workflow / permissions / reports
        ├── first-party capabilities
