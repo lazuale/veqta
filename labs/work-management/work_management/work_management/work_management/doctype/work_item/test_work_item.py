@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import frappe
+from frappe.desk.form.assign_to import add as assign_to
 from frappe.tests import IntegrationTestCase
 
 
@@ -74,6 +75,17 @@ class TestWorkItem(IntegrationTestCase):
 			}
 		).insert(ignore_permissions=True)
 
+	def allow_work_type(self, user, work_type):
+		return frappe.get_doc(
+			{
+				"doctype": "User Permission",
+				"user": user.name,
+				"allow": "Work Type",
+				"for_value": work_type,
+				"apply_to_all_doctypes": 1,
+			}
+		).insert(ignore_permissions=True)
+
 	def test_due_at_cannot_precede_planned_start(self):
 		with self.assertRaises(frappe.ValidationError):
 			self.make_work_item(
@@ -126,13 +138,6 @@ class TestWorkItem(IntegrationTestCase):
 		self.unit_a.save()
 		item.subject = "Edited after unit deactivation"
 		item.save()
-
-	def test_disabled_user_cannot_be_newly_assigned(self):
-		user = self.make_user("wm-disabled@example.com", "Work User")
-		user.enabled = 0
-		user.save(ignore_permissions=True)
-		with self.assertRaises(frappe.ValidationError):
-			self.make_work_item(assignee=user.name)
 
 	def test_work_type_priority_default_is_copied(self):
 		item = self.make_work_item()
@@ -243,46 +248,54 @@ class TestWorkItem(IntegrationTestCase):
 		item.subject = "Unrelated permitted edit"
 		item.save()
 
-	def test_work_unit_user_permission_restricts_work_item_read_create_and_move(self):
+	def test_responsible_unit_is_queue_not_default_acl_boundary(self):
 		item_a = self.make_work_item(responsible_unit=self.unit_a.name)
 		item_b = self.make_work_item(responsible_unit=self.unit_b.name)
-		user = self.make_user("wm-unit-permission@example.com", "Work User")
-		self.allow_work_unit(user, self.unit_a.name)
-
-		frappe.set_user(user.name)
-		visible = frappe.get_list("Work Item", pluck="name")
-		self.assertIn(item_a.name, visible)
-		self.assertNotIn(item_b.name, visible)
-
-		self.make_work_item(subject="Allowed in A", responsible_unit=self.unit_a.name)
-
-		with self.assertRaises(frappe.PermissionError):
-			self.make_work_item(subject="Denied in B", responsible_unit=self.unit_b.name)
-
-		item_a = frappe.get_doc("Work Item", item_a.name)
-		item_a.responsible_unit = self.unit_b.name
-		with self.assertRaises(frappe.PermissionError):
-			item_a.save()
-
-	def test_parent_work_unit_permission_covers_descendants(self):
-		item_a = self.make_work_item(responsible_unit=self.unit_a.name)
-		item_b = self.make_work_item(responsible_unit=self.unit_b.name)
-		user = self.make_user("wm-parent-permission@example.com", "Work User")
-		self.allow_work_unit(user, self.root.name)
+		user = self.make_user("wm-queue-user@example.com", "Work User")
 
 		frappe.set_user(user.name)
 		visible = frappe.get_list("Work Item", pluck="name")
 		self.assertIn(item_a.name, visible)
 		self.assertIn(item_b.name, visible)
 
-	def test_assignee_is_not_an_acl_boundary(self):
-		assignee = self.make_user("wm-assignee@example.com", "Work User")
-		other = self.make_user("wm-other@example.com", "Work User")
-		self.allow_work_unit(assignee, self.unit_a.name)
-		self.allow_work_unit(other, self.unit_a.name)
-		item = self.make_work_item(assignee=assignee.name)
+		item_a = frappe.get_doc("Work Item", item_a.name)
+		item_a.responsible_unit = self.unit_b.name
+		item_a.save()
+		self.assertEqual(item_a.responsible_unit, self.unit_b.name)
 
-		frappe.set_user(other.name)
-		item = frappe.get_doc("Work Item", item.name)
-		item.subject = "Edited by another member of the permitted queue"
-		item.save()
+	def test_work_type_is_classification_not_user_permission_boundary(self):
+		other_type = self.make_work_type("WM Other Type")
+		item_a = self.make_work_item(work_type=self.work_type.name)
+		item_b = self.make_work_item(work_type=other_type.name)
+		user = self.make_user("wm-type-permission@example.com", "Work User")
+		self.allow_work_type(user, self.work_type.name)
+
+		frappe.set_user(user.name)
+		visible = frappe.get_list("Work Item", pluck="name")
+		self.assertIn(item_a.name, visible)
+		self.assertIn(item_b.name, visible)
+
+	def test_native_frappe_assignment_represents_executor(self):
+		item = self.make_work_item()
+		user = self.make_user("wm-native-assignee@example.com", "Work User")
+
+		assign_to(
+			{
+				"assign_to": frappe.as_json([user.name]),
+				"doctype": "Work Item",
+				"name": item.name,
+				"description": "Synthetic assignment",
+			}
+		)
+
+		todo = frappe.db.get_value(
+			"ToDo",
+			{
+				"reference_type": "Work Item",
+				"reference_name": item.name,
+				"allocated_to": user.name,
+				"status": "Open",
+			},
+			"name",
+		)
+		self.assertTrue(todo)
