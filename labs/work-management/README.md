@@ -60,7 +60,6 @@ title
 active
 default_responsible_unit   optional
 default_priority           optional
-requires_source            yes/no
 ```
 
 `Work Type` не является workflow engine, rule engine или системой маршрутизации.
@@ -109,7 +108,7 @@ source_name      Dynamic Link
 
 Так Core не знает, является источником служебная записка, клиентский запрос, monitoring alert, договор, производственное несоответствие или другой документ.
 
-`Work Type.requires_source` может требовать хотя бы один источник для видов работ, которые нельзя выполнять без основания.
+Обязательность источника зависит от процесса конкретной организации или отдельной capability и не настраивается универсальным Work Type.
 
 ### References
 
