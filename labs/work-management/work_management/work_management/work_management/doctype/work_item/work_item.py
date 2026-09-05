@@ -3,6 +3,7 @@ from __future__ import annotations
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.permissions import has_permission
 from frappe.utils import get_datetime, now_datetime
 
 
@@ -129,7 +130,7 @@ class WorkItem(Document):
 			if not frappe.db.exists(target_doctype, target_name):
 				continue
 
-			if not frappe.has_permission(target_doctype, "read", doc=target_name, print_logs=False):
+			if not has_permission(target_doctype, "read", doc=target_name, print_logs=False):
 				frappe.throw(
 					_("You need read permission on {0} {1} to link it to this Work Item.").format(
 						_(target_doctype), frappe.bold(target_name)
