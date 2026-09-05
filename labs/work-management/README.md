@@ -28,6 +28,8 @@ Work Item
 - Modules: https://docs.frappe.io/framework/user/en/basics/doctypes/modules
 - hooks и `extend_doctype_class`: https://docs.frappe.io/framework/user/en/python-api/hooks
 
+Точная схема полей, permissions, индексов и серверных инвариантов зафиксирована в [Data Model v1](data-model-v1.md).
+
 ## Work Unit
 
 `Work Unit` отвечает только на вопрос: **какая организационная очередь или зона ответственности владеет работой?**
@@ -45,7 +47,7 @@ Operations
 
 У другой организации дерево будет другим без изменения схемы приложения.
 
-Участники Work Unit хранятся в child table и ссылаются на штатный Frappe `User`. Отдельная универсальная модель сотрудников для Core не требуется.
+Core не определяет модель членства сотрудников в Work Unit. Доступ настраивается штатными Roles и User Permissions Frappe; если конкретной организации нужна отдельная модель состава команды, должностей или мощности, она добавляется как самостоятельная capability.
 
 ## Work Type
 
