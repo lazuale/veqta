@@ -40,18 +40,26 @@ class WorkItem(Document):
 		previous = self.get_doc_before_save()
 		previous_status = previous.status if previous else None
 
-		if self.status == "In Progress" and not self.started_at:
+		if previous and previous.started_at:
+			self.started_at = previous.started_at
+		elif self.status == "In Progress":
 			self.started_at = now_datetime()
+		else:
+			self.started_at = None
 
 		if self.status == "Waiting":
-			if previous_status != "Waiting" or not self.waiting_since:
+			if previous_status == "Waiting" and previous and previous.waiting_since:
+				self.waiting_since = previous.waiting_since
+			else:
 				self.waiting_since = now_datetime()
 		else:
 			self.waiting_since = None
 			self.waiting_reason = None
 
 		if self.status in TERMINAL_STATUSES:
-			if previous_status not in TERMINAL_STATUSES or not self.closed_at:
+			if previous_status in TERMINAL_STATUSES and previous and previous.closed_at:
+				self.closed_at = previous.closed_at
+			else:
 				self.closed_at = now_datetime()
 		else:
 			self.closed_at = None
