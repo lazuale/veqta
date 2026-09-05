@@ -22,6 +22,7 @@ class WorkItem(Document):
 		self.validate_unique_links("references", "reference_doctype", "reference_name")
 		self.validate_active_link("work_type", "Work Type")
 		self.validate_active_link("responsible_unit", "Work Unit")
+		self.validate_assignee()
 		self.validate_new_dynamic_links("sources", "source_doctype", "source_name")
 		self.validate_new_dynamic_links("references", "reference_doctype", "reference_name")
 
@@ -100,6 +101,16 @@ class WorkItem(Document):
 			return
 		if not active:
 			frappe.throw(_("{0} {1} is inactive.").format(_(doctype), frappe.bold(value)))
+
+	def validate_assignee(self):
+		if not self.assignee or not self.has_value_changed("assignee"):
+			return
+
+		enabled = frappe.db.get_value("User", self.assignee, "enabled")
+		if enabled is None:
+			return
+		if not enabled:
+			frappe.throw(_("Assignee {0} is disabled.").format(frappe.bold(self.assignee)))
 
 	def validate_new_dynamic_links(self, table_field, doctype_field, name_field):
 		if self.flags.ignore_permissions:
