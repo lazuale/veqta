@@ -106,7 +106,6 @@ track_changes = 1
 | `active` | Check | да | 1 | — | можно ли выбирать тип для новой работы |
 | `default_responsible_unit` | Link → Work Unit | нет | — | — | подразделение по умолчанию |
 | `default_priority` | Select | нет | — | — | приоритет по умолчанию |
-| `requires_source` | Check | да | 0 | — | требуется ли хотя бы одно основание |
 | `description` | Small Text | нет | — | — | пояснение назначения вида работы |
 
 `default_priority` использует те же значения, что `Work Item.priority`:
@@ -118,9 +117,9 @@ High
 Urgent
 ```
 
-Если `default_responsible_unit` задан, он должен быть active. Это проверяется сервером при сохранении Work Type.
+Если `default_responsible_unit` задаётся или меняется, он должен быть active. Уже существующий Work Type не становится невалидным только потому, что его прежний default позднее отключили.
 
-Work Type не содержит routing rules, SLA engine, assignment strategy, Workflow или произвольные automation rules.
+Work Type не содержит source policy, routing rules, SLA engine, assignment strategy, Workflow или произвольные automation rules.
 
 ## Work Item
 
@@ -223,7 +222,7 @@ Nonconformity
 Customer Request
 ```
 
-Core не перечисляет допустимые source DocType и не создаёт их универсальные аналоги.
+Core не перечисляет допустимые source DocType, не создаёт их универсальные аналоги и не решает, для каких видов работы source обязателен. Такое требование является policy конкретного процесса или отдельной capability.
 
 ## Work Reference
 
@@ -250,7 +249,7 @@ is_child_table = 1
 
 ### Work Type.validate
 
-Если задан `default_responsible_unit`, он должен ссылаться на active Work Unit.
+Если `default_responsible_unit` задаётся или меняется, он должен ссылаться на active Work Unit.
 
 ### Work Item.validate
 
@@ -258,11 +257,11 @@ is_child_table = 1
 
 1. Если заданы `planned_start` и `due_at`, `due_at` не может быть раньше `planned_start`.
 2. `Waiting` требует непустой `waiting_reason`.
-3. Если `Work Type.requires_source = 1`, должен существовать хотя бы один `Work Source`.
-4. Внутри `sources` не допускается повтор одной пары `(source_doctype, source_name)`.
-5. Внутри `references` не допускается повтор одной пары `(reference_doctype, reference_name)`.
-6. Новый или изменённый `work_type` должен быть active.
-7. Новый или изменённый `responsible_unit` должен быть active.
+3. Внутри `sources` не допускается повтор одной пары `(source_doctype, source_name)`.
+4. Внутри `references` не допускается повтор одной пары `(reference_doctype, reference_name)`.
+5. Новый или изменённый `work_type` должен быть active.
+6. Новый или изменённый `responsible_unit` должен быть active.
+7. Новый или изменённый `assignee` должен ссылаться на enabled Frappe User.
 
 Frappe сам проверяет существование Link/Dynamic Link документов; Core не дублирует эту инфраструктурную проверку.
 
@@ -307,6 +306,12 @@ Core не вводит собственную модель членства и �
 Штатная безопасность строится по `responsible_unit` через Frappe User Permissions. Организация может дополнительно потребовать правило «исполнитель должен иметь доступ к Work Unit» или «исполнитель должен состоять в подразделении», но это site policy или extension capability, а не универсальный контракт Work Item.
 
 Так Core не привязывается к одной модели штатного расписания и не создаёт собственный permission engine.
+
+### Обязательность source
+
+Core хранит основания, но не определяет, когда они обязательны. Для одной компании источником любого исправления должен быть зарегистрированный документ, для другой Incident может возникнуть непосредственно из monitoring alert, а часть внутренних задач вообще не имеет внешнего основания.
+
+Если процесс требует обязательного source, это правило добавляется Documentary Records capability, site-specific Server Script или extension App. Для такого требования не нужен новый механизм Core.
 
 ### SLA, routing и автоматическое распределение
 
@@ -375,12 +380,12 @@ Work Reference.reference_name
 
 1. Work Item нельзя сохранить с `due_at < planned_start`.
 2. `Waiting` нельзя сохранить без `waiting_reason`.
-3. Work Type с `requires_source = 1` запрещает Work Item без source.
-4. Повтор одного source в одном Work Item запрещён.
-5. Повтор одной reference в одном Work Item запрещён.
-6. Inactive Work Type нельзя назначить новой или изменяемой Work Item.
-7. Inactive Work Unit нельзя назначить новой или изменяемой Work Item.
-8. Inactive Work Unit нельзя сохранить как `default_responsible_unit` Work Type.
+3. Повтор одного source в одном Work Item запрещён.
+4. Повтор одной reference в одном Work Item запрещён.
+5. Inactive Work Type нельзя назначить новой или изменяемой Work Item.
+6. Inactive Work Unit нельзя назначить новой или изменяемой Work Item.
+7. Disabled User нельзя назначить новой или изменяемой Work Item.
+8. Inactive Work Unit нельзя назначить новым или изменённым `default_responsible_unit` Work Type.
 9. Defaults Work Type копируются только в пустые поля Work Item и не меняют исторические Work Item задним числом.
 10. Если Work Type не задаёт priority, новый Work Item получает `Medium`.
 11. Первый переход в `In Progress` заполняет `started_at` один раз.
