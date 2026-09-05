@@ -6,7 +6,7 @@ Work Management — прототип open-source приложения управ
 
 ## Граница продукта
 
-Frappe остаётся прикладной платформой и отвечает за `DocType`, `Document`, ORM, Desk, permissions, Assignments/ToDo, Workflow, Notifications, Reports, REST API, background jobs и штатные механизмы расширения.
+Frappe остаётся прикладной платформой и отвечает за `DocType`, `Document`, ORM, Desk, permissions, Workflow, Notifications, Reports, REST API, background jobs и штатные механизмы расширения.
 
 Work Management добавляет только семантику операционной работы.
 
@@ -75,6 +75,7 @@ description
 
 work_type
 responsible_unit
+assignee
 
 status
 priority
@@ -94,7 +95,14 @@ sources
 references
 ```
 
-Конкретный исполнитель не хранится отдельным Core field. Для назначения пользователя используется штатный Frappe Assignment/ToDo.
+`responsible_unit` и `assignee` отвечают на разные вопросы:
+
+```text
+responsible_unit = в какой очереди находится работа
+assignee         = один текущий ответственный исполнитель
+```
+
+`assignee` — обычный Link → User и часть канонической модели Work Item. Штатный Frappe Assign To/ToDo не используется как источник истины для исполнителя, потому что допускает несколько одновременных назначений на один документ.
 
 ### Sources
 
@@ -135,19 +143,6 @@ Cancelled
 
 Специфические этапы согласования конкретной организации не добавляются в Core. Для них используется штатный Frappe `Workflow` и, при необходимости, отдельное `workflow_state`.
 
-### Исполнитель
-
-Персональная ответственность не дублируется полем `assignee` в Work Item.
-
-Для назначения используется штатный Frappe Assignment/ToDo. Это сохраняет стандартные механизмы назначения, уведомления и представления пользовательских задач и не создаёт параллельную модель исполнителей внутри продукта.
-
-`responsible_unit` и Assignment отвечают на разные вопросы:
-
-```text
-responsible_unit  = в какой очереди находится работа
-Frappe Assignment = кому персонально назначено выполнение
-```
-
 ## Расширение без изменения Core
 
 Универсальность достигается не новыми meta-сущностями, а обычными механизмами Frappe.
@@ -155,7 +150,6 @@ Frappe Assignment = кому персонально назначено выпо�
 ```text
 новое подразделение        → новая запись Work Unit
 новый вид работы           → новая запись Work Type
-новый исполнитель          → Frappe Assignment / ToDo
 новое поле компании        → Custom Field / Customize Form
 новый процесс согласования → Frappe Workflow
 новый предметный объект    → обычный DocType
@@ -294,7 +288,6 @@ Assets и Shift Operations не используются вообще. Для р
 | --- | --- | --- |
 | другая структура компании | нет | `Work Unit` data |
 | другой набор операций | нет | `Work Type` data |
-| новый исполнитель | нет | Frappe Assignment / ToDo |
 | новый этап согласования | нет | Frappe Workflow |
 | дополнительное поле конкретной компании | нет | Custom Field |
 | новый тип предметного объекта | нет | обычный DocType + `references` |
@@ -332,7 +325,6 @@ Work Management Core
 ├── Work Type
 └── Work Item
        │
-       ├── Frappe Assignment / ToDo
        ├── Site configuration
        ├── Frappe Workflow / permissions / reports
        ├── first-party capabilities
