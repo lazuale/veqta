@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import frappe
-from frappe.desk.form.assign_to import add as assign_to
 from frappe.tests import IntegrationTestCase
 
 
@@ -139,6 +138,13 @@ class TestWorkItem(IntegrationTestCase):
 		item.subject = "Edited after unit deactivation"
 		item.save()
 
+	def test_disabled_user_cannot_be_newly_assigned(self):
+		user = self.make_user("wm-disabled@example.com", "Work User")
+		user.enabled = 0
+		user.save(ignore_permissions=True)
+		with self.assertRaises(frappe.ValidationError):
+			self.make_work_item(assignee=user.name)
+
 	def test_work_type_priority_default_is_copied(self):
 		item = self.make_work_item()
 		self.assertEqual(item.priority, "High")
@@ -275,27 +281,13 @@ class TestWorkItem(IntegrationTestCase):
 		self.assertIn(item_a.name, visible)
 		self.assertIn(item_b.name, visible)
 
-	def test_native_frappe_assignment_represents_executor(self):
-		item = self.make_work_item()
-		user = self.make_user("wm-native-assignee@example.com", "Work User")
+	def test_assignee_is_single_accountable_field_not_acl_boundary(self):
+		assignee = self.make_user("wm-assignee@example.com", "Work User")
+		other = self.make_user("wm-other@example.com", "Work User")
+		item = self.make_work_item(assignee=assignee.name)
+		self.assertEqual(item.assignee, assignee.name)
 
-		assign_to(
-			{
-				"assign_to": frappe.as_json([user.name]),
-				"doctype": "Work Item",
-				"name": item.name,
-				"description": "Synthetic assignment",
-			}
-		)
-
-		todo = frappe.db.get_value(
-			"ToDo",
-			{
-				"reference_type": "Work Item",
-				"reference_name": item.name,
-				"allocated_to": user.name,
-				"status": "Open",
-			},
-			"name",
-		)
-		self.assertTrue(todo)
+		frappe.set_user(other.name)
+		item = frappe.get_doc("Work Item", item.name)
+		item.subject = "Edited by another Work User"
+		item.save()
