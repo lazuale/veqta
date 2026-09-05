@@ -14,6 +14,7 @@ Work Management рассчитан на глубокую настройку ко
 Work Unit data
 Work Type data
 Roles / User Permissions
+Assign To / ToDo
 Workflow
 Notifications
 Custom Fields
@@ -42,7 +43,8 @@ REST / Webhook / hooks
 - изменение смысла канонических значений `status` или `priority`;
 - изменение семантики `sources` и `references`;
 - создание второй независимой модели ACL для Work Item;
-- подмена `responsible_unit` другой сущностью, не означающей зону ответственности.
+- подмена `responsible_unit` другой сущностью, не означающей очередь или зону ответственности;
+- добавление собственной параллельной модели исполнителей вместо штатного Frappe Assign To / ToDo без отдельной доказанной ответственности.
 
 Если организации нужна дополнительная информация, добавляется Custom Field. Если нужна новая самостоятельная сущность — обычный DocType или capability. Существующее Core field не переиспользуется.
 
@@ -72,37 +74,37 @@ Cancelled
 
 Таким образом, Work Management не навязывает этапы конкретной организации и одновременно не теряет общий operational lifecycle.
 
-## Responsibility, assignee и permissions
+## Queue, assignments и permissions
 
-`responsible_unit` отвечает на вопрос, какая рабочая зона владеет Work Item.
+`responsible_unit` отвечает на вопрос, в какой организационной очереди или зоне ответственности находится Work Item.
 
-`assignee` отвечает на вопрос, кто является текущим ответственным исполнителем.
-
-Это разные семантики:
+Персональное выполнение выражается штатными Frappe Assignments / `ToDo`. Один Work Item может иметь ноль, один или несколько активных assignments.
 
 ```text
-responsible_unit = ownership / queue boundary
-assignee         = accountability
+responsible_unit = queue ownership
+Frappe Assignment = execution responsibility
 ```
 
-`assignee` сам по себе не является ACL. Общая очередь может быть доступна нескольким пользователям, даже если у конкретного Work Item указан один ответственный исполнитель.
+`Work Unit` не является обязательной ACL-границей Core. Базовый доступ к Work Item задаётся Roles/DocPerm. Конкретный Site при необходимости может дополнительно применять User Permissions, Permission Levels, Workflow или другие штатные механизмы Frappe.
 
-Доступ строится штатными Roles/User Permissions Frappe. Если Site требует более строгого правила, например «редактирует только assignee», оно является локальной policy и не меняет Core.
+Если Site использует User Permission на `Work Unit`, это дополнительная политика ограничения данных конкретной установки. Она не меняет смысл `responsible_unit` и не превращает дерево Work Unit в отдельный permission engine продукта.
+
+Assignment сам по себе не является альтернативной ACL-моделью Work Management. Доступ к Work Item остаётся ответственностью штатных permissions и sharing Frappe.
 
 ## Work Membership и permissions
 
 `Work Membership` хранит организационный факт принадлежности пользователя к Work Unit и может использоваться для:
 
-- выбора исполнителя;
+- фильтра выбора пользователей при назначении;
 - отображения состава команды;
 - аналитики;
-- локальной валидации принадлежности исполнителя к рабочей зоне.
+- локальной проверки принадлежности назначаемого пользователя к рабочей зоне.
 
-Он не заменяет User Permissions и не является источником прав доступа.
+Он не заменяет Roles/User Permissions и не является источником прав доступа.
 
 ```text
 Work Membership = organizational fact
-User Permission = access control
+Frappe permissions = access control
 ```
 
 Это исключает две конфликтующие модели безопасности.
