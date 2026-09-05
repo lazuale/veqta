@@ -58,6 +58,8 @@ Core не является submittable-моделью. Жизненный цик
 
 Это не универсальная HR-модель и не обязательное отражение формальной оргструктуры.
 
+`Work Unit` не является обязательной ACL-границей Core. Поле `responsible_unit` хранит операционный факт владения очередью, а не право пользователя читать Work Item.
+
 ### Настройки DocType
 
 ```text
@@ -85,7 +87,9 @@ track_changes = 1
 
 Членство пользователей, штат, должности и доступ — разные ответственности. В одной установке пользователи могут быть синхронизированы из HRMS, в другой — из внешнего каталога, в третьей Work Unit вообще является сервисной очередью, а не подразделением.
 
-`Work Membership`, если используется, хранит организационный факт принадлежности к рабочей зоне. Он не является ACL. Доступ к Work Item определяется штатными Roles и User Permissions Frappe.
+`Work Membership`, если используется, хранит организационный факт принадлежности к рабочей зоне. Он не является ACL.
+
+Базовый доступ к Work Item определяется штатными Roles/DocPerm Frappe. Конкретный Site при необходимости может дополнительно применять User Permissions или другие штатные ограничения, но такая конфигурация не меняет семантику Work Unit как очереди.
 
 ## Work Type
 
@@ -121,6 +125,8 @@ Urgent
 
 Work Type также не содержит source policy, SLA engine, assignment strategy, Workflow или произвольные automation rules.
 
+В `Work Item.work_type` включается `ignore_user_permissions`, потому что Work Type является классификацией, а не измерением доступа к Work Item.
+
 ## Work Item
 
 `Work Item` — одна конкретная исполнимая единица работы.
@@ -142,8 +148,8 @@ track_changes = 1
 | `subject` | Data | да | — | нет | краткое название работы |
 | `description` | Text Editor | нет | — | нет | подробное описание |
 | `work_type` | Link → Work Type | да | — | да | классификация работы |
-| `responsible_unit` | Link → Work Unit | да | — | да | владелец очереди/ответственности |
-| `assignee` | Link → User | нет | — | да | текущий ответственный исполнитель |
+| `responsible_unit` | Link → Work Unit | да | — | да | текущая очередь/зона ответственности |
+| `assignee` | Link → User | нет | — | да | один текущий ответственный исполнитель |
 | `status` | Select | да | Open | да | текущее каноническое состояние |
 | `priority` | Select | да | — | нет | относительная важность |
 | `planned_start` | Datetime | нет | — | да | планируемое начало |
@@ -193,6 +199,16 @@ Cancelled
 - `Cancelled` — работа прекращена без выполнения.
 
 Core не задаёт обязательный граф переходов. Если организации нужен собственный маршрут согласования, используется Frappe Workflow. Локальные workflow states могут обновлять канонический `status`, но не заменяют его семантику.
+
+### Assignee
+
+`assignee` хранит не более одного текущего ответственного исполнителя Work Item.
+
+Пустой `assignee` означает, что работа находится в очереди без персонального назначения. После назначения источником истины для персональной ответственности остаётся это поле.
+
+Штатный Frappe Assign To/ToDo не используется как каноническая модель исполнителя, потому что стандартный механизм допускает несколько одновременных assignments на один документ.
+
+`assignee` не является ACL и не даёт пользователю дополнительных прав на Work Item.
 
 ## Work Source
 
@@ -280,13 +296,15 @@ closed_at = now()
 
 Если Work Item возвращается из terminal state в активное состояние, `closed_at` очищается. Предыдущие значения остаются в штатной истории `Version` благодаря `Track Changes`.
 
-## Assignee и доступ
+## Queue, assignee и доступ
 
-`responsible_unit` является основной организационной границей доступа к Work Item.
+`responsible_unit` хранит текущую организационную очередь Work Item и не является обязательной security boundary продукта.
 
-`assignee` обозначает одного текущего ответственного исполнителя, но сам по себе не является ACL. Пользователи с правом работы в общей очереди могут взаимодействовать с Work Item независимо от того, кто указан assignee, если это разрешено их Roles/User Permissions и Workflow.
+По умолчанию пользователь, имеющий Role с `read` на Work Item, может читать Work Item независимо от его `responsible_unit`. Аналогично право `write` не превращает смену очереди в изменение ACL.
 
-Если конкретной организации нужен принцип «редактирует только assignee», это дополнительная site policy, а не универсальный контракт Core.
+`assignee` обозначает одного текущего ответственного исполнителя, но сам по себе также не является ACL. Другие пользователи с правом работы с Work Item могут взаимодействовать с ним, если локальная policy не вводит более строгое правило.
+
+Если конкретному Site нужна изоляция по Work Unit или правило «редактирует только assignee», он может дополнительно использовать штатные User Permissions, Permission Levels, Workflow или другое допустимое расширение Frappe. Такая политика не является универсальным контрактом Core.
 
 ## Work Membership и доступ
 
@@ -296,7 +314,7 @@ closed_at = now()
 
 ```text
 Work Membership = organizational fact
-User Permission = access control
+Frappe permissions = access control
 ```
 
 ## Permissions v1
@@ -320,14 +338,9 @@ Work Manager
 
 Delete не выдаётся этим ролям по умолчанию. Устаревшие Work Unit и Work Type отключаются через `active = 0`; Work Item сохраняет историю вместо обычного удаления.
 
-Доступ к Work Item строится стандартными User Permissions по `responsible_unit`. Поскольку это security dependency продукта, automated tests обязаны проверить не только чтение списка, но и:
+Core не вводит custom `permission_query_conditions`, собственную таблицу ACL или обязательную permission-семантику дерева Work Unit.
 
-- создание Work Item в разрешённом и запрещённом Work Unit;
-- редактирование существующего Work Item;
-- перенос Work Item между Work Unit;
-- наследование разрешений родительского Work Unit на descendants.
-
-Custom `permission_query_conditions` и собственная таблица ACL не вводятся, пока штатные permissions Frappe проходят эти acceptance tests.
+`Work Type` не должен становиться дополнительным ACL-измерением Work Item, поэтому его Link исключён из User Permission filtering через metadata `ignore_user_permissions`.
 
 ## Auto Repeat
 
@@ -383,7 +396,7 @@ Work Reference.reference_name
 4. Duplicate reference запрещена.
 5. Inactive Work Type нельзя назначить новой или изменяемой Work Item.
 6. Inactive Work Unit нельзя назначить новой или изменяемой Work Item.
-7. Disabled User нельзя назначить новой или изменяемой Work Item.
+7. Disabled User нельзя назначить новым или изменённым `assignee`.
 8. Default priority копируется только в пустое поле и не меняет старые Work Item задним числом.
 9. При отсутствии default priority используется `Medium`.
 10. Первый вход в `In Progress` заполняет `started_at` один раз.
@@ -391,14 +404,12 @@ Work Reference.reference_name
 12. `Done` и `Cancelled` заполняют `closed_at`; reopen очищает его.
 13. Новая source/reference на недоступный пользователю документ запрещена.
 14. Старая сохранённая source/reference не блокирует редактирование Work Item только из-за последующего изменения permissions target document.
-15. User Permission на Work Unit ограничивает чтение Work Item через `responsible_unit`.
-16. Нельзя создать Work Item в запрещённом Work Unit.
-17. Нельзя перенести Work Item в запрещённый Work Unit.
-18. User Permission на родительский Work Unit работает для descendants в соответствии со штатной NestedSet-семантикой Frappe.
-19. `assignee` не становится отдельной ACL-границей.
-20. Включение site Workflow не разрушает каноническую семантику `status`.
+15. В базовой конфигурации `responsible_unit` является очередью, а не ACL: Work User без дополнительных User Permissions видит Work Item разных Work Unit и может менять очередь в пределах своего DocPerm.
+16. User Permission на Work Type не превращает классификацию в дополнительную границу доступа к Work Item.
+17. `assignee` хранит одного текущего ответственного и не становится отдельной ACL-границей.
+18. Включение site Workflow не разрушает каноническую семантику `status`.
 
-Тесты не должны перепроверять ORM, Dynamic Link или NestedSet как самостоятельные возможности Framework. Проверяется только то, что приложение действительно опирается на них в собственном security/data contract.
+Тесты не должны перепроверять ORM, Dynamic Link или NestedSet как самостоятельные возможности Framework. Проверяется только то, что приложение действительно опирается на них в собственном data contract.
 
 ## Что остаётся вне Data Model v1
 

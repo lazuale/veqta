@@ -42,7 +42,8 @@ REST / Webhook / hooks
 - изменение смысла канонических значений `status` или `priority`;
 - изменение семантики `sources` и `references`;
 - создание второй независимой модели ACL для Work Item;
-- подмена `responsible_unit` другой сущностью, не означающей зону ответственности.
+- подмена `responsible_unit` другой сущностью, не означающей очередь или зону ответственности;
+- подмена канонического `assignee` моделью нескольких одновременных ответственных исполнителей.
 
 Если организации нужна дополнительная информация, добавляется Custom Field. Если нужна новая самостоятельная сущность — обычный DocType или capability. Существующее Core field не переиспользуется.
 
@@ -72,22 +73,26 @@ Cancelled
 
 Таким образом, Work Management не навязывает этапы конкретной организации и одновременно не теряет общий operational lifecycle.
 
-## Responsibility, assignee и permissions
+## Queue, assignee и permissions
 
-`responsible_unit` отвечает на вопрос, какая рабочая зона владеет Work Item.
+`responsible_unit` отвечает на вопрос, в какой организационной очереди или зоне ответственности находится Work Item.
 
-`assignee` отвечает на вопрос, кто является текущим ответственным исполнителем.
+`assignee` отвечает на вопрос, кто является одним текущим ответственным исполнителем.
 
 Это разные семантики:
 
 ```text
-responsible_unit = ownership / queue boundary
-assignee         = accountability
+responsible_unit = queue ownership
+assignee         = single personal accountability
 ```
 
-`assignee` сам по себе не является ACL. Общая очередь может быть доступна нескольким пользователям, даже если у конкретного Work Item указан один ответственный исполнитель.
+`Work Unit` не является обязательной ACL-границей Core. Базовый доступ к Work Item задаётся Roles/DocPerm. Конкретный Site при необходимости может дополнительно применять User Permissions, Permission Levels, Workflow или другие штатные механизмы Frappe.
 
-Доступ строится штатными Roles/User Permissions Frappe. Если Site требует более строгого правила, например «редактирует только assignee», оно является локальной policy и не меняет Core.
+Если Site использует User Permission на `Work Unit`, это дополнительная политика ограничения данных конкретной установки. Она не меняет смысл `responsible_unit` и не превращает дерево Work Unit в отдельный permission engine продукта.
+
+`assignee` сам по себе не является ACL. Пользователь с правом работы с Work Item может взаимодействовать с ним независимо от того, кто указан исполнителем, если локальная policy не вводит более строгое правило.
+
+Штатный Frappe Assign To/ToDo может использоваться Site для дополнительных персональных напоминаний, но не является источником истины для канонического исполнителя Work Item: стандартный механизм допускает несколько одновременных assignments, тогда как Core хранит одного accountable executor.
 
 ## Work Membership и permissions
 
@@ -98,11 +103,11 @@ assignee         = accountability
 - аналитики;
 - локальной валидации принадлежности исполнителя к рабочей зоне.
 
-Он не заменяет User Permissions и не является источником прав доступа.
+Он не заменяет Roles/User Permissions и не является источником прав доступа.
 
 ```text
 Work Membership = organizational fact
-User Permission = access control
+Frappe permissions = access control
 ```
 
 Это исключает две конфликтующие модели безопасности.

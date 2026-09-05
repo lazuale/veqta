@@ -47,7 +47,7 @@ Operations
 
 У другой организации дерево будет другим без изменения схемы приложения.
 
-Core не определяет модель членства сотрудников в Work Unit. Доступ настраивается штатными Roles и User Permissions Frappe; если конкретной организации нужна отдельная модель состава команды, должностей или мощности, она добавляется как самостоятельная capability.
+Core не определяет модель членства сотрудников в Work Unit и не использует Work Unit как обязательную ACL-границу. Базовый доступ задаётся штатными Roles/DocPerm Frappe. Конкретный Site при необходимости может дополнительно сужать доступ стандартными User Permissions или другими штатными механизмами, но это уже конфигурация установки, а не семантика очереди.
 
 ## Work Type
 
@@ -58,11 +58,10 @@ Core не определяет модель членства сотрудник�
 ```text
 title
 active
-default_responsible_unit   optional
-default_priority           optional
+default_priority   optional
 ```
 
-`Work Type` не является workflow engine, rule engine или системой маршрутизации.
+`Work Type` не является workflow engine, rule engine или системой маршрутизации и не определяет ответственную очередь.
 
 ## Work Item
 
@@ -86,14 +85,24 @@ due_at
 estimated_effort
 
 waiting_reason
+waiting_since
 next_action
 
 started_at
-completed_at
+closed_at
 
 sources
 references
 ```
+
+`responsible_unit` и `assignee` отвечают на разные вопросы:
+
+```text
+responsible_unit = в какой очереди находится работа
+assignee         = один текущий ответственный исполнитель
+```
+
+`assignee` — обычный Link → User и часть канонической модели Work Item. Штатный Frappe Assign To/ToDo не используется как источник истины для исполнителя, потому что допускает несколько одновременных назначений на один документ.
 
 ### Sources
 
