@@ -19,6 +19,9 @@ Tracked Assets, Work Projects, Shift Operations и другие возможно
 
 Текущая реализация ориентирована на Frappe Framework v16 и Python 3.14.
 
+`Work User` и `Work Manager` доставляются как fixtures. `System Manager` получает явные setup-права
+на Core DocType через их DocPerm; приложение не полагается на несуществующий автоматический bypass этой роли.
+
 ## Проверка на Bench
 
 После подключения этого каталога к Bench как приложения `work_management`:
