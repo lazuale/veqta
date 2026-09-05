@@ -100,14 +100,14 @@ track_changes = 1
 
 ### Поля
 
-| Fieldname | Type | Required | Default | Назначение |
-| --- | --- | --- | --- | --- |
-| `type_name` | Data | да | — | отображаемое имя вида работы |
-| `active` | Check | да | 1 | можно ли выбирать тип для новой работы |
-| `default_responsible_unit` | Link → Work Unit | нет | — | подразделение по умолчанию |
-| `default_priority` | Select | нет | — | приоритет по умолчанию |
-| `requires_source` | Check | да | 0 | требуется ли хотя бы одно основание |
-| `description` | Small Text | нет | — | пояснение назначения вида работы |
+| Fieldname | Type | Required | Default | Дополнительно | Назначение |
+| --- | --- | --- | --- | --- | --- |
+| `type_name` | Data | да | — | Unique | отображаемое имя вида работы |
+| `active` | Check | да | 1 | — | можно ли выбирать тип для новой работы |
+| `default_responsible_unit` | Link → Work Unit | нет | — | — | подразделение по умолчанию |
+| `default_priority` | Select | нет | — | — | приоритет по умолчанию |
+| `requires_source` | Check | да | 0 | — | требуется ли хотя бы одно основание |
+| `description` | Small Text | нет | — | — | пояснение назначения вида работы |
 
 `default_priority` использует те же значения, что `Work Item.priority`:
 
@@ -117,6 +117,8 @@ Medium
 High
 Urgent
 ```
+
+Если `default_responsible_unit` задан, он должен быть active. Это проверяется сервером при сохранении Work Type.
 
 Work Type не содержит routing rules, SLA engine, assignment strategy, Workflow или произвольные automation rules.
 
@@ -142,7 +144,7 @@ track_changes = 1
 | `responsible_unit` | Link → Work Unit | да | — | да | владелец очереди/ответственности |
 | `assignee` | Link → User | нет | — | да | текущий исполнитель |
 | `status` | Select | да | Open | да | текущее состояние |
-| `priority` | Select | да | Medium | нет | относительная важность |
+| `priority` | Select | да | — | нет | относительная важность |
 | `planned_start` | Datetime | нет | — | да | планируемое начало |
 | `due_at` | Datetime | нет | — | да | срок завершения |
 | `estimated_effort` | Duration | нет | — | нет | ожидаемый объём труда |
@@ -153,7 +155,23 @@ track_changes = 1
 | `sources` | Table → Work Source | нет | — | — | основания возникновения работы |
 | `references` | Table → Work Reference | нет | — | — | связанные предметные документы |
 
-Индексы задаются через стандартное свойство DocField `search_index`. Frappe при синхронизации схемы создаёт для таких полей обычные индексы БД. Дополнительные compound indexes в v1 не вводятся: они должны появляться только после измерения реальных запросов.
+`priority` не имеет metadata-default. В `before_validate` сначала используется `Work Type.default_priority`, а если он не задан — `Medium`. Так default Work Type действительно может работать и при этом сохранённый Work Item не зависит от будущего изменения Work Type.
+
+Индексы задаются через стандартное свойство DocField `search_index`. Frappe при синхронизации схемы создаёт для таких полей обычные индексы БД:
+https://github.com/frappe/frappe/blob/version-16/frappe/database/schema.py
+
+Дополнительные compound indexes в v1 не вводятся: они должны появляться только после измерения реальных запросов.
+
+### Priority
+
+```text
+Low
+Medium
+High
+Urgent
+```
+
+Priority — только относительная важность работы. Он не заменяет срок, SLA или Workflow.
 
 ### Status
 
@@ -230,6 +248,10 @@ is_child_table = 1
 
 Собственный Python v1 ограничивается понятными проверками и автоматическим заполнением текущего состояния.
 
+### Work Type.validate
+
+Если задан `default_responsible_unit`, он должен ссылаться на active Work Unit.
+
 ### Work Item.validate
 
 Проверяются только собственные контракты Work Item:
@@ -249,7 +271,8 @@ Frappe сам проверяет существование Link/Dynamic Link д
 Если значение ещё не задано явно:
 
 - `responsible_unit` копируется из `Work Type.default_responsible_unit`;
-- `priority` копируется из `Work Type.default_priority`, иначе остаётся `Medium`.
+- `priority` копируется из `Work Type.default_priority`;
+- если default priority у Work Type отсутствует, используется `Medium`.
 
 Defaults копируются в Work Item и дальше являются его собственным состоянием. Последующее изменение Work Type не переписывает уже созданные Work Item.
 
@@ -310,7 +333,8 @@ Work Manager
 
 Delete не выдаётся этим ролям по умолчанию. Устаревшие Work Unit и Work Type отключаются через `active = 0`; Work Item сохраняет историю вместо обычного удаления.
 
-Доступ к Work Item ограничивается стандартными User Permissions по `Work Unit`. Поскольку `Work Unit` является Tree DocType, Frappe умеет распространять User Permission родительского узла на его descendants, если `hide_descendants` не включён.
+Доступ к Work Item ограничивается стандартными User Permissions по `Work Unit`. Поскольку `Work Unit` является Tree DocType, Frappe v16 распространяет User Permission родительского узла на descendants, если `hide_descendants` не включён:
+https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/user_permission/user_permission.py
 
 Пример:
 
@@ -356,11 +380,13 @@ Work Reference.reference_name
 5. Повтор одной reference в одном Work Item запрещён.
 6. Inactive Work Type нельзя назначить новой или изменяемой Work Item.
 7. Inactive Work Unit нельзя назначить новой или изменяемой Work Item.
-8. Defaults Work Type копируются только при создании/пустом значении и не меняют исторические Work Item задним числом.
-9. Первый переход в `In Progress` заполняет `started_at` один раз.
-10. `Done` заполняет `completed_at`, reopen очищает его.
-11. User Permission на Work Unit ограничивает доступ к Work Item через `responsible_unit`.
-12. User Permission на родительский Work Unit даёт менеджеру доступ к дочерним узлам в соответствии со штатной NestedSet-семантикой Frappe.
+8. Inactive Work Unit нельзя сохранить как `default_responsible_unit` Work Type.
+9. Defaults Work Type копируются только в пустые поля Work Item и не меняют исторические Work Item задним числом.
+10. Если Work Type не задаёт priority, новый Work Item получает `Medium`.
+11. Первый переход в `In Progress` заполняет `started_at` один раз.
+12. `Done` заполняет `completed_at`, reopen очищает его.
+13. User Permission на Work Unit ограничивает доступ к Work Item через `responsible_unit`.
+14. User Permission на родительский Work Unit даёт менеджеру доступ к дочерним узлам в соответствии со штатной NestedSet-семантикой Frappe.
 
 Тесты не должны перепроверять ORM, Dynamic Link или NestedSet как самостоятельные возможности Framework. Проверяется только то, что приложение действительно опирается на них в собственном security/data contract.
 
