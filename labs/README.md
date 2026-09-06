@@ -1,6 +1,6 @@
 # VEQTA Labs
 
-VEQTA Labs — практические исследования поведения Frappe Framework на живом `Site`.
+VEQTA Labs — практические исследования поведения Frappe Framework на живом `App` и `Site`.
 
 Lab нужен, когда одновременно выполняются три условия:
 
