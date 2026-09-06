@@ -95,13 +95,11 @@ track_changes = 1
 
 Членство пользователей, штат, должности и доступ — разные ответственности. В одной установке пользователи могут быть синхронизированы из HRMS, в другой — из внешнего каталога, в третьей Work Unit вообще является сервисной очередью, а не подразделением.
 
-`Work Membership`, если используется, хранит организационный факт принадлежности к рабочей зоне. Он не является ACL.
-
 Базовый доступ к Work Item определяется штатными Roles/DocPerm Frappe. Конкретный Site при необходимости может дополнительно применять User Permissions или другие штатные ограничения, но такая конфигурация не меняет семантику Work Unit как очереди.
 
 ## Work Type
 
-`Work Type` классифицирует повторяющийся смысл работы и хранит только простые общие defaults, которые не создают маршрутизацию.
+`Work Type` классифицирует повторяющийся смысл работы. Он не определяет маршрутизацию, приоритет или другие свойства конкретного Work Item.
 
 ### Настройки DocType
 
@@ -117,17 +115,7 @@ track_changes = 1
 | --- | --- | --- | --- | --- | --- |
 | `type_name` | Data | да | — | Unique | отображаемое имя вида работы |
 | `active` | Check | да | 1 | — | можно ли выбирать тип для новой работы |
-| `default_priority` | Select | нет | — | — | приоритет по умолчанию |
 | `description` | Small Text | нет | — | — | пояснение назначения вида работы |
-
-`default_priority` использует те же значения, что `Work Item.priority`:
-
-```text
-Low
-Medium
-High
-Urgent
-```
 
 `Work Type` не определяет ответственную очередь. Связь вида работы с конкретным Work Unit является routing policy конкретного `Site`, а не семантикой классификатора.
 
@@ -162,10 +150,8 @@ allow_auto_repeat = 1
 | `priority` | Select | да | — | нет | относительная важность |
 | `planned_start` | Datetime | нет | — | да | планируемое начало |
 | `due_at` | Datetime | нет | — | да | срок завершения |
-| `estimated_effort` | Duration | нет | — | нет | ожидаемый объём труда |
 | `waiting_reason` | Small Text | нет | — | нет | текущая причина ожидания |
 | `waiting_since` | Datetime, Read Only | нет | — | нет | начало текущего ожидания |
-| `next_action` | Small Text | нет | — | нет | ближайшее следующее действие |
 | `started_at` | Datetime, Read Only | нет | — | нет | первое фактическое начало выполнения |
 | `closed_at` | Datetime, Read Only | нет | — | нет | время текущего закрытия lifecycle |
 | `parent_work_item` | Link → Work Item | нет | — | да | непосредственный родитель в декомпозиции работы |
@@ -174,7 +160,9 @@ allow_auto_repeat = 1
 | `references` | Table → Work Reference | нет | — | — | связанные предметные документы |
 | `auto_repeat` | Link → Auto Repeat, hidden | нет | — | нет | техническая ссылка штатного Auto Repeat |
 
-`priority` не имеет metadata-default. В `before_validate` сначала используется `Work Type.default_priority`, а если он не задан — `Medium`. Значение копируется в Work Item и дальше является его собственным состоянием.
+`priority` является состоянием конкретного Work Item. Work Type не подставляет его автоматически, поэтому изменение классификатора не несёт скрытой policy приоритета.
+
+`auto_repeat` — техническое поле интеграции со штатным Frappe Auto Repeat, а не предметное свойство работы.
 
 Дополнительные compound indexes в v1 не вводятся: они должны появляться только после измерения реальных запросов.
 
@@ -209,7 +197,7 @@ Cancelled
 - `Done` — работа выполнена;
 - `Cancelled` — работа прекращена без выполнения.
 
-Core не задаёт обязательный граф переходов. Если организации нужен собственный маршрут согласования, используется Frappe Workflow. Локальные workflow states могут обновлять канонический `status`, но не заменяют его семантику.
+Core не задаёт обязательный граф переходов. Если организации нужен собственный маршрут согласования, используется Frappe Workflow. Локальные workflow states могут обновлять канонический `status`, но не заменяют его семантику. Для такого сопоставления Workflow State использует `update_field = status` и `update_value` из канонического набора Work Management.
 
 ### Исполнители
 
@@ -239,7 +227,7 @@ priority
 planned_start / due_at
 ```
 
-Core не выполняет roll-up status, dates или effort и не закрывает родителя автоматически после завершения дочерних работ.
+Core не выполняет roll-up status или dates и не закрывает родителя автоматически после завершения дочерних работ.
 
 Self-parent и циклы hierarchy запрещены.
 
@@ -329,13 +317,6 @@ reference_name      Dynamic Link, options=reference_doctype
 
 Frappe сам проверяет существование Link/Dynamic Link документов; Core не дублирует эту инфраструктурную проверку.
 
-### Work Item.before_validate
-
-Если `priority` ещё не задан явно:
-
-- используется `Work Type.default_priority`;
-- если он отсутствует, используется `Medium`.
-
 ### Временные поля
 
 При первом переходе в `In Progress`:
@@ -371,17 +352,6 @@ closed_at = now()
 Assignments не являются отдельной ACL-моделью Work Management. Frappe сам управляет назначениями, `ToDo`, sharing и связанными permission checks.
 
 Если конкретному Site нужна изоляция по Work Unit или дополнительные ограничения назначения, он может использовать штатные User Permissions, Permission Levels, Workflow или другое допустимое расширение Frappe. Такая политика не является универсальным контрактом Core.
-
-## Work Membership и доступ
-
-`Work Membership`, если capability используется, хранит организационный факт: пользователь относится к Work Unit в определённый период.
-
-Он может использоваться для фильтра выбора пользователей при назначении, аналитики состава команды и валидации локального организационного правила. Он не заменяет Roles/User Permissions и не является вторым permission engine.
-
-```text
-Work Membership = organizational fact
-Frappe permissions = access control
-```
 
 ## Permissions v1
 
@@ -421,7 +391,6 @@ Frappe копирует reference document и вызывает `on_recurring`; W
 status = Open
 waiting_reason = empty
 waiting_since = empty
-next_action = empty
 started_at = empty
 closed_at = empty
 planned_start = empty
@@ -439,7 +408,6 @@ description
 work_type
 responsible_unit
 priority
-estimated_effort
 references
 ```
 
@@ -480,22 +448,20 @@ Work Reference.reference_name
 4. Duplicate reference запрещена.
 5. Inactive Work Type нельзя назначить новой или изменяемой Work Item.
 6. Inactive Work Unit нельзя назначить новой или изменяемой Work Item.
-7. Default priority копируется только в пустое поле и не меняет старые Work Item задним числом.
-8. При отсутствии default priority используется `Medium`.
-9. Первый вход в `In Progress` заполняет `started_at` один раз.
-10. Вход в `Waiting` заполняет `waiting_since`; выход очищает текущие waiting fields.
-11. `Done` и `Cancelled` заполняют `closed_at`; reopen очищает его.
-12. `parent_work_item` допускает нормальную декомпозицию, но запрещает self-reference и hierarchy cycle.
-13. `dependencies` запрещают duplicate, self-reference и dependency cycle.
-14. Новая parent/dependency связь на недоступную пользователю Work Item запрещена.
-15. Старая сохранённая parent/dependency связь не должна запускать собственную повторную read-проверку controller при несвязанном редактировании.
-16. Новая source/reference на недоступный пользователю документ запрещена.
-17. Старая сохранённая source/reference не блокирует редактирование Work Item только из-за последующего изменения permissions target document.
-18. В базовой конфигурации `responsible_unit` является очередью, а не ACL: Work User без дополнительных User Permissions видит Work Item разных Work Unit и может менять очередь в пределах своего DocPerm.
-19. User Permission на Work Type не превращает классификацию в дополнительную границу доступа к Work Item.
-20. Work Item использует штатные Frappe Assignments и допускает несколько активных assignments одновременно.
-21. Auto Repeat создаёт новый operational instance с очищенным lifecycle, dates, sources и Work Item structure при сохранении шаблонного контекста.
-22. Site Workflow может обновлять канонический `status`, а lifecycle timestamps Work Item остаются корректными.
+7. Первый вход в `In Progress` заполняет `started_at` один раз.
+8. Вход в `Waiting` заполняет `waiting_since`; выход очищает текущие waiting fields.
+9. `Done` и `Cancelled` заполняют `closed_at`; reopen очищает его.
+10. `parent_work_item` допускает нормальную декомпозицию, но запрещает self-reference и hierarchy cycle.
+11. `dependencies` запрещают duplicate, self-reference и dependency cycle.
+12. Новая parent/dependency связь на недоступную пользователю Work Item запрещена.
+13. Старая сохранённая parent/dependency связь не должна запускать собственную повторную read-проверку controller при несвязанном редактировании.
+14. Новая source/reference на недоступный пользователю документ запрещена.
+15. Старая сохранённая source/reference не блокирует редактирование Work Item только из-за последующего изменения permissions target document.
+16. В базовой конфигурации `responsible_unit` является очередью, а не ACL: Work User без дополнительных User Permissions видит Work Item разных Work Unit и может менять очередь в пределах своего DocPerm.
+17. User Permission на Work Type не превращает классификацию в дополнительную границу доступа к Work Item.
+18. Work Item использует штатные Frappe Assignments и допускает несколько активных assignments одновременно.
+19. Auto Repeat создаёт новый operational instance с очищенным lifecycle, dates, sources и Work Item structure при сохранении шаблонного контекста.
+20. Site Workflow может обновлять канонический `status`, а lifecycle timestamps Work Item остаются корректными.
 
 Тесты не должны перепроверять ORM, Dynamic Link, NestedSet, Workflow, Auto Repeat или ToDo как самостоятельные возможности Framework. Проверяется только то, что приложение действительно опирается на них в собственном data contract.
 
@@ -522,7 +488,7 @@ scheduler
 universal relation engine
 ```
 
-Любой из этих объектов может появиться как отдельная capability или обычный DocType и связываться с Work Item через `sources` или `references`, когда это соответствует семантике связи.
+Эти объекты не являются частью v1. Добавление каждого из них требует отдельной подтверждённой ответственности; распространённость похожего объекта в других task/project системах сама по себе недостаточна.
 
 `Work Event` специально не требуется для первой реализации Core: сначала используются `Track Changes`, lifecycle timestamps и штатные Assignment/ToDo records. Event-level история добавляется только когда появляется реальная потребность в точной аналитике времени в состояниях, reassignments, reopen или handover.
 

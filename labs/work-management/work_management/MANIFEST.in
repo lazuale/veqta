@@ -1,0 +1,8 @@
+include MANIFEST.in
+include *.md
+include *.toml
+recursive-include work_management *.json
+recursive-include work_management *.md
+recursive-include work_management *.py
+recursive-include work_management *.txt
+recursive-exclude work_management *.pyc

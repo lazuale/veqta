@@ -85,7 +85,7 @@ Cancelled
 Готово к выпуску
 ```
 
-Эти состояния относятся к локальному бизнес-процессу. При необходимости Workflow обновляет канонический `status`, чтобы общая семантика и отчётность продукта оставались стабильными.
+Эти состояния относятся к локальному бизнес-процессу. При необходимости Workflow обновляет канонический `status`, чтобы общая семантика и отчётность продукта оставались стабильными. Для этого соответствующий Workflow State использует `update_field = status` и каноническое значение в `update_value`.
 
 Таким образом, Work Management не навязывает этапы конкретной организации и одновременно не теряет общий operational lifecycle.
 
@@ -131,16 +131,15 @@ Work Item использует штатный Frappe Auto Repeat для прос
 Новый экземпляр считается новой операционной работой, поэтому не наследует instance-specific состояние прошлого выполнения:
 
 ```text
-status          → Open
-waiting fields  → cleared
-next_action     → cleared
-started_at      → cleared
-closed_at       → cleared
-planned_start   → cleared
-due_at          → cleared
+status           → Open
+waiting fields   → cleared
+started_at       → cleared
+closed_at        → cleared
+planned_start    → cleared
+due_at           → cleared
 parent_work_item → cleared
-dependencies    → cleared
-sources         → cleared
+dependencies     → cleared
+sources          → cleared
 ```
 
 При этом сохраняются шаблонные свойства:
@@ -150,31 +149,14 @@ subject / description
 work_type
 responsible_unit
 priority
-estimated_effort
 references
 ```
+
+Поле `auto_repeat` является технической интеграцией с Frappe и не изменяет предметную семантику Work Item.
 
 Assignments не копируются как поле Work Item: для повторяемых назначений используется штатная конфигурация Auto Repeat / ToDo.
 
 Site может расширять recurring behavior, но совместимая настройка не должна превращать старый экземпляр Work Item в источник lifecycle state нового экземпляра.
-
-## Work Membership и permissions
-
-`Work Membership` хранит организационный факт принадлежности пользователя к Work Unit и может использоваться для:
-
-- фильтра выбора пользователей при назначении;
-- отображения состава команды;
-- аналитики;
-- локальной проверки принадлежности назначаемого пользователя к рабочей зоне.
-
-Он не заменяет Roles/User Permissions и не является источником прав доступа.
-
-```text
-Work Membership = organizational fact
-Frappe permissions = access control
-```
-
-Это исключает две конфликтующие модели безопасности.
 
 ## Sources и references
 
