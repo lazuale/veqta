@@ -1,6 +1,6 @@
-# Work Item v1
+# Модель данных v1: `Work Item`
 
-`Work Item` — основной документ текущего Work Management prototype. Он представляет сам факт работы. Назначения, комментарии, файлы, теги, коммуникации, повторение, представления и отчётность не дублируются собственными сущностями и полями, если соответствующую ответственность уже закрывает Frappe.
+`Work Item` — основной документ текущего прототипа управления работой. Он представляет сам факт работы. Назначения, комментарии, файлы, теги, коммуникации, повторение, представления и отчётность не дублируются собственными сущностями и полями, если соответствующую ответственность уже закрывает Frappe.
 
 ## DocType
 
@@ -50,14 +50,16 @@ Sort Order: DESC
 
 ## Поля
 
-| Label | Fieldname | Type | Required | Default | No Copy | List | Filter | Global Search | Quick Entry |
+| Метка | Fieldname | Type | Обязательно | По умолчанию | No Copy | В списке | Фильтр | Global Search | Quick Entry |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Subject | `subject` | Data | yes | — | no | title | no | yes | yes, как required |
-| Description | `description` | Text Editor | no | — | no | no | no | yes | yes |
-| Status | `status` | Select | yes | `Open` | yes | yes | yes | no | yes, как required |
-| Priority | `priority` | Select | yes | `Medium` | no | yes | yes | no | yes, как required |
-| Due Date | `due_date` | Date | no | — | yes | yes | yes | no | yes |
-| Links | `links` | Table → `Dynamic Link` | no | — | yes | no | no | no | no |
+| Название | `subject` | Data | yes | — | no | title | no | yes | yes, как required |
+| Описание | `description` | Text Editor | no | — | no | no | no | yes | yes |
+| Статус | `status` | Select | yes | `Открыто` | yes | yes | yes | no | yes, как required |
+| Приоритет | `priority` | Select | yes | `Medium` | no | yes | yes | no | yes, как required |
+| Срок | `due_date` | Date | no | — | yes | yes | yes | no | yes |
+| Связи | `links` | Table → `Dynamic Link` | no | — | yes | no | no | no | no |
+
+Технические `fieldname` остаются английскими. Русский язык относится к пользовательским меткам и бизнес-значениям, а не к API-идентификаторам полей.
 
 ### `subject`
 
@@ -87,37 +89,41 @@ Sort Order: DESC
 ### `status`
 
 ```text
-Open
-Waiting
-Closed
-Cancelled
+Открыто
+Ожидание
+Закрыто
+Отменено
 ```
 
 Семантика:
 
-- `Open` — работа актуальна и может выполняться;
-- `Waiting` — работа актуальна, но продолжение зависит от внешнего события;
-- `Closed` — работа полностью завершена;
-- `Cancelled` — работа больше не требуется.
+- `Открыто` — работа актуальна и может выполняться;
+- `Ожидание` — работа актуальна, но продолжение зависит от внешнего события;
+- `Закрыто` — работа полностью завершена;
+- `Отменено` — работа больше не требуется.
 
-Типичные причины `Waiting`: ожидается ответ, согласование, документ или решение. Само назначение исполнителя не меняет `status`.
+Типичные причины `Ожидание`: ожидается ответ, согласование, документ или решение. Само назначение исполнителя не меняет `status`.
 
 ```text
-Open + нет assignment
+Открыто + нет назначения
 = свободная работа
 
-Open + assignment
+Открыто + назначение
 = открытая работа взята исполнителем
 
-Waiting + assignment
+Ожидание + назначение
 = исполнитель остаётся ответственным, но продолжение сейчас невозможно
 ```
 
-`In Progress` не используется: наличие активного assignment уже хранит факт персональной ответственности, а `status` не дублирует эту ось.
+Отдельное состояние «В работе» не используется: наличие активного назначения уже хранит факт персональной ответственности, а `status` не дублирует эту ось.
 
-`status` имеет `No Copy = Yes`, чтобы новый экземпляр работы не наследовал `Waiting`, `Closed` или `Cancelled` от исходного документа.
+`status` имеет `No Copy = Yes`, чтобы новый экземпляр работы не наследовал `Ожидание`, `Закрыто` или `Отменено` от исходного документа.
+
+Русские значения `status` используются намеренно. В штатном Kanban Frappe имя колонки является фактическим значением поля, поэтому отдельная локализованная подпись для английского значения без собственного кода не предусмотрена.
 
 ### `priority`
+
+Технические значения:
 
 ```text
 Low
@@ -125,9 +131,17 @@ Medium
 High
 ```
 
-Значения совпадают со стандартным `ToDo.priority` и ручным `Assign To` Frappe.
+Они совпадают со стандартным `ToDo.priority` и ручным `Assign To` Frappe, поэтому не меняются.
 
-`priority` характеризует важность самой работы и копируется при обычном копировании/повторении как часть содержательного контекста.
+В русском интерфейсе они отображаются через штатный `Translation` с контекстом `Work Item`:
+
+```text
+Low    → Низкий
+Medium → Средний
+High   → Высокий
+```
+
+`priority` характеризует важность самой работы и копируется при обычном копировании или повторении как часть содержательного контекста.
 
 ### `due_date`
 
@@ -139,21 +153,21 @@ High
 
 ```text
 Work Item.due_date = общий срок работы
-ToDo.date          = Complete By конкретного assignment
+ToDo.date          = Complete By конкретного назначения
 ```
 
 Поле имеет `No Copy = Yes`, чтобы новый экземпляр не наследовал абсолютный срок старой работы.
 
 ### `links`
 
-Необязательная таблица на стандартном child DocType `Dynamic Link`.
+Необязательная таблица на стандартном дочернем DocType `Dynamic Link`.
 
-Она связывает Work Item с произвольными документами Frappe без собственного relation DocType.
+Она связывает Work Item с произвольными документами Frappe без собственного DocType связей.
 
 Пример:
 
 ```text
-Links
+Связи
 
 Purchase Order    PO-00015
 Customer          ACME
@@ -162,7 +176,7 @@ Some Document     DOC-0042
 
 `links` имеет `No Copy = Yes`: связь относится к конкретному экземпляру работы и не переносится автоматически в новую повторяющуюся работу.
 
-## Assignment
+## Назначения
 
 Исполнитель не хранится собственным полем `Work Item`.
 
@@ -174,7 +188,7 @@ Work Item
 ToDo
 ```
 
-Один Work Item может иметь ноль, один или несколько активных assignments.
+Один Work Item может иметь ноль, одно или несколько активных назначений.
 
 ```text
 Work Item.status = состояние работы
@@ -183,29 +197,29 @@ ToDo             = назначение работы конкретному по
 
 Закрытие собственного `ToDo` не закрывает `Work Item`. Изменение `Work Item.status` также не закрывает связанные `ToDo` автоматически.
 
-Это две независимые штатные модели состояния, и текущий native-first вариант не добавляет между ними собственную синхронизацию.
+Это две независимые штатные модели состояния, и текущий вариант не добавляет между ними собственную синхронизацию.
 
-## Waiting
+## Ожидание
 
-`Waiting` является полноценным состоянием Work Item, а не тегом.
+`Ожидание` является полноценным состоянием Work Item, а не тегом.
 
 Обычный цикл может выглядеть так:
 
 ```text
-Open
+Открыто
 ↓ отправлен запрос
-Waiting
+Ожидание
 ↓ получен ответ
-Open
+Открыто
 ↓ работа завершена
-Closed
+Закрыто
 ```
 
 Отдельные поля `waiting_reason`, `waiting_since` и `waiting_until` пока не входят в модель. Конкретный контекст ожидания фиксируется в Timeline/Comments.
 
 ## Auto Repeat
 
-Для календарного повторения используется штатный `Auto Repeat` Frappe. Собственный scheduler не создаётся.
+Для календарного повторения используется штатный `Auto Repeat` Frappe. Собственный планировщик не создаётся.
 
 Текущая схема специально не копирует:
 
@@ -223,7 +237,7 @@ description
 priority
 ```
 
-Assignments Auto Repeat не являются обязательной частью модели: базовый сценарий оставляет новый Work Item в общей очереди.
+Назначения Auto Repeat не являются обязательной частью модели: базовый сценарий оставляет новый Work Item в общей очереди.
 
 ## Communication
 
@@ -263,7 +277,7 @@ end_date
 
 ## Штатные механизмы вокруг Work Item
 
-Текущая модель рассчитана на использование следующих возможностей Frappe без собственного frontend или движков:
+Текущая модель рассчитана на использование следующих возможностей Frappe без собственного интерфейса или движков:
 
 ```text
 Assign To / ToDo
@@ -282,9 +296,10 @@ Report Builder
 Number Card
 Dashboard Chart
 Workspace
+Translation
 ```
 
-## Текущие ограничения native-first варианта
+## Текущие ограничения
 
 1. `Work Item.status` и `ToDo.status` не синхронизируются автоматически.
 2. `Work Item.due_date` и `ToDo.date` имеют разную семантику и не считаются одним сроком.
@@ -297,6 +312,9 @@ Workspace
 
 - [DocType](https://docs.frappe.io/framework/user/en/basics/doctypes)
 - [Field Types](https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes)
+- [Translations](https://docs.frappe.io/framework/user/en/translations)
 - [`Assign To` source, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/desk/form/assign_to.py)
 - [`ToDo` source, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/todo/todo.py)
 - [`Auto Repeat` source, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/automation/doctype/auto_repeat/auto_repeat.py)
+- [`Select` control, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/form/controls/select.js)
+- [`Kanban View`, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/views/kanban/kanban_view.js)
