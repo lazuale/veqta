@@ -6,46 +6,37 @@
 
 ## Русский интерфейс
 
-Пользовательская часть управления работой настраивается на русском языке. Технические идентификаторы Frappe и нашей модели при этом остаются стабильными:
+Пользовательская часть управления работой настраивается на русском языке. Технические идентификаторы и хранимые значения модели остаются стабильными:
 
 ```text
 DocType: Work Item
 fieldnames: subject, description, status, priority, due_date, links
+status values: Open, Waiting, Closed, Cancelled
 priority values: Low, Medium, High
 ```
 
-Русскими задаются:
+Русскими задаются метки полей, названия Saved Filters, Kanban Board, Calendar View, Number Cards, Dashboard Charts, Workspace и shortcuts.
 
-- метки полей `Work Item`;
-- значения `status`;
-- названия Saved Filters;
-- Kanban Board и Calendar View;
-- Number Cards и Dashboard Charts;
-- Workspace и его shortcuts.
+`Work Item` отображается как `Работа` через штатный DocType `Translation`.
 
-Для технического имени `Work Item` и значений приоритета используется штатный DocType `Translation`:
-
-| Source Text | Context | Translated Text |
-| --- | --- | --- |
-| `Work Item` | — | `Работа` |
-| `Low` | `Work Item` | `Низкий` |
-| `Medium` | `Work Item` | `Средний` |
-| `High` | `Work Item` | `Высокий` |
-
-Контекст `Work Item` у приоритетов нужен, чтобы не менять отображение общих значений `Low / Medium / High` в других DocType. Frappe переводит подписи значений `Select` с контекстом DocType, сохраняя исходное значение поля.
-
-Статусы устроены иначе: их фактические значения сразу русские:
+Для технических значений `status` и `priority` используется механизм перевода Frappe, а не изменение самих значений:
 
 ```text
-Открыто
-Ожидание
-Закрыто
-Отменено
+Open      → Открыто
+Waiting   → Ожидание
+Closed    → Закрыто
+Cancelled → Отменено
+
+Low       → Низкий
+Medium    → Средний
+High      → Высокий
 ```
 
-Это требуется для полностью русского штатного Kanban: Frappe использует фактическое значение поля `status` как имя колонки и не хранит для колонки отдельную локализованную подпись.
+Если эти общие строки уже переведены текущим русским словарём Site, отдельные записи `Translation` не дублируются. Если конкретная строка остаётся английской, её можно добавить через штатный `Translation`. Для `Work Item` отдельный перевод требуется, потому что это наш Custom DocType.
 
-Dashboard Chart с `Group By` также использует фактические значения поля как подписи групп. Поэтому отдельный график по `priority` не входит в русскую конфигурацию: он показывал бы `Low / Medium / High`, а менять технические значения приоритета нельзя из-за совместимости со стандартным `ToDo.priority`.
+Это не меняет модель данных. В частности, Kanban хранит колонки по фактическим значениям `Open / Waiting / Closed / Cancelled`, а шаблон колонки Frappe выводит заголовок через `__()`, поэтому пользователь видит перевод.
+
+Есть одно ограничение: `Dashboard Chart → Group By` возвращает значения поля как готовые подписи и не применяет к значениям `Select` перевод. Поэтому категориальные графики по `status` и `priority` в русскую конфигурацию не входят: они показывали бы английские технические значения. Собственный код ради локализации графиков не добавляется.
 
 ## Основной сценарий
 
@@ -55,8 +46,8 @@ Dashboard Chart с `Group By` также использует фактическ
 Work Item создан
 → виден Work User
 → пользователь берёт его через Assign to me
-→ при внешней блокировке переводит в Ожидание
-→ после выполнения закрывает назначение и переводит Work Item в Закрыто
+→ при внешней блокировке переводит в Waiting (Ожидание)
+→ после выполнения закрывает назначение и переводит Work Item в Closed (Закрыто)
 ```
 
 `Work Item.status` описывает состояние самой работы, а `Assign To / ToDo` — персональную ответственность.
@@ -85,18 +76,20 @@ creation DESC
 
 ```text
 Активные
-status in Открыто, Ожидание
+status in Open, Waiting
 
 Открытые
-status = Открыто
+status = Open
 
 Ожидание
-status = Ожидание
+status = Waiting
 
 Без исполнителя
-status = Открыто
+status = Open
 Assigned To is not set
 ```
+
+Названия фильтров русские, а их условия используют фактические значения полей.
 
 Для неназначенной работы используется явный фильтр `Assigned To is not set`.
 
@@ -115,7 +108,16 @@ Field: status
 Private: No
 ```
 
-Колонки:
+Технические колонки:
+
+```text
+Open
+Waiting
+Closed
+Cancelled
+```
+
+В русском интерфейсе их заголовки отображаются как:
 
 ```text
 Открыто
@@ -171,7 +173,7 @@ Notify by Email: No
 - `subject` копируется;
 - `description` копируется;
 - `priority` копируется;
-- `status` не копируется и получает обычный default `Открыто`;
+- `status` не копируется и получает обычный default `Open`;
 - `due_date` не копируется;
 - `links` не копируются.
 
@@ -195,7 +197,7 @@ Event: Days Before
 Reference Date: due_date
 Days Before: 1
 Channel: Email
-Filters: status in Открыто, Ожидание
+Filters: status in Open, Waiting
 Send To All Assignees: Yes
 ```
 
@@ -211,11 +213,11 @@ Workspace использует пять Number Cards типа `Document Type` с
 
 | Card | Filters |
 | --- | --- |
-| Активные работы | `status in Открыто, Ожидание` |
-| Ожидание | `status = Ожидание` |
-| Без исполнителя | `status = Открыто`, `Assigned To is not set` |
-| Высокий приоритет | `status in Открыто, Ожидание`, `priority = High` |
-| Срок сегодня | `status in Открыто, Ожидание`, `due_date Timespan today` |
+| Активные работы | `status in Open, Waiting` |
+| Ожидание | `status = Waiting` |
+| Без исполнителя | `status = Open`, `Assigned To is not set` |
+| Высокий приоритет | `status in Open, Waiting`, `priority = High` |
+| Срок сегодня | `status in Open, Waiting`, `due_date Timespan today` |
 
 Для карточек:
 
@@ -233,19 +235,7 @@ Number Card кликабельна и открывает отфильтрова�
 
 ## Dashboard Charts
 
-### Активные по статусу
-
-```text
-Chart Type: Group By
-Document Type: Work Item
-Group By Based On: status
-Group By Type: Count
-Filters: status in Открыто, Ожидание
-Type: Donut
-Is Public: Yes
-```
-
-Статусы хранятся по-русски, поэтому подписи групп этого графика также русские.
+В русской конфигурации используется один временной график.
 
 ### Новые работы
 
@@ -261,6 +251,8 @@ Is Public: Yes
 ```
 
 Этот график показывает только поступление новых Work Item. Он не является показателем производительности или объёма выполненной работы.
+
+Графики `Group By` по `status` и `priority` намеренно не создаются: Frappe v16 отдаёт технические значения `Select` как подписи групп без перевода.
 
 Dynamic Filters с JavaScript expressions не используются.
 
@@ -280,7 +272,7 @@ Dynamic Filters с JavaScript expressions не используются.
 - сколько Work Item пользователь завершил за период;
 - фактическое время выполнения;
 - процент выполнения в срок;
-- длительность состояния `Ожидание`.
+- длительность состояния `Waiting`.
 
 Для этих показателей в модели нет структурированных фактов завершения и периодов состояния. `modified` не используется как подмена даты закрытия.
 
@@ -345,9 +337,6 @@ Roles:
 │   ├── Высокий приоритет
 │   └── Срок сегодня
 │
-├── СТРУКТУРА ОЧЕРЕДИ
-│   └── Активные по статусу
-│
 └── ПОСТУПЛЕНИЕ
     └── Новые работы
 ```
@@ -364,7 +353,7 @@ Custom HTML Blocks, отдельный Dashboard, Onboarding и служебны
 - Work User с `Write` на общей очереди может редактировать Work Item и снимать назначение другого Work User;
 - `Work Item.due_date` и `ToDo.date` независимы;
 - Auto Repeat не вычисляет относительный срок Work Item;
-- Dashboard Chart `Group By` не применяет контекстные переводы к значениям `Select`, поэтому график по `priority` намеренно не добавляется;
+- Dashboard Chart `Group By` не применяет перевод к значениям `Select`, поэтому категориальные графики по `status` и `priority` намеренно не добавляются;
 - безопасная командная аналитика по всем назначениям Work Item не получается только через стандартные права на `ToDo`, не открыв другие ToDo Site;
 - история `closed_at / closed_by` не хранится отдельными полями.
 
@@ -375,7 +364,8 @@ Custom HTML Blocks, отдельный Dashboard, Onboarding и служебны
 - [Translations](https://docs.frappe.io/framework/user/en/translations)
 - [Translation DocType](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/translation/translation.json)
 - [Select control](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/form/controls/select.js)
-- [Kanban View](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/views/kanban/kanban_view.js)
+- [Kanban column template](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/views/kanban/kanban_column.html)
+- [Kanban Board](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/kanban_board/kanban_board.py)
 - [Dashboard Chart](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
 - [Calendar View](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/calendar_view/calendar_view.js)
 - [List View selector](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/list/list_view_select.js)
