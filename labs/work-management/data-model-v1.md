@@ -211,7 +211,7 @@ Closed
 
 ```text
 status
- due_date
+due_date
 links
 ```
 
