@@ -25,6 +25,7 @@ S08 показал, откуда должен восстанавливаться
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/commands/site.py
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/installer.py
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/migrate.py
+- https://github.com/frappe/bench/blob/v5.31.0/bench/commands/config.py
 
 ---
 
@@ -162,13 +163,21 @@ grep -n 'developer_mode' sites/common_site_config.json || true
 
 `developer_mode` не должен быть глобальной обязательной настройкой.
 
-Если вы проходили старую версию S00 и там осталось глобальное значение, исправьте окружение:
+Если вы проходили старую версию S00 и там осталось глобальное значение, удалите сам ключ из `common_site_config.json` штатной командой Bench, затем оставьте developer mode только на Site разработки:
+
+```bash
+bench config remove-common-config developer_mode
+bench --site rental.localhost set-config developer_mode 1 --parse
+bench --site rental.localhost clear-cache
+```
+
+Не используйте для удаления ключа:
 
 ```bash
 bench set-config -g developer_mode None
-bench --site rental.localhost set-config developer_mode 1
-bench --site rental.localhost clear-cache
 ```
+
+Без `--parse` такое значение записывается как строка `"None"`, а не удаляет настройку. Для удаления общего ключа Bench 5.31.0 предоставляет отдельную команду `config remove-common-config`.
 
 Проверьте Site разработки:
 
