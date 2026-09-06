@@ -6,7 +6,7 @@ Work Management — прототип управления операционно
 
 На этом этапе Work Management не является отдельным `App`. Прототип добавляет один site-level `Custom DocType` — `Work Item` — и использует штатные механизмы Frappe вокруг него.
 
-Точная схема `Work Item` описана в [Data Model v1](data-model-v1.md).
+Точная схема `Work Item` описана в [Data Model v1](data-model-v1.md). Права доступа и граница штатных permissions описаны в [Security v1](security-v1.md).
 
 ## Граница текущей модели
 
