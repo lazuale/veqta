@@ -3,11 +3,11 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "links": [],
- "modified": "2026-09-05 00:00:00.000000",
+ "modified": "2026-09-06 00:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "states": [],
- "allow_auto_repeat": 0,
+ "allow_auto_repeat": 1,
  "autoname": "WI-.YYYY.-.#####",
  "creation": "2026-09-05 00:00:00.000000",
  "field_order": [
@@ -28,9 +28,13 @@
   "next_action",
   "started_at",
   "closed_at",
+  "structure_section",
+  "parent_work_item",
+  "dependencies",
   "links_section",
   "sources",
-  "references"
+  "references",
+  "auto_repeat"
  ],
  "fields": [
   {
@@ -150,6 +154,27 @@
    "read_only": 1
   },
   {
+   "fieldname": "structure_section",
+   "fieldtype": "Section Break",
+   "label": "Structure and Dependencies"
+  },
+  {
+   "fieldname": "parent_work_item",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Parent Work Item",
+   "no_copy": 1,
+   "options": "Work Item",
+   "search_index": 1
+  },
+  {
+   "fieldname": "dependencies",
+   "fieldtype": "Table",
+   "label": "Dependencies",
+   "no_copy": 1,
+   "options": "Work Dependency"
+  },
+  {
    "fieldname": "links_section",
    "fieldtype": "Section Break",
    "label": "Sources and References"
@@ -165,6 +190,15 @@
    "fieldtype": "Table",
    "label": "References",
    "options": "Work Reference"
+  },
+  {
+   "fieldname": "auto_repeat",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Auto Repeat",
+   "no_copy": 1,
+   "options": "Auto Repeat",
+   "read_only": 1
   }
  ],
  "module": "Work Management",
@@ -189,7 +223,7 @@
    "role": "System Manager"
   }
  ],
- "search_fields": "subject,work_type,responsible_unit",
+ "search_fields": "subject,work_type,responsible_unit,parent_work_item",
  "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
