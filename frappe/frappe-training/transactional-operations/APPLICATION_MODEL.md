@@ -56,14 +56,16 @@ Rental Operator
 → без прямого доступа
 ```
 
-`Create`, `Write` и `Delete` прикладным ролям не выдаются.
+Штатный административный доступ `System Manager` сохраняется отдельно. `Create`, `Write` и `Delete` прикладным ролям не выдаются.
 
 Movement создаётся внутри уже авторизованной команды Rental:
 
 ```text
-перечитать persisted Rental
+загрузить persisted Rental с FOR UPDATE
         ↓
 проверить write на этот Rental
+        ↓
+проверить предметное состояние
         ↓
 внутренне создать Movement
 ```
@@ -77,16 +79,23 @@ doc.insert(ignore_permissions=True)
 `ignore_permissions=True` здесь не исправляет ошибку модели прав. Авторизация уже выполнена на границе команды через:
 
 ```python
-self.check_permission("write")
+rental.check_permission("write")
 ```
 
-Причём явная проверка выполняется **после `self.reload()`**, чтобы она опиралась на persisted Document из БД, а не на присланное клиентом состояние.
+Причём проверка выполняется на Document, заново загруженном из БД с блокировкой:
 
-Без этой проверки внутренний bypass был бы неправильной границей безопасности.
+```python
+rental = frappe.get_doc("Rental", self.name, for_update=True)
+```
 
-Первичный источник:
+Так команда не опирается на присланное клиентом состояние и одновременно сериализует конкурирующие Issue/Return одного Rental.
+
+Без явной проверки `write` внутренний bypass был бы неправильной границей безопасности.
+
+Первичные источники:
 
 - https://docs.frappe.io/framework/user/en/api/document
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/document.py
 
 ## Явные команды Rental
 
@@ -124,10 +133,13 @@ Form вызывает их через `frm.call()`.
 
 Ограничение `methods=["POST"]` важно по смыслу: операция изменяет данные и должна выполняться записывающим HTTP-методом, а не GET.
 
+Для legacy `frm.call()` сам POST не означает автоматическую `write`-permission проверку: `run_doc_method()` загружает Document с `check_permission=True`, что без конкретного типа означает обычную проверку `read`. Поэтому изменяющая команда явно вызывает `rental.check_permission("write")`.
+
 Первичные источники:
 
 - https://docs.frappe.io/framework/user/en/api/form#frmcall
-- https://github.com/frappe/frappe/blob/v16.33.0/frappe/api/v2.py
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/handler.py
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/document.py
 
 ## Почему не on_update
 
@@ -174,7 +186,7 @@ Active → Returned
 Для связи разрешённого перехода с текущим вызовом команды используется transient flag, например:
 
 ```python
-self.flags.rental_operation = "issue"
+rental.flags.rental_operation = "issue"
 ```
 
 Флаг не хранится в БД и не становится дополнительным состоянием модели.
@@ -192,13 +204,24 @@ Rental содержит Equipment
 Команда выполняет:
 
 ```text
-1. перечитать persisted Rental
-2. проверить write permission текущего пользователя
+1. загрузить persisted Rental с for_update=True
+2. проверить write permission текущего пользователя на locked Rental
 3. проверить status = Planned
 4. разрешить внутренний переход Planned → Active
 5. сохранить Rental через Document API
-6. создать Issue Movement для каждого Rental Item
-7. вернуть успешный результат
+6. при V03 сериализовать конкуренцию по Equipment и выполнить current locking reads
+7. создать Issue Movement для каждого Rental Item
+8. вернуть успешный результат
+```
+
+`Rental FOR UPDATE` и `Equipment FOR UPDATE` решают разные задачи:
+
+```text
+Rental FOR UPDATE
+→ не даёт двум Issue/Return одновременно принять решение по одному Rental
+
+Equipment FOR UPDATE + locking reads V03
+→ не даёт двум Rentals одновременно занять одно Equipment на пересекающийся период
 ```
 
 Внутри операции нет:
@@ -207,12 +230,13 @@ Rental содержит Equipment
 frappe.db.commit()
 ```
 
-В обычном успешном POST Frappe фиксирует DB writes в конце request. При необработанном исключении request откатывается.
+В обычном успешном POST Frappe фиксирует DB writes в конце request. При необработанном исключении request откатывается. Row locks живут в той же транзакции и освобождаются при её завершении.
 
 Первичные источники:
 
 - https://docs.frappe.io/framework/user/en/api/database#database-transaction-model
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/app.py
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/database/database.py
 
 ### Атомарный контракт Issue
 
@@ -236,6 +260,8 @@ Issue Movement не остаются в БД
 Rental = Active
 Movement создан только для части Equipment
 ```
+
+Повторный конкурентный `issue()` того же Rental после ожидания row lock увидит уже `Active` и будет отклонён до создания второго набора Movement.
 
 ## Почему исключение должно выйти наружу
 
@@ -270,8 +296,8 @@ Rental.status = Active
 Команда выполняет:
 
 ```text
-1. перечитать persisted Rental
-2. проверить write permission текущего пользователя
+1. загрузить persisted Rental с for_update=True
+2. проверить write permission текущего пользователя на locked Rental
 3. проверить status = Active
 4. разрешить Active → Returned
 5. сохранить Rental через Document API
@@ -288,7 +314,7 @@ Rental.status = Active
 
 Повторный `issue()` после успешной выдачи отклоняется состоянием `Active`.
 
-Повторный `return_equipment()` после возврата отклоняется состоянием `Returned`.
+Повторный `return_equipment()` после возврата отклоняется состоянием `Returned`. При конкурентных вызовах row lock Rental не позволяет обоим request принять решение по одному старому состоянию.
 
 Отдельная deduplication infrastructure текущей локальной операции не нужна.
 
@@ -315,9 +341,12 @@ frappe.db.set_value("Rental", rental.name, "status", "Active")
 
 Это не делает `set_value` плохим API. У него другая ответственность: техническое изменение БД, когда обход Document lifecycle является намеренным.
 
-Первичный источник:
+Для V03 прямой Database API используется по другой конкретной причине: `frappe.db.get_values(..., for_update=True)` выполняет locking/current read после захвата общего Equipment lock, чтобы конкурентная проверка видела актуальное зафиксированное состояние. Это чтение не заменяет пользовательский `get_list()`.
 
-- https://docs.frappe.io/framework/user/en/api/database#frappedbset_value
+Первичные источники:
+
+- https://docs.frappe.io/framework/user/en/api/database
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/database/database.py
 
 ## Что принадлежит App
 
@@ -328,6 +357,7 @@ frappe.db.set_value("Rental", rental.name, "status", "Active")
 - metadata `Rental.status`;
 - серверное правило `new Rental → Planned`;
 - защиту переходов состояния;
+- V03 с row locks/current reads для конкурентной границы текущей модели;
 - POST-only controller methods `issue()` и `return_equipment()`;
 - Form buttons для вызова серверных методов;
 - автоматические тесты собственных контрактов.
