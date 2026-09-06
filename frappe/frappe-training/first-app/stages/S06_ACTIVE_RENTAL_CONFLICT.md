@@ -132,7 +132,16 @@ frappe.get_all(...)
 
 Текущий Rental содержит Equipment через `Rental Item`.
 
-Сначала находим дочерние строки с теми же Equipment:
+Перед проверкой пересечений Active Rental блокирует строки выбранных Equipment в стабильном порядке:
+
+```text
+current.items
+→ уникальные Equipment
+→ sort
+→ Equipment FOR UPDATE
+```
+
+После этого находим дочерние строки с теми же Equipment:
 
 ```text
 current.items
@@ -149,7 +158,9 @@ AND start_date <= current.end_date
 AND end_date >= current.start_date
 ```
 
-Получается два обычных запроса через Database API Frappe. Ручной SQL текущему требованию не нужен.
+Row lock нужен не для чтения самого Equipment, а для сериализации конкурирующих проверок одного и того же ресурса. Два параллельных Rental с одинаковым Equipment не смогут одновременно пройти V03 на одном старом снимке состояния: второй дождётся завершения транзакции первого и только потом повторит запрос конфликтов.
+
+Ручной SQL текущему требованию не нужен: Frappe `get_doc(..., for_update=True)` штатно загружает Document с `FOR UPDATE`.
 
 ---
 
@@ -179,6 +190,7 @@ class Rental(Document):
     def validate(self):
         self.validate_date_range()
         self.validate_duplicate_equipment()
+        self.lock_active_equipment()
         self.validate_active_equipment_conflicts()
 
     def validate_date_range(self):
@@ -190,6 +202,15 @@ class Rental(Document):
 
         if len(equipment) != len(set(equipment)):
             frappe.throw(_("The same Equipment cannot be selected more than once in one Rental."))
+
+    def lock_active_equipment(self):
+        if self.status != "Active":
+            return
+
+        equipment = sorted({row.equipment for row in self.items if row.equipment})
+
+        for equipment_name in equipment:
+            frappe.get_doc("Equipment", equipment_name, for_update=True)
 
     def validate_active_equipment_conflicts(self):
         if self.status != "Active" or not self.start_date or not self.end_date:
@@ -260,6 +281,26 @@ if self.status != "Active":
 ```
 
 Поэтому `Planned` и `Returned` не участвуют в V03.
+
+## Row lock выбранных Equipment
+
+```python
+equipment = sorted({row.equipment for row in self.items if row.equipment})
+
+for equipment_name in equipment:
+    frappe.get_doc("Equipment", equipment_name, for_update=True)
+```
+
+`for_update=True` удерживает блокировку строк Equipment до завершения текущей транзакции.
+
+Сортировка обязательна для предсказуемого порядка захвата нескольких блокировок. Если два Rental содержат один и тот же набор Equipment в разном порядке, оба request всё равно пытаются блокировать строки в одинаковой последовательности. Это снижает риск взаимной блокировки.
+
+Row lock не заменяет формулу V03 и ничего не знает о датах. Его ответственность только одна:
+
+```text
+одинаковое Equipment
+→ конкурирующие проверки выполняются последовательно
+```
 
 ## Пустые даты
 
@@ -475,9 +516,9 @@ V03 всё равно сработал
 
 ---
 
-# 15. Что эта проверка не гарантирует при конкурентных запросах
+# 15. Почему одной проверки без блокировки недостаточно
 
-Обычная `validate()`-проверка не исключает сценарий:
+Без row lock возможна гонка:
 
 ```text
 T1 проверяет → конфликта ещё нет
@@ -486,25 +527,32 @@ T1 записывает Rental
 T2 записывает Rental
 ```
 
-S06 доказывает только:
+Поэтому последовательная проверка через `get_all()` сама по себе не является полной гарантией V03.
+
+В текущей модели роль общего ресурса выполняет строка `Equipment`. Оба конкурирующих Active Rental должны сначала получить lock одного и того же Equipment:
 
 ```text
-при последовательном сохранении
-существующий конфликт обнаруживается
+T1 → Equipment FOR UPDATE → проверка V03 → save → commit
+T2 → ждёт тот же Equipment
+T1 commit
+T2 получает lock → повторяет V03 → видит Rental T1 → ошибка
 ```
 
-Он не доказывает строгую сериализацию параллельных бронирований.
+Это и есть недостающая ответственность `lock_active_equipment()`.
 
-Реальная задача с конкурентными запросами может потребовать отдельной доказанной стратегии:
+Важно различать:
 
 ```text
-транзакции и блокировки
-модель резервирования
-сериализованный критический участок
-другая схема конкурентного доступа
+for_update
+→ сериализация конкурентного критического участка
+
+validate_active_equipment_conflicts
+→ предметная проверка дат и статусов
 ```
 
-Какой именно механизм нужен, определяется реальной нагрузкой и требованием. В практикуме не добавляем SQL locks или Reservation Service ради демонстрации возможностей.
+Блокировка не заменяет инвариант, а инвариант без блокировки не закрывает конкурентную гонку.
+
+Если позже появится другая модель резервирования, распределённая БД или иной ресурс конкуренции, стратегию нужно будет пересмотреть по новым требованиям. Для текущей модели отдельный Reservation Service не нужен.
 
 ---
 
@@ -581,7 +629,9 @@ Returned overlap                        → не блокирует
 почему V03 читает другие Documents
 почему внутренний инвариант использует get_all
 почему пользовательский поиск от этого не становится get_all
-почему обычная validate-проверка не гарантирует защиту от конкурентных запросов
+почему Equipment блокируются до проверки V03
+почему lock берётся в стабильном порядке
+почему row lock и проверка пересечения решают разные задачи
 ```
 
 `rental.py` находится в Git, рабочее дерево App чистое.
@@ -597,8 +647,9 @@ Returned overlap                        → не блокирует
 - общая граничная дата ошибочно считается непересечением;
 - `Planned` или `Returned` блокируют Equipment вопреки принятой семантике;
 - реальный конфликт может исчезнуть из-за фильтрации permissions пользовательского List;
+- Active Rental проверяет V03 без row lock общего Equipment;
+- несколько Equipment блокируются в случайном порядке;
 - в Controller появился ручной `frappe.db.commit()`;
-- заявлено, что обычная `validate()` полностью решает конкурентное бронирование;
 - появился отдельный слой резервирования, Service или Rule Engine без нового требования;
 - изменение Controller не находится в Git.
 
@@ -610,9 +661,10 @@ Returned overlap                        → не блокирует
 Rental.validate()
 ├── V01 local: date range
 ├── V02 local: duplicate Equipment
+├── lock Active Equipment rows
 └── V03 cross-document: overlapping Active Rental
 ```
 
-На этом все три согласованных бизнес-инварианта учебного приложения реализованы.
+На этом все три согласованных бизнес-инварианта учебного приложения реализованы, включая конкурентную границу V03 для текущей модели MariaDB/Frappe Site.
 
 Следующий этап — S07: ручные проверки S05C/S05D/S06 превращаются в повторяемые автоматические проверки Frappe test runner.
