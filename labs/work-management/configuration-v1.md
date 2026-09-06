@@ -100,7 +100,13 @@ All Day: Yes
 
 Один `due_date` используется как точка срока, а не как интервал выполнения. Работы без `due_date` не отображаются как календарные события.
 
-Дополнительные `start_date`, `end_date`, `duration` и `progress` только ради Calendar или Gantt не добавляются.
+`Is Calendar and Gantt` у `Work Item` остаётся выключенным. Именованный `Calendar View` открывается отдельным штатным route и не требует включать общий Calendar/Gantt режим DocType. Поэтому дополнительные `start_date`, `end_date`, `duration` и `progress` только ради Calendar или Gantt не добавляются.
+
+Для прямого входа в этот именованный Calendar View используется route:
+
+```text
+/desk/work-item/view/calendar/Work%20Items%20by%20Due%20Date
+```
 
 ## Auto Repeat
 
@@ -293,10 +299,11 @@ Board
   Kanban Board: Work Items
 
 Calendar
-  Type: DocType
-  Link To: Work Item
-  View: Calendar
+  Type: URL
+  URL: /desk/work-item/view/calendar/Work%20Items%20by%20Due%20Date
 ```
+
+Для site-level Custom DocType `Work Item` вариант `DocType View: Calendar` не используется: список доступных Calendar shortcuts в Workspace привязан к стандартным calendar hooks / Calendar-Gantt режиму DocType, а созданный `Calendar View` является отдельной именованной конфигурацией. URL shortcut остаётся штатным механизмом Workspace и открывает конкретный `Work Items by Due Date` без включения Gantt. Штатный URL shortcut Frappe открывает такой адрес в новой вкладке.
 
 ### Состав экрана
 
@@ -343,8 +350,11 @@ Custom HTML Blocks, отдельный Dashboard, Onboarding и служебны
 
 ## Источники Frappe v16
 
+- [Calendar View](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/calendar_view/calendar_view.js)
+- [List View selector](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/list/list_view_select.js)
 - [Workspace](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/workspace/workspace.py)
 - [Workspace Shortcut](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/workspace_shortcut/workspace_shortcut.json)
+- [Workspace Shortcut widget](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/widgets/shortcut_widget.js)
 - [Workspace Quick List](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/widgets/quick_list_widget.js)
 - [Number Card](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/number_card/number_card.py)
 - [Dashboard Chart](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
