@@ -142,6 +142,8 @@ Work Item.due_date = срок самой работы
 ToDo.date          = Complete By конкретного назначения
 ```
 
+При ручном `Assign To` пустой `Complete By` не означает пустой `ToDo.date`: в v16.33.0 серверная логика `Assign To` подставляет текущую дату. Поэтому `ToDo.date` нельзя использовать как источник общего срока Work Item и нельзя интерпретировать его значение «сегодня» как автоматически установленный бизнес-срок самой работы.
+
 ### Связи
 
 Для `links` используйте стандартный дочерний DocType `Dynamic Link`. Отдельный DocType для связей создавать не нужно.
@@ -150,9 +152,11 @@ ToDo.date          = Complete By конкретного назначения
 
 Для собственного DocType создайте запись `Translation`:
 
-| Source Text | Context | Translated Text |
-| --- | --- | --- |
-| `Work Item` | пусто | `Работа` |
+| Language | Source Text | Context | Translated Text |
+| --- | --- | --- | --- |
+| `Russian` | `Work Item` | пусто | `Работа` |
+
+Поле `Language` у `Translation` обязательное; одной пары `Source Text / Translated Text` недостаточно.
 
 Общие значения `Open / Waiting / Closed / Cancelled` и `Low / Medium / High` сначала проверьте под языком `Russian (ru)`: Frappe выводит значения `Select`, List View и заголовки Kanban через механизм перевода. Если конкретная строка остаётся английской, добавьте её штатной записью `Translation`, не меняя фактическое значение поля.
 
@@ -560,8 +564,8 @@ Work Item не удаляется.
 ## 15. Известные ограничения штатной версии v1
 
 - `Work Item.status` и `ToDo.status` не синхронизируются автоматически;
-- `Work Item.due_date` и `ToDo.date` имеют разную семантику;
-- Work User с `Write` на общей очереди может редактировать Work Item и снимать назначение другого Work User;
+- `Work Item.due_date` и `ToDo.date` имеют разную семантику; при ручном Assign To без `Complete By` Frappe задаёт `ToDo.date` текущей датой;
+- все `Work User` имеют `Read` общей очереди, а штатное снятие назначения проверяет `Read` исходного `Work Item`, поэтому один `Work User` может снять назначение другого;
 - Auto Repeat не вычисляет относительный срок нового Work Item;
 - Dashboard Chart `Group By` не переводит значения `Select`, поэтому категориальные графики по `status` и `priority` не входят в русскую конфигурацию;
 - текущая модель не хранит отдельные `closed_at` и `closed_by`;
@@ -571,19 +575,20 @@ Work Item не удаляется.
 
 ## Источники
 
-Текущий ориентир — Frappe v16.
+Текущий ориентир — Frappe v16.33.0.
 
 - [DocType](https://docs.frappe.io/framework/user/en/basics/doctypes)
 - [Field Types](https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes)
 - [Translations](https://docs.frappe.io/framework/user/en/translations)
-- [Select control](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/form/controls/select.js)
-- [Kanban column template](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/views/kanban/kanban_column.html)
-- [Kanban Board](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/kanban_board/kanban_board.py)
-- [Dashboard Chart](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
-- [DocType form](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/doctype/doctype.js)
-- [Permissions](https://github.com/frappe/frappe/blob/version-16/frappe/permissions.py)
-- [Assign To](https://github.com/frappe/frappe/blob/version-16/frappe/desk/form/assign_to.py)
-- [Auto Repeat](https://github.com/frappe/frappe/blob/version-16/frappe/automation/doctype/auto_repeat/auto_repeat.py)
-- [Calendar View](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/calendar_view/calendar_view.js)
-- [Workspace Shortcut widget](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/widgets/shortcut_widget.js)
-- [Workspace](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/workspace/workspace.py)
+- [Translation metadata](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/translation/translation.json)
+- [Select control](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/form/controls/select.js)
+- [Kanban column template](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/views/kanban/kanban_column.html)
+- [Kanban Board](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/kanban_board/kanban_board.py)
+- [Dashboard Chart](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
+- [DocType form](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.js)
+- [Permissions](https://github.com/frappe/frappe/blob/v16.33.0/frappe/permissions.py)
+- [Assign To](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
+- [Auto Repeat](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
+- [Calendar View](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/calendar_view/calendar_view.js)
+- [Workspace Shortcut widget](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/widgets/shortcut_widget.js)
+- [Workspace](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace/workspace.py)
