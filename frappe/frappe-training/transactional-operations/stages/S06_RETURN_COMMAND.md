@@ -80,28 +80,31 @@ Active → Returned
 ```python
 @frappe.whitelist(methods=["POST"])
 def return_equipment(self):
-    self.reload()
-    self.check_permission("write")
+    rental = frappe.get_doc("Rental", self.name, for_update=True)
+    rental.check_permission("write")
 
-    if self.status != "Active":
+    if rental.status != "Active":
         frappe.throw(_("Only an Active Rental can be returned."))
 
-    self.flags.rental_operation = "return"
-    self.status = "Returned"
-    self.save()
+    rental.flags.rental_operation = "return"
+    rental.status = "Returned"
+    rental.save()
 
-    self.create_equipment_movements("Return")
+    rental.create_equipment_movements("Return")
 
-    return {"status": self.status}
+    return {"status": rental.status}
 ```
 
 Как и `issue()`, команда:
 
 ```text
 POST-only
-перечитывает persisted Rental
-проверяет write уже по сохранённому Document
+заново получает persisted Rental
+удерживает row lock до конца request-транзакции
+явно проверяет write на locked Rental
 ```
+
+`for_update=True` здесь защищает не интерфейс, а саму команду. Если два request одновременно вызывают Return одного Active Rental, первый удерживает row lock до завершения. Второй продолжит только после commit первого, перечитает уже `Returned` и остановится на проверке состояния вместо создания второго набора `Return Movement`.
 
 Структура намеренно почти совпадает с `issue()`.
 
@@ -134,7 +137,7 @@ Return Movement.insert() × N
 → rollback
 ```
 
-Ничего нового для Return изобретать не нужно.
+Row lock Rental живёт внутри той же транзакции и освобождается при её завершении. Отдельный commit ради блокировки не нужен и снова сломал бы атомарность операции.
 
 ---
 
@@ -286,6 +289,8 @@ status = Returned
 
 UI и сервер согласованы, но сервер остаётся настоящей защитой.
 
+При конкурентном повторном вызове ту же гарантию обеспечивает row lock Rental: второй request не может принять решение по устаревшему `Active` одновременно с первым.
+
 ---
 
 ## 9. Проверить повторный Issue
@@ -296,7 +301,7 @@ UI и сервер согласованы, но сервер остаётся н
 Only a Planned Rental can be issued.
 ```
 
-Для текущего сценария этого достаточно, чтобы повторный request не создавал второй набор Issue Movement после завершённой операции.
+Для текущего сценария вместе с row lock Rental этого достаточно, чтобы повторный request не создавал второй набор Issue Movement после завершённой операции.
 
 Отдельная deduplication infrastructure сейчас не нужна.
 
@@ -349,7 +354,8 @@ rental.js
 ```text
 Active → Returned разрешён только через return
 return_equipment() POST-only
-return_equipment() проверяет write на persisted Rental
+return_equipment() получает Rental с for_update=True
+return_equipment() явно проверяет write на locked Rental
 return_equipment() не делает commit
 кнопка Return не содержит бизнес-логики
 ```
@@ -359,6 +365,8 @@ return_equipment() не делает commit
 ## 12. Зафиксировать Return
 
 ```bash
+cd ~/frappe/rental-training-bench/apps/rental_training
+
 git add \
   rental_training/rental_training/doctype/rental/rental.py \
   rental_training/rental_training/doctype/rental/rental.js
@@ -382,14 +390,16 @@ git status --short
 новый Rental = Planned
 
 issue() [POST]
+Rental FOR UPDATE
 Planned → Active
 + Issue Movement × Equipment
 
 return_equipment() [POST]
+Rental FOR UPDATE
 Active → Returned
 + Return Movement × Equipment
 ```
 
-Обе операции используют одну транзакцию request и не управляют commit вручную.
+Обе операции используют одну транзакцию request, сериализуют конкурирующие команды над одним Rental и не управляют commit вручную.
 
 Следующий этап покажет, почему прямой Database API способен обойти этот Controller: [`S07_DOCUMENT_VS_DB.md`](S07_DOCUMENT_VS_DB.md).

@@ -70,7 +70,9 @@ owner = current user
 
 Закрыть назначение как выполненное может сам назначенный пользователь: штатный метод Frappe проверяет, что `assign_to` совпадает с текущим пользователем.
 
-При этом пользователь с `Write` на исходный `Work Item` может снять назначение другого пользователя. В текущей модели это принимается как часть доверенной совместной очереди.
+Снятие назначения имеет другую серверную границу. В `assign_to.remove()` Frappe перед отменой `ToDo` вызывает `check_permission()` на исходном Document без явного типа permission; для Document это обычная проверка `Read`. Отдельной проверки `Write` или совпадения с assignee на этом пути нет.
+
+Следовательно, пользователь, имеющий `Read` на исходный `Work Item`, способен пройти серверную проверку снятия назначения. В нашей общей очереди все `Work User` имеют `Read` на все `Work Item`, поэтому один участник может снять назначение другого. Это принимается как ограничение доверенной совместной модели v1, а не описывается как более строгая защита, которой Framework здесь не предоставляет.
 
 ## Почему нет `Work Manager`
 
@@ -124,13 +126,13 @@ reference_type = Work Item
 
 ## Источники Frappe
 
-Текущий ориентир — Frappe v16.
+Текущий ориентир — Frappe v16.33.0.
 
-- [`ToDo` controller, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/todo/todo.py)
-- [`ToDo` metadata, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/todo/todo.json)
-- [`Assign To`, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/desk/form/assign_to.py)
-- [`DocShare`, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/share.py)
-- [`Role`, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/role/role.json)
-- [`DocPerm`, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/docperm/docperm.json)
-- [`DocType` form, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/doctype/doctype.js)
-- [`Permissions`, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/permissions.py)
+- [`ToDo` controller, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.py)
+- [`ToDo` metadata, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.json)
+- [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
+- [`DocShare`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/share.py)
+- [`Role`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/role/role.json)
+- [`DocPerm`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/docperm/docperm.json)
+- [`DocType` form, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.js)
+- [`Permissions`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/permissions.py)

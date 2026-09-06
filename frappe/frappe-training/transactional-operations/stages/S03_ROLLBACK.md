@@ -113,13 +113,16 @@ operator-a@example.test
 Что успеет произойти внутри Python до исключения:
 
 ```text
-self.status = Active
-self.save()
+Rental загружен с FOR UPDATE
+rental.status = Active
+rental.save()
 
 первый Equipment Movement.insert()
 
 frappe.throw(...)
 ```
+
+Row locks при этом остаются частью той же незавершённой request-транзакции.
 
 В интерфейсе ожидается ошибка request.
 
@@ -242,6 +245,8 @@ git status --short
 
 Вывод должен быть пустым.
 
+`git restore` возвращает и row locks, и явную `write`-проверку рабочей Issue-команды.
+
 ---
 
 ## 9. Повторно выполнить Issue после восстановления кода
@@ -280,6 +285,8 @@ DB write
 ≠
 commit
 ```
+
+Row lock также не является commit и не меняет эту транзакционную границу.
 
 Исходники App снова чистые и рабочие.
 

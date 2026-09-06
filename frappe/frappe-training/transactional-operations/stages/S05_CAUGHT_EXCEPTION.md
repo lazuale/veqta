@@ -85,33 +85,41 @@ def create_equipment_movements(self, movement_type):
 
 ## 4. Временно проглотить исключение
 
-На время эксперимента замените конец `issue()`:
+На время эксперимента измените только обработку ошибки в рабочей реализации S02. Row lock Rental и permission boundary оставьте без изменений:
 
 ```python
 @frappe.whitelist(methods=["POST"])
 def issue(self):
-    self.reload()
-    self.check_permission("write")
+    rental = frappe.get_doc("Rental", self.name, for_update=True)
+    rental.check_permission("write")
 
-    if self.status != "Planned":
+    if rental.status != "Planned":
         frappe.throw(_("Only a Planned Rental can be issued."))
 
-    self.flags.rental_operation = "issue"
-    self.status = "Active"
-    self.save()
+    rental.flags.rental_operation = "issue"
+    rental.status = "Active"
+    rental.save()
 
     try:
-        self.create_equipment_movements("Issue")
+        rental.create_equipment_movements("Issue")
     except Exception:
         return {"ok": False}
 
-    return {"ok": True, "status": self.status}
+    return {"ok": True, "status": rental.status}
 ```
 
 Ключевое отличие от S03:
 
 ```text
 исключение больше не выходит из controller method
+```
+
+Эксперимент не должен заодно менять другую семантику команды:
+
+```text
+Rental по-прежнему загружается с for_update=True
+write permission проверяется явно
+V03 по-прежнему выполняется через обычный rental.save()
 ```
 
 Логирование здесь специально не добавляется: оно не относится к проверяемой транзакционной границе.
@@ -190,6 +198,8 @@ request завершился успешно
 → Frappe выполнил обычный commit в конце request
 ```
 
+Row locks этой ошибки не предотвращают: они сериализуют конкурирующие операции, но не решают за приложение, считать ли пойманное исключение причиной rollback.
+
 ---
 
 ## 7. Что говорит Database API
@@ -257,6 +267,8 @@ git status --short
 ```
 
 Должно быть чисто.
+
+`git restore` возвращает именно зафиксированную реализацию S02 с `Rental FOR UPDATE`, явной `write`-проверкой и V03 locking reads; вручную переписывать старую версию `issue()` не нужно.
 
 ---
 
@@ -348,6 +360,7 @@ exception пойман
 понимает, почему request считался успешным
 в итоговом issue() нет except, скрывающего ошибку
 в итоговом issue() нет ручного rollback
+в итоговом issue() сохранён Rental FOR UPDATE
 временный код удалён
 контрольный Rental восстановлен и корректно выдан
 Git App чист
