@@ -22,8 +22,23 @@ class WorkItem(Document):
 		self.validate_unique_links("references", "reference_doctype", "reference_name")
 		self.validate_active_link("work_type", "Work Type")
 		self.validate_active_link("responsible_unit", "Work Unit")
+		self.validate_work_structure()
+		self.validate_new_work_item_links()
 		self.validate_new_dynamic_links("sources", "source_doctype", "source_name")
 		self.validate_new_dynamic_links("references", "reference_doctype", "reference_name")
+
+	def on_recurring(self, reference_doc=None, auto_repeat_doc=None):
+		self.status = "Open"
+		self.waiting_reason = None
+		self.waiting_since = None
+		self.next_action = None
+		self.started_at = None
+		self.closed_at = None
+		self.planned_start = None
+		self.due_at = None
+		self.parent_work_item = None
+		self.set("dependencies", [])
+		self.set("sources", [])
 
 	def set_priority_default(self):
 		if self.priority:
@@ -100,6 +115,96 @@ class WorkItem(Document):
 			return
 		if not active:
 			frappe.throw(_("{0} {1} is inactive.").format(_(doctype), frappe.bold(value)))
+
+	def validate_work_structure(self):
+		self.validate_parent_work_item()
+		self.validate_dependencies()
+
+	def validate_parent_work_item(self):
+		parent = self.parent_work_item
+		if not parent:
+			return
+
+		if parent == self.name:
+			frappe.throw(_("A Work Item cannot be its own parent."))
+
+		if not frappe.db.exists("Work Item", parent):
+			return
+
+		current = parent
+		visited = set()
+		while current:
+			if current == self.name:
+				frappe.throw(_("Work Item hierarchy cannot contain a cycle."))
+			if current in visited:
+				break
+			visited.add(current)
+			current = frappe.db.get_value("Work Item", current, "parent_work_item")
+
+	def validate_dependencies(self):
+		seen = set()
+		for row in self.dependencies or []:
+			depends_on = row.depends_on
+			if not depends_on:
+				continue
+			if depends_on == self.name:
+				frappe.throw(_("A Work Item cannot depend on itself."))
+			if depends_on in seen:
+				frappe.throw(_("Duplicate dependency: {0}.").format(frappe.bold(depends_on)))
+			seen.add(depends_on)
+
+			if frappe.db.exists("Work Item", depends_on) and self.dependency_path_reaches(depends_on, self.name):
+				frappe.throw(_("Work Item dependencies cannot contain a cycle."))
+
+	def dependency_path_reaches(self, start, target):
+		stack = [start]
+		visited = set()
+		while stack:
+			current = stack.pop()
+			if current == target:
+				return True
+			if current in visited:
+				continue
+			visited.add(current)
+			stack.extend(
+				frappe.get_all(
+					"Work Dependency",
+					filters={
+						"parent": current,
+						"parenttype": "Work Item",
+						"parentfield": "dependencies",
+					},
+					pluck="depends_on",
+				)
+			)
+		return False
+
+	def validate_new_work_item_links(self):
+		if self.flags.ignore_permissions:
+			return
+
+		previous = self.get_doc_before_save()
+		previous_parent = previous.parent_work_item if previous else None
+		if self.parent_work_item and self.parent_work_item != previous_parent:
+			self.validate_work_item_read_permission(self.parent_work_item)
+
+		previous_dependencies = {
+			row.depends_on for row in (previous.dependencies if previous else []) if row.depends_on
+		}
+		for row in self.dependencies or []:
+			if row.depends_on and row.depends_on not in previous_dependencies:
+				self.validate_work_item_read_permission(row.depends_on)
+
+	def validate_work_item_read_permission(self, target_name):
+		if not frappe.db.exists("Work Item", target_name):
+			return
+		if not has_permission("Work Item", "read", doc=target_name, print_logs=False):
+			frappe.throw(
+				_("You need read permission on Work Item {0} to link it to this Work Item.").format(
+					frappe.bold(target_name)
+				),
+				frappe.PermissionError,
+			)
 
 	def validate_new_dynamic_links(self, table_field, doctype_field, name_field):
 		if self.flags.ignore_permissions:
