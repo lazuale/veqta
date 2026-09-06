@@ -2,7 +2,7 @@
 
 Этот документ фиксирует минимальную модель универсального ядра Work Management после проверки на нескольких предметных областях.
 
-Цель v1 — дать точный контракт для реализации `Work Unit`, `Work Type`, `Work Item` и двух child DocType, не добавляя в Core сотрудников, проекты, смены, оборудование, документооборот или другие предметные подсистемы.
+Цель v1 — дать точный контракт для реализации `Work Unit`, `Work Type`, `Work Item` и трёх child DocType, не добавляя в Core сотрудников, проекты, смены, оборудование, документооборот или другие предметные подсистемы.
 
 ## Принцип
 
@@ -18,11 +18,19 @@ Work Type
 Work Item
 
 Work Item
+    may be part of
+another Work Item
+
+Work Item
+    may depend on
+another Work Item
+
+Work Item
     may have
 sources and references
 ```
 
-Frappe остаётся ответственным за `DocType`, ORM, Desk, Roles, User Permissions, Assign To / ToDo, Workflow, Notifications, Reports, REST API, background jobs и расширение конкретного `Site`.
+Frappe остаётся ответственным за `DocType`, ORM, Desk, Roles, User Permissions, Assign To / ToDo, Assignment Rule, Workflow, Notifications, Reports, Auto Repeat, REST API, background jobs и расширение конкретного `Site`.
 
 Официальные механизмы, на которых основана модель:
 
@@ -48,7 +56,7 @@ Work Item  → WI-2026-00001
 
 `unit_name`, `type_name` и `subject` являются `title_field`. Их можно менять без переименования записи и без изменения ссылок.
 
-Для `Work Unit`, `Work Type` и `Work Item` включается `Track Changes`. Это даёт штатную техническую историю изменения полей. Отдельный event log в v1 не вводится.
+Для `Work Unit`, `Work Type` и `Work Item` включается `Track Changes`. Это даёт штатную техническую историю изменения полей. Отдельный event log в Core v1 не вводится.
 
 Core не является submittable-моделью. Жизненный цикл Work Item выражается полем `status`, а процессы согласования конкретной организации при необходимости добавляются штатным Frappe `Workflow`.
 
@@ -134,12 +142,13 @@ Work Type также не содержит source policy, SLA engine, assignment
 ### Настройки DocType
 
 ```text
-title_field   = subject
-autoname      = WI-.YYYY.-.#####
-track_changes = 1
+title_field       = subject
+autoname          = WI-.YYYY.-.#####
+track_changes     = 1
+allow_auto_repeat = 1
 ```
 
-`allow_auto_repeat` в v1 не включается. Повторяемая работа должна использовать Frappe Auto Repeat только после определения явной семантики копирования полей через штатный `on_recurring`.
+Повторяемая работа использует штатный Frappe Auto Repeat. Work Item реализует только собственную семантику нового экземпляра через `on_recurring`.
 
 ### Поля
 
@@ -159,8 +168,11 @@ track_changes = 1
 | `next_action` | Small Text | нет | — | нет | ближайшее следующее действие |
 | `started_at` | Datetime, Read Only | нет | — | нет | первое фактическое начало выполнения |
 | `closed_at` | Datetime, Read Only | нет | — | нет | время текущего закрытия lifecycle |
+| `parent_work_item` | Link → Work Item | нет | — | да | непосредственный родитель в декомпозиции работы |
+| `dependencies` | Table → Work Dependency | нет | — | — | prerequisite Work Item |
 | `sources` | Table → Work Source | нет | — | — | основания возникновения работы |
 | `references` | Table → Work Reference | нет | — | — | связанные предметные документы |
+| `auto_repeat` | Link → Auto Repeat, hidden | нет | — | нет | техническая ссылка штатного Auto Repeat |
 
 `priority` не имеет metadata-default. В `before_validate` сначала используется `Work Type.default_priority`, а если он не задан — `Medium`. Значение копируется в Work Item и дальше является его собственным состоянием.
 
@@ -213,6 +225,51 @@ N assignments
 
 Work Management не создаёт собственный assignment engine, не синхронизирует второе поле исполнителя с `ToDo` и не накладывает ограничение «только один исполнитель» поверх Framework.
 
+### Hierarchy
+
+`parent_work_item` выражает только непосредственное отношение **«текущая Work Item является частью другой Work Item»**.
+
+Один Work Item может иметь не более одного непосредственного родителя. Дочерние Work Item являются самостоятельными документами и не наследуют автоматически:
+
+```text
+responsible_unit
+assignments
+status
+priority
+planned_start / due_at
+```
+
+Core не выполняет roll-up status, dates или effort и не закрывает родителя автоматически после завершения дочерних работ.
+
+Self-parent и циклы hierarchy запрещены.
+
+### Dependencies
+
+`Work Dependency` — child DocType с фиксированной семантикой prerequisite:
+
+```text
+Work Dependency
+- depends_on -> Work Item
+```
+
+Строка находится внутри текущей Work Item и означает:
+
+```text
+current Work Item depends on depends_on
+```
+
+Обратное отношение `blocks` вычисляется из этих записей и отдельно не хранится.
+
+Dependency не является workflow или scheduling rule. Core не блокирует lifecycle автоматически, не переносит даты и не вычисляет critical path.
+
+Для одной Work Item запрещены:
+
+- dependency на себя;
+- duplicate `depends_on`;
+- dependency cycle.
+
+Универсальный `Relation Type` или relation engine не вводится.
+
 ## Work Source
 
 `Work Source` — child DocType с фиксированной семантикой: **на основании чего возник Work Item**.
@@ -235,17 +292,21 @@ reference_name      Dynamic Link, options=reference_doctype
 
 Одна работа может ссылаться на несколько предметных документов. Это не relation engine: произвольные relation types и relation rules в Core отсутствуют.
 
-## Security contract для sources и references
+`references` не используется для parent/child или prerequisite relation между Work Item.
 
-Dynamic Link используется как связь данных, но не как новая граница авторизации.
+## Security contract для связей
 
-При добавлении или изменении строки `sources`/`references` пользователь должен иметь `read` на целевой документ. Проверяется только новая или изменённая связь; уже сохранённая историческая связь не должна делать Work Item невалидным после последующего изменения прав на target document.
+Связи Work Item не являются новой границей авторизации.
 
-Пользователь, имеющий право читать Work Item, видит метаданные сохранённой связи (`doctype` и `name`). Сам связанный документ продолжает защищаться собственными permissions.
+При добавлении или изменении `parent_work_item` или строки `dependencies` пользователь должен иметь `read` на целевую Work Item.
 
-Если сам факт существования связи чувствителен, такую ссылку нельзя хранить в Work Item, доступном более широкому кругу пользователей.
+При добавлении или изменении строки `sources`/`references` пользователь должен иметь `read` на целевой документ. Проверяется новая или изменённая связь; собственный controller не перепроверяет старую связь только из-за последующего изменения permissions target document.
 
-Для rename/delete Core полагается на штатную обработку Dynamic Link в Frappe и не создаёт собственный механизм ссылочной целостности.
+Пользователь, имеющий право читать Work Item, видит сохранённые relationship metadata. Сам target document продолжает защищаться собственными permissions.
+
+Если сам факт существования связи чувствителен, такую связь нельзя хранить в Work Item, доступном более широкому кругу пользователей.
+
+Для существования Link/Dynamic Link target Core полагается на штатную link validation Frappe и не создаёт собственный механизм ссылочной целостности.
 
 ## Серверные инварианты
 
@@ -261,7 +322,10 @@ Dynamic Link используется как связь данных, но не 
 4. Внутри `references` не допускается повтор пары `(reference_doctype, reference_name)`.
 5. Новый или изменённый `work_type` должен быть active.
 6. Новый или изменённый `responsible_unit` должен быть active.
-7. Новая или изменённая source/reference должна указывать на документ, который текущий пользователь может читать.
+7. `parent_work_item` не может ссылаться на сам Work Item и создавать hierarchy cycle.
+8. `dependencies` не допускают self-reference, duplicates и dependency cycles.
+9. Новая или изменённая parent/dependency связь требует `read` на target Work Item.
+10. Новая или изменённая source/reference требует `read` на target document.
 
 Frappe сам проверяет существование Link/Dynamic Link документов; Core не дублирует эту инфраструктурную проверку.
 
@@ -335,6 +399,7 @@ Work Manager
 | Work Unit | Read | Read, Create, Write |
 | Work Type | Read | Read, Create, Write |
 | Work Item | Read, Create, Write | Read, Create, Write |
+| Work Dependency | через parent | через parent |
 | Work Source | через parent | через parent |
 | Work Reference | через parent | через parent |
 
@@ -346,27 +411,41 @@ Core не вводит custom `permission_query_conditions`, собственн�
 
 ## Auto Repeat
 
-Frappe Auto Repeat остаётся предпочтительным механизмом простой календарной повторяемости, но v1 не включает его для Work Item автоматически.
+Frappe Auto Repeat используется как штатный механизм простой календарной повторяемости. Work Management не создаёт собственный scheduler.
 
-Причина: Auto Repeat копирует исходный документ. Для Work Item необходимо явно определить, какие поля являются шаблонными, а какие относятся только к конкретному экземпляру работы. В частности нельзя бездумно переносить в следующий экземпляр текущее состояние, timestamps и документальные основания прошлого выполнения.
+Frappe копирует reference document и вызывает `on_recurring`; Work Item использует этот hook для очистки instance-specific состояния.
 
-Перед включением `allow_auto_repeat` отдельный контракт должен определить поведение `on_recurring` как минимум для:
+Новый экземпляр получает:
 
 ```text
-status
-waiting_reason
-waiting_since
-started_at
-closed_at
-planned_start
-due_at
-sources
+status = Open
+waiting_reason = empty
+waiting_since = empty
+next_action = empty
+started_at = empty
+closed_at = empty
+planned_start = empty
+due_at = empty
+parent_work_item = empty
+dependencies = empty
+sources = empty
+```
+
+Сохраняются шаблонные данные:
+
+```text
+subject
+description
+work_type
+responsible_unit
+priority
+estimated_effort
 references
 ```
 
-Assignments являются отдельными штатными `ToDo` и не считаются полем шаблона Work Item.
+`references` сохраняются как предметный контекст шаблона; `sources` очищаются, потому что они описывают происхождение конкретного экземпляра работы.
 
-Собственный scheduler для этого не создаётся.
+Assignments являются отдельными штатными `ToDo` и не копируются как поле Work Item. При необходимости Auto Repeat использует собственную штатную конфигурацию назначения пользователей.
 
 ## Индексы v1
 
@@ -378,6 +457,9 @@ Work Item.responsible_unit
 Work Item.status
 Work Item.planned_start
 Work Item.due_at
+Work Item.parent_work_item
+
+Work Dependency.depends_on
 
 Work Source.source_doctype
 Work Source.source_name
@@ -403,14 +485,19 @@ Work Reference.reference_name
 9. Первый вход в `In Progress` заполняет `started_at` один раз.
 10. Вход в `Waiting` заполняет `waiting_since`; выход очищает текущие waiting fields.
 11. `Done` и `Cancelled` заполняют `closed_at`; reopen очищает его.
-12. Новая source/reference на недоступный пользователю документ запрещена.
-13. Старая сохранённая source/reference не блокирует редактирование Work Item только из-за последующего изменения permissions target document.
-14. В базовой конфигурации `responsible_unit` является очередью, а не ACL: Work User без дополнительных User Permissions видит Work Item разных Work Unit и может менять очередь в пределах своего DocPerm.
-15. User Permission на Work Type не превращает классификацию в дополнительную границу доступа к Work Item.
-16. Work Item использует штатные Frappe Assignments и допускает несколько активных assignments одновременно.
-17. Включение site Workflow не разрушает каноническую семантику `status`.
+12. `parent_work_item` допускает нормальную декомпозицию, но запрещает self-reference и hierarchy cycle.
+13. `dependencies` запрещают duplicate, self-reference и dependency cycle.
+14. Новая parent/dependency связь на недоступную пользователю Work Item запрещена.
+15. Старая сохранённая parent/dependency связь не должна запускать собственную повторную read-проверку controller при несвязанном редактировании.
+16. Новая source/reference на недоступный пользователю документ запрещена.
+17. Старая сохранённая source/reference не блокирует редактирование Work Item только из-за последующего изменения permissions target document.
+18. В базовой конфигурации `responsible_unit` является очередью, а не ACL: Work User без дополнительных User Permissions видит Work Item разных Work Unit и может менять очередь в пределах своего DocPerm.
+19. User Permission на Work Type не превращает классификацию в дополнительную границу доступа к Work Item.
+20. Work Item использует штатные Frappe Assignments и допускает несколько активных assignments одновременно.
+21. Auto Repeat создаёт новый operational instance с очищенным lifecycle, dates, sources и Work Item structure при сохранении шаблонного контекста.
+22. Site Workflow может обновлять канонический `status`, а lifecycle timestamps Work Item остаются корректными.
 
-Тесты не должны перепроверять ORM, Dynamic Link, NestedSet или ToDo как самостоятельные возможности Framework. Проверяется только то, что приложение действительно опирается на них в собственном data contract.
+Тесты не должны перепроверять ORM, Dynamic Link, NestedSet, Workflow, Auto Repeat или ToDo как самостоятельные возможности Framework. Проверяется только то, что приложение действительно опирается на них в собственном data contract.
 
 ## Что остаётся вне Data Model v1
 
@@ -432,10 +519,10 @@ Work Event
 custom workflow engine
 assignment engine
 scheduler
-relation engine
+universal relation engine
 ```
 
-Любой из этих объектов может появиться как отдельная capability или обычный DocType и связываться с Work Item через `sources` или `references`.
+Любой из этих объектов может появиться как отдельная capability или обычный DocType и связываться с Work Item через `sources` или `references`, когда это соответствует семантике связи.
 
 `Work Event` специально не требуется для первой реализации Core: сначала используются `Track Changes`, lifecycle timestamps и штатные Assignment/ToDo records. Event-level история добавляется только когда появляется реальная потребность в точной аналитике времени в состояниях, reassignments, reopen или handover.
 
@@ -449,6 +536,8 @@ fieldnames
 canonical status values
 priority values
 required relations
+semantics of parent_work_item
+semantics of dependencies
 semantics of sources
 semantics of references
 ```
