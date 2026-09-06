@@ -11,7 +11,7 @@ Role: Work User
 Desk Access: Yes
 ```
 
-Роль определяет границу Work Management на `Site`: наличие обычного `Desk User` само по себе не даёт доступа к `Work Item`.
+Для обычного прикладного System User роль определяет границу Work Management на `Site`: наличие обычного `Desk User` само по себе не даёт доступа к `Work Item`. Штатный административный доступ `System Manager` и `Administrator` рассматривается отдельно и этой прикладной границей не отменяется.
 
 ## Права на `Work Item`
 
@@ -92,27 +92,34 @@ reference_type = Work Item
 
 Настройку Roles и DocPerm выполняет системный администратор штатными средствами Frappe. `Work User` не является административной ролью и не даёт права изменять модель безопасности.
 
+При создании нового DocType Frappe добавляет permission row для `System Manager`. Эта строка относится к штатному администрированию DocType и не заменяется прикладной ролью `Work User`. `Administrator` также сохраняет штатный административный доступ.
+
 `User Group` не используется как замена Role: группы предназначены для группировки пользователей и назначения, а authorization остаётся ответственностью `Role` / `DocPerm`.
 
 ## Граница v1
 
 ```text
-System User
+Site user
 │
-├── без Work User
-│   └── Work Item недоступен
+├── Administrator / System Manager
+│   └── штатный административный доступ
 │
-└── Work User
-    ├── Read all Work Items
-    ├── Create
-    ├── Write
-    ├── Report
-    ├── no Delete
-    ├── no Share
-    └── стандартная видимость ToDo
-        ├── назначенные мне
-        ├── назначенные мной
-        └── созданные мной
+└── обычный System User
+    │
+    ├── без Work User
+    │   └── Work Item недоступен
+    │
+    └── Work User
+        ├── Read all Work Items
+        ├── Create
+        ├── Write
+        ├── Report
+        ├── no Delete
+        ├── no Share
+        └── стандартная видимость ToDo
+            ├── назначенные мне
+            ├── назначенные мной
+            └── созданные мной
 ```
 
 ## Источники Frappe
@@ -125,3 +132,5 @@ System User
 - [`DocShare`, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/share.py)
 - [`Role`, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/role/role.json)
 - [`DocPerm`, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/docperm/docperm.json)
+- [`DocType` form, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/doctype/doctype.js)
+- [`Permissions`, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/permissions.py)
