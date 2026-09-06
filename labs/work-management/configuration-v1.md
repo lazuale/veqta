@@ -45,6 +45,8 @@ priority values: Low, Medium, High
 
 Это требуется для полностью русского штатного Kanban: Frappe использует фактическое значение поля `status` как имя колонки и не хранит для колонки отдельную локализованную подпись.
 
+Dashboard Chart с `Group By` также использует фактические значения поля как подписи групп. Поэтому отдельный график по `priority` не входит в русскую конфигурацию: он показывал бы `Low / Medium / High`, а менять технические значения приоритета нельзя из-за совместимости со стандартным `ToDo.priority`.
+
 ## Основной сценарий
 
 Базовая работа строится вокруг общей очереди:
@@ -243,17 +245,7 @@ Type: Donut
 Is Public: Yes
 ```
 
-### Активные по приоритету
-
-```text
-Chart Type: Group By
-Document Type: Work Item
-Group By Based On: priority
-Group By Type: Count
-Filters: status in Открыто, Ожидание
-Type: Bar
-Is Public: Yes
-```
+Статусы хранятся по-русски, поэтому подписи групп этого графика также русские.
 
 ### Новые работы
 
@@ -354,8 +346,7 @@ Roles:
 │   └── Срок сегодня
 │
 ├── СТРУКТУРА ОЧЕРЕДИ
-│   ├── Активные по статусу
-│   └── Активные по приоритету
+│   └── Активные по статусу
 │
 └── ПОСТУПЛЕНИЕ
     └── Новые работы
@@ -373,6 +364,7 @@ Custom HTML Blocks, отдельный Dashboard, Onboarding и служебны
 - Work User с `Write` на общей очереди может редактировать Work Item и снимать назначение другого Work User;
 - `Work Item.due_date` и `ToDo.date` независимы;
 - Auto Repeat не вычисляет относительный срок Work Item;
+- Dashboard Chart `Group By` не применяет контекстные переводы к значениям `Select`, поэтому график по `priority` намеренно не добавляется;
 - безопасная командная аналитика по всем назначениям Work Item не получается только через стандартные права на `ToDo`, не открыв другие ToDo Site;
 - история `closed_at / closed_by` не хранится отдельными полями.
 
@@ -384,6 +376,7 @@ Custom HTML Blocks, отдельный Dashboard, Onboarding и служебны
 - [Translation DocType](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/translation/translation.json)
 - [Select control](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/form/controls/select.js)
 - [Kanban View](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/views/kanban/kanban_view.js)
+- [Dashboard Chart](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
 - [Calendar View](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/calendar_view/calendar_view.js)
 - [List View selector](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/list/list_view_select.js)
 - [Workspace](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/workspace/workspace.py)
@@ -391,7 +384,6 @@ Custom HTML Blocks, отдельный Dashboard, Onboarding и служебны
 - [Workspace Shortcut widget](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/widgets/shortcut_widget.js)
 - [Workspace Quick List](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/widgets/quick_list_widget.js)
 - [Number Card](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/number_card/number_card.py)
-- [Dashboard Chart](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
 - [Assign To](https://github.com/frappe/frappe/blob/version-16/frappe/desk/form/assign_to.py)
 - [Auto Repeat](https://github.com/frappe/frappe/blob/version-16/frappe/automation/doctype/auto_repeat/auto_repeat.py)
 - [Notification](https://github.com/frappe/frappe/blob/version-16/frappe/email/doctype/notification/notification.py)
