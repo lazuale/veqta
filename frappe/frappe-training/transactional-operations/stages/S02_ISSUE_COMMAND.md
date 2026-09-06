@@ -57,7 +57,8 @@ Frappe Form вызывает whitelisted controller method через `frm.call(
 Первичные источники:
 
 - https://docs.frappe.io/framework/user/en/api/form#frmcall
-- https://github.com/frappe/frappe/blob/v16.33.0/frappe/api/v2.py
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/handler.py
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/document.py
 
 Поскольку команда изменяет данные, она будет whitelisted только для POST:
 
@@ -65,7 +66,15 @@ Frappe Form вызывает whitelisted controller method через `frm.call(
 @frappe.whitelist(methods=["POST"])
 ```
 
-В v16.33.0 Document method, вызванный POST-запросом, также проходит штатную write-permission проверку транспорта. В самой команде мы всё равно оставляем явный `self.check_permission("write")`, чтобы permission boundary принадлежала самой бизнес-операции.
+Здесь важно не приписывать HTTP-методу лишнюю семантику. Для legacy-вызова через `frm.call()` Frappe `run_doc_method()` загружает Document с `check_permission=True`; в `Document` это означает обычную проверку `read`, если конкретный тип permission не указан. Ограничение `methods=["POST"]` проверяет допустимый HTTP method, но само по себе не превращается в `write`-permission check.
+
+Поэтому настоящая permission boundary изменяющей бизнес-команды должна быть явной:
+
+```python
+rental.check_permission("write")
+```
+
+REST API v2 имеет собственную семантику HTTP-методов и не должен смешиваться с legacy `frm.call()` при объяснении этой проверки.
 
 ---
 
@@ -112,8 +121,11 @@ def validate(self):
     self.validate_date_range()
     self.validate_duplicate_equipment()
     self.validate_status_transition()
+    self.lock_active_equipment()
     self.validate_active_equipment_conflicts()
 ```
+
+`lock_active_equipment()` уже появился на S06 предыдущего практикума: перед проверкой V03 он берёт row lock для выбранных Equipment в стабильном порядке. Это не отдельная транзакционная инфраструктура, а часть гарантии междокументного инварианта при конкурентных запросах.
 
 Добавьте:
 
@@ -211,34 +223,65 @@ issue()
 ```python
 @frappe.whitelist(methods=["POST"])
 def issue(self):
-    self.reload()
-    self.check_permission("write")
+    rental = frappe.get_doc("Rental", self.name, for_update=True)
+    rental.check_permission("write")
 
-    if self.status != "Planned":
+    if rental.status != "Planned":
         frappe.throw(_("Only a Planned Rental can be issued."))
 
-    self.flags.rental_operation = "issue"
-    self.status = "Active"
-    self.save()
+    rental.flags.rental_operation = "issue"
+    rental.status = "Active"
+    rental.save()
 
-    self.create_equipment_movements("Issue")
+    rental.create_equipment_movements("Issue")
 
-    return {"status": self.status}
+    return {"status": rental.status}
 ```
 
-### Почему сначала `reload()`, потом permission check
+### Почему команда заново получает Rental с `for_update=True`
 
-Для команды нужен именно persisted Rental из БД.
-
-После `self.reload()` явная проверка:
+Whitelisted method вызывается на Document, который пришёл через RPC-путь, но изменяющая команда должна работать с актуальным persisted состоянием.
 
 ```python
-self.check_permission("write")
+frappe.get_doc("Rental", self.name, for_update=True)
 ```
 
-оценивает permission boundary по сохранённому Document, включая реальный `owner` и `If Owner`, а не по присланному клиентом состоянию Form.
+делает две вещи:
 
-UI дополнительно не будет запускать Issue на dirty Form, но сервер не должен зависеть только от UI.
+```text
+загружает текущий Rental из БД
++ удерживает row lock до конца транзакции
+```
+
+Это важно не только для свежих данных. Без блокировки два одновременных `issue()` одного `Planned` Rental могут оба успеть прочитать старое состояние и попытаться создать два набора `Issue Movement`.
+
+С row lock второй request ждёт завершения первого, затем читает уже `Active` и останавливается на проверке:
+
+```text
+Only a Planned Rental can be issued.
+```
+
+После блокировки явная проверка:
+
+```python
+rental.check_permission("write")
+```
+
+проверяет право на тот же persisted Document, который команда собирается изменять.
+
+### Как это связано с V03
+
+Row lock Rental и row locks Equipment решают разные задачи:
+
+```text
+Rental FOR UPDATE
+→ сериализует команды над одним Rental
+
+Equipment FOR UPDATE внутри V03
+→ сериализует разные Rentals, конкурирующие за одно Equipment
+```
+
+Один lock не заменяет другой.
 
 ---
 
@@ -247,7 +290,7 @@ UI дополнительно не будет запускать Issue на dirt
 После:
 
 ```python
-self.save()
+rental.save()
 ```
 
 и каждого:
@@ -278,6 +321,8 @@ Frappe Database API описывает:
 ```python
 frappe.db.commit()
 ```
+
+Row locks также не требуют отдельного commit: они живут внутри той же request-транзакции и освобождаются при её завершении.
 
 ---
 
@@ -455,7 +500,9 @@ status read_only
 new Rental обязан стартовать Planned
 validate_status_transition добавлен
 issue() POST-only
-issue() перечитывает persisted Rental до явной permission check
+issue() заново получает persisted Rental с for_update=True
+issue() явно проверяет write на locked Rental
+V03 блокирует Equipment перед проверкой пересечений
 Movement создаётся через Document API
 ручного commit нет
 JS только вызывает серверный method
@@ -487,7 +534,9 @@ git commit -m "feat: add atomic rental issue operation"
 Rental.status read-only в Form
 прямой Planned → Active через save запрещён
 issue() POST-only и whitelisted
-issue() проверяет write на persisted Rental
+issue() блокирует persisted Rental через for_update=True
+issue() явно проверяет write на locked Rental
+V03 сериализует конкурирующие Rentals через Equipment row locks
 issue() не делает ручной commit
 успешный Issue переводит Rental в Active
 создаётся Movement для каждого Equipment
