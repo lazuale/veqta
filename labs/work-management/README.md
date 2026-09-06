@@ -1,384 +1,119 @@
-# Work Management: универсальное ядро
+# Work Management
 
-Work Management — прототип open-source приложения управления операционной работой на Frappe Framework.
+Work Management — прототип управления операционной работой на Frappe Framework в рамках VEQTA Labs.
 
-Цель модели — покрывать реальные процессы разных организаций, не превращая приложение в универсальный конструктор бизнес-сущностей и не создавая framework поверх Frappe. Конкретная организация настраивает структуру, виды работ, права, Workflow и собственные предметные объекты на своём `Site`.
+Текущая модель строится **native-first**: сначала используются штатные возможности Frappe v16, а собственный код появляется только после подтверждённого пробела, который нельзя закрыть конфигурацией Framework.
 
-Полнота продукта определяется отдельно в [функциональном контракте v1](capabilities.md): наличие DocType или штатного механизма Frappe само по себе не считается готовой пользовательской возможностью без поставляемого интерфейса и рабочего сценария.
+На этом этапе Work Management не является отдельным `App`. Прототип добавляет один site-level `Custom DocType` — `Work Item` — и использует штатные механизмы Frappe вокруг него.
 
-## Граница продукта
+Точная схема `Work Item` описана в [Data Model v1](data-model-v1.md).
 
-Frappe остаётся прикладной платформой и отвечает за `DocType`, `Document`, ORM, Desk, permissions, Workflow, Assign To / ToDo, Notifications, Reports, REST API, background jobs и штатные механизмы расширения.
-
-Work Management добавляет только семантику операционной работы.
-
-Универсальное ядро состоит из трёх top-level DocType:
+## Граница текущей модели
 
 ```text
-Work Unit
-Work Type
 Work Item
+├── subject
+├── description
+├── status
+├── priority
+├── due_date
+└── links → Dynamic Link
 ```
 
-Внутри Work Item используются узкие child DocType для фиксированных отношений, принадлежащих самой работе: `Work Source`, `Work Reference` и `Work Dependency`.
-
-Дополнительные возможности не должны менять эту модель, пока не появляется новая ответственность, общая для самого понятия работы.
-
-Официальные механизмы Frappe, на которых строится граница:
-
-- DocType как основной building block: https://docs.frappe.io/framework/user/en/basics/doctypes
-- Link, Dynamic Link и child tables: https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes
-- site-specific customization: https://docs.frappe.io/framework/user/en/basics/doctypes/customize
-- Modules: https://docs.frappe.io/framework/user/en/basics/doctypes/modules
-- hooks и `extend_doctype_class`: https://docs.frappe.io/framework/user/en/python-api/hooks
-
-Точная схема полей, permissions, индексов и серверных инвариантов зафиксирована в [Data Model v1](data-model-v1.md).
-
-## Work Unit
-
-`Work Unit` отвечает только на вопрос: **какая организационная очередь или зона ответственности владеет работой?**
-
-Это не обязательно формальная оргструктура компании. В одном `Site` Work Unit может означать отделы, в другом — команды, направления или сервисные очереди.
-
-Примеры являются данными конкретного `Site`:
-
-```text
-Operations
-├── Dispatch
-├── Document Control
-└── Administration
-```
-
-У другой организации дерево будет другим без изменения схемы приложения.
-
-Core не определяет модель членства сотрудников в Work Unit и не использует Work Unit как обязательную ACL-границу. Базовый доступ задаётся штатными Roles/DocPerm Frappe. Конкретный Site при необходимости может дополнительно сужать доступ стандартными User Permissions или другими штатными механизмами, но это уже конфигурация установки, а не семантика очереди.
-
-## Work Type
-
-`Work Type` классифицирует работу и хранит только простые общие настройки.
-
-Минимальная семантика:
-
-```text
-title
-active
-default_priority   optional
-```
-
-`Work Type` не является workflow engine, rule engine или системой маршрутизации и не определяет ответственную очередь.
-
-## Work Item
-
-`Work Item` — одна конкретная исполнимая единица работы.
-
-Стабильный контракт:
-
-```text
-subject
-description
-
-work_type
-responsible_unit
-
-status
-priority
-
-planned_start
-due_at
-estimated_effort
-
-waiting_reason
-waiting_since
-next_action
-
-started_at
-closed_at
-
-parent_work_item
-dependencies
-
-sources
-references
-```
-
-`responsible_unit` отвечает только за текущую очередь Work Item. Персональное выполнение не дублируется отдельным Core field: для назначения одного или нескольких пользователей используется штатный Frappe Assign To / ToDo.
-
-```text
-responsible_unit = в какой очереди находится работа
-Frappe Assignment = кто назначен на её выполнение
-```
-
-Work Item может не иметь активных assignments, иметь один assignment или несколько одновременно. Work Management не вводит собственную кардинальность поверх штатного механизма Frappe.
-
-### Структура работы
-
-`parent_work_item` выражает только отношение **«эта работа является непосредственной частью другой Work Item»**.
-
-У Work Item может быть не более одного непосредственного родителя. Дочерние Work Item остаются самостоятельными исполнимыми документами и могут иметь собственные очередь, исполнителей, status, priority и даты.
-
-Hierarchy не вводит автоматические roll-up правила: закрытие дочерних работ не закрывает родителя, даты не агрегируются, effort не суммируется автоматически. Если конкретному Site нужно такое процессное правило, оно добавляется отдельно.
-
-### Dependencies
-
-`dependencies` — child table с узкой семантикой **«какая Work Item является prerequisite для текущей работы»**.
-
-```text
-Work Item A
-    depends on
-Work Item B
-```
-
-В обратном направлении B блокирует A, но отдельная зеркальная запись не хранится.
-
-Dependency — факт связи, а не workflow rule. Core не запрещает автоматически начинать или закрывать работу при незавершённой зависимости, не переносит даты и не вычисляет critical path. Более строгая policy при необходимости реализуется Workflow или другим допустимым расширением Site.
-
-Self-reference, duplicate dependency и циклы hierarchy/dependencies не допускаются.
-
-### Sources
-
-`sources` — child table узкой семантики **«на основании чего возникла работа?»**.
-
-Каждая строка содержит:
-
-```text
-source_doctype   Link → DocType
-source_name      Dynamic Link
-```
-
-Так Core не знает, является источником служебная записка, клиентский запрос, monitoring alert, договор, производственное несоответствие или другой документ.
-
-Обязательность источника зависит от процесса конкретной организации или отдельной capability и не настраивается универсальным Work Type.
-
-### References
-
-`references` — отдельная child table узкой семантики **«к каким предметным документам относится работа?»**.
-
-Каждая строка также использует `DocType` + `Dynamic Link`.
-
-Это позволяет одной Work Item одновременно относиться, например, к Project, сотруднику и оборудованию без добавления этих полей в Core.
-
-`sources` и `references` не являются универсальным relation engine. Их семантика фиксирована самим понятием работы, а произвольные типы и правила отношений не моделируются. Внутренняя структура Work Item и prerequisite dependency поэтому выражаются отдельными Core relations, а не перегружают `references`.
-
-### Жизненный цикл
-
-Core использует небольшой набор состояний с одинаковым смыслом во всех установках:
+Состояния работы:
 
 ```text
 Open
-In Progress
 Waiting
-Done
+Closed
 Cancelled
 ```
 
-Специфические этапы согласования конкретной организации не добавляются в Core. Для них используется штатный Frappe `Workflow` и, при необходимости, отдельное `workflow_state`.
-
-### Повторяемая работа
-
-Для обычной календарной повторяемости используется штатный Frappe Auto Repeat. Work Management определяет только семантику нового экземпляра Work Item через `on_recurring`: новый экземпляр начинается с `Open`, без lifecycle timestamps, текущего Waiting, старых дат, parent/dependencies и `sources` прошлого выполнения.
-
-Классификация, очередь, priority, estimated effort и `references` сохраняются как шаблонный контекст. Assignments остаются штатными `ToDo` и управляются механизмом Auto Repeat, а не копированием поля Work Item.
-
-Собственный scheduler для повторяемой работы не создаётся.
-
-## Расширение без изменения Core
-
-Универсальность достигается не новыми meta-сущностями, а обычными механизмами Frappe.
+`status` описывает состояние самой работы. Персональная ответственность хранится отдельно штатным механизмом `Assign To / ToDo`.
 
 ```text
-новое подразделение        → новая запись Work Unit
-новый вид работы           → новая запись Work Type
-назначение исполнителей     → Frappe Assign To / ToDo
-новое поле компании        → Custom Field / Customize Form
-новый процесс согласования → Frappe Workflow
-новый предметный объект    → обычный DocType
-новый источник работы      → обычный DocType + Work Source
-новая связь с объектом     → Work Reference
-новая интеграция           → REST / Webhook / hooks / отдельный App
+Work Item.status = состояние работы
+Assign To / ToDo = кто отвечает за выполнение
 ```
 
-Не вводятся `Universal Entity`, `Relation Type`, `Process Definition`, `Rule Engine`, `Plugin Registry` и другие мета-слои. Frappe DocType уже выполняет роль расширяемой модели приложения.
+Поэтому отдельного состояния `In Progress` нет. `Open` с активным assignment означает, что открытая работа уже взята исполнителем. `Waiting` используется, когда работа остаётся актуальной, но продолжение зависит от внешнего события: ответа, согласования, документа или решения.
 
-Для Frappe v16 дополнительный App также может расширять поведение существующего DocType через `extend_doctype_class`, не заменяя его controller целиком.
+## Что предоставляет Frappe
 
-## Дополнительные возможности
+Текущая модель не дублирует возможности Framework собственными сущностями.
 
-Реальная установка может требовать больше трёх DocType. Это не делает их частью универсального Core.
+| Ответственность | Штатный механизм Frappe |
+| --- | --- |
+| назначение исполнителей | `Assign To` / `ToDo` |
+| комментарии и история обсуждения | Timeline / Comments |
+| файлы | Attachments |
+| свободная классификация | Tags |
+| письма и коммуникации | `Communication` |
+| связи с произвольными документами | `Dynamic Link` |
+| повторяющаяся работа | `Auto Repeat` |
+| автоматическое распределение при необходимости | `Assignment Rule` |
+| уведомления | `Notification` |
+| очередь | List View |
+| состояние потока | Kanban |
+| сроки | Calendar View |
+| простая отчётность | Report Builder |
+| показатели | Number Card / Dashboard Chart |
+| единая точка входа | Workspace |
+| доступ | Roles / DocPerm |
 
-### Documentary Records
+`Assignment Rule` не является обязательной частью модели: базовый сценарий — общая очередь, из которой пользователь берёт работу через `Assign to me`.
 
-`Basis Document` может хранить зарегистрированное документальное основание, его метаданные и attachments. Организации, где работа должна быть доказуемо связана со служебным, кадровым, распорядительным или иным документом, используют `Basis Document` как один из `sources` Work Item.
+## Связи и источники
 
-Сам `Basis Document` не входит в Core, потому что в других предметных областях источником может быть уже существующий Ticket, Alert, Contract, Nonconformity или другой DocType.
+Для связи Work Item с другими документами используется таблица `links` на стандартном child DocType `Dynamic Link`.
 
-### Assets
+Письмо не копируется в собственное поле Work Item: стандартный `Communication` может быть связан с `Work Item` и отображаться в Timeline документа.
 
-Учёт индивидуально отслеживаемого оборудования может использовать собственные DocType, например:
+Отдельных `Work Source`, `Work Reference` и собственного relation engine в текущей модели нет.
 
-```text
-Asset Type
-Tracked Asset
-Asset Movement
-Asset Composition Change
-```
+## Что намеренно не входит в модель
 
-Новый вид оборудования в таком модуле является новой записью `Asset Type`, а не новым полем или новым типом Work Item.
-
-Специфическая функция оборудования, например поверка, добавляется отдельным предметным DocType вроде `Asset Calibration`, не загрязняя Core.
-
-### Reference Data
-
-Конкретная установка может ссылаться на HRMS `Employee`, ERPNext `Asset`, собственные справочники или локальные read-only проекции внешней системы. Core не определяет единую модель сотрудника, техники, клиента или контрагента.
-
-### Planning и Shift Operations
-
-Project, shift journal и handover могут быть самостоятельными capabilities. Work Item связывается с ними через `references`; организация, которой они не нужны, не меняет Core.
-
-## Проверка на разных организациях
-
-Модель проверяется заменой предметной области. Критерий простой: если новый сценарий требует изменить семантику трёх Core DocType, ядро недостаточно универсально. Если отличие выражается данными Site, стандартной настройкой Frappe или отдельным предметным DocType, граница сохраняется.
-
-### Сценарий 1. Промышленная операционная служба
-
-Организация ведёт несколько направлений: диспетчеризацию, контроль документов, учёт, логистику и сменную работу. Значительная часть исправлений выполняется по документальному основанию. Есть сотрудники, производственные площадки, транспорт, измерительное оборудование и составные терминалы; часть объектов перемещается между площадками.
-
-```text
-Work Unit    → направления службы
-Work Type    → сверка, проверка, исправление, регистрация, перемещение
-Work Item    → конкретное действие сотрудника
-sources      → Basis Document
-references   → сотрудник, площадка, Asset Movement, Project и другие документы
-```
-
-Дополнительно используются Documentary Records, reference data, Assets и Shift Operations.
-
-Одна работа может одновременно ссылаться на сотрудника и документ перемещения либо на Project и оборудование. Для этого Core не требует отдельных полей.
-
-Изменение состава терминала или появление нового типа техники не меняет Core.
-
-### Сценарий 2. IT managed services
-
-Компания обслуживает инфраструктуру клиентов.
+В текущем ядре нет:
 
 ```text
 Work Unit
-├── Service Desk
-├── Infrastructure
-└── Security
-
 Work Type
-├── Incident
-├── Access Request
-├── Change
-└── Preventive Maintenance
+Work Source
+Work Reference
+Work Dependency
+assignee
+responsible_unit
+parent_work_item
+started_at
+closed_at
+closed_by
+waiting_reason
+waiting_since
+planned_start
+estimated_effort
+SLA
+progress
 ```
 
-Источниками Work Item являются support ticket, monitoring alert или approved change request. В `references` могут одновременно находиться клиент, сервер, система и Project.
+Эти сущности и поля не добавляются заранее. Они появятся только при самостоятельной ответственности, которую нельзя корректно выразить уже существующей моделью или штатным механизмом Frappe.
 
-SLA, CMDB или специфический change-management являются отдельными предметными возможностями или настройками Site. Для них не требуется менять Work Unit, Work Type или Work Item.
+## Ограничения чистой конфигурации
 
-### Сценарий 3. Производство и контроль качества
+Текущий прототип сознательно сохраняет границы нативного Frappe:
 
-Компания использует Work Management для производства, качества и обслуживания оборудования.
+- `Work Item.status` и связанные `ToDo.status` независимы: закрытие или отмена Work Item само по себе не закрывает assignments;
+- `Work Item.due_date` — срок самой работы, а `ToDo.date` — `Complete By` конкретного назначения; это разные даты;
+- штатные DocPerm не выражают правило «может редактировать Work Item только назначенный пользователь» без дополнительного механизма;
+- более строгие серверные инварианты не добавляются, пока реальная эксплуатация не покажет, что они необходимы.
 
-```text
-Work Unit
-├── Production
-├── Quality
-└── Maintenance
+Это не скрытые автоматизации продукта, а явные границы текущего native-first прототипа.
 
-Work Type
-├── Inspection
-├── Corrective Action
-├── Repair
-└── Investigation
-```
+## Версия Frappe
 
-Источники: production order, nonconformity report, maintenance request, customer complaint.
+Текущий ориентир — Frappe v16. Версионно-зависимое поведение проверяется по официальной документации и исходному коду ветки `version-16`.
 
-В `references` могут одновременно находиться партия, оборудование, производственный заказ и проект улучшения.
+Основные источники:
 
-Смены, оборудование и будущая поверка подключаются как отдельные capabilities. Core остаётся прежним.
-
-### Сценарий 4. Профессиональные услуги
-
-Компания оказывает бухгалтерские, налоговые и юридические услуги.
-
-```text
-Work Unit
-├── Accounting
-├── Tax
-└── Legal
-
-Work Type
-├── Client Request
-├── Review
-├── Filing
-└── Reconciliation
-```
-
-Источниками являются запрос клиента, договор, письмо или уведомление государственного органа. `references` связывают работу с клиентом, договором, делом и отчётным периодом.
-
-Assets и Shift Operations не используются вообще. Для работы достаточно Core и предметных DocType этой организации.
-
-Во всех этих сценариях крупная работа может декомпозироваться на Work Item, а порядок выполнения — выражаться prerequisite dependencies без изменения предметной модели.
-
-## Результат проверки
-
-| Изменение | Меняется Core | Где выражается |
-| --- | --- | --- |
-| другая структура компании | нет | `Work Unit` data |
-| другой набор операций | нет | `Work Type` data |
-| назначение одного или нескольких исполнителей | нет | Frappe Assign To / ToDo |
-| декомпозиция крупной работы | нет | `parent_work_item` |
-| prerequisite между работами | нет | `Work Dependency` |
-| новый этап согласования | нет | Frappe Workflow |
-| дополнительное поле конкретной компании | нет | Custom Field |
-| новый тип предметного объекта | нет | обычный DocType + `references` |
-| новый тип источника работы | нет | обычный DocType + `sources` |
-| несколько предметных объектов у одной работы | нет | несколько `references` |
-| несколько оснований одной работы | нет | несколько `sources` |
-| новая техника | нет | Asset capability / `Asset Type` |
-| новый специфический процесс техники | нет | отдельный предметный DocType |
-| сменная работа | нет | Shift capability |
-| проекты | нет | Planning capability |
-| интеграция с внешней системой | нет | Frappe integration mechanisms / extension App |
-
-Четыре разные предметные области используют один и тот же контракт Work Unit → Work Type → Work Item. Отличия остаются локальными.
-
-Это не доказывает, что Core никогда не изменится. Изменение Core оправдано только тогда, когда новая ответственность относится к самой семантике операционной работы и повторяется в разных предметных областях. Один специфический процесс отдельной компании для этого недостаточен.
-
-## Публичный репозиторий и данные Site
-
-Исходный репозиторий содержит схему продукта, controllers, reports, tests, документацию и полностью синтетические примеры.
-
-Реальные Work Unit, Work Type, пользователи, документы, файлы, сотрудники, площадки, оборудование и Work Item являются данными конкретного `Site` и не должны экспортироваться в публичный Git.
-
-Особое внимание требуется к Frappe fixtures: fixtures являются записями базы, экспортированными в JSON и синхронизируемыми при установке/обновлении App. В публичные fixtures включаются только данные, являющиеся частью самого продукта, например необходимые Roles. Рабочие данные организации fixtures не являются.
-
-См. https://docs.frappe.io/framework/user/en/python-api/hooks#fixtures
-
-## Архитектурная граница
-
-```text
-Frappe Framework
-       │
-       ▼
-Work Management Core
-├── Work Unit
-├── Work Type
-└── Work Item
-    ├── parent_work_item
-    ├── Work Dependency
-    ├── Work Source
-    └── Work Reference
-       │
-       ├── Site configuration
-       ├── Frappe Assignments / Workflow / permissions / reports
-       ├── first-party capabilities
-       └── third-party or company-specific Apps
-```
-
-Core не знает о конкретной отрасли, компании, сотрудниках, оборудовании, терминалах, клиентах или внешних системах.
-
-Расширения знают о Core только там, где им действительно нужна связь с выполняемой работой. Core не импортирует их предметную модель.
+- [DocType](https://docs.frappe.io/framework/user/en/basics/doctypes)
+- [Field Types](https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes)
+- [Frappe v16 source](https://github.com/frappe/frappe/tree/version-16)
