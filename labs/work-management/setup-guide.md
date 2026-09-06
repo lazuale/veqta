@@ -1,14 +1,29 @@
-# Work Management v1: настройка на Frappe v16
+# Управление работой v1: настройка на Frappe v16
 
-Этот гайд позволяет собрать текущий Work Management prototype на чистом Frappe v16 Site только штатными средствами Framework.
+Этот гайд позволяет собрать текущий прототип управления работой на чистом Frappe v16 Site только штатными средствами Framework.
 
-Для Work Management не требуется отдельный App, Python, JavaScript, hooks, scripts, custom API или собственный frontend.
+Для него не требуется отдельный App, Python, JavaScript, hooks, scripts, custom API или собственный frontend.
 
 Перед настройкой полезно ознакомиться с:
 
-- [Data Model v1](data-model-v1.md) — модель `Work Item`;
-- [Security v1](security-v1.md) — роли и права;
-- [Configuration v1](configuration-v1.md) — представления, автоматизация, аналитика и Workspace.
+- [Моделью данных v1](data-model-v1.md) — модель `Work Item`;
+- [Безопасностью v1](security-v1.md) — роли и права;
+- [Конфигурацией v1](configuration-v1.md) — представления, автоматизация, аналитика и Workspace.
+
+## Русский интерфейс
+
+Рабочий интерфейс прототипа настраивается на русском языке. Пользователь или Site должен использовать язык `Russian (ru)`.
+
+Технические идентификаторы и значения данных не переводятся:
+
+```text
+DocType: Work Item
+fieldnames: subject, description, status, priority, due_date, links
+status values: Open, Waiting, Closed, Cancelled
+priority values: Low, Medium, High
+```
+
+Русскими будут метки полей, названия рабочих представлений и отображение переводимых значений.
 
 ## 1. Создайте роль `Work User`
 
@@ -19,7 +34,7 @@ Role Name: Work User
 Desk Access: Yes
 ```
 
-Эта роль даёт обычному прикладному пользователю доступ к Work Management. Обычный доступ в Desk сам по себе не должен открывать `Work Item`; штатный административный доступ `System Manager` и `Administrator` сохраняется отдельно.
+Эта роль даёт обычному прикладному пользователю доступ к управлению работой. Обычный доступ в Desk сам по себе не должен открывать `Work Item`; штатный административный доступ `System Manager` и `Administrator` сохраняется отдельно.
 
 ## 2. Создайте `Work Item`
 
@@ -60,16 +75,16 @@ Sort Order: DESC
 
 Добавьте поля в таком порядке:
 
-| Label | Fieldname | Type | Required | Default | No Copy | List | Standard Filter | Global Search | Quick Entry |
+| Метка | Fieldname | Type | Required | Default | No Copy | List | Standard Filter | Global Search | Quick Entry |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Subject | `subject` | Data | yes | — | no | title | no | yes | required field |
-| Description | `description` | Text Editor | no | — | no | no | no | yes | yes |
-| Status | `status` | Select | yes | `Open` | yes | yes | yes | no | required field |
-| Priority | `priority` | Select | yes | `Medium` | no | yes | yes | no | required field |
-| Due Date | `due_date` | Date | no | — | yes | yes | yes | no | yes |
-| Links | `links` | Table → `Dynamic Link` | no | — | yes | no | no | no | no |
+| Название | `subject` | Data | yes | — | no | title | no | yes | required field |
+| Описание | `description` | Text Editor | no | — | no | no | no | yes | yes |
+| Статус | `status` | Select | yes | `Open` | yes | yes | yes | no | required field |
+| Приоритет | `priority` | Select | yes | `Medium` | no | yes | yes | no | required field |
+| Срок | `due_date` | Date | no | — | yes | yes | yes | no | yes |
+| Связи | `links` | Table → `Dynamic Link` | no | — | yes | no | no | no | no |
 
-### Status
+### Статус
 
 Options:
 
@@ -87,11 +102,20 @@ Cancelled
 - `Closed` — работа завершена;
 - `Cancelled` — работа больше не требуется.
 
-Отдельный `In Progress` не используется. Активный assignment уже показывает, что открытая работа взята исполнителем.
+В русском интерфейсе ожидаемое отображение:
 
-### Priority
+```text
+Open      → Открыто
+Waiting   → Ожидание
+Closed    → Закрыто
+Cancelled → Отменено
+```
 
-Options:
+Отдельное состояние «В работе» не используется. Активное назначение уже показывает, что открытая работа взята исполнителем.
+
+### Приоритет
+
+Options остаются техническими значениями Frappe:
 
 ```text
 Low
@@ -99,22 +123,40 @@ Medium
 High
 ```
 
-Эти значения совпадают со штатным `ToDo.priority` Frappe.
+Они совпадают со штатным `ToDo.priority` и не переименовываются.
 
-### Due Date
+В русском интерфейсе ожидаемое отображение:
+
+```text
+Low    → Низкий
+Medium → Средний
+High   → Высокий
+```
+
+### Срок
 
 `due_date` — необязательный общий срок Work Item. Пустое значение означает отсутствие бизнес-срока.
 
-Не путайте его с `ToDo.date`:
-
 ```text
 Work Item.due_date = срок самой работы
-ToDo.date          = Complete By конкретного assignment
+ToDo.date          = Complete By конкретного назначения
 ```
 
-### Links
+### Связи
 
-Для `links` используйте стандартный child DocType `Dynamic Link`. Отдельный DocType для связей создавать не нужно.
+Для `links` используйте стандартный дочерний DocType `Dynamic Link`. Отдельный DocType для связей создавать не нужно.
+
+### Переводы
+
+Для собственного DocType создайте запись `Translation`:
+
+| Source Text | Context | Translated Text |
+| --- | --- | --- |
+| `Work Item` | пусто | `Работа` |
+
+Общие значения `Open / Waiting / Closed / Cancelled` и `Low / Medium / High` сначала проверьте под языком `Russian (ru)`: Frappe выводит значения `Select`, List View и заголовки Kanban через механизм перевода. Если конкретная строка остаётся английской, добавьте её штатной записью `Translation`, не меняя фактическое значение поля.
+
+Не заменяйте Options на русские строки ради локализации. В данных должны остаться `Open / Waiting / Closed / Cancelled` и `Low / Medium / High`.
 
 ## 3. Настройте права `Work Item`
 
@@ -139,20 +181,22 @@ ToDo.date          = Complete By конкретного assignment
 | Amend | No |
 | If Owner | No |
 
-При создании DocType Frappe добавляет permission row для `System Manager`. Не удаляйте её: это штатный административный доступ, а `Work User` — отдельная прикладная роль.
+При создании DocType Frappe добавляет строку прав для `System Manager`. Не удаляйте её: это штатный административный доступ, а `Work User` — отдельная прикладная роль.
 
-Права стандартного `ToDo` не изменяйте. Work Management использует штатную модель доступа Frappe к назначениям.
+Права стандартного `ToDo` не изменяйте.
 
 ## 4. Проверьте Assign To
 
 Создайте тестовый Work Item:
 
 ```text
-Subject: Проверить тестовую работу
-Status: Open
-Priority: Medium
-Due Date: пусто
+Название: Проверить тестовую работу
+Статус: Открыто (Open)
+Приоритет: Средний (Medium)
+Срок: пусто
 ```
+
+В данных должны остаться `status = Open` и `priority = Medium`.
 
 Откройте документ под пользователем с ролью `Work User` и выполните:
 
@@ -166,9 +210,9 @@ Frappe создаст связанный `ToDo`. `Work Item.status` при эт�
 Рабочая семантика:
 
 ```text
-Open + нет assignment = свободная работа
-Open + assignment     = работа взята исполнителем
-Waiting + assignment  = исполнитель остаётся ответственным, работа ожидает внешнего события
+Open + нет назначения    = свободная работа
+Open + назначение        = работа взята исполнителем
+Waiting + назначение     = исполнитель остаётся ответственным, работа ожидает внешнего события
 ```
 
 ## 5. Настройте List View и фильтры
@@ -178,10 +222,10 @@ List View остаётся основным экраном очереди.
 Используйте:
 
 ```text
-Subject
-Status
-Priority
-Due Date
+Название
+Статус
+Приоритет
+Срок
 Assigned To
 ```
 
@@ -193,32 +237,32 @@ creation DESC
 
 Создайте глобальные Saved Filters.
 
-### Active
+### Активные
 
 ```text
-Status In Open, Waiting
+status In Open, Waiting
 ```
 
-### Open
+### Открытые
 
 ```text
-Status = Open
+status = Open
 ```
 
-### Waiting
+### Ожидание
 
 ```text
-Status = Waiting
+status = Waiting
 ```
 
-### Unassigned
+### Без исполнителя
 
 ```text
-Status = Open
+status = Open
 Assigned To Is Not Set
 ```
 
-Для неназначенной очереди используйте обычный Filter UI с `Assigned To Is Not Set`.
+Названия Saved Filters русские; условия используют технические значения.
 
 Для личной очереди отдельный глобальный фильтр не нужен. Пользователь выбирает:
 
@@ -232,13 +276,13 @@ Assigned To
 Создайте общую доску:
 
 ```text
-Kanban Board: Work Items
+Kanban Board: Работы
 Reference DocType: Work Item
 Field: status
 Private: No
 ```
 
-Колонки:
+Технические колонки:
 
 ```text
 Open
@@ -247,6 +291,17 @@ Closed
 Cancelled
 ```
 
+Под русским языком их заголовки должны отображаться как:
+
+```text
+Открыто
+Ожидание
+Закрыто
+Отменено
+```
+
+Kanban Frappe переводит заголовок колонки через `__()`, поэтому менять фактические значения `status` не нужно.
+
 Перетаскивание карточки меняет `Work Item.status`. Связанные `ToDo` автоматически не закрываются.
 
 ## 7. Создайте Calendar View
@@ -254,7 +309,7 @@ Cancelled
 Создайте:
 
 ```text
-Name: Work Items by Due Date
+Name: Работы по сроку
 Reference Document Type: Work Item
 Subject Field: subject
 Start Date Field: due_date
@@ -262,12 +317,12 @@ End Date Field: due_date
 All Day: Yes
 ```
 
-Calendar показывает сроки, а не плановую длительность работ. `Is Calendar and Gantt` у `Work Item` оставьте выключенным; дополнительные `start_date`, `end_date`, `duration` и `progress` для этого не нужны.
+Calendar показывает сроки, а не плановую длительность работ. `Is Calendar and Gantt` у `Work Item` оставьте выключенным.
 
-Именованный Calendar View открывается по штатному route:
+Именованный Calendar View открывается по route:
 
 ```text
-/desk/work-item/view/calendar/Work%20Items%20by%20Due%20Date
+/desk/work-item/view/calendar/%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D1%8B%20%D0%BF%D0%BE%20%D1%81%D1%80%D0%BE%D0%BA%D1%83
 ```
 
 ## 8. Создайте Number Cards
@@ -287,41 +342,19 @@ Dynamic Filters: пусто
 
 | Card | Filters |
 | --- | --- |
-| Active Work | `status in Open, Waiting` |
-| Waiting | `status = Waiting` |
-| Unassigned | `status = Open`, `Assigned To Is Not Set` |
-| High Priority | `status in Open, Waiting`, `priority = High` |
-| Due Today | `status in Open, Waiting`, `due_date Timespan Today` |
+| Активные работы | `status in Open, Waiting` |
+| Ожидание | `status = Waiting` |
+| Без исполнителя | `status = Open`, `Assigned To Is Not Set` |
+| Высокий приоритет | `status in Open, Waiting`, `priority = High` |
+| Срок сегодня | `status in Open, Waiting`, `due_date Timespan Today` |
 
-Percentage Stats для текущей очереди выключены: они не восстанавливают историческое состояние `status` и поэтому не показывают корректную динамику backlog.
+Percentage Stats для текущей очереди выключены: они не восстанавливают историческое состояние `status`.
 
-## 9. Создайте Dashboard Charts
+## 9. Создайте Dashboard Chart
 
-### Active Work by Status
+Создайте один график:
 
-```text
-Chart Type: Group By
-Document Type: Work Item
-Group By Based On: status
-Group By Type: Count
-Filters: status in Open, Waiting
-Type: Donut
-Is Public: Yes
-```
-
-### Active Work by Priority
-
-```text
-Chart Type: Group By
-Document Type: Work Item
-Group By Based On: priority
-Group By Type: Count
-Filters: status in Open, Waiting
-Type: Bar
-Is Public: Yes
-```
-
-### New Work Items
+### Новые работы
 
 ```text
 Chart Type: Count
@@ -334,7 +367,9 @@ Type: Line
 Is Public: Yes
 ```
 
-`New Work Items` показывает поступление новых работ. Это не показатель производительности или выполненного объёма.
+`Новые работы` показывает поступление новых работ. Это не показатель производительности или выполненного объёма.
+
+Категориальные графики `Group By` по `status` и `priority` не создавайте: Frappe v16 отдаёт фактические значения `Select` как подписи групп без перевода, поэтому такие графики были бы полурусскими.
 
 ## 10. Создайте Workspace
 
@@ -343,98 +378,83 @@ Is Public: Yes
 Создайте:
 
 ```text
-Name: Work Management
+Label: Управление работой
+Title: Управление работой
 Type: Workspace
 Public: Yes
 Roles:
   Work User
 ```
 
-`Public` здесь означает общий Workspace внутри Desk. Он остаётся ограниченным пользователями, которым разрешён этот Workspace и исходные объекты.
-
 ### Shortcuts
 
-Добавьте:
-
 ```text
-New Work Item
+Новая работа
   Type: DocType
   Link To: Work Item
   DocType View: New
 
-Work List
+Список работ
   Type: DocType
   Link To: Work Item
   DocType View: List
 
-Board
+Доска
   Type: DocType
   Link To: Work Item
   DocType View: Kanban
-  Kanban Board: Work Items
+  Kanban Board: Работы
 
-Calendar
+Календарь
   Type: URL
-  URL: /desk/work-item/view/calendar/Work%20Items%20by%20Due%20Date
+  URL: /desk/work-item/view/calendar/%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D1%8B%20%D0%BF%D0%BE%20%D1%81%D1%80%D0%BE%D0%BA%D1%83
 ```
 
-Для Calendar не выбирайте `DocType View: Calendar`: у site-level Custom DocType этот вариант не появляется только из-за отдельно созданного `Calendar View`. URL shortcut — штатный механизм Workspace и открывает именно `Work Items by Due Date` без включения Gantt. Штатный URL shortcut Frappe открывает адрес в новой вкладке.
+Для Calendar не выбирайте `DocType View: Calendar`: у site-level Custom DocType этот вариант не появляется только из-за отдельно созданного `Calendar View`. URL shortcut открывает именно `Работы по сроку` без включения Gantt.
 
 ### Number Cards
 
-Добавьте:
-
 ```text
-Active Work
-Waiting
-Unassigned
-High Priority
-Due Today
+Активные работы
+Ожидание
+Без исполнителя
+Высокий приоритет
+Срок сегодня
 ```
 
 ### Charts
 
-Добавьте:
-
 ```text
-Active Work by Status
-Active Work by Priority
-New Work Items
+Новые работы
 ```
 
 Итоговый экран:
 
 ```text
-WORK MANAGEMENT
+УПРАВЛЕНИЕ РАБОТОЙ
 │
-├── ACTIONS
-│   ├── New Work Item
-│   ├── Work List
-│   ├── Board
-│   └── Calendar
+├── ДЕЙСТВИЯ
+│   ├── Новая работа
+│   ├── Список работ
+│   ├── Доска
+│   └── Календарь
 │
-├── CURRENT STATE
-│   ├── Active Work
-│   ├── Waiting
-│   ├── Unassigned
-│   ├── High Priority
-│   └── Due Today
+├── ТЕКУЩЕЕ СОСТОЯНИЕ
+│   ├── Активные работы
+│   ├── Ожидание
+│   ├── Без исполнителя
+│   ├── Высокий приоритет
+│   └── Срок сегодня
 │
-├── QUEUE STRUCTURE
-│   ├── Active Work by Status
-│   └── Active Work by Priority
-│
-└── INTAKE
-    └── New Work Items
+└── ПОСТУПЛЕНИЕ
+    └── Новые работы
 ```
 
-Quick List в baseline не нужен: стандартный Quick List показывает несколько последних документов по `creation desc`, а не приоритетную рабочую очередь.
+Quick List не нужен: стандартный Quick List показывает несколько последних документов по `creation desc`, а не приоритетную рабочую очередь.
 
 ## 11. Auto Repeat
 
 Auto Repeat создавайте только для конкретной повторяющейся работы.
-
-Типовая конфигурация:
 
 ```text
 Reference Document Type: Work Item
@@ -454,7 +474,7 @@ priority     → копируется
 status       → Open
 due_date     → пусто
 links        → пусто
-assignments  → отсутствуют
+назначения   → отсутствуют
 ```
 
 Новый экземпляр попадает в общую очередь и назначается обычным `Assign to me`.
@@ -463,7 +483,7 @@ assignments  → отсутствуют
 
 ## 12. Notifications
 
-Обязательные Notification rules для запуска Work Management не нужны. `Assign To` уже создаёт штатное уведомление о назначении.
+Обязательные Notification rules для запуска управления работой не нужны. `Assign To` уже создаёт штатное уведомление о назначении.
 
 При необходимости можно добавить email-напоминание за день до общего срока:
 
@@ -483,30 +503,30 @@ Send To All Assignees: Yes
 
 ```text
 создать Work Item
-→ Open
+→ Open (Открыто)
 → Assign to me
 → выполнить работу
-→ закрыть assignment
-→ Work Item = Closed
+→ закрыть назначение
+→ Work Item = Closed (Закрыто)
 ```
 
 ### Ожидание
 
 ```text
-Open
+Open (Открыто)
 → добавить комментарий с контекстом
-→ Waiting
+→ Waiting (Ожидание)
 → получить ответ / документ / решение
-→ Open
+→ Open (Открыто)
 ```
 
-Assignment при этом можно сохранить.
+Назначение при этом можно сохранить.
 
 ### Отмена
 
 ```text
-снять активные assignments
-→ Work Item = Cancelled
+снять активные назначения
+→ Work Item = Cancelled (Отменено)
 ```
 
 Work Item не удаляется.
@@ -515,36 +535,37 @@ Work Item не удаляется.
 
 ```text
 добавить контекст передачи в Timeline
-→ снять старый assignment
+→ снять старое назначение
 → назначить нового пользователя
 ```
 
-## 14. Smoke test
+## 14. Проверка после настройки
 
 После настройки проверьте основные сценарии.
 
 1. Пользователь с `Work User` создаёт Work Item, второй `Work User` видит его в общей очереди.
-2. После `Assign to me` работа исчезает из `Unassigned` и появляется в `Assigned To → Me`.
-3. `Open → Waiting` переносит работу в Waiting, assignment остаётся.
-4. `Waiting → Open` возвращает работу в активную очередь без потери assignment.
-5. Закрытие собственного ToDo не закрывает Work Item автоматически; после завершения Work Item переводится в `Closed` отдельно.
+2. После `Assign to me` работа исчезает из `Без исполнителя` и появляется в `Assigned To → Me`.
+3. `Open → Waiting` отображается пользователю как `Открыто → Ожидание`, назначение остаётся.
+4. `Waiting → Open` возвращает работу в активную очередь без потери назначения.
+5. Закрытие собственного ToDo не закрывает Work Item автоматически; Work Item переводится в `Closed` отдельно.
 6. При нескольких исполнителях каждый получает отдельный ToDo.
-7. Для отмены сначала снимаются assignments, затем Work Item переводится в `Cancelled`.
+7. Для отмены сначала снимаются назначения, затем Work Item переводится в `Cancelled`.
 8. Обычный System User без `Work User` и без административной роли не получает доступа к Work Item.
 9. `Work User` не может удалить Work Item.
-10. Work Item со сроком отображается в `Work Items by Due Date` и соответствующих Number Cards.
-11. Workspace `Work Management` доступен пользователю с `Work User`.
+10. Work Item со сроком отображается в `Работы по сроку` и соответствующих Number Cards.
+11. Workspace `Управление работой` доступен пользователю с `Work User`.
+12. В русском интерфейсе `Work Item` отображается как `Работа`, статусы и приоритеты — по-русски, при этом их технические значения не изменены.
+13. Kanban показывает русские заголовки колонок при технических значениях `Open / Waiting / Closed / Cancelled`.
 
-## 15. Известные ограничения native v1
-
-Текущая конфигурация сознательно оставляет несколько границ штатного Frappe:
+## 15. Известные ограничения штатной версии v1
 
 - `Work Item.status` и `ToDo.status` не синхронизируются автоматически;
 - `Work Item.due_date` и `ToDo.date` имеют разную семантику;
-- Work User с `Write` на общей очереди может редактировать Work Item и снимать assignment другого Work User;
+- Work User с `Write` на общей очереди может редактировать Work Item и снимать назначение другого Work User;
 - Auto Repeat не вычисляет относительный срок нового Work Item;
+- Dashboard Chart `Group By` не переводит значения `Select`, поэтому категориальные графики по `status` и `priority` не входят в русскую конфигурацию;
 - текущая модель не хранит отдельные `closed_at` и `closed_by`;
-- безопасная общая аналитика по всем Work Item assignments не строится простым расширением доступа к `ToDo`, не открывая другие ToDo Site.
+- безопасная общая аналитика по всем назначениям Work Item не строится простым расширением доступа к `ToDo`, не открывая другие ToDo Site.
 
 Эти ограничения не требуют собственной разработки до тех пор, пока реальная эксплуатация не покажет конкретную пользовательскую проблему.
 
@@ -554,7 +575,11 @@ Work Item не удаляется.
 
 - [DocType](https://docs.frappe.io/framework/user/en/basics/doctypes)
 - [Field Types](https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes)
-- [Frappe v16 source](https://github.com/frappe/frappe/tree/version-16)
+- [Translations](https://docs.frappe.io/framework/user/en/translations)
+- [Select control](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/form/controls/select.js)
+- [Kanban column template](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/views/kanban/kanban_column.html)
+- [Kanban Board](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/kanban_board/kanban_board.py)
+- [Dashboard Chart](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
 - [DocType form](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/doctype/doctype.js)
 - [Permissions](https://github.com/frappe/frappe/blob/version-16/frappe/permissions.py)
 - [Assign To](https://github.com/frappe/frappe/blob/version-16/frappe/desk/form/assign_to.py)
