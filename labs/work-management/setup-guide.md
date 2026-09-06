@@ -14,15 +14,16 @@
 
 Рабочий интерфейс прототипа настраивается на русском языке. Пользователь или Site должен использовать язык `Russian (ru)`.
 
-Технические идентификаторы не переводятся:
+Технические идентификаторы и значения данных не переводятся:
 
 ```text
 DocType: Work Item
 fieldnames: subject, description, status, priority, due_date, links
+status values: Open, Waiting, Closed, Cancelled
 priority values: Low, Medium, High
 ```
 
-Русскими будут метки полей, статусы и имена рабочих представлений. Для имени `Work Item` и значений приоритета используются штатные записи `Translation`.
+Русскими будут метки полей, названия рабочих представлений и отображение переводимых значений.
 
 ## 1. Создайте роль `Work User`
 
@@ -74,11 +75,11 @@ Sort Order: DESC
 
 Добавьте поля в таком порядке:
 
-| Label | Fieldname | Type | Required | Default | No Copy | List | Standard Filter | Global Search | Quick Entry |
+| Метка | Fieldname | Type | Required | Default | No Copy | List | Standard Filter | Global Search | Quick Entry |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Название | `subject` | Data | yes | — | no | title | no | yes | required field |
 | Описание | `description` | Text Editor | no | — | no | no | no | yes | yes |
-| Статус | `status` | Select | yes | `Открыто` | yes | yes | yes | no | required field |
+| Статус | `status` | Select | yes | `Open` | yes | yes | yes | no | required field |
 | Приоритет | `priority` | Select | yes | `Medium` | no | yes | yes | no | required field |
 | Срок | `due_date` | Date | no | — | yes | yes | yes | no | yes |
 | Связи | `links` | Table → `Dynamic Link` | no | — | yes | no | no | no | no |
@@ -88,18 +89,27 @@ Sort Order: DESC
 Options:
 
 ```text
-Открыто
-Ожидание
-Закрыто
-Отменено
+Open
+Waiting
+Closed
+Cancelled
 ```
 
 Семантика:
 
-- `Открыто` — работа актуальна и может выполняться;
-- `Ожидание` — работа актуальна, но продолжение зависит от внешнего события;
-- `Закрыто` — работа завершена;
-- `Отменено` — работа больше не требуется.
+- `Open` — работа актуальна и может выполняться;
+- `Waiting` — работа актуальна, но продолжение зависит от внешнего события;
+- `Closed` — работа завершена;
+- `Cancelled` — работа больше не требуется.
+
+В русском интерфейсе ожидаемое отображение:
+
+```text
+Open      → Открыто
+Waiting   → Ожидание
+Closed    → Закрыто
+Cancelled → Отменено
+```
 
 Отдельное состояние «В работе» не используется. Активное назначение уже показывает, что открытая работа взята исполнителем.
 
@@ -115,11 +125,17 @@ High
 
 Они совпадают со штатным `ToDo.priority` и не переименовываются.
 
+В русском интерфейсе ожидаемое отображение:
+
+```text
+Low    → Низкий
+Medium → Средний
+High   → Высокий
+```
+
 ### Срок
 
 `due_date` — необязательный общий срок Work Item. Пустое значение означает отсутствие бизнес-срока.
-
-Не путайте его с `ToDo.date`:
 
 ```text
 Work Item.due_date = срок самой работы
@@ -132,18 +148,15 @@ ToDo.date          = Complete By конкретного назначения
 
 ### Переводы
 
-Откройте `Translation` и создайте четыре записи для языка `Russian`:
+Для собственного DocType создайте запись `Translation`:
 
 | Source Text | Context | Translated Text |
 | --- | --- | --- |
 | `Work Item` | пусто | `Работа` |
-| `Low` | `Work Item` | `Низкий` |
-| `Medium` | `Work Item` | `Средний` |
-| `High` | `Work Item` | `Высокий` |
 
-Контекст `Work Item` у приоритетов обязателен: он ограничивает перевод нашей моделью и не меняет `Low / Medium / High` во всех остальных DocType.
+Общие значения `Open / Waiting / Closed / Cancelled` и `Low / Medium / High` сначала проверьте под языком `Russian (ru)`: Frappe выводит значения `Select`, List View и заголовки Kanban через механизм перевода. Если конкретная строка остаётся английской, добавьте её штатной записью `Translation`, не меняя фактическое значение поля.
 
-Для статусов отдельные Translation не создавайте. Их реальные значения уже русские, потому что стандартный Kanban использует значение поля как имя колонки.
+Не заменяйте Options на русские строки ради локализации. В данных должны остаться `Open / Waiting / Closed / Cancelled` и `Low / Medium / High`.
 
 ## 3. Настройте права `Work Item`
 
@@ -170,7 +183,7 @@ ToDo.date          = Complete By конкретного назначения
 
 При создании DocType Frappe добавляет строку прав для `System Manager`. Не удаляйте её: это штатный административный доступ, а `Work User` — отдельная прикладная роль.
 
-Права стандартного `ToDo` не изменяйте. Управление работой использует штатную модель доступа Frappe к назначениям.
+Права стандартного `ToDo` не изменяйте.
 
 ## 4. Проверьте Assign To
 
@@ -178,12 +191,12 @@ ToDo.date          = Complete By конкретного назначения
 
 ```text
 Название: Проверить тестовую работу
-Статус: Открыто
-Приоритет: Средний
+Статус: Открыто (Open)
+Приоритет: Средний (Medium)
 Срок: пусто
 ```
 
-В базе значение приоритета останется `Medium`, хотя в русском интерфейсе должно отображаться `Средний`.
+В данных должны остаться `status = Open` и `priority = Medium`.
 
 Откройте документ под пользователем с ролью `Work User` и выполните:
 
@@ -192,14 +205,14 @@ Assign To
 → Assign to me
 ```
 
-Frappe создаст связанный `ToDo`. `Work Item.status` при этом должен остаться `Открыто`.
+Frappe создаст связанный `ToDo`. `Work Item.status` при этом должен остаться `Open`.
 
 Рабочая семантика:
 
 ```text
-Открыто + нет назначения = свободная работа
-Открыто + назначение     = работа взята исполнителем
-Ожидание + назначение    = исполнитель остаётся ответственным, работа ожидает внешнего события
+Open + нет назначения    = свободная работа
+Open + назначение        = работа взята исполнителем
+Waiting + назначение     = исполнитель остаётся ответственным, работа ожидает внешнего события
 ```
 
 ## 5. Настройте List View и фильтры
@@ -227,29 +240,29 @@ creation DESC
 ### Активные
 
 ```text
-Статус In Открыто, Ожидание
+status In Open, Waiting
 ```
 
 ### Открытые
 
 ```text
-Статус = Открыто
+status = Open
 ```
 
 ### Ожидание
 
 ```text
-Статус = Ожидание
+status = Waiting
 ```
 
 ### Без исполнителя
 
 ```text
-Статус = Открыто
+status = Open
 Assigned To Is Not Set
 ```
 
-Для неназначенной очереди используйте обычный Filter UI с `Assigned To Is Not Set`.
+Названия Saved Filters русские; условия используют технические значения.
 
 Для личной очереди отдельный глобальный фильтр не нужен. Пользователь выбирает:
 
@@ -269,7 +282,16 @@ Field: status
 Private: No
 ```
 
-Колонки:
+Технические колонки:
+
+```text
+Open
+Waiting
+Closed
+Cancelled
+```
+
+Под русским языком их заголовки должны отображаться как:
 
 ```text
 Открыто
@@ -277,6 +299,8 @@ Private: No
 Закрыто
 Отменено
 ```
+
+Kanban Frappe переводит заголовок колонки через `__()`, поэтому менять фактические значения `status` не нужно.
 
 Перетаскивание карточки меняет `Work Item.status`. Связанные `ToDo` автоматически не закрываются.
 
@@ -293,9 +317,9 @@ End Date Field: due_date
 All Day: Yes
 ```
 
-Calendar показывает сроки, а не плановую длительность работ. `Is Calendar and Gantt` у `Work Item` оставьте выключенным; дополнительные `start_date`, `end_date`, `duration` и `progress` для этого не нужны.
+Calendar показывает сроки, а не плановую длительность работ. `Is Calendar and Gantt` у `Work Item` оставьте выключенным.
 
-Именованный Calendar View открывается по штатному route:
+Именованный Calendar View открывается по route:
 
 ```text
 /desk/work-item/view/calendar/%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D1%8B%20%D0%BF%D0%BE%20%D1%81%D1%80%D0%BE%D0%BA%D1%83
@@ -318,29 +342,17 @@ Dynamic Filters: пусто
 
 | Card | Filters |
 | --- | --- |
-| Активные работы | `status in Открыто, Ожидание` |
-| Ожидание | `status = Ожидание` |
-| Без исполнителя | `status = Открыто`, `Assigned To Is Not Set` |
-| Высокий приоритет | `status in Открыто, Ожидание`, `priority = High` |
-| Срок сегодня | `status in Открыто, Ожидание`, `due_date Timespan Today` |
+| Активные работы | `status in Open, Waiting` |
+| Ожидание | `status = Waiting` |
+| Без исполнителя | `status = Open`, `Assigned To Is Not Set` |
+| Высокий приоритет | `status in Open, Waiting`, `priority = High` |
+| Срок сегодня | `status in Open, Waiting`, `due_date Timespan Today` |
 
-Percentage Stats для текущей очереди выключены: они не восстанавливают историческое состояние `status` и поэтому не показывают корректную динамику очереди.
+Percentage Stats для текущей очереди выключены: они не восстанавливают историческое состояние `status`.
 
-## 9. Создайте Dashboard Charts
+## 9. Создайте Dashboard Chart
 
-Создайте два графика.
-
-### Активные по статусу
-
-```text
-Chart Type: Group By
-Document Type: Work Item
-Group By Based On: status
-Group By Type: Count
-Filters: status in Открыто, Ожидание
-Type: Donut
-Is Public: Yes
-```
+Создайте один график:
 
 ### Новые работы
 
@@ -357,7 +369,7 @@ Is Public: Yes
 
 `Новые работы` показывает поступление новых работ. Это не показатель производительности или выполненного объёма.
 
-График `Активные по приоритету` не создавайте. В Frappe v16 `Dashboard Chart → Group By` выводит фактические значения `Select` без контекстного `Translation`, поэтому легенда была бы `Low / Medium / High`. Менять технические значения `priority` ради графика нельзя: они совпадают со стандартным `ToDo.priority`.
+Категориальные графики `Group By` по `status` и `priority` не создавайте: Frappe v16 отдаёт фактические значения `Select` как подписи групп без перевода, поэтому такие графики были бы полурусскими.
 
 ## 10. Создайте Workspace
 
@@ -374,11 +386,7 @@ Roles:
   Work User
 ```
 
-`Public` здесь означает общий Workspace внутри Desk. Он остаётся ограниченным пользователями, которым разрешён этот Workspace и исходные объекты.
-
 ### Shortcuts
-
-Добавьте:
 
 ```text
 Новая работа
@@ -402,11 +410,9 @@ Roles:
   URL: /desk/work-item/view/calendar/%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D1%8B%20%D0%BF%D0%BE%20%D1%81%D1%80%D0%BE%D0%BA%D1%83
 ```
 
-Для Calendar не выбирайте `DocType View: Calendar`: у site-level Custom DocType этот вариант не появляется только из-за отдельно созданного `Calendar View`. URL shortcut — штатный механизм Workspace и открывает именно `Работы по сроку` без включения Gantt. Штатный URL shortcut Frappe открывает адрес в новой вкладке.
+Для Calendar не выбирайте `DocType View: Calendar`: у site-level Custom DocType этот вариант не появляется только из-за отдельно созданного `Calendar View`. URL shortcut открывает именно `Работы по сроку` без включения Gantt.
 
 ### Number Cards
-
-Добавьте:
 
 ```text
 Активные работы
@@ -418,10 +424,7 @@ Roles:
 
 ### Charts
 
-Добавьте:
-
 ```text
-Активные по статусу
 Новые работы
 ```
 
@@ -443,9 +446,6 @@ Roles:
 │   ├── Высокий приоритет
 │   └── Срок сегодня
 │
-├── СТРУКТУРА ОЧЕРЕДИ
-│   └── Активные по статусу
-│
 └── ПОСТУПЛЕНИЕ
     └── Новые работы
 ```
@@ -455,8 +455,6 @@ Quick List не нужен: стандартный Quick List показывае
 ## 11. Auto Repeat
 
 Auto Repeat создавайте только для конкретной повторяющейся работы.
-
-Типовая конфигурация:
 
 ```text
 Reference Document Type: Work Item
@@ -473,7 +471,7 @@ Notify by Email: No
 subject      → копируется
 description  → копируется
 priority     → копируется
-status       → Открыто
+status       → Open
 due_date     → пусто
 links        → пусто
 назначения   → отсутствуют
@@ -495,7 +493,7 @@ Event: Days Before
 Reference Date: due_date
 Days Before: 1
 Channel: Email
-Filters: status in Открыто, Ожидание
+Filters: status in Open, Waiting
 Send To All Assignees: Yes
 ```
 
@@ -505,21 +503,21 @@ Send To All Assignees: Yes
 
 ```text
 создать Work Item
-→ Открыто
+→ Open (Открыто)
 → Assign to me
 → выполнить работу
 → закрыть назначение
-→ Work Item = Закрыто
+→ Work Item = Closed (Закрыто)
 ```
 
 ### Ожидание
 
 ```text
-Открыто
+Open (Открыто)
 → добавить комментарий с контекстом
-→ Ожидание
+→ Waiting (Ожидание)
 → получить ответ / документ / решение
-→ Открыто
+→ Open (Открыто)
 ```
 
 Назначение при этом можно сохранить.
@@ -528,7 +526,7 @@ Send To All Assignees: Yes
 
 ```text
 снять активные назначения
-→ Work Item = Отменено
+→ Work Item = Cancelled (Отменено)
 ```
 
 Work Item не удаляется.
@@ -547,27 +545,25 @@ Work Item не удаляется.
 
 1. Пользователь с `Work User` создаёт Work Item, второй `Work User` видит его в общей очереди.
 2. После `Assign to me` работа исчезает из `Без исполнителя` и появляется в `Assigned To → Me`.
-3. `Открыто → Ожидание` переносит работу в ожидание, назначение остаётся.
-4. `Ожидание → Открыто` возвращает работу в активную очередь без потери назначения.
-5. Закрытие собственного ToDo не закрывает Work Item автоматически; после завершения Work Item переводится в `Закрыто` отдельно.
+3. `Open → Waiting` отображается пользователю как `Открыто → Ожидание`, назначение остаётся.
+4. `Waiting → Open` возвращает работу в активную очередь без потери назначения.
+5. Закрытие собственного ToDo не закрывает Work Item автоматически; Work Item переводится в `Closed` отдельно.
 6. При нескольких исполнителях каждый получает отдельный ToDo.
-7. Для отмены сначала снимаются назначения, затем Work Item переводится в `Отменено`.
+7. Для отмены сначала снимаются назначения, затем Work Item переводится в `Cancelled`.
 8. Обычный System User без `Work User` и без административной роли не получает доступа к Work Item.
 9. `Work User` не может удалить Work Item.
 10. Work Item со сроком отображается в `Работы по сроку` и соответствующих Number Cards.
 11. Workspace `Управление работой` доступен пользователю с `Work User`.
-12. В русском интерфейсе имя DocType отображается как `Работа`, а приоритеты — `Низкий / Средний / Высокий`.
-13. График `Активные по статусу` использует русские подписи групп.
+12. В русском интерфейсе `Work Item` отображается как `Работа`, статусы и приоритеты — по-русски, при этом их технические значения не изменены.
+13. Kanban показывает русские заголовки колонок при технических значениях `Open / Waiting / Closed / Cancelled`.
 
 ## 15. Известные ограничения штатной версии v1
-
-Текущая конфигурация сознательно оставляет несколько границ штатного Frappe:
 
 - `Work Item.status` и `ToDo.status` не синхронизируются автоматически;
 - `Work Item.due_date` и `ToDo.date` имеют разную семантику;
 - Work User с `Write` на общей очереди может редактировать Work Item и снимать назначение другого Work User;
 - Auto Repeat не вычисляет относительный срок нового Work Item;
-- Dashboard Chart `Group By` не применяет контекстные переводы к значениям `Select`, поэтому график по `priority` не входит в русскую конфигурацию;
+- Dashboard Chart `Group By` не переводит значения `Select`, поэтому категориальные графики по `status` и `priority` не входят в русскую конфигурацию;
 - текущая модель не хранит отдельные `closed_at` и `closed_by`;
 - безопасная общая аналитика по всем назначениям Work Item не строится простым расширением доступа к `ToDo`, не открывая другие ToDo Site.
 
@@ -580,9 +576,9 @@ Work Item не удаляется.
 - [DocType](https://docs.frappe.io/framework/user/en/basics/doctypes)
 - [Field Types](https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes)
 - [Translations](https://docs.frappe.io/framework/user/en/translations)
-- [Translation DocType](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/translation/translation.json)
 - [Select control](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/form/controls/select.js)
-- [Kanban View](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/views/kanban/kanban_view.js)
+- [Kanban column template](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/views/kanban/kanban_column.html)
+- [Kanban Board](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/kanban_board/kanban_board.py)
 - [Dashboard Chart](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
 - [DocType form](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/doctype/doctype.js)
 - [Permissions](https://github.com/frappe/frappe/blob/version-16/frappe/permissions.py)
