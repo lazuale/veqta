@@ -1,420 +1,353 @@
-# Work Management: продуктовые возможности
+# Work Management: функциональный контракт v1
 
 Work Management развивается в VEQTA Labs как прототип будущего самостоятельного open-source продукта управления операционной работой на Frappe Framework.
 
-У продукта есть жёстко зафиксированное ядро данных и набор first-party возможностей вокруг него. Конкретная организация настраивает процессы через данные `Site` и штатные механизмы Frappe, но не конструирует заново смысл `Work Unit`, `Work Type` и `Work Item`.
+Готовность продукта определяется не количеством DocType, а тем, может ли пользователь пройти полный рабочий цикл после установки и обычной настройки `Site` без разработки собственного приложения.
 
-## Граница
+`DocType`, controller, report или Workspace появляются только там, где они нужны для конкретной пользовательской возможности.
 
-Ядро остаётся неизменным:
+## Критерий готовности
 
-```text
-Work Unit
-Work Type
-Work Item
-```
-
-Дополнительная возможность входит в продукт только тогда, когда у неё есть самостоятельная и достаточно распространённая ответственность. Она не должна добавлять отраслевые поля в `Work Item` и не должна превращать приложение в собственный framework поверх Frappe.
-
-На текущем этапе прототип реализуется одним Frappe App. Возможности группируются обычными Frappe Modules и DocType. Отдельная система плагинов, feature engine или динамическая загрузка модулей не требуется.
-
-## Что уже даёт Frappe
-
-Часть пользовательских возможностей Work Management не требует собственной предметной модели. Frappe уже предоставляет их как штатные механизмы.
-
-| Потребность | Механизм Frappe | Решение Work Management |
-| --- | --- | --- |
-| роли и доступ | Roles, Role Permissions, User Permissions | использовать штатно |
-| назначение исполнителей | Assign To / ToDo | использовать штатно, без собственного `assignee` |
-| этапы согласования | Workflow | не создавать собственный workflow engine |
-| уведомления и напоминания | Notification | настраивать по событиям и датам |
-| повторяющаяся работа | Auto Repeat | разрешить повторение Work Item для простых календарных схем |
-| вход через веб | Web Form | использовать для Work Request или другого подходящего DocType |
-| вход через API | REST API | использовать автоматически генерируемый CRUD API DocType |
-| вход из почты | Email Account / Email Append To | использовать для подходящего входного DocType, а не писать собственный mail processor |
-| комментарии и обсуждение | Form Timeline / Comments / Communication | использовать штатно |
-| вложения | File / Attachments | использовать штатно |
-| список и фильтры | List View | настроить рабочие представления |
-| Kanban | Kanban View | использовать `status` или другой подходящий Select |
-| календарь и Gantt | Calendar / Gantt View | использовать `planned_start` и `due_at` |
-| дерево ответственности | Tree View / Nested Set | использовать для Work Unit |
-| простые отчёты | Report Builder | предоставлять готовые и пользовательские отчёты |
-| сложные отчёты | Script Report | добавлять только там, где Report Builder недостаточен |
-| рабочая навигация | Workspace | поставлять нейтральные Workspace продукта |
-| дополнительные поля Site | Customize Form / Custom Fields | не раздувать upstream-схему ради одной организации |
-| исходящие интеграции | Webhook, hooks | не создавать собственный integration framework |
-
-Официальная документация:
-
-- Desk и стандартные Views: https://docs.frappe.io/framework/user/en/desk
-- User Permissions: https://docs.frappe.io/framework/user/en/basics/users-and-permissions
-- Notifications: https://docs.frappe.io/framework/notifications
-- Web Form: https://docs.frappe.io/framework/user/en/web-form
-- REST API: https://docs.frappe.io/framework/user/en/api/rest
-- Webhooks: https://docs.frappe.io/framework/user/en/guides/integration/webhooks
-- Report Builder: https://docs.frappe.io/framework/user/en/desk/reports/report-builder
-- Script Report: https://docs.frappe.io/framework/user/en/desk/reports/script-report
-- Actions and Links: https://docs.frappe.io/framework/user/en/basics/doctypes/actions-and-links
-- hooks: https://docs.frappe.io/framework/user/en/python-api/hooks
-- Auto Repeat: https://docs.frappe.io/erpnext/auto-repeat
-
-Таким образом, наличие назначений, Kanban, Gantt, уведомлений, входных каналов или повторяемости не является основанием добавлять собственные движки в Work Management.
-
-## First-party возможности
-
-### Состав рабочих команд
-
-Ответственность: хранить факт того, какие пользователи относятся к какой рабочей зоне ответственности и в какой период.
+Work Management v1 должен позволять организации:
 
 ```text
-Work Membership
-- user -> User
-- work_unit -> Work Unit
-- valid_from
-- valid_to
-- is_primary
+настроить структуру и доступ
+↓
+принять или создать работу
+↓
+классифицировать и поместить её в очередь
+↓
+назначить исполнителей
+↓
+разбить крупную работу и выразить зависимости
+↓
+задать сроки, приоритет и планируемый объём
+↓
+выполнять работу и взаимодействовать по ней
+↓
+видеть свою работу и очереди в готовых представлениях
+↓
+получать уведомления и контролировать просрочку
+↓
+при необходимости учитывать фактическое время
+↓
+завершить или переоткрыть работу
+↓
+восстановить историю
+↓
+получить операционную и управленческую отчётность
 ```
 
-Это не HR-модель. Здесь нет зарплаты, кадрового статуса, табеля, должностного штатного расписания или персональных данных сотрудника.
+Это должно работать на одной стабильной модели Work Management и штатных механизмах Frappe без обязательного форка Core под конкретную компанию.
 
-`Work Membership` нужен для рабочих представлений, фильтра выбора пользователей при штатном Assign To, аналитики состава команды и, если конкретная установка этого требует, проверки назначения пользователя в свою рабочую зону.
+## Frappe как платформа продукта
 
-Сам `Work Unit` остаётся частью Core и не получает таблицу сотрудников.
+Наличие механизма во Frappe ещё не означает, что возможность готова в Work Management.
 
-### Входящие запросы и первичная обработка
+Например, Frappe уже предоставляет `Kanban View`, но продукт считается имеющим Kanban только тогда, когда пользователь после установки Work Management получает понятный путь к доске, корректное поле колонок и пригодное рабочее представление.
 
-Ответственность: зарегистрировать входящий запрос до того, как он будет классифицирован как конкретная работа или отклонён.
+Поэтому граница выглядит так:
 
 ```text
-Work Request
-- subject
-- description
-- requester
-- received_at
-- channel
-- status
+Frappe предоставляет механизм
++
+Work Management поставляет модель, конфигурацию и UX
+=
+готовая возможность продукта
 ```
 
-`Work Request` нужен там, где входящий поток нельзя сразу считать готовым `Work Item`: письмо, обращение через Web Form, звонок, API-запрос или внутреннее поручение сначала может потребовать просмотра, классификации и определения ответственной зоны.
+Work Management не создаёт свои workflow, assignment, permission, notification, reporting или integration engines там, где соответствующую ответственность уже закрывает Frappe.
 
-После принятия запроса из него создаётся один или несколько Work Item, а сам `Work Request` становится их `source`.
+## Функциональный контур v1
 
-Каналы приёма не реализуются собственными движками: Web Form, REST API и Email Append To предоставляет Frappe.
+| Возможность | Что получает пользователь | Основа Frappe | Что обязан поставить Work Management |
+| --- | --- | --- | --- |
+| установка | приложение устанавливается на совместимый Frappe Site | App, Bench, `install-app`, `migrate` | воспроизводимую установку, зависимости, миграции и начальную конфигурацию |
+| доступ | пользователи видят и изменяют только разрешённые данные | Users, Roles, DocPerm, User Permissions, sharing | стандартные роли продукта и проверенный permission contract |
+| рабочие очереди | можно распределять работу по устойчивым зонам ответственности | Tree/NestedSet, Link | `Work Unit`, дерево очередей и готовые queue views |
+| состав команд | видно, какие пользователи относятся к рабочей зоне | User, Link | first-party модель организационного membership, если она нужна для команды, фильтра назначения и аналитики |
+| прямое создание | пользователь может сразу создать конкретную работу | Form View, REST API | полноценную форму `Work Item` и корректные defaults/validation |
+| входящие запросы | обращение можно зарегистрировать до превращения в исполнимую работу | Web Form, REST API, Email intake | нейтральный intake-контур и преобразование принятого запроса в Work Item |
+| классификация | работу можно отнести к устойчивому виду | Link, standard DocType | `Work Type` без маршрутизации и отраслевой семантики |
+| ручные назначения | одной работе можно назначить 0, 1 или несколько пользователей | Assign To / ToDo | использовать штатный assignment UX без собственного `assignee` |
+| автоматические назначения | типовые документы можно распределять по пользователям автоматически | Assignment Rule | совместимость Work Item с Assignment Rule; не создавать свой routing engine |
+| декомпозиция | крупную работу можно разбить на более мелкие исполнимые работы | Link / отдельная узкая модель | явную семантику parent/child между Work Item; `references` для этого не переиспользуются |
+| зависимости | пользователь видит, какая работа зависит от другой или блокируется ею | Link / отдельная узкая модель | явную семантику work dependency без универсального relation engine |
+| жизненный цикл | работа проходит общие состояния Open/In Progress/Waiting/Done/Cancelled | Select, controller | канонический `status`, timestamps и серверные инварианты |
+| локальный процесс | организация может добавить собственные этапы и правила переходов | Workflow | совместимость канонического lifecycle с Site Workflow |
+| приоритет и план | есть приоритет, планируемое начало, срок и оценка труда | стандартные поля DocType | единый контракт `priority`, `planned_start`, `due_at`, `estimated_effort` |
+| ожидание и следующий шаг | видно, почему работа стоит и что делать дальше | Form/List | `waiting_reason`, `waiting_since`, `next_action` и соответствующие views |
+| повторяемая работа | календарно повторяющуюся работу не нужно создавать вручную | Auto Repeat | безопасный контракт копирования Work Item и разрешение Auto Repeat после его проверки |
+| взаимодействие | участники могут обсуждать работу и прикладывать материалы | Timeline, Comments, Communication, File | использовать штатную Form Timeline и attachments, не дублируя их |
+| слежение | пользователь может получать изменения по интересующей работе | Document Follow, Notification | понятную конфигурацию follow/notifications и готовые типовые уведомления продукта |
+| поиск и фильтрация | работа быстро находится по состоянию, типу, очереди, сроку и тегам | List View, filters, tags, Awesomebar | стандартные List settings и продуктовые точки входа |
+| моя работа | пользователь сразу видит назначенные ему активные Work Item | ToDo, List/Report | готовое представление `My Work` |
+| очередь | команда видит всю активную работу своей зоны | List/Report | готовое представление `Unit Queue` |
+| неназначенная работа | видно, что находится в очереди без активного исполнителя | ToDo + Work Item | готовое представление `Unassigned Work` |
+| контроль сроков | видно, что скоро просрочится и что уже просрочено | List, Report, Notification | `Due Soon`, `Overdue` и типовые уведомления |
+| Kanban | работу можно вести визуально по состояниям | Kanban View | готовую доску по каноническому `status` |
+| календарь | работу с датами можно видеть во времени | Calendar View | calendar configuration для Work Item |
+| Gantt | работу с началом и сроком можно видеть на временной шкале | Gantt View | gantt configuration для Work Item; зависимости не должны автоматически превращаться в собственный scheduling engine |
+| учёт времени | при необходимости можно фиксировать фактический труд по Work Item | DocType, Link; совместимость с внешним Timesheet | first-party time-entry capability либо явную интеграцию с подходящим установленным App без двойного источника истины |
+| история | можно понять, что происходило с работой и когда | Track Changes, Version, Timeline, ToDo | достаточный стабильный контракт истории для пользовательского просмотра и аналитики |
+| простые отчёты | администратор может строить выборки без кода | Report Builder | корректно доступные поля и нейтральные сохранённые отчёты там, где они полезны |
+| междокументная аналитика | руководство получает показатели потока работы | Script Report | permission-aware стандартные отчёты продукта |
+| API | внешняя система может создавать, читать и изменять документы по правам пользователя | REST API / RPC | стабильную документированную модель и отдельные business methods только там, где обычного CRUD недостаточно |
+| исходящие события | Work Management можно связать с внешними системами | Webhook, hooks | не создавать integration bus; документировать поддерживаемые события и контракты |
+| локальная настройка | компания может добавить поля, Workflow, Notifications и представления | Customize Form, Custom Fields, Workflow, Workspace | сохранять стабильную семантику Core и не требовать форка для типовых изменений Site |
+| массовая работа с данными | администратор может переносить или загружать большие наборы записей | Data Import / Bench data-import | не создавать собственный импортёр без отдельной необходимости |
+| обновление | новая версия App корректно обновляет существующий Site | `bench migrate`, patches | миграции для breaking schema/data changes и проверку upgrade path |
+| проверяемость | критические контракты продукта воспроизводимо тестируются | Frappe test runner | automated tests для собственных инвариантов, permissions, views/contracts и миграций |
 
-`Work Request` не является Helpdesk или CRM. Он не вводит customer SLA, полноценный ticket lifecycle, омниканальность, базу знаний или клиентский портал. Если такая предметная система уже существует, её Ticket/Request может напрямую выступать `Work Source`, а `Work Request` не используется.
+## Обязательные интерфейсы продукта
 
-### Документальные основания
+Work Management v1 не должен после установки выглядеть как набор технических DocType в Awesomebar.
 
-Ответственность: хранить канонический документ, на основании которого возникли действия или изменения.
+### Workspace
+
+Продукт поставляет нейтральный Workspace как основную точку входа.
+
+Минимальная структура:
 
 ```text
-Basis Document
-- document_type
-- document_number
-- document_date
-- subject
-- issuer
-- received_at
-- attachments
+Work Management
+├── My Work
+├── Unit Queues
+├── Unassigned Work
+├── Due Soon
+├── Overdue
+├── Waiting
+├── All Work
+├── Work Types
+├── Work Units
+├── Reports
+└── Administration
 ```
 
-`Basis Document` используется как `Work Source`, но не является обязательным источником для всех организаций. В другой предметной области источником может быть Work Request, Ticket, Alert, Contract, Nonconformity или другой DocType.
+First-party capabilities добавляют свои входы только при наличии самостоятельной пользовательской задачи. Workspace не должен превращаться в меню всех внутренних DocType.
 
-Эта возможность не должна превращаться в полноценную ECM/СЭД: электронная подпись, юридическое долговременное хранение, OCR и сложные маршруты делопроизводства относятся к отдельной ответственности.
+### Work Item Form
 
-### Операционные локации
-
-Ответственность: дать нейтральную модель места, в котором выполняется работа или находится отслеживаемый объект.
+Форма Work Item должна поддерживать полный рабочий цикл без собственного frontend:
 
 ```text
-Operational Location
-- location_name
-- parent_location
-- is_group
-- active
-- description
+subject / description
+classification
+queue
+status / priority
+planned_start / due_at / estimated_effort
+waiting_reason / next_action
+sources / references
+work structure / dependencies
+
+Frappe Form sidebar
+→ Assign To
+→ Share
+→ Follow
+→ Attachments
+
+Frappe Timeline
+→ comments
+→ communications
+→ edits / history
 ```
 
-В одной установке это могут быть производственные площадки, в другой — филиалы, офисы, сервисные центры или иные реальные места работы.
+Work Management не дублирует элементы Frappe отдельными полями и панелями только ради собственного UI.
 
-`Operational Location` не является складской системой, GIS или адресным справочником. При необходимости он может ссылаться на штатный `Address` или расширяться на конкретном Site.
+### Рабочие представления
 
-### Отслеживаемые физические объекты
-
-Ответственность: учитывать конкретный физический объект, его тип, текущее местонахождение, историю перемещений и изменяемый состав.
-
-Имена DocType не должны конфликтовать с ERPNext `Asset` и `Asset Movement`, поэтому модель Work Management использует собственные предметные имена:
-
-```text
-Tracked Asset Type
-Tracked Asset
-Tracked Asset Movement
-Tracked Asset Composition Change
-```
-
-Базовая семантика:
-
-```text
-Tracked Asset Type
-    classifies
-Tracked Asset
-
-Tracked Asset Movement
-    moves
-Tracked Asset
-    between Operational Location
-
-Tracked Asset Composition Change
-    changes parent/component relation
-```
-
-Типами могут быть транспорт, измерительное оборудование, терминал, принтер, датчик, ноутбук, генератор или другой индивидуально отслеживаемый физический объект.
-
-Новый вид оборудования является новой записью `Tracked Asset Type`, а не новым DocType и не новым полем `Work Item`.
-
-Специфическая функция конкретного оборудования, например поверка или техническое обслуживание, получает отдельный предметный DocType только при наличии самостоятельной ответственности.
-
-`Tracked Assets` не должен становиться полноценным EAM/CMMS, складом, бухгалтерским учётом основных средств или PLM.
-
-### Проекты и ограниченные результаты
-
-Ответственность: объединять Work Item вокруг ограниченного результата с целью и плановыми датами.
-
-Чтобы не конфликтовать с ERPNext `Project`, используется самостоятельное имя:
-
-```text
-Work Project
-- title
-- objective
-- owning_unit
-- owner_user
-- status
-- planned_start
-- planned_end
-```
-
-Work Item связывается с `Work Project` через `references`.
-
-Эта возможность покрывает лёгкое проектное управление, но не пытается заменить полноценные PPM, Agile или Critical Path системы. Зависимости, бюджеты, портфели и сложное ресурсное планирование добавляются только при отдельной доказанной потребности.
-
-### Сменная работа и передача
-
-Ответственность: фиксировать фактически состоявшуюся смену и передачу незавершённой работы между сменами.
-
-```text
-Work Shift
-- work_unit
-- starts_at
-- ends_at
-- status
-- members
-- summary
-- handover_items
-```
-
-`handover_items` ссылаются на существующие `Work Item` и фиксируют, что необходимо продолжить следующей смене.
-
-Это не workforce scheduler. Work Management не строит графики 2/2, не рассчитывает нормы рабочего времени, отпуска и замены. Если организации нужна полноценная система планирования персонала, это отдельная ответственность или интеграция с HR-системой.
-
-### Учёт фактического времени
-
-Ответственность: при необходимости фиксировать фактический труд, затраченный пользователем на Work Item.
-
-```text
-Work Time Entry
-- work_item
-- user
-- started_at
-- ended_at
-- duration
-- note
-```
-
-Эта возможность не обязательна для всех установок. Она полезна сервисным, проектным и профессиональным командам, где важно сравнивать `estimated_effort` с фактическим временем.
-
-Если на Site уже используется подходящий Timesheet из другого Frappe App, Work Management не должен заставлять дублировать данные: Work Item может ссылаться на существующие документы через `references`.
-
-### Семантическая история работы
-
-Frappe `Track Changes`, `Version` и штатные `ToDo` остаются базовой технической историей. Для продвинутой операционной аналитики может использоваться отдельная узкая история значимых событий Work Item:
-
-```text
-Work Event
-- work_item
-- event_time
-- event_type
-- actor
-- work_unit
-- from_status
-- to_status
-```
-
-`Work Event` фиксирует только события с бизнес-смыслом: начало, изменение состояния, передача между очередями, переоткрытие, завершение. Он не является общим event bus и не заменяет `Version` или `ToDo`.
-
-Если в будущем потребуется отдельная стабильная история назначений для аналитики, сначала проверяется, достаточно ли штатных данных `ToDo`; поля назначения не добавляются в Work Item ради отчётности.
-
-## Представления и отчётность продукта
-
-Рабочая система должна быть полезной сразу после настройки, поэтому продукт поставляет стандартные представления и отчёты поверх своей модели, не создавая для них новую предметную модель.
-
-Минимальный набор:
+Из коробки должны быть доступны как минимум:
 
 ```text
 My Work
 Unit Queue
-Incoming Requests
+Unassigned Work
+Open Work
+In Progress
+Waiting
+Due Soon
+Overdue
+Recently Updated
+Completed Work
+```
+
+Для визуальной работы продукт использует штатные представления Frappe:
+
+```text
+List
+Kanban
+Calendar
+Gantt
+```
+
+Если штатное представление не выражает конкретную продуктовую задачу, сначала определяется недостающая ответственность. Отдельный frontend не создаётся только ради другого внешнего вида.
+
+## Управленческая отчётность v1
+
+Готовый продукт должен отвечать не только на вопрос «какие записи есть», но и на типовые вопросы управления потоком работы.
+
+Минимальный набор отчётных возможностей:
+
+```text
+Work by Unit
+Work by Type
+Work by Assigned User
 Open / In Progress / Waiting
 Due Soon / Overdue
 Unassigned Work
-Work by Type
-Work by Unit
-Work by Assigned User
 Completed Work
+Created vs Completed by Period
 Throughput by Period
-Lead / Cycle Time where timestamps allow it
-Project Progress
-Shift Handover
-Asset Location / Movement History
+Current Workload by Unit
+Current Workload by Assigned User
 ```
 
-`My Work`, `Unassigned Work` и `Work by Assigned User` используют штатные Assignment/ToDo records, а не поле Work Item.
-
-Простые варианты строятся Report Builder и сохранёнными List View. Междокументные и расчётные отчёты оформляются как permission-aware Script Reports.
-
-Query Report с сырым SQL не должен использоваться как способ обходить модель прав доступа.
-
-## Повторяющаяся работа
-
-Для обычных календарных схем Work Management использует Frappe Auto Repeat, а не собственный scheduler:
+Если подтверждённая история позволяет корректно вычислять показатели времени, продукт также поставляет:
 
 ```text
-daily
-weekly
-monthly
-quarterly
-half-yearly
-yearly
+Lead Time
+Cycle Time
+Time in Waiting
+Reopen Count
+Queue Transfers
 ```
 
-Если бизнес-правило требует, например, «первый рабочий день месяца после закрытия предыдущего периода», это уже отдельная ответственность. Такой механизм не добавляется в продукт до появления реального распространённого сценария, который Auto Repeat не выражает.
+Эти показатели не вычисляются из случайных технических diff, если Framework не гарантирует для них устойчивую семантику. При необходимости Work Management хранит собственные узкие бизнес-события, но не создаёт универсальный event bus.
 
-## Что остаётся данными или расширением конкретной организации
+## Стандартная настройка организации
 
-Work Management не создаёт универсальные справочники для любой предметной области.
-
-Примеры того, что может принадлежать конкретному Site или другому App:
+После установки администратор должен иметь возможность собрать типовой рабочий контур без разработки:
 
 ```text
-Employee / HR data
-Customer
-Supplier
-Contractor
-Contract
-Vehicle-specific corporate fields
-1C identifiers and sync metadata
-CMDB objects
+структура ответственности  → Work Unit data
+виды работ                 → Work Type data
+состав рабочих зон         → product membership capability, если используется
+доступ                     → Roles / User Permissions
+этапы процесса             → Workflow
+ручные назначения          → Assign To
+автоматические назначения  → Assignment Rule
+уведомления                → Notification
+дополнительные поля        → Customize Form / Custom Fields
+дополнительные views       → стандартные Desk Views
+входная web-форма          → Web Form
+интеграции                 → REST / Webhook
+```
+
+Work Management не обещает выразить без кода любой уникальный процесс. Если штатных механизмов Frappe и функциональности продукта объективно недостаточно, специфическая ответственность реализуется обычным DocType, hook или extension App.
+
+## Собственная модель появляется только из пользовательской возможности
+
+Новый DocType или поле не являются самостоятельной целью.
+
+Порядок решения:
+
+```text
+какую возможность должен получить пользователь?
+↓
+какая ответственность за ней стоит?
+↓
+есть ли уже штатный механизм Frappe?
+├── да → продукт поставляет правильную конфигурацию и UX
+└── нет
+    ↓
+достаточно ли Custom Field / Workflow / hook?
+├── да → используем extension point
+└── нет
+    ↓
+добавляем минимальную собственную модель
+```
+
+Поэтому, например:
+
+- Assign To / ToDo закрывает персональные назначения — собственного `assignee` нет;
+- Workflow закрывает локальные этапы — собственного workflow engine нет;
+- Frappe Tags закрывают произвольные пользовательские метки — `Work Label` не нужен;
+- `sources` и `references` закрывают связь работы с предметными документами, но не подменяют семантику parent/child и dependencies между Work Item;
+- Report Builder закрывает простые отчёты, а Script Report используется только для расчётной или междокументной аналитики.
+
+## First-party capabilities за пределами универсального рабочего цикла
+
+Полноценность Work Management не означает, что продукт должен одновременно быть HR, Helpdesk, ECM, EAM, CRM и PPM.
+
+Дополнительная first-party capability оправдана, когда она закрывает распространённую самостоятельную задачу и может не использоваться организациями, которым она не нужна.
+
+К таким направлениям могут относиться:
+
+```text
+Documentary Records
+Shift Operations
+Operational Locations
+Tracked Assets
+SLA / service operations
+advanced project planning
+costs / budgets
+```
+
+Они не должны загрязнять универсальную модель Work Item отраслевыми полями.
+
+Внешние предметные системы также могут оставаться владельцами своих данных:
+
+```text
+HRMS / Employee
+CRM / Customer
+ERP / Supplier / Contract
+Helpdesk / Ticket
+CMDB
 production orders
 quality records
-service tickets
 legal cases
 accounting dimensions
-industry-specific registers
 ```
 
-Work Item связывается с такими объектами через `sources` и `references`.
+Work Management связывается с ними через `sources`, `references`, REST, Webhook или extension App.
 
-Интеграция с 1С, ERP, HRMS, CRM, CMDB или другой внешней системой также не является частью Core. Она реализуется через штатный REST/Webhook/hooks или отдельный integration App.
+## Граница v1
 
-## Проверка на разных организациях
-
-Набор возможностей должен позволять организациям использовать одну модель Core, но включать только реально нужную предметную часть.
-
-| Возможность | Промышленная операционная служба | IT-сервис | Производство | Профессиональные услуги |
-| --- | --- | --- | --- | --- |
-| Core Work | нужна | нужна | нужна | нужна |
-| Work Membership | нужна | нужна | нужна | нужна |
-| Work Request | нужна | нужна или заменяется Helpdesk | иногда | нужна |
-| Basis Document | нужна | иногда | нужна | нужна |
-| Operational Location | нужна | иногда | нужна | редко |
-| Tracked Assets | нужна | иногда / CMDB | нужна | обычно нет |
-| Work Project | нужна | нужна | иногда | нужна |
-| Work Shift | нужна | иногда для NOC | нужна | обычно нет |
-| Work Time Entry | необязательно | часто нужна | необязательно | часто нужна |
-| Work Event / flow analytics | полезна | полезна | полезна | полезна |
-
-Предметные различия не меняют `Work Unit`, `Work Type` и `Work Item`.
-
-Для промышленной эксплуатации дополнительно может использоваться интеграция с корпоративной учётной системой и локальные read-only справочники сотрудников. Для IT — Helpdesk/CMDB, для производства — ERP/MES/Quality, для профессиональных услуг — CRM/Contract/Case. Эти системы подключаются к Work Management, а не переписываются внутри него.
-
-## Зависимости
-
-Главное правило остаётся односторонним:
+Work Management v1 считается функционально полным, когда новый Site после установки и настройки способен пройти нейтральный end-to-end сценарий:
 
 ```text
-capability -> Core
-Core       -X-> capability
+входящий запрос или прямое создание
+→ Work Item
+→ классификация
+→ очередь
+→ назначение
+→ декомпозиция / зависимости при необходимости
+→ планирование
+→ выполнение и взаимодействие
+→ Waiting при внешней зависимости
+→ контроль сроков
+→ Done / Cancelled / reopen
+→ история
+→ отчётность
 ```
 
-Допустимые зависимости между возможностями должны быть очевидными и предметными. Например:
+При этом:
 
-```text
-Tracked Assets  -> Operational Location
-Work Shift      -> Work Item
-Work Time Entry -> Work Item
-Work Event      -> Work Item
-```
+- типовой сценарий не требует собственного кода компании;
+- пользователь получает готовые Workspace, формы, views и reports, а не только схему данных;
+- Core не зависит от конкретной отрасли или оргструктуры;
+- стандартные возможности Frappe используются вместо параллельных движков;
+- permissions работают одинаково из Form, List, Report и API;
+- обязательное состояние App воспроизводимо устанавливается и мигрирует;
+- собственные критичные контракты покрыты automated tests;
+- Site может расширять процесс без переопределения смысла базовых сущностей.
 
-`Work Request`, `Basis Document` и `Work Project` не требуют добавлять специальные поля в Work Item: связь уже выражается через `sources` и `references`.
+## Механизмы Frappe, на которых строится контракт
 
-## Чего продукт не строит
+- Desk и стандартные Views: https://docs.frappe.io/framework/user/en/desk
+- List View: https://docs.frappe.io/framework/user/en/api/list
+- Workspace: https://docs.frappe.io/framework/user/en/desk/workspace
+- Users and Permissions: https://docs.frappe.io/framework/user/en/basics/users-and-permissions
+- Assign To / ToDo implementation v16: https://github.com/frappe/frappe/blob/version-16/frappe/desk/form/assign_to.py
+- Assignment Rule implementation v16: https://github.com/frappe/frappe/blob/version-16/frappe/automation/doctype/assignment_rule/assignment_rule.py
+- Notifications: https://docs.frappe.io/framework/notifications
+- Web Form: https://docs.frappe.io/framework/user/en/web-form
+- REST API: https://docs.frappe.io/framework/user/en/api/rest
+- Webhooks: https://docs.frappe.io/framework/user/en/guides/integration/webhooks
+- Script Report: https://docs.frappe.io/framework/user/en/desk/reports/script-report
+- Auto Repeat: https://docs.frappe.io/erpnext/auto-repeat
+- Document Follow: https://docs.frappe.io/erpnext/document-follow
+- Migrations: https://docs.frappe.io/framework/user/en/guides/deployment/migrations
+- Bench data import: https://docs.frappe.io/framework/user/en/guides/data/import-large-csv-file
 
-Work Management не должен превращаться в:
-
-- универсальный BPMN/process builder;
-- собственный workflow engine;
-- собственный assignment engine;
-- собственный permission engine;
-- HR/payroll систему;
-- CRM;
-- бухгалтерию;
-- складской учёт;
-- универсальную ECM/СЭД;
-- полноценный EAM/CMMS;
-- универсальную CMDB;
-- PPM/Agile suite;
-- workforce scheduling engine;
-- полноценный Helpdesk;
-- integration bus;
-- meta-framework с Entity/Relation/Rule/Plugin.
-
-Если одна из этих задач становится самостоятельным продуктом, она должна решаться соответствующим Frappe App или интеграцией, а не раздуванием Work Management.
-
-## Итоговая структура продукта
-
-```text
-Frappe Framework
-│
-├── permissions / Assign To / Workflow / Notifications
-├── Desk / Views / Reports / Workspace
-├── Auto Repeat / File / Comments / Communication
-├── Web Form / REST / Email intake / Webhooks
-│
-└── Work Management
-    │
-    ├── Core Work
-    │   ├── Work Unit
-    │   ├── Work Type
-    │   └── Work Item
-    │
-    ├── Work Membership
-    ├── Work Intake
-    ├── Documentary Records
-    ├── Operational Locations
-    ├── Tracked Assets
-    ├── Work Projects
-    ├── Shift Operations
-    ├── Time Tracking
-    └── Work History & Analytics
-```
-
-Это целевая структура одного самостоятельного продукта с устойчивым Core. Организация использует нужные ей возможности и собирает свой типовой процесс через Frappe, не меняя фундаментальную модель данных.
+Этот документ задаёт функциональную границу продукта. Точная схема Core и first-party моделей выводится из этих возможностей и фиксируется отдельно в [Data Model v1](data-model-v1.md) и последующих capability-specific документах.
