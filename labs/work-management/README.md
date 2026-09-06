@@ -4,7 +4,7 @@ Work Management — прототип управления операционно
 
 Текущая модель строится **native-first**: сначала используются штатные возможности Frappe v16, а собственный код появляется только после подтверждённого пробела, который нельзя закрыть конфигурацией Framework.
 
-На этом этапе Work Management не является отдельным `App`. Прототип добавляет один site-level `Custom DocType` — `Work Item` — и использует штатные механизмы Frappe вокруг него.
+На этом этапе Work Management не является отдельным `App`. Прототип собирается на Site вокруг одного `Custom DocType` — `Work Item` — и штатных механизмов Frappe.
 
 Точная схема `Work Item` описана в [Data Model v1](data-model-v1.md). Права доступа и граница штатных permissions описаны в [Security v1](security-v1.md). Рабочие представления, автоматизация, аналитика и Workspace собраны в [Configuration v1](configuration-v1.md). Пошаговая настройка на чистом Frappe v16 Site описана в [Setup Guide](setup-guide.md).
 

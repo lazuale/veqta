@@ -19,7 +19,7 @@ Role Name: Work User
 Desk Access: Yes
 ```
 
-Эта роль даёт пользователю доступ к Work Management. Обычный доступ в Desk сам по себе не должен открывать `Work Item`.
+Эта роль даёт обычному прикладному пользователю доступ к Work Management. Обычный доступ в Desk сам по себе не должен открывать `Work Item`; штатный административный доступ `System Manager` и `Administrator` сохраняется отдельно.
 
 ## 2. Создайте `Work Item`
 
@@ -138,6 +138,8 @@ ToDo.date          = Complete By конкретного assignment
 | Cancel | No |
 | Amend | No |
 | If Owner | No |
+
+При создании DocType Frappe добавляет permission row для `System Manager`. Не удаляйте её: это штатный административный доступ, а `Work User` — отдельная прикладная роль.
 
 Права стандартного `ToDo` не изменяйте. Work Management использует штатную модель доступа Frappe к назначениям.
 
@@ -260,7 +262,13 @@ End Date Field: due_date
 All Day: Yes
 ```
 
-Calendar показывает сроки, а не плановую длительность работ. Дополнительные `start_date`, `end_date`, `duration` и `progress` для этого не нужны.
+Calendar показывает сроки, а не плановую длительность работ. `Is Calendar and Gantt` у `Work Item` оставьте выключенным; дополнительные `start_date`, `end_date`, `duration` и `progress` для этого не нужны.
+
+Именованный Calendar View открывается по штатному route:
+
+```text
+/desk/work-item/view/calendar/Work%20Items%20by%20Due%20Date
+```
 
 ## 8. Создайте Number Cards
 
@@ -366,10 +374,11 @@ Board
   Kanban Board: Work Items
 
 Calendar
-  Type: DocType
-  Link To: Work Item
-  DocType View: Calendar
+  Type: URL
+  URL: /desk/work-item/view/calendar/Work%20Items%20by%20Due%20Date
 ```
+
+Для Calendar не выбирайте `DocType View: Calendar`: у site-level Custom DocType этот вариант не появляется только из-за отдельно созданного `Calendar View`. URL shortcut — штатный механизм Workspace и открывает именно `Work Items by Due Date` без включения Gantt. Штатный URL shortcut Frappe открывает адрес в новой вкладке.
 
 ### Number Cards
 
@@ -521,9 +530,9 @@ Work Item не удаляется.
 5. Закрытие собственного ToDo не закрывает Work Item автоматически; после завершения Work Item переводится в `Closed` отдельно.
 6. При нескольких исполнителях каждый получает отдельный ToDo.
 7. Для отмены сначала снимаются assignments, затем Work Item переводится в `Cancelled`.
-8. Пользователь без `Work User` не получает доступа к Work Item.
+8. Обычный System User без `Work User` и без административной роли не получает доступа к Work Item.
 9. `Work User` не может удалить Work Item.
-10. Work Item со сроком отображается в Calendar и соответствующих Number Cards.
+10. Work Item со сроком отображается в `Work Items by Due Date` и соответствующих Number Cards.
 11. Workspace `Work Management` доступен пользователю с `Work User`.
 
 ## 15. Известные ограничения native v1
@@ -546,6 +555,10 @@ Work Item не удаляется.
 - [DocType](https://docs.frappe.io/framework/user/en/basics/doctypes)
 - [Field Types](https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes)
 - [Frappe v16 source](https://github.com/frappe/frappe/tree/version-16)
+- [DocType form](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/doctype/doctype.js)
+- [Permissions](https://github.com/frappe/frappe/blob/version-16/frappe/permissions.py)
 - [Assign To](https://github.com/frappe/frappe/blob/version-16/frappe/desk/form/assign_to.py)
 - [Auto Repeat](https://github.com/frappe/frappe/blob/version-16/frappe/automation/doctype/auto_repeat/auto_repeat.py)
+- [Calendar View](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/calendar_view/calendar_view.js)
+- [Workspace Shortcut widget](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/widgets/shortcut_widget.js)
 - [Workspace](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/workspace/workspace.py)
