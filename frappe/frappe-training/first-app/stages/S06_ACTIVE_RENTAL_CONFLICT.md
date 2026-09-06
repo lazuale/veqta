@@ -30,7 +30,7 @@ Rental Operator / Rental Manager
 Первичные источники Frappe:
 
 - https://docs.frappe.io/framework/user/en/api/database
-- https://github.com/frappe/frappe/blob/v16.33.0/frappe/__init__.py
+- https://github.com/frappe/frappe/blob/v16.33.0/frappe/database/database.py
 - https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/document.py
 
 ---
@@ -104,27 +104,32 @@ Server Script
 
 ---
 
-# 4. `get_list` и `get_all` здесь имеют разный смысл
+# 4. Пользовательское чтение и внутренний locking read — разные задачи
 
-Frappe различает:
+Frappe различает permission-aware пользовательское чтение и прямой Database API.
+
+Для пользовательских списков нормальный выбор:
 
 ```text
 frappe.get_list(...)
 → учитывает permissions текущего пользователя
-
-frappe.get_all(...)
-→ не применяет обычную фильтрацию по permissions
 ```
-
-Для пользовательских списков нормальный выбор — путь с учётом permissions.
 
 Но V03 — внутренний инвариант данных. Если конфликт уже существует в базе, текущий Rental нельзя разрешать только потому, что пользователь не видит конфликтующую запись в своём List.
 
-Поэтому **внутри V03 `get_all()` используется намеренно**.
+Кроме того, после ожидания конкурентной транзакции V03 должен читать **актуальное** состояние, а не полагаться на обычный consistent read текущей транзакции.
 
-Это не означает «если права мешают — всегда используйте get_all». На S05D уже зафиксировано противоположное правило: обход permissions должен иметь конкретную системную причину.
+Поэтому внутри V03 используется прямой Database API:
 
-Также внутренний запрос не должен без необходимости раскрывать пользователю данные скрытого Rental. Поэтому ошибка сообщает о занятости Equipment, но не обязана показывать имя конфликтующего Rental, его Customer или owner.
+```python
+frappe.db.get_values(..., for_update=True)
+```
+
+Он выполняет locking read и не применяет пользовательскую фильтрацию `get_list`.
+
+Это не означает «если права мешают — всегда используйте Database API». Здесь обход пользовательской выборки и row lock имеют конкретную системную причину: защита инварианта, который обязан учитывать все конфликтующие Rentals.
+
+Внутренний запрос также не должен без необходимости раскрывать пользователю данные скрытого Rental. Поэтому ошибка сообщает о занятости Equipment, но не обязана показывать имя конфликтующего Rental, его Customer или owner.
 
 ---
 
@@ -141,26 +146,27 @@ current.items
 → Equipment FOR UPDATE
 ```
 
-После этого находим дочерние строки с теми же Equipment:
+После получения этих locks V03 выполняет locking reads дочерних строк и найденных Rental:
 
 ```text
-current.items
-→ имена Equipment
-→ строки Rental Item
+Rental Item FOR UPDATE
 → имена родительских Rental
+→ Rental FOR UPDATE
+→ status/date overlap
 ```
 
-Затем среди найденных родителей ищем:
+Row lock Equipment выполняет роль общего mutex для конкурирующих Rentals одного Equipment. Locking reads после него нужны, чтобы после ожидания другого request прочитать уже актуальное зафиксированное состояние.
+
+Два параллельных Rental с одинаковым Equipment получают такой порядок:
 
 ```text
-status = Active
-AND start_date <= current.end_date
-AND end_date >= current.start_date
+T1 → Equipment lock → current reads → save → commit
+T2 → ждёт Equipment lock
+T1 commit
+T2 → получает Equipment lock → current reads → видит T1 → ошибка
 ```
 
-Row lock нужен не для чтения самого Equipment, а для сериализации конкурирующих проверок одного и того же ресурса. Два параллельных Rental с одинаковым Equipment не смогут одновременно пройти V03 на одном старом снимке состояния: второй дождётся завершения транзакции первого и только потом повторит запрос конфликтов.
-
-Ручной SQL текущему требованию не нужен: Frappe `get_doc(..., for_update=True)` штатно загружает Document с `FOR UPDATE`.
+Ручной SQL текущему требованию не нужен: Frappe v16.33.0 штатно поддерживает `for_update=True` и у `Document` load, и у `frappe.db.get_value/get_values`.
 
 ---
 
@@ -220,14 +226,16 @@ class Rental(Document):
         if not equipment:
             return
 
-        matching_items = frappe.get_all(
+        matching_items = frappe.db.get_values(
             "Rental Item",
-            filters=[
-                ["equipment", "in", equipment],
-                ["parenttype", "=", "Rental"],
-                ["parentfield", "=", "items"],
-            ],
-            fields=["parent", "equipment"],
+            filters={
+                "equipment": ["in", equipment],
+                "parenttype": "Rental",
+                "parentfield": "items",
+            },
+            fieldname=["parent", "equipment"],
+            as_dict=True,
+            for_update=True,
         )
 
         candidate_rentals = sorted(
@@ -237,15 +245,17 @@ class Rental(Document):
             return
 
         overlapping_rentals = set(
-            frappe.get_all(
+            frappe.db.get_values(
                 "Rental",
-                filters=[
-                    ["name", "in", candidate_rentals],
-                    ["status", "=", "Active"],
-                    ["start_date", "<=", self.end_date],
-                    ["end_date", ">=", self.start_date],
-                ],
-                pluck="name",
+                filters={
+                    "name": ["in", candidate_rentals],
+                    "status": "Active",
+                    "start_date": ["<=", self.end_date],
+                    "end_date": [">=", self.start_date],
+                },
+                fieldname="name",
+                pluck=True,
+                for_update=True,
             )
         )
 
@@ -299,7 +309,27 @@ Row lock не заменяет формулу V03 и ничего не знае�
 
 ```text
 одинаковое Equipment
-→ конкурирующие проверки выполняются последовательно
+→ конкурирующие проверки входят в критический участок последовательно
+```
+
+## Locking reads после mutex
+
+После Equipment lock обе выборки V03 используют:
+
+```python
+frappe.db.get_values(..., for_update=True)
+```
+
+Это важно для корректности при уровне изоляции со snapshot/consistent reads: второй request после ожидания должен проверять уже зафиксированное состояние первого request.
+
+Таким образом:
+
+```text
+Equipment lock
+→ порядок входа
+
+Rental Item / Rental locking reads
+→ актуальное состояние для проверки
 ```
 
 ## Пустые даты
@@ -458,7 +488,7 @@ customer = frappe.get_list("Customer", pluck="name", limit_page_length=1)[0]
 equipment = frappe.get_list("Equipment", pluck="name", limit_page_length=1)[0]
 ```
 
-Это важно: `get_all()` нужен внутри системного инварианта V03, но не нужен оператору просто для выбора доступных ему Documents.
+Это важно: прямой Database API нужен внутри системного инварианта V03, но не нужен оператору просто для выбора доступных ему Documents.
 
 Создайте контрольную запись на свободном периоде:
 
@@ -527,30 +557,31 @@ T1 записывает Rental
 T2 записывает Rental
 ```
 
-Поэтому последовательная проверка через `get_all()` сама по себе не является полной гарантией V03.
+Поэтому обычная выборка конфликтов сама по себе не является полной гарантией V03.
 
-В текущей модели роль общего ресурса выполняет строка `Equipment`. Оба конкурирующих Active Rental должны сначала получить lock одного и того же Equipment:
+В текущей модели роль общего ресурса выполняет строка `Equipment`. Оба конкурирующих Active Rental должны сначала получить lock одного и того же Equipment, а затем сделать current locking reads:
 
 ```text
-T1 → Equipment FOR UPDATE → проверка V03 → save → commit
+T1 → Equipment FOR UPDATE → V03 locking reads → save → commit
 T2 → ждёт тот же Equipment
 T1 commit
-T2 получает lock → повторяет V03 → видит Rental T1 → ошибка
+T2 получает lock → V03 locking reads → видит Rental T1 → ошибка
 ```
-
-Это и есть недостающая ответственность `lock_active_equipment()`.
 
 Важно различать:
 
 ```text
-for_update
+Equipment FOR UPDATE
 → сериализация конкурентного критического участка
 
-validate_active_equipment_conflicts
-→ предметная проверка дат и статусов
+Rental Item / Rental FOR UPDATE
+→ актуальное состояние после ожидания
+
+проверка status/date overlap
+→ предметный инвариант
 ```
 
-Блокировка не заменяет инвариант, а инвариант без блокировки не закрывает конкурентную гонку.
+Блокировка не заменяет инвариант, а инвариант без корректного конкурентного чтения не закрывает гонку.
 
 Если позже появится другая модель резервирования, распределённая БД или иной ресурс конкуренции, стратегию нужно будет пересмотреть по новым требованиям. Для текущей модели отдельный Reservation Service не нужен.
 
@@ -627,11 +658,11 @@ Returned overlap                        → не блокирует
 
 ```text
 почему V03 читает другие Documents
-почему внутренний инвариант использует get_all
-почему пользовательский поиск от этого не становится get_all
+почему пользовательский поиск использует permission-aware get_list
+почему системный инвариант использует locking Database API
 почему Equipment блокируются до проверки V03
 почему lock берётся в стабильном порядке
-почему row lock и проверка пересечения решают разные задачи
+почему после mutex нужны current locking reads
 ```
 
 `rental.py` находится в Git, рабочее дерево App чистое.
@@ -648,6 +679,7 @@ Returned overlap                        → не блокирует
 - `Planned` или `Returned` блокируют Equipment вопреки принятой семантике;
 - реальный конфликт может исчезнуть из-за фильтрации permissions пользовательского List;
 - Active Rental проверяет V03 без row lock общего Equipment;
+- после ожидания mutex проверка использует только обычный consistent read;
 - несколько Equipment блокируются в случайном порядке;
 - в Controller появился ручной `frappe.db.commit()`;
 - появился отдельный слой резервирования, Service или Rule Engine без нового требования;
@@ -662,7 +694,7 @@ Rental.validate()
 ├── V01 local: date range
 ├── V02 local: duplicate Equipment
 ├── lock Active Equipment rows
-└── V03 cross-document: overlapping Active Rental
+└── V03 current locking reads + overlapping Active Rental
 ```
 
 На этом все три согласованных бизнес-инварианта учебного приложения реализованы, включая конкурентную границу V03 для текущей модели MariaDB/Frappe Site.
