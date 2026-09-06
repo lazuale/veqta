@@ -328,6 +328,8 @@ Percentage Stats для текущей очереди выключены: они
 
 ## 9. Создайте Dashboard Charts
 
+Создайте два графика.
+
 ### Активные по статусу
 
 ```text
@@ -337,18 +339,6 @@ Group By Based On: status
 Group By Type: Count
 Filters: status in Открыто, Ожидание
 Type: Donut
-Is Public: Yes
-```
-
-### Активные по приоритету
-
-```text
-Chart Type: Group By
-Document Type: Work Item
-Group By Based On: priority
-Group By Type: Count
-Filters: status in Открыто, Ожидание
-Type: Bar
 Is Public: Yes
 ```
 
@@ -366,6 +356,8 @@ Is Public: Yes
 ```
 
 `Новые работы` показывает поступление новых работ. Это не показатель производительности или выполненного объёма.
+
+График `Активные по приоритету` не создавайте. В Frappe v16 `Dashboard Chart → Group By` выводит фактические значения `Select` без контекстного `Translation`, поэтому легенда была бы `Low / Medium / High`. Менять технические значения `priority` ради графика нельзя: они совпадают со стандартным `ToDo.priority`.
 
 ## 10. Создайте Workspace
 
@@ -430,7 +422,6 @@ Roles:
 
 ```text
 Активные по статусу
-Активные по приоритету
 Новые работы
 ```
 
@@ -453,8 +444,7 @@ Roles:
 │   └── Срок сегодня
 │
 ├── СТРУКТУРА ОЧЕРЕДИ
-│   ├── Активные по статусу
-│   └── Активные по приоритету
+│   └── Активные по статусу
 │
 └── ПОСТУПЛЕНИЕ
     └── Новые работы
@@ -567,6 +557,7 @@ Work Item не удаляется.
 10. Work Item со сроком отображается в `Работы по сроку` и соответствующих Number Cards.
 11. Workspace `Управление работой` доступен пользователю с `Work User`.
 12. В русском интерфейсе имя DocType отображается как `Работа`, а приоритеты — `Низкий / Средний / Высокий`.
+13. График `Активные по статусу` использует русские подписи групп.
 
 ## 15. Известные ограничения штатной версии v1
 
@@ -576,6 +567,7 @@ Work Item не удаляется.
 - `Work Item.due_date` и `ToDo.date` имеют разную семантику;
 - Work User с `Write` на общей очереди может редактировать Work Item и снимать назначение другого Work User;
 - Auto Repeat не вычисляет относительный срок нового Work Item;
+- Dashboard Chart `Group By` не применяет контекстные переводы к значениям `Select`, поэтому график по `priority` не входит в русскую конфигурацию;
 - текущая модель не хранит отдельные `closed_at` и `closed_by`;
 - безопасная общая аналитика по всем назначениям Work Item не строится простым расширением доступа к `ToDo`, не открывая другие ToDo Site.
 
@@ -591,6 +583,7 @@ Work Item не удаляется.
 - [Translation DocType](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/translation/translation.json)
 - [Select control](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/form/controls/select.js)
 - [Kanban View](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/views/kanban/kanban_view.js)
+- [Dashboard Chart](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
 - [DocType form](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/doctype/doctype.js)
 - [Permissions](https://github.com/frappe/frappe/blob/version-16/frappe/permissions.py)
 - [Assign To](https://github.com/frappe/frappe/blob/version-16/frappe/desk/form/assign_to.py)
