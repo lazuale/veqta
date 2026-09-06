@@ -4,7 +4,9 @@ import json
 
 import frappe
 from frappe.desk.form.assign_to import add as add_assignment
+from frappe.model.workflow import apply_workflow
 from frappe.tests import IntegrationTestCase
+from frappe.utils import add_days, today
 
 
 class TestWorkItem(IntegrationTestCase):
@@ -87,6 +89,11 @@ class TestWorkItem(IntegrationTestCase):
 				"apply_to_all_doctypes": 1,
 			}
 		).insert(ignore_permissions=True)
+
+	def ensure_named_document(self, doctype, fieldname, value):
+		if frappe.db.exists(doctype, value):
+			return frappe.get_doc(doctype, value)
+		return frappe.get_doc({"doctype": doctype, fieldname: value}).insert(ignore_permissions=True)
 
 	def test_due_at_cannot_precede_planned_start(self):
 		with self.assertRaises(frappe.ValidationError):
@@ -200,6 +207,76 @@ class TestWorkItem(IntegrationTestCase):
 		item.save()
 		self.assertTrue(item.closed_at)
 
+	def test_parent_work_item_supports_decomposition(self):
+		parent = self.make_work_item(subject="Parent Work")
+		child = self.make_work_item(subject="Child Work", parent_work_item=parent.name)
+		self.assertEqual(child.parent_work_item, parent.name)
+
+	def test_parent_work_item_rejects_self_reference(self):
+		item = self.make_work_item()
+		item.parent_work_item = item.name
+		with self.assertRaises(frappe.ValidationError):
+			item.save()
+
+	def test_parent_work_item_rejects_cycle(self):
+		parent = self.make_work_item(subject="Parent")
+		child = self.make_work_item(subject="Child", parent_work_item=parent.name)
+		parent.parent_work_item = child.name
+		with self.assertRaises(frappe.ValidationError):
+			parent.save()
+
+	def test_dependencies_reject_duplicate_and_self_reference(self):
+		prerequisite = self.make_work_item(subject="Prerequisite")
+		with self.assertRaises(frappe.ValidationError):
+			self.make_work_item(
+				dependencies=[{"depends_on": prerequisite.name}, {"depends_on": prerequisite.name}]
+			)
+
+		item = self.make_work_item(subject="Self dependent")
+		item.append("dependencies", {"depends_on": item.name})
+		with self.assertRaises(frappe.ValidationError):
+			item.save()
+
+	def test_dependencies_reject_cycle(self):
+		first = self.make_work_item(subject="First")
+		second = self.make_work_item(subject="Second", dependencies=[{"depends_on": first.name}])
+		first.append("dependencies", {"depends_on": second.name})
+		with self.assertRaises(frappe.ValidationError):
+			first.save()
+
+	def test_new_parent_and_dependency_require_read_permission(self):
+		hidden_item = self.make_work_item(responsible_unit=self.unit_b.name)
+		item = self.make_work_item(responsible_unit=self.unit_a.name)
+		user = self.make_user("wm-structure-permission@example.com", "Work User")
+		self.allow_work_unit(user, self.unit_a.name)
+
+		frappe.set_user(user.name)
+		item = frappe.get_doc("Work Item", item.name)
+		item.parent_work_item = hidden_item.name
+		with self.assertRaises(frappe.PermissionError):
+			item.save()
+
+		item = frappe.get_doc("Work Item", item.name)
+		item.append("dependencies", {"depends_on": hidden_item.name})
+		with self.assertRaises(frappe.PermissionError):
+			item.save()
+
+	def test_existing_parent_and_dependency_do_not_revalidate_read_permission(self):
+		hidden_parent = self.make_work_item(responsible_unit=self.unit_b.name)
+		hidden_dependency = self.make_work_item(responsible_unit=self.unit_b.name)
+		item = self.make_work_item(
+			responsible_unit=self.unit_a.name,
+			parent_work_item=hidden_parent.name,
+			dependencies=[{"depends_on": hidden_dependency.name}],
+		)
+		user = self.make_user("wm-existing-structure@example.com", "Work User")
+		self.allow_work_unit(user, self.unit_a.name)
+
+		frappe.set_user(user.name)
+		item = frappe.get_doc("Work Item", item.name)
+		item.subject = "Unrelated structure edit"
+		item.save()
+
 	def test_dynamic_reference_requires_read_permission_on_new_target(self):
 		hidden_item = self.make_work_item(responsible_unit=self.unit_b.name)
 		user = self.make_user("wm-reference@example.com", "Work User")
@@ -302,3 +379,111 @@ class TestWorkItem(IntegrationTestCase):
 			)
 		)
 		self.assertEqual(assigned_users, {user_a.name, user_b.name})
+
+	def test_auto_repeat_resets_instance_state_but_keeps_template_context(self):
+		parent = self.make_work_item(subject="Recurring Parent")
+		prerequisite = self.make_work_item(subject="Recurring Prerequisite")
+		template = self.make_work_item(
+			subject="Recurring Work",
+			status="Waiting",
+			waiting_reason="Waiting in template instance",
+			next_action="Old next action",
+			planned_start="2026-09-06 08:00:00",
+			due_at="2026-09-06 18:00:00",
+			estimated_effort=3600,
+			parent_work_item=parent.name,
+			dependencies=[{"depends_on": prerequisite.name}],
+			sources=[{"source_doctype": "Work Type", "source_name": self.work_type.name}],
+			references=[{"reference_doctype": "Work Type", "reference_name": self.work_type.name}],
+		)
+
+		auto_repeat = frappe.get_doc(
+			{
+				"doctype": "Auto Repeat",
+				"reference_doctype": "Work Item",
+				"reference_document": template.name,
+				"frequency": "Daily",
+				"start_date": add_days(today(), 1),
+			}
+		).insert(ignore_permissions=True)
+		repeated = auto_repeat.make_new_document()
+
+		self.assertEqual(repeated.status, "Open")
+		self.assertIsNone(repeated.waiting_reason)
+		self.assertIsNone(repeated.waiting_since)
+		self.assertIsNone(repeated.next_action)
+		self.assertIsNone(repeated.started_at)
+		self.assertIsNone(repeated.closed_at)
+		self.assertIsNone(repeated.planned_start)
+		self.assertIsNone(repeated.due_at)
+		self.assertIsNone(repeated.parent_work_item)
+		self.assertFalse(repeated.dependencies)
+		self.assertFalse(repeated.sources)
+		self.assertEqual(len(repeated.references), 1)
+		self.assertEqual(repeated.references[0].reference_name, self.work_type.name)
+		self.assertEqual(repeated.work_type, template.work_type)
+		self.assertEqual(repeated.responsible_unit, template.responsible_unit)
+		self.assertEqual(repeated.priority, template.priority)
+		self.assertEqual(repeated.estimated_effort, template.estimated_effort)
+
+	def test_site_workflow_can_update_canonical_status(self):
+		for state in ["WM Open", "WM Working", "WM Complete"]:
+			self.ensure_named_document("Workflow State", "workflow_state_name", state)
+		for action in ["WM Start", "WM Complete"]:
+			self.ensure_named_document("Workflow Action Master", "workflow_action_name", action)
+
+		workflow = frappe.get_doc(
+			{
+				"doctype": "Workflow",
+				"workflow_name": "WM Test Work Item Workflow",
+				"document_type": "Work Item",
+				"workflow_state_field": "workflow_state",
+				"is_active": 1,
+				"states": [
+					{"state": "WM Open", "doc_status": "0", "allow_edit": "System Manager"},
+					{
+						"state": "WM Working",
+						"doc_status": "0",
+						"allow_edit": "System Manager",
+						"update_field": "status",
+						"update_value": "In Progress",
+					},
+					{
+						"state": "WM Complete",
+						"doc_status": "0",
+						"allow_edit": "System Manager",
+						"update_field": "status",
+						"update_value": "Done",
+					},
+				],
+				"transitions": [
+					{
+						"state": "WM Open",
+						"action": "WM Start",
+						"next_state": "WM Working",
+						"allowed": "System Manager",
+						"allow_self_approval": 1,
+					},
+					{
+						"state": "WM Working",
+						"action": "WM Complete",
+						"next_state": "WM Complete",
+						"allowed": "System Manager",
+						"allow_self_approval": 1,
+					},
+				],
+			}
+		).insert(ignore_permissions=True)
+		self.assertTrue(workflow.is_active)
+
+		item = self.make_work_item(subject="Workflow Work")
+		self.assertEqual(item.status, "Open")
+		self.assertEqual(item.workflow_state, "WM Open")
+
+		item = apply_workflow(item, "WM Start")
+		self.assertEqual(item.status, "In Progress")
+		self.assertTrue(item.started_at)
+
+		item = apply_workflow(item, "WM Complete")
+		self.assertEqual(item.status, "Done")
+		self.assertTrue(item.closed_at)
