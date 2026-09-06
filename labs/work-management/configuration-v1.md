@@ -178,7 +178,7 @@ Workspace использует пять Number Cards типа `Document Type` с
 | Waiting | `status = Waiting` |
 | Unassigned | `status = Open`, `Assigned To is not set` |
 | High Priority | `status in Open, Waiting`, `priority = High` |
-| Due Today | `status in Open, Waiting`, `due_date = today` |
+| Due Today | `status in Open, Waiting`, `due_date Timespan today` |
 
 Для карточек:
 
