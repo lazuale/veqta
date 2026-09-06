@@ -47,7 +47,7 @@ Movement должен создаваться системой внутри уж�
 
 Прикладной пользователь не должен вручную создавать или переписывать записи журнала.
 
-Модель permissions:
+Прикладная модель permissions:
 
 ```text
 Rental Manager
@@ -64,6 +64,8 @@ Create
 Write
 Delete
 ```
+
+При этом штатная административная строка `System Manager`, которую Frappe добавляет при создании Standard DocType, сохраняется. Она не относится к прикладной модели `Rental Operator / Rental Manager` и не должна удаляться ради того, чтобы журнал выглядел «только для менеджера».
 
 На следующем этапе команда Rental будет внутренне создавать Movement после проверки права на сам Rental.
 
@@ -199,7 +201,9 @@ MOVE-00002
 
 ## 6. Настроить permissions
 
-В Permissions добавьте только:
+Сохраните штатную строку `System Manager`, созданную Framework.
+
+Добавьте прикладную строку:
 
 ```text
 Role           : Rental Manager
@@ -259,8 +263,9 @@ rental → Link → Rental
 movement_type → Select
 movement_at → Datetime
 
-Rental Manager → read = 1
-create/write/delete = 0
+System Manager → штатный административный доступ
+Rental Manager → read = 1, create/write/delete = 0
+Rental Operator → строки permissions нет
 ```
 
 ---
@@ -288,7 +293,7 @@ for permission in meta.permissions:
     )
 ```
 
-Ожидается только manager read.
+В результате должна сохраняться штатная административная строка `System Manager`; прикладная строка `Rental Manager` должна давать только Read. Строки `Rental Operator` быть не должно.
 
 Проверьте прикладные роли:
 
@@ -305,7 +310,7 @@ for role in ["Rental Operator", "Rental Manager"]:
     )
 ```
 
-Смысл результата:
+Смысл результата для прикладных пользователей:
 
 ```text
 operator → read false / create false
@@ -367,6 +372,7 @@ git status --short
 ```text
 Equipment Movement существует как Standard DocType
 Movement принадлежит rental_training
+System Manager сохраняет штатный административный доступ
 Rental Manager имеет только Read
 Rental Operator не имеет прямого доступа
 прикладные роли не имеют Create/Write/Delete
