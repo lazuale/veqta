@@ -17,7 +17,7 @@ status values: Open, Waiting, Closed, Cancelled
 priority values: Low, Medium, High
 ```
 
-Русскими задаются метки полей, названия Saved Filters, Kanban Board, Calendar View, Number Cards, Dashboard Charts, Workspace и shortcuts.
+Русскими задаются метки полей, названия Saved Filters, Kanban Board, Calendar, Number Cards, Dashboard Charts, Workspace и shortcuts.
 
 `Work Item` отображается как `Работа` через штатный механизм переводов Frappe. Технические значения `status` и `priority` не заменяются русскими строками.
 
@@ -106,18 +106,29 @@ Kanban показывает состояние работы. Исполните�
 
 Перетаскивание карточки меняет `Work Item.status` штатным сохранением документа. Оно не синхронизирует связанные `ToDo`.
 
-## Calendar
+## Calendar и Gantt gap
 
-```text
-Name: Работы по сроку
-Reference Document Type: Work Item
-Subject Field: subject
-Start Date Field: due_date
-End Date Field: due_date
-All Day: Yes
+`Work Item` использует standard Calendar самого DocType, а не отдельный site-level `Calendar View`.
+
+При `Is Calendar and Gantt = Yes` Frappe создаёт стандартный `<doctype>_calendar.js` рядом с DocType. Для `Work Item` его конфигурация использует `due_date` как точку срока:
+
+```javascript
+frappe.views.calendar["Work Item"] = {
+	field_map: {
+		start: "due_date",
+		end: "due_date",
+		id: "name",
+		title: "subject",
+	},
+	get_events_method: "frappe.desk.calendar.get_events",
+};
 ```
 
-`due_date` используется как точка срока, а не интервал выполнения. Поля `start_date`, `end_date`, `duration`, `progress` только ради Calendar/Gantt не добавляются.
+`due_date` одновременно передаётся как `start` и `end` только потому, что Calendar API ожидает обе координаты события. Предметная семантика не меняется: это по-прежнему одна точка срока, а не интервал выполнения.
+
+В Frappe v16 наличие `frappe.views.calendar["Work Item"]` также делает доступным Gantt. Текущая модель не содержит `start_date`, `end_date`, `progress` и других данных длительного плана, поэтому Gantt не входит в поддерживаемый сценарий Lab.
+
+Это принимается как известный gap Framework/UI. Мы не создаём отдельный `Calendar View`, не используем URL-обход и не расширяем модель только ради того, чтобы Gantt выглядел рабочим.
 
 ## Auto Repeat
 
@@ -262,9 +273,12 @@ Developer Mode важен здесь не для runtime, а для разраб
   Kanban Board: Работы
 
 Календарь
-  Type: URL
-  URL: route именованного Calendar View Работы по сроку
+  Type: DocType
+  Link To: Work Item
+  View: Calendar
 ```
+
+Для Calendar используется штатный DocType route. URL на именованный `Calendar View` больше не нужен.
 
 `Workspace Shortcut.color` не рассматривается как способ перекрасить всю плитку: в штатном v16 он главным образом участвует в indicator/count-представлении. Основная визуальная структура достигается компоновкой Workspace и оформлением Number Cards.
 
@@ -303,6 +317,8 @@ Workspace делится штатными Header blocks. Custom HTML, собст
 3. patch только если требуется миграция уже существующего состояния;
 4. ручная настройка — только временный шаг live experiment, а не конечный способ доставки.
 
+Standard calendar config `Work Item` хранится рядом с standard DocType как обычный App-файл и не требует отдельного `Calendar View` fixture.
+
 Точный набор exported metadata и fixtures фиксируется после живой сборки на используемой версии Frappe. Не нужно заранее придумывать механизм для каждого объекта без проверки фактического поведения Framework.
 
 ## Границы текущей конфигурации
@@ -314,9 +330,10 @@ Workspace делится штатными Header blocks. Custom HTML, собст
 - чистый DocPerm не выражает правило «редактировать Work Item может только назначенный пользователь»;
 - простой Report Builder не закрывает безопасную общую аналитику по всем назначениям;
 - базовый Auto Repeat не вычисляет относительный `due_date`;
-- простой `Dashboard Chart Group By` может быть недостаточен для локализованного категориального графика.
+- простой `Dashboard Chart Group By` может быть недостаточен для локализованного категориального графика;
+- Calendar и Gantt в Frappe v16 используют один calendar config: Calendar поддерживается, Gantt остаётся видимым, но не считается рабочим представлением текущей модели.
 
-Эти пункты не объявляются фундаментальными ограничениями Frappe. При подтверждённой необходимости сначала проверяется официальный developer extension point.
+Эти пункты не объявляются фундаментальными ограничениями Frappe. При подтверждённой необходимости сначала проверяется официальный developer extension point. Видимый Gantt сам по себе не создаёт новой предметной ответственности и не является основанием добавлять поля.
 
 ## Источники Frappe v16
 
@@ -327,6 +344,10 @@ Workspace делится штатными Header blocks. Custom HTML, собст
 - [Workspace form](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace/workspace.js)
 - [Workspace Shortcut](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace_shortcut/workspace_shortcut.json)
 - [Workspace Shortcut widget](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/widgets/shortcut_widget.js)
+- [Calendar boilerplate](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/boilerplate/controller_calendar.js)
+- [ToDo Calendar](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo_calendar.js)
+- [List View selector](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/list/list_view_select.js)
+- [Gantt View](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/views/gantt/gantt_view.js)
 - [Number Card](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/number_card/number_card.json)
 - [Number Card widget](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/widgets/number_card_widget.js)
 - [Dashboard Chart](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
