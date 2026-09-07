@@ -53,6 +53,7 @@ work_management
 ```text
 Module: Work Management
 Custom: No
+Is Calendar and Gantt: Yes
 ```
 
 После сохранения DocType проверьте каталог App через:
@@ -61,7 +62,7 @@ Custom: No
 git status
 ```
 
-Должны появиться изменения metadata/controller, созданные самим Frappe для standard DocType.
+Должны появиться изменения metadata/controller, созданные самим Frappe для standard DocType, включая standard calendar file `<doctype>_calendar.js`.
 
 Если `Work Item` остался только database-state Site и не появился в App, live-test считается не пройденным: нужно сначала выяснить причину, а не продолжать строить конфигурацию поверх Custom DocType.
 
@@ -213,18 +214,23 @@ work-b@example.test
 
 Если это подтвердится, результат не исправляется UI-запретом. При появлении реального требования на более строгую границу отдельно анализируется официальный permission/assignment extension path App.
 
-## 11. Сроки и Calendar
+## 11. Сроки, Calendar и Gantt gap
 
 Создайте Work Item со сроком сегодня.
 
 Проверьте:
 
 - Number Card `Срок сегодня`;
-- `Работы по сроку`;
+- standard Calendar `Work Item`;
 - shortcut `Календарь`;
-- документ без `due_date` не появляется как календарное событие.
+- документ без `due_date` не появляется как календарное событие;
+- `due_date` отображается как одна точка срока, а не как отдельный интервал начала/окончания.
 
 `ToDo.date` не используйте как критерий.
+
+В интерфейсе может быть доступен Gantt, потому что Frappe v16 связывает его с тем же calendar config. Это известный gap текущей модели и не считается ошибкой Lab.
+
+Для Gantt не проверяются длительность, progress, зависимости или корректное редактирование интервала. Не добавляйте `start_date`, `end_date`, `progress` и другие поля только ради прохождения этого сценария.
 
 ## 12. Kanban
 
@@ -287,7 +293,7 @@ links        → пусто
 - `Новая работа` открывает создание;
 - `Список работ` открывает List View;
 - `Доска` открывает Kanban `Работы`;
-- `Календарь` открывает `Работы по сроку`;
+- `Календарь` открывает standard Calendar `Work Item` через штатный DocType route;
 - пять Number Cards дают корректные значения;
 - клик по карточке открывает ожидаемый filtered list;
 - `Новые работы` отображается без ошибки.
@@ -318,6 +324,8 @@ B. остались database records и требуют штатного fixture/
 C. являются пользовательским состоянием Site и не должны поставляться App
 ```
 
+Standard calendar config `Work Item` должен находиться в App рядом с DocType. Отдельный `Calendar View` database record для baseline не требуется.
+
 Не объявляйте fixtures заранее для всего подряд. Для каждого обязательного объекта сначала наблюдайте фактическое поведение Frappe v16.
 
 ## 16. Reinstall test на втором чистом Site
@@ -339,7 +347,10 @@ bench --site <second-site> clear-cache
 - присутствует ли Workspace;
 - присутствуют ли обязательные Number Cards/Charts;
 - присутствуют ли Kanban/Calendar/переводы/роль `Work User`, если они должны быть частью App;
+- standard Calendar работает без ручного создания `Calendar View`;
 - не появились ли лишние данные, относящиеся только к первому Site.
+
+Видимый Gantt не обязан быть рабочим и не влияет на результат reinstall-test.
 
 Каждый отсутствующий обязательный объект — не повод немедленно писать patch. Сначала определить его штатный delivery mechanism: standard metadata, fixture или другой официальный механизм Frappe.
 
@@ -360,6 +371,8 @@ Reinstall test считается пройденным только когда �
 - Number Cards/Chart.
 
 Ожидается, что пользовательский runtime не зависит от Developer Mode.
+
+Пункт Gantt может оставаться видимым; это известный неподдерживаемый gap и не считается зависимостью runtime от Developer Mode.
 
 Если после выключения режима ломается обычная эксплуатация, нужно определить, случайно ли мы сделали developer-only UI частью runtime-контракта.
 
@@ -386,6 +399,10 @@ Reinstall test считается пройденным только когда �
 - [Create a DocType](https://docs.frappe.io/framework/user/en/tutorial/create-a-doctype)
 - [Site Config](https://docs.frappe.io/framework/user/en/basics/site_config)
 - [`DocType` controller, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py)
+- [`Calendar boilerplate`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/boilerplate/controller_calendar.js)
+- [`ToDo Calendar`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo_calendar.js)
+- [`List View selector`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/list/list_view_select.js)
+- [`Gantt View`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/views/gantt/gantt_view.js)
 - [`Workspace`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace/workspace.py)
 - [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
 - [`Auto Repeat`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
