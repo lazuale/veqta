@@ -240,7 +240,7 @@ Cancelled
 
 Сравните каждое число с обычным permission-aware List View по тем же фильтрам.
 
-На development Site отдельно убедитесь, что `Is Standard = Yes` создал standard files Number Card в модуле App. Их наличие только в DB не считается воспроизводимой поставкой.
+На development Site отдельно убедитесь, что `Is Standard = Yes` создал standard files Number Card в каталоге `number card` модуля App. Их наличие только в DB не считается воспроизводимой поставкой.
 
 ### Эксперимент «Без исполнителя»
 
@@ -263,7 +263,7 @@ Assigned To Is Not Set
 
 Сравните данные с permission-aware List/Report по Work Item.
 
-На development Site проверьте, что standard Dashboard Chart реально экспортирован в module files App.
+На development Site проверьте, что standard Dashboard Chart реально экспортирован в каталог `dashboard chart` модуля App.
 
 ## 14. Auto Repeat без assignee
 
@@ -353,7 +353,7 @@ Weighted Distribution
 
 Не меняйте permissions только ради теста. Под `VEQTA Work User` убедитесь, что отсутствие permission `Email` не мешает обычной работе Work Item и что документация не обещает отдельный почтовый workflow.
 
-## 19. Metadata, hooks и fixture
+## 19. Metadata и fixture
 
 В каталоге App:
 
@@ -373,8 +373,11 @@ standard metadata:
 - locale/main.pot
 - locale/ru.po
 
+штатная синхронизация:
+- Work Item / Workspace → model sync
+- Number Cards / Dashboard Chart → sync_dashboards()
+
 hooks.py:
-- importable_doctypes = Number Card, Dashboard Chart
 - fixture declaration только для Kanban Board VEQTA Work Items
 
 fixture:
@@ -382,6 +385,7 @@ fixture:
 
 не должно быть:
 - fixture для Number Card / Dashboard Chart
+- importable_doctypes для Number Card / Dashboard Chart
 - отдельного fixture Role только ради VEQTA Work User
 - Work Item / ToDo user data
 - global Saved Filters
@@ -392,17 +396,6 @@ fixture:
 ```
 
 Проверьте, что fixture не захватил посторонние Kanban Boards.
-
-Проверьте отдельно, что `hooks.py` действительно содержит:
-
-```python
-importable_doctypes = [
-    "Number Card",
-    "Dashboard Chart",
-]
-```
-
-Без этого downstream sync Frappe v16.33.0 не обязан сканировать module directories этих двух standard DocTypes.
 
 ## 20. Reinstall test
 
@@ -431,9 +424,9 @@ bench --site <second-site> clear-cache
 
 1. Role появилась из standard metadata/permissions, а не потому, что случайно осталась в DB второго Site.
 2. Number Cards и Dashboard Chart появились без fixtures и без ручного создания на втором Site.
-3. Их загрузка обеспечивается `importable_doctypes`, а Kanban Board — отдельным узким fixture.
+3. Их загрузка обеспечивается штатным `sync_dashboards()`, а Kanban Board — отдельным узким fixture.
 
-Если Number Cards или Dashboard Chart отсутствуют на чистом Site при наличии файлов, сначала проверяется hook `importable_doctypes`, а не добавляется fixture или patch.
+Если Number Cards или Dashboard Chart отсутствуют на чистом Site при наличии файлов, сначала проверяется их standard file path и выполнение `sync_dashboards()`, а не добавляется fixture, `importable_doctypes` или patch.
 
 ## 21. Runtime без Developer Mode
 
@@ -467,7 +460,7 @@ bench --site <site> clear-cache
 - [`Assignment Rule`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/assignment_rule/assignment_rule.py)
 - [`Number Card`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/number_card/number_card.py)
 - [`Dashboard Chart`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
-- [`Model sync`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/sync.py)
+- [`Dashboard sync`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/utils/dashboard.py)
 - [`Kanban Board`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/kanban_board/kanban_board.py)
 - [`Workspace`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace/workspace.py)
 - [`Workspace Sidebar`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace_sidebar/workspace_sidebar.py)
