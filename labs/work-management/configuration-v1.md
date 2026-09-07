@@ -16,27 +16,28 @@ status: Open, Waiting, Closed, Cancelled
 priority: Low, Medium, High
 ```
 
-Русское отображение поставляется через:
+Для нового App на Frappe v16 русская локализация поставляется через Gettext:
 
 ```text
-veqta_work_management/translations/ru.csv
+veqta_work_management/locale/main.pot
+veqta_work_management/locale/ru.po
 ```
 
-Например:
+Уникальные строки App переводятся в `ru.po`, например:
 
 ```text
-Work Item,Работа
-VEQTA Work User,Участник управления работой
-Open,Открыто
-Waiting,Ожидание
-Closed,Закрыто
-Cancelled,Отменено
-Low,Низкий
-Medium,Средний
-High,Высокий
+Work Item                      → Работа
+VEQTA Work Management          → Управление работой
+VEQTA Work User                → Участник управления работой
+VEQTA Work Items               → Работы
+VEQTA Active Work Items        → Активные работы
+VEQTA Waiting Work Items       → Ожидание
+VEQTA High Priority Work Items → Высокий приоритет
+VEQTA Due Today Work Items     → Срок сегодня
+VEQTA New Work Items           → Новые работы
 ```
 
-DB-записи `Translation` не являются обязательным состоянием App.
+Общие строки Frappe (`Open`, `Status`, `Priority` и т. п.) не переопределяются App без необходимости, если core Russian translation уже подходит.
 
 ## Основной сценарий
 
@@ -49,7 +50,7 @@ Work Item создан
 → App закрывает оставшиеся активные назначения
 ```
 
-При `Cancelled` App отменяет оставшиеся назначения. Закрытие одного `ToDo` не закрывает Work Item автоматически.
+При `Cancelled` App отменяет только активные назначения. Закрытие одного `ToDo` не закрывает Work Item автоматически.
 
 ## List View
 
@@ -116,7 +117,7 @@ Field: status
 Private: No
 ```
 
-В `ru.csv` имя отображается как `Работы`.
+В русском интерфейсе имя отображается как `Работы`.
 
 Колонки используют технические значения:
 
@@ -288,7 +289,7 @@ Roles:
   VEQTA Work User
 ```
 
-В `ru.csv` он отображается как `Управление работой`.
+В русском интерфейсе он отображается как `Управление работой`.
 
 ### Shortcuts
 
@@ -298,12 +299,12 @@ New Work Item
   Link To: Work Item
   View: New
 
-Work Items
+Work Item List
   Type: DocType
   Link To: Work Item
   View: List
 
-Board
+Work Board
   Type: DocType
   Link To: Work Item
   View: Kanban
@@ -353,7 +354,8 @@ standard metadata / App files:
 - Workspace
 - Number Cards
 - Dashboard Chart
-- translations/ru.csv
+- locale/main.pot
+- locale/ru.po
 - hooks.py
 
 fixture:
@@ -368,6 +370,8 @@ fixture:
 
 ## Источники Frappe v16.33.0
 
+- [Frappe Commands](https://docs.frappe.io/framework/user/en/bench/frappe-commands)
+- [`Gettext commands`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/commands/gettext.py)
 - [`List View settings`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/activity_log/activity_log_list.js)
 - [`Kanban View`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/views/kanban/kanban_view.js)
 - [`Kanban Settings`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/views/kanban/kanban_settings.js)
