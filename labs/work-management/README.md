@@ -141,35 +141,24 @@ Calendar/Gantt не входят в baseline: текущая модель сод
 
 `Assignment Rule` не добавляется только ради повторения: он нужен тогда, когда появляется самостоятельное требование автоматического распределения. `on_recurring` нужен только для поведения нового Work Item, которого сам Auto Repeat не выражает metadata.
 
-## Поставка standard metadata
+## Поставка обязательного состояния
 
-Не все standard записи синхронизируются из downstream App одинаково.
-
-`Work Item` и `Workspace` входят в штатную file-backed sync-механику Frappe. `Number Card` и `Dashboard Chart` при `Is Standard = Yes` тоже экспортируются в файлы App, но `frappe.model.sync` не сканирует эти DocTypes в downstream Apps по умолчанию.
-
-Для них используется официальный hook Frappe:
-
-```python
-importable_doctypes = [
-    "Number Card",
-    "Dashboard Chart",
-]
-```
-
-Так standard Number Cards и Dashboard Chart остаются standard metadata, а не превращаются в fixtures. `Kanban Board` такого standard file-backed механизма не имеет, поэтому только он поставляется узким fixture.
-
-Итоговая граница:
+Разные типы standard metadata Frappe имеют разные штатные механизмы поставки:
 
 ```text
-Work Item        → standard DocType file
-Workspace        → standard file
-Number Card      → standard file + importable_doctypes
-Dashboard Chart  → standard file + importable_doctypes
+Work Item        → standard DocType file / model sync
+Workspace        → standard file / model sync
+Number Card      → standard file / sync_dashboards()
+Dashboard Chart  → standard file / sync_dashboards()
 Kanban Board     → narrow fixture
 Role / DocPerm   → permissions standard Work Item
 ```
 
-Patch и собственный install-код для этого baseline не нужны.
+`Number Card` и `Dashboard Chart` при `Is Standard = Yes` экспортируются Frappe в каталоги модуля. При install/migrate Frappe отдельно вызывает `sync_dashboards()`, который сканирует `number card` и `dashboard chart` каждого модуля и импортирует эти файлы. Поэтому для них не нужны ни fixture, ни `importable_doctypes`, ни patch.
+
+`Kanban Board` такого standard file-backed канала не имеет, поэтому узкий fixture остаётся правильным выбором.
+
+Patch и собственный install-код для baseline не нужны.
 
 ## Что намеренно отсутствует
 
@@ -225,5 +214,5 @@ end_date
 - [`Assignment Rule`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/assignment_rule/assignment_rule.py)
 - [`Number Card`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/number_card/number_card.py)
 - [`Dashboard Chart`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
-- [`Model sync`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/sync.py)
+- [`Dashboard sync`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/utils/dashboard.py)
 - [`Gettext commands`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/commands/gettext.py)
