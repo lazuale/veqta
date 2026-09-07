@@ -25,7 +25,7 @@ veqta_work_management/locale/ru.po
 
 Уникальные строки App переводятся в `ru.po`. Общие строки Frappe не дублируются, если core Russian translation уже подходит.
 
-Для `Work Item.due_date` пользовательский смысл — «Срок работы». Это отличает общий срок Work Item от `Complete By` конкретного назначения.
+`Work Item.due_date` по смыслу является общим сроком Work Item. Это отличается от `Complete By` конкретного назначения, но не требует отдельного переопределения общей строки Frappe `Due Date`.
 
 ## Основной сценарий
 
@@ -131,9 +131,9 @@ Work Item.due_date = общий срок работы
 ToDo.date          = Complete By конкретного назначения
 ```
 
-Стандартный Assign To не копирует `Work Item.due_date` в `ToDo.date`. Если пользователь оставляет `Complete By` пустым, backend Frappe создаёт ToDo с текущей датой.
+Стандартный Assign To не копирует `Work Item.due_date` в `ToDo.date`. Если пользователь оставляет `Complete By` пустым, standard dialog не отправляет null-поле `date`, и backend Frappe создаёт ToDo с текущей датой.
 
-Если появится требование автоматически передавать срок Work Item в назначения, сначала проверяется штатный `Assignment Rule.due_date_based_on`, включая его стандартное обновление сроков открытых ToDo. Собственная lifecycle-синхронизация не является первым вариантом.
+Если появится требование автоматически передавать срок Work Item в назначения, сначала проверяется штатный `Assignment Rule.due_date_based_on`, включая его стандартное обновление сроков открытых ToDo, созданных этим Assignment Rule. Собственная lifecycle-синхронизация не является первым вариантом.
 
 ## Auto Repeat
 
@@ -202,6 +202,8 @@ Is Public: Yes
 Show Percentage Stats: No
 ```
 
+В Developer Mode standard Number Card экспортируется Frappe в module files. Для загрузки этих файлов из downstream App требуется `importable_doctypes`, описанный ниже.
+
 Карточка «Без исполнителя» не входит в baseline: фильтрация через внутренний assignment-механизм сначала проверяется на живом patch-release. Собственное поле `assignee` ради счётчика не добавляется.
 
 Для визуального разделения можно использовать штатные `Color` / `Background Color` Number Card. Это оформление, а не модель данных.
@@ -225,6 +227,8 @@ Module: VEQTA Work Management
 ```
 
 В русском интерфейсе: `Новые работы`. График показывает входящий поток Work Item и не трактуется как производительность.
+
+В Developer Mode standard Dashboard Chart экспортируется Frappe в module files. Для загрузки этих файлов из downstream App также требуется `importable_doctypes`.
 
 ## Report Builder
 
@@ -294,9 +298,36 @@ Work Board
 Порядок:
 
 1. standard file-backed metadata Frappe;
-2. fixture только для обязательной DB-записи без standard file-backed механизма;
-3. patch только для миграции существующего состояния;
-4. ручная настройка — только этап эксперимента.
+2. официальный sync hook для standard DocTypes, которые downstream App не сканирует по умолчанию;
+3. fixture только для обязательной DB-записи без standard file-backed механизма;
+4. patch только для миграции существующего состояния;
+5. ручная настройка — только этап эксперимента.
+
+### `hooks.py`
+
+Для Number Card и Dashboard Chart нужен официальный hook:
+
+```python
+importable_doctypes = [
+    "Number Card",
+    "Dashboard Chart",
+]
+
+fixtures = [
+    {
+        "doctype": "Kanban Board",
+        "filters": [["name", "=", "VEQTA Work Items"]],
+    }
+]
+```
+
+Почему именно так:
+
+- `Number Card` и `Dashboard Chart` имеют собственный standard file export и должны оставаться standard metadata;
+- `frappe.model.sync.get_doc_files()` сканирует downstream App только по встроенному `IMPORTABLE_DOCTYPES` плюс hook `importable_doctypes`;
+- `Number Card` и `Dashboard Chart` не входят во встроенный список Frappe v16.33.0;
+- fixture для них дублировал бы уже существующую standard file semantics;
+- `Kanban Board`, напротив, не имеет такого standard file-backed механизма, поэтому узкий fixture остаётся правильным выбором.
 
 Baseline:
 
@@ -308,12 +339,13 @@ standard metadata / App files:
 - Dashboard Chart
 - locale/main.pot
 - locale/ru.po
-- hooks.py с fixture declaration
 
-fixture:
-- Kanban Board VEQTA Work Items
+hooks.py:
+- importable_doctypes: Number Card, Dashboard Chart
+- fixture declaration: только Kanban Board VEQTA Work Items
 
 не поставляется:
+- fixture для Number Card / Dashboard Chart
 - отдельный fixture Role только ради VEQTA Work User
 - global Saved Filters
 - пользовательские Work Item / ToDo
@@ -331,6 +363,8 @@ Role, указанные в permission rows standard DocType, создаются
 - [Frappe Commands](https://docs.frappe.io/framework/user/en/bench/frappe-commands)
 - [`Gettext commands`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/commands/gettext.py)
 - [`Assign To`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
+- [`Assign To dialog`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/form/sidebar/assign_to.js)
+- [`FieldGroup.get_values`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/ui/field_group.js)
 - [`Assignment Rule`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/assignment_rule/assignment_rule.py)
 - [`Auto Repeat`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
 - [`Kanban View`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/views/kanban/kanban_view.js)
@@ -341,4 +375,5 @@ Role, указанные в permission rows standard DocType, создаются
 - [`Workspace`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace/workspace.py)
 - [`Workspace Sidebar`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace_sidebar/workspace_sidebar.py)
 - [`DocType import`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py)
+- [`Model sync`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/sync.py)
 - [`Fixtures`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/utils/fixtures.py)
