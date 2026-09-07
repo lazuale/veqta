@@ -208,7 +208,7 @@ Assigned To → Me
 
 Global Saved Filters не создаются как App state.
 
-## 7. Создайте Kanban
+## 7. Создайте Kanban и настройте hooks
 
 ```text
 Kanban Board Name: VEQTA Work Items
@@ -235,11 +235,16 @@ due_date
 
 Перетаскивание меняет только `Work Item.status`; App не синхронизирует связанные ToDo.
 
-### Поставка Kanban
+### `hooks.py`
 
-В `hooks.py` добавьте только fixture declaration:
+В `hooks.py` добавьте две разные штатные delivery-механики:
 
 ```python
+importable_doctypes = [
+    "Number Card",
+    "Dashboard Chart",
+]
+
 fixtures = [
     {
         "doctype": "Kanban Board",
@@ -248,7 +253,11 @@ fixtures = [
 ]
 ```
 
-Экспорт:
+`importable_doctypes` нужен потому, что standard Number Card и Dashboard Chart экспортируются в module files, но не входят во встроенный список DocTypes, которые Frappe v16.33.0 сканирует в downstream Apps.
+
+Kanban Board, наоборот, не имеет standard file-backed export, поэтому для него используется узкий fixture.
+
+Экспорт Kanban fixture:
 
 ```bash
 bench --site <site> export-fixtures
@@ -256,7 +265,7 @@ bench --site <site> export-fixtures
 
 Проверьте, что fixture содержит только нужную доску.
 
-Не заменяйте этот fixture patch или собственным setup-кодом: Kanban Board является обязательной DB-конфигурацией, а не миграцией пользовательского состояния.
+Не заменяйте эти механизмы patch или собственным setup-кодом.
 
 ## 8. Создайте standard Number Cards
 
@@ -281,6 +290,8 @@ Show Percentage Stats: No
 
 Для визуального разделения используйте штатные `Color` / `Background Color`.
 
+В Developer Mode после сохранения проверьте, что Number Cards появились как standard files в модуле App. На чистом Site они будут загружены благодаря `importable_doctypes`.
+
 Карточку «Без исполнителя» пока не создавайте как обязательную: сначала проверьте фактическое поведение assignment-фильтра на используемом patch-release.
 
 ## 9. Создайте standard Dashboard Chart
@@ -300,6 +311,8 @@ Module: VEQTA Work Management
 ```
 
 График показывает поступление Work Item, а не производительность.
+
+После сохранения в Developer Mode проверьте standard file Dashboard Chart в модуле App. На чистом Site он также загружается через `importable_doctypes`.
 
 ## 10. Создайте standard Workspace
 
@@ -441,10 +454,15 @@ standard metadata:
 - locale/main.pot
 - locale/ru.po
 
+hooks.py:
+- importable_doctypes = Number Card, Dashboard Chart
+- fixture declaration только для Kanban Board VEQTA Work Items
+
 fixture:
 - только Kanban Board VEQTA Work Items
 
 не должно попадать:
+- fixture для Number Card / Dashboard Chart
 - отдельный fixture Role только ради VEQTA Work User
 - пользовательские Work Item / ToDo
 - global Saved Filters
@@ -476,8 +494,8 @@ bench --site <second-site> clear-cache
 - naming `WI-.#####`;
 - Role `VEQTA Work User` и DocPerm;
 - Kanban fixture;
-- Number Cards;
-- Dashboard Chart;
+- Number Cards из standard files через `importable_doctypes`;
+- Dashboard Chart из standard file через `importable_doctypes`;
 - Workspace;
 - Gettext localization.
 
@@ -509,9 +527,10 @@ Runtime не должен зависеть от Developer Mode.
 9. Calendar/Gantt не включены без interval semantics.
 10. Saved Filters не являются обязательным App state.
 11. Kanban поставляется узким fixture.
-12. Number Cards / Chart / Workspace являются standard metadata.
-13. Локализация использует Gettext.
-14. Второй чистый Site устанавливается без ручного повторения обязательной настройки.
+12. Number Cards / Dashboard Chart поставляются standard files через `importable_doctypes`, а не fixtures.
+13. Workspace является standard metadata.
+14. Локализация использует Gettext.
+15. Второй чистый Site устанавливается без ручного повторения обязательной настройки.
 
 ## Источники
 
@@ -525,6 +544,9 @@ Runtime не должен зависеть от Developer Mode.
 - [`FieldGroup.get_values`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/ui/field_group.js)
 - [`Assignment Rule`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/assignment_rule/assignment_rule.py)
 - [`Auto Repeat`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
+- [`Number Card`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/number_card/number_card.py)
+- [`Dashboard Chart`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
+- [`Model sync`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/sync.py)
 - [`Kanban Board`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/kanban_board/kanban_board.py)
 - [`Workspace Sidebar`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace_sidebar/workspace_sidebar.py)
 - [`Fixtures`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/utils/fixtures.py)
