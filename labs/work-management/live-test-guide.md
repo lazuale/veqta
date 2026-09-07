@@ -57,10 +57,9 @@ Work Item             → Работа
 VEQTA Work Management → Управление работой
 VEQTA Work User       → Участник управления работой
 VEQTA Work Items      → Работы
-Due Date              → Срок работы
 ```
 
-Технические значения данных не меняются.
+Общие строки Frappe, включая `Due Date`, не должны переопределяться только ради Lab, если core translation уже подходит. Технические значения данных не меняются.
 
 ## 3. Общая очередь
 
@@ -105,9 +104,9 @@ Assign To
 
 Оставьте `Complete By` пустым.
 
-Проверьте фактический `ToDo.date`. Для Frappe v16.33.0 ожидается текущая дата, потому что backend Assign To использует `nowdate()` как default при отсутствии `date`.
+Стандартный FieldGroup не включает null-поле `date` в результат dialog `get_values()`. Поэтому Assign To получает args без `date`, и для Frappe v16.33.0 ожидается текущая дата из backend default `nowdate()`.
 
-Убедитесь, что:
+Проверьте фактический `ToDo.date` и убедитесь, что:
 
 ```text
 Work Item.due_date не копируется в ToDo.date
@@ -436,6 +435,7 @@ bench --site <site> clear-cache
 - [`DocType`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py)
 - [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
 - [`Assign To dialog`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/form/sidebar/assign_to.js)
+- [`FieldGroup.get_values`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/ui/field_group.js)
 - [`ToDo`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.py)
 - [`Auto Repeat`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
 - [`Assignment Rule`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/assignment_rule/assignment_rule.py)
