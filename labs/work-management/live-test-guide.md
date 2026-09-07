@@ -57,6 +57,7 @@ Work Item             → Работа
 VEQTA Work Management → Управление работой
 VEQTA Work User       → Участник управления работой
 VEQTA Work Items      → Работы
+Due Date              → Срок работы
 ```
 
 Технические значения данных не меняются.
@@ -88,12 +89,44 @@ Assign To
 - `reference_type = Work Item`;
 - `reference_name = WI-...`;
 - Work Item остаётся `Open`;
-- Priority в Assign To соответствует `Work Item.priority`, если это подтверждается текущим patch-release;
+- `priority` в Assign To dialog по умолчанию соответствует `Work Item.priority` для `Low / Medium / High`;
+- после назначения `ToDo.priority` соответствует выбранному в dialog значению;
 - стандартный фильтр `Assigned To → Me` находит документ.
 
-`Work Item.due_date` и `ToDo.date` проверяются отдельно и не обязаны совпадать.
+Активный ToDo фиксирует персональную ответственность. Он не должен интерпретироваться как отдельное сохранённое состояние `In Progress` Work Item.
 
-## 5. Независимость `Work Item.status` и `ToDo.status`
+## 5. Общий срок и Complete By
+
+Создайте Work Item с `due_date`, отличным от текущей даты.
+
+Сделайте два назначения последовательно.
+
+### Вариант A: Complete By не задан
+
+Оставьте `Complete By` пустым.
+
+Проверьте фактический `ToDo.date`. Для Frappe v16.33.0 ожидается текущая дата, потому что backend Assign To использует `nowdate()` как default при отсутствии `date`.
+
+Убедитесь, что:
+
+```text
+Work Item.due_date не копируется в ToDo.date
+```
+
+### Вариант B: Complete By задан явно
+
+Укажите дату, отличную от `Work Item.due_date`.
+
+Проверьте, что ToDo хранит именно явно выбранный `Complete By`, а Work Item не меняется.
+
+Это подтверждает две независимые ответственности:
+
+```text
+Work Item.due_date = общий срок работы
+ToDo.date          = срок конкретного назначения
+```
+
+## 6. Независимость `Work Item.status` и `ToDo.status`
 
 Создайте назначенный Work Item и последовательно проверьте:
 
@@ -108,11 +141,11 @@ Work Item Closed → Cancelled
 
 Baseline не ожидает автоматической синхронизации. Если Frappe сам меняет ToDo каким-либо штатным механизмом, это фиксируется как факт версии.
 
-Затем отдельно закройте ToDo и убедитесь, что Work Item не меняет `status` автоматически.
+Затем отдельно завершите своё ToDo и убедитесь, что Work Item не меняет `status` автоматически.
 
 Это ключевой эксперимент: только его результат и реальная потребность могут стать основанием для будущего lifecycle-кода.
 
-## 6. Waiting
+## 7. Waiting
 
 На назначенной работе добавьте комментарий и переведите `Open → Waiting`.
 
@@ -122,23 +155,37 @@ Baseline не ожидает автоматической синхронизац
 - Timeline сохраняет контекст;
 - возврат `Waiting → Open` не требует отдельной сущности ожидания.
 
-## 7. Пользователь без доступа
+## 8. Пользователь без доступа
 
 Под `plain@example.test` попробуйте открыть List и прямую ссылку Work Item.
 
 Затем под `work-a@example.test` попробуйте назначить Work Item на `plain@example.test`.
 
-Зафиксируйте фактическое поведение `Assign To` / `DocShare`. Назначение не должно становиться обходом authorization model только из-за того, что пользователь выбран в picker.
+Зафиксируйте фактическое поведение `Assign To` / `DocShare` текущего Site, включая влияние System Settings на document sharing.
 
-## 8. Снятие чужого назначения
+Baseline не считает назначение пользователя без прикладного доступа штатным способом выдачи роли `VEQTA Work User`. Если назначение не проходит — это не основание расширять DocPerm. Если Frappe выдаёт document share, отдельно проверьте, какой доступ фактически получил пользователь и соответствует ли это выбранной security boundary.
+
+## 9. Complete и Remove assignment
 
 Назначьте Work Item на `work-a@example.test`.
 
-Под `work-b@example.test` попробуйте снять назначение.
+### Завершение чужого назначения
 
-Зафиксируйте штатное поведение Frappe. Если реальная эксплуатация потребует более строгого правила, это станет отдельным server-side требованием.
+Под `work-b@example.test` попробуйте завершить ToDo `work-a@example.test` через действие Complete.
 
-## 9. List View
+Для v16.33.0 ожидается отказ: `frappe.desk.form.assign_to.close` разрешает завершить assignment только самому assignee.
+
+### Снятие чужого назначения
+
+Снова создайте назначение на `work-a@example.test`.
+
+Под `work-b@example.test` снимите его через стандартное Remove/Cancel assignment.
+
+Для baseline ожидается, что операция доступна, потому что `work-b@example.test` имеет Write на исходный Work Item. После операции связанный ToDo должен перейти в `Cancelled`.
+
+Это ожидаемая семантика доверенной общей очереди. Если реальный процесс требует запретить снятие чужих назначений, это отдельное server-side требование, а не повод менять общий DocPerm без формулировки правила.
+
+## 10. List View
 
 Проверьте стандартный List View без custom `work_item_list.js`:
 
@@ -160,7 +207,9 @@ status = Waiting
 
 Отдельно оцените, действительно ли стандартного List View недостаточно визуально. Только подтверждённый UX-пробел является основанием для `<doctype>_list.js`.
 
-## 10. Kanban
+Внутренний `_assign` не используется как собственное поле App или authorization boundary.
+
+## 11. Kanban
 
 Откройте `VEQTA Work Items` (`Работы`).
 
@@ -177,7 +226,9 @@ Cancelled
 
 Перетаскивание должно менять только `Work Item.status`. Никакого собственного Kanban/lifecycle-кода нет.
 
-## 11. Number Cards
+Под обычным `VEQTA Work User` проверьте, что shared board открывается и перемещение Work Item опирается на Write к исходному DocType, а не на отдельное прикладное право доски.
+
+## 12. Number Cards
 
 Проверьте четыре standard cards:
 
@@ -201,7 +252,7 @@ Assigned To Is Not Set
 
 Она не входит в обязательное состояние App. Добавлять собственное поле `assignee` ради неё нельзя.
 
-## 12. Dashboard Chart
+## 13. Dashboard Chart
 
 `VEQTA New Work Items` должен:
 
@@ -209,7 +260,9 @@ Assigned To Is Not Set
 - показывать последний месяц по дням;
 - не трактоваться как производительность пользователя.
 
-## 13. Auto Repeat
+Сравните данные с permission-aware List/Report по Work Item.
+
+## 14. Auto Repeat без assignee
 
 Создайте Work Item:
 
@@ -235,7 +288,46 @@ links        → пусто
 
 Если фактическое поведение отличается, сначала проверяется metadata `No Copy` и exact v16 source.
 
-## 14. Workspace
+## 15. Auto Repeat с assignee
+
+Если на стенде проверяется повторяющаяся работа с фиксированным исполнителем, используйте встроенный `Auto Repeat.assignee`, а не собственный hook.
+
+Проверьте:
+
+- новый Work Item создаётся штатным Auto Repeat;
+- для нового документа создаётся ToDo выбранного assignee;
+- назначение относится к новому Work Item, а не копируется как поле исходного документа;
+- `Work Item.status` остаётся независимым от ToDo.
+
+Если нужен не фиксированный пользователь, а автоматический выбор, этот сценарий должен проверяться через `Assignment Rule`, а не через собственный scheduler.
+
+## 16. Assignment Rule как нативная альтернатива
+
+Assignment Rule не входит в обязательный baseline, поэтому этот тест выполняется только при соответствующем требовании.
+
+Если требуется автоматически передавать срок Work Item в назначение, временно создайте Assignment Rule для `Work Item` с:
+
+```text
+due_date_based_on = due_date
+```
+
+Проверьте, что штатная механика:
+
+- создаёт ToDo с датой из `Work Item.due_date`;
+- обновляет дату открытого ToDo при изменении поля, если assignment создан этим Rule.
+
+Если это закрывает требование, собственная Work Item → ToDo синхронизация не нужна.
+
+Для автоматического выбора исполнителя отдельно проверяются только нужные стратегии Frappe:
+
+```text
+Round Robin
+Load Balancing
+Based on Field
+Weighted Distribution
+```
+
+## 17. Workspace
 
 Откройте `VEQTA Work Management` / `Управление работой`.
 
@@ -250,7 +342,15 @@ links        → пусто
 
 Интерфейс должен быть читаемым без Custom HTML/CSS. Calendar/Gantt shortcut отсутствует.
 
-## 15. Metadata и fixture
+Отдельный Workspace Sidebar не требуется для прохождения baseline. Проверьте, что штатная module navigation Frappe делает Workspace и основные сущности доступными без ручной site-only настройки.
+
+## 18. Communication
+
+Добавьте комментарий и, если на Site уже существует связанный `Communication`, проверьте его отображение в Timeline.
+
+Не меняйте permissions только ради теста. Под `VEQTA Work User` убедитесь, что отсутствие permission `Email` не мешает обычной работе Work Item и что документация не обещает отдельный почтовый workflow.
+
+## 19. Metadata и fixture
 
 В каталоге App:
 
@@ -271,19 +371,21 @@ standard metadata:
 - locale/ru.po
 
 fixture:
-- Kanban Board VEQTA Work Items
+- Work Management Kanban Board
 
 не должно быть:
+- отдельного fixture Role только ради VEQTA Work User
 - Work Item / ToDo user data
 - global Saved Filters
 - custom List JS
 - ToDo hooks
 - lifecycle-кода Work Item
+- Workspace Sidebar без отдельного требования
 ```
 
 Проверьте, что fixture не захватил посторонние Kanban Boards.
 
-## 16. Reinstall test
+## 20. Reinstall test
 
 На втором чистом Site:
 
@@ -297,7 +399,7 @@ bench --site <second-site> clear-cache
 
 - standard Work Item;
 - naming `WI-.#####`;
-- Role и DocPerm;
+- Role `VEQTA Work User` и DocPerm;
 - Kanban fixture;
 - Number Cards;
 - Dashboard Chart;
@@ -306,7 +408,9 @@ bench --site <second-site> clear-cache
 
 Пользовательские данные первого Site переноситься не должны.
 
-## 17. Runtime без Developer Mode
+Отдельно подтвердите, что Role появилась из standard metadata/permissions, а не потому, что случайно осталась в DB второго Site.
+
+## 21. Runtime без Developer Mode
 
 ```bash
 bench --site <site> set-config developer_mode 0
@@ -323,11 +427,18 @@ bench --site <site> clear-cache
 
 Внутренний PASS/FAIL-отчёт ради самого отчёта не нужен.
 
+Если live-test подтверждает уже проверенную по исходникам семантику, отдельный audit-документ не создаётся. Если поведение конкретного patch-release расходится с исходным ожиданием или меняет архитектурное решение, исправляется соответствующий публичный документ Lab.
+
 ## Источники
 
 - [Frappe Apps](https://docs.frappe.io/framework/user/en/basics/apps)
 - [Frappe Commands](https://docs.frappe.io/framework/user/en/bench/frappe-commands)
+- [`DocType`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py)
 - [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
+- [`Assign To dialog`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/form/sidebar/assign_to.js)
 - [`ToDo`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.py)
 - [`Auto Repeat`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
+- [`Assignment Rule`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/assignment_rule/assignment_rule.py)
+- [`Kanban Board`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/kanban_board/kanban_board.py)
 - [`Workspace`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace/workspace.py)
+- [`Workspace Sidebar`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace_sidebar/workspace_sidebar.py)
