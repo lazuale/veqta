@@ -203,11 +203,30 @@ class WorkItem(Document):
                 ignore_permissions=True,
             )
         elif self.status == "Cancelled":
-            assign_to.clear(
-                self.doctype,
-                self.name,
-                ignore_permissions=True,
-            )
+            cancel_active_assignments(self)
+
+
+def cancel_active_assignments(work_item):
+    assignments = frappe.get_all(
+        "ToDo",
+        fields=["name", "allocated_to"],
+        filters={
+            "reference_type": work_item.doctype,
+            "reference_name": work_item.name,
+            "status": ("not in", ("Closed", "Cancelled")),
+        },
+        limit_page_length=0,
+    )
+
+    for assignment in assignments:
+        assign_to.set_status(
+            work_item.doctype,
+            work_item.name,
+            todo=assignment.name,
+            assign_to=assignment.allocated_to,
+            status="Cancelled",
+            ignore_permissions=True,
+        )
 
 
 def validate_work_item_todo(doc, method=None):
@@ -226,7 +245,9 @@ def validate_work_item_todo(doc, method=None):
         )
 ```
 
-Первый блок согласует существующие назначения с terminal status Work Item. Второй запрещает создать или повторно открыть активное назначение на terminal Work Item.
+Почему для `Cancelled` нет `assign_to.clear()`: штатный `clear()` проходит по всем связанным ToDo и может перевести в Cancelled даже уже Closed назначения. Нам нужно отменить только активные назначения и сохранить историю выполненных.
+
+Первый блок согласует существующие активные назначения с terminal status Work Item. Второй запрещает создать или повторно открыть активное назначение на terminal Work Item.
 
 Не добавляйте обратную автоматизацию `ToDo → Work Item`: при нескольких исполнителях завершение одного ToDo не означает завершение всей работы.
 
@@ -379,7 +400,7 @@ Is Standard: Yes
 Module: VEQTA Work Management
 ```
 
-График означает поступление новых работ, а не производительность.
+График показывает поступление новых Work Item и не трактуется как производительность.
 
 ## 11. Создайте standard Workspace
 
@@ -454,17 +475,17 @@ apps/veqta_work_management/veqta_work_management/locale/ru.po
 
 ```text
 Work Item                         → Работа
-VEQTA Work Management             → Управление работой
-VEQTA Work User                   → Участник управления работой
-VEQTA Work Items                  → Работы
-VEQTA Active Work Items           → Активные работы
-VEQTA Waiting Work Items          → Ожидание
-VEQTA High Priority Work Items    → Высокий приоритет
-VEQTA Due Today Work Items        → Срок сегодня
-VEQTA New Work Items              → Новые работы
-New Work Item                     → Новая работа
-Work Item List                    → Список работ
-Work Board                        → Доска
+VEQTA Work Management            → Управление работой
+VEQTA Work User                  → Участник управления работой
+VEQTA Work Items                 → Работы
+VEQTA Active Work Items          → Активные работы
+VEQTA Waiting Work Items         → Ожидание
+VEQTA High Priority Work Items   → Высокий приоритет
+VEQTA Due Today Work Items       → Срок сегодня
+VEQTA New Work Items             → Новые работы
+New Work Item                    → Новая работа
+Work Item List                   → Список работ
+Work Board                       → Доска
 ```
 
 Не дублируйте в App общие переводы Frappe (`Open`, `Priority`, `Status` и т. п.), если core Russian translation уже даёт подходящее значение.
@@ -500,7 +521,7 @@ links        → пусто
 Тесты App должны проверять только наше поведение:
 
 1. `Closed` закрывает все активные ToDo этого Work Item.
-2. `Cancelled` отменяет все активные ToDo этого Work Item.
+2. `Cancelled` отменяет активные ToDo и сохраняет уже Closed назначения.
 3. нельзя создать `ToDo.status = Open` для terminal Work Item.
 4. нельзя повторно открыть закрытый ToDo, пока Work Item terminal.
 5. закрытие одного ToDo не меняет Work Item.status.
@@ -607,7 +628,7 @@ Runtime не должен зависеть от Developer Mode.
 3. Имя Work Item имеет формат `VWM-WI-00001`.
 4. Предметная модель содержит только шесть полей.
 5. Назначения работают через standard `ToDo`.
-6. Terminal lifecycle защищён на сервере.
+6. Terminal lifecycle защищён на сервере и сохраняет историю закрытых назначений.
 7. Calendar/Gantt не включены без interval semantics.
 8. Saved Filters не являются обязательным App state.
 9. Kanban поставляется узким fixture.
