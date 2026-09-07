@@ -118,7 +118,7 @@ Medium
 High
 ```
 
-В русской локализации `due_date` отображайте как «Срок работы». Это общий срок Work Item, а не `Complete By` конкретного ToDo.
+`due_date` означает общий срок Work Item. Не переопределяйте общий перевод строки `Due Date` только ради этой семантики; различие с `Complete By` назначения объясняется моделью и проверяется отдельно.
 
 ### Layout формы
 
@@ -389,7 +389,7 @@ Work Item.due_date = срок общей работы
 ToDo.date          = Complete By назначения
 ```
 
-Стандартный Assign To dialog не использует `Work Item.due_date` как default для Complete By. Если Complete By не заполнить, backend Frappe создаёт ToDo с текущей датой.
+Стандартный Assign To dialog не использует `Work Item.due_date` как default для Complete By. Если Complete By не заполнить, dialog не отправляет пустое поле `date`, а backend Frappe создаёт ToDo с текущей датой.
 
 Не добавляйте собственную синхронизацию сроков. Если появится требование автоматически передавать срок Work Item в ToDo, сначала проверьте `Assignment Rule.due_date_based_on`.
 
@@ -522,6 +522,7 @@ Runtime не должен зависеть от Developer Mode.
 - [`DocType`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py)
 - [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
 - [`Assign To dialog`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/form/sidebar/assign_to.js)
+- [`FieldGroup.get_values`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/ui/field_group.js)
 - [`Assignment Rule`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/assignment_rule/assignment_rule.py)
 - [`Auto Repeat`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
 - [`Kanban Board`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/kanban_board/kanban_board.py)
