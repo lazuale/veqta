@@ -44,7 +44,7 @@ Track Views: No
 Allow Auto Repeat: Yes
 
 Default View: List
-Is Calendar and Gantt: No
+Is Calendar and Gantt: Yes
 Force Re-route to Default View: No
 
 Sort Field: creation
@@ -186,6 +186,10 @@ ToDo.date          = Complete By конкретного назначения
 ```
 
 Поле имеет `No Copy = Yes`, чтобы новый экземпляр не наследовал абсолютный срок старой работы.
+
+Standard Calendar использует `due_date` как точку срока: в calendar config оно передаётся одновременно как `start` и `end`. Это не превращает срок в интервал выполнения.
+
+В Frappe v16 наличие calendar config одновременно делает доступным Gantt. Текущая модель не содержит отдельной семантики `start_date`, `end_date` и `progress`, поэтому Gantt не является поддерживаемым представлением Lab. Поля ради его работы не добавляются.
 
 ### `links`
 
@@ -335,7 +339,7 @@ Notification
 Roles / DocPerm
 List View
 Kanban
-Calendar View
+Calendar
 Report Builder
 Number Card
 Dashboard Chart
@@ -361,9 +365,10 @@ DocType Layout
 2. `Work Item.due_date` и `ToDo.date` имеют разную семантику и не считаются одним сроком.
 3. Стандартные DocPerm сами по себе не выражают правило «редактировать Work Item может только назначенный пользователь».
 4. Простого Report Builder недостаточно для некоторых видов аналитики по назначениям.
-5. Более строгие инварианты и developer extensions не реализуются до появления подтверждённой необходимости.
+5. Calendar и Gantt в Frappe v16 используют один calendar config; Calendar поддерживается по `due_date`, а Gantt остаётся видимым, но не является рабочим представлением текущей модели.
+6. Более строгие инварианты и developer extensions не реализуются до появления подтверждённой необходимости.
 
-Пункты 3–4 описывают границы конкретного штатного механизма, а не отсутствие extension path во Frappe.
+Пункты 3–5 описывают границы конкретного штатного механизма или текущей модели, а не основание искусственно расширять предметные поля.
 
 ## Источники Frappe
 
@@ -376,6 +381,9 @@ DocType Layout
 - [Field Types](https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes)
 - [Translations](https://docs.frappe.io/framework/user/en/translations)
 - [`DocType` controller, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py)
+- [`Calendar boilerplate`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/boilerplate/controller_calendar.js)
+- [`List View selector`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/list/list_view_select.js)
+- [`Gantt View`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/views/gantt/gantt_view.js)
 - [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
 - [`ToDo`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.py)
 - [`Auto Repeat`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
