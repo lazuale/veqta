@@ -113,9 +113,9 @@ Work Item.due_date = общий срок работы
 ToDo.date          = Complete By конкретного назначения
 ```
 
-Это разные данные и они не синхронизируются автоматически. В стандартном `Assign To` пустой `Complete By` не означает «без срока»: сервер Frappe создаёт `ToDo.date` с текущей датой. Поэтому `Work Item.due_date` нельзя неявно трактовать как срок назначения, а `ToDo.date` — как копию общего срока работы.
+Это разные данные и они не синхронизируются автоматически. В стандартном `Assign To` пустой `Complete By` не означает «без срока»: dialog не отправляет null-поле `date`, а backend Frappe создаёт `ToDo.date` с текущей датой. Поэтому `Work Item.due_date` нельзя неявно трактовать как срок назначения, а `ToDo.date` — как копию общего срока работы.
 
-В русском интерфейсе `Work Item.due_date` следует воспринимать как «Срок работы», чтобы не смешивать его с `Complete By` назначения.
+`Work Item.due_date` по смыслу является общим сроком работы; отдельный перевод общей строки Frappe `Due Date` только ради этого различия не нужен.
 
 Calendar/Gantt не входят в baseline: текущая модель содержит одну точку `due_date`, а стандартные представления Frappe работают с интервалом `start/end`. Фиктивные `start_date`, `end_date` и `progress` ради UI не добавляются.
 
@@ -140,6 +140,36 @@ Calendar/Gantt не входят в baseline: текущая модель сод
 ```
 
 `Assignment Rule` не добавляется только ради повторения: он нужен тогда, когда появляется самостоятельное требование автоматического распределения. `on_recurring` нужен только для поведения нового Work Item, которого сам Auto Repeat не выражает metadata.
+
+## Поставка standard metadata
+
+Не все standard записи синхронизируются из downstream App одинаково.
+
+`Work Item` и `Workspace` входят в штатную file-backed sync-механику Frappe. `Number Card` и `Dashboard Chart` при `Is Standard = Yes` тоже экспортируются в файлы App, но `frappe.model.sync` не сканирует эти DocTypes в downstream Apps по умолчанию.
+
+Для них используется официальный hook Frappe:
+
+```python
+importable_doctypes = [
+    "Number Card",
+    "Dashboard Chart",
+]
+```
+
+Так standard Number Cards и Dashboard Chart остаются standard metadata, а не превращаются в fixtures. `Kanban Board` такого standard file-backed механизма не имеет, поэтому только он поставляется узким fixture.
+
+Итоговая граница:
+
+```text
+Work Item        → standard DocType file
+Workspace        → standard file
+Number Card      → standard file + importable_doctypes
+Dashboard Chart  → standard file + importable_doctypes
+Kanban Board     → narrow fixture
+Role / DocPerm   → permissions standard Work Item
+```
+
+Patch и собственный install-код для этого baseline не нужны.
 
 ## Что намеренно отсутствует
 
@@ -189,7 +219,11 @@ end_date
 - [Frappe Commands](https://docs.frappe.io/framework/user/en/bench/frappe-commands)
 - [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
 - [`Assign To dialog`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/form/sidebar/assign_to.js)
+- [`FieldGroup.get_values`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/ui/field_group.js)
 - [`ToDo`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.py)
 - [`Auto Repeat`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
 - [`Assignment Rule`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/assignment_rule/assignment_rule.py)
+- [`Number Card`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/number_card/number_card.py)
+- [`Dashboard Chart`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
+- [`Model sync`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/sync.py)
 - [`Gettext commands`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/commands/gettext.py)
