@@ -1,32 +1,30 @@
 # Модель данных v1: `Work Item`
 
-`Work Item` — основной документ текущего прототипа управления работой. Он представляет сам факт работы. Назначения, комментарии, файлы, теги, коммуникации, повторение, представления и отчётность не дублируются собственными сущностями и полями, если соответствующую ответственность уже закрывает Frappe.
+`Work Item` — основной документ текущего прототипа управления работой. Он представляет сам факт работы. Назначения, комментарии, файлы, теги, коммуникации, повторение и представления не дублируются собственными сущностями, если соответствующую ответственность уже закрывает Frappe.
 
 ## Поставка модели
 
-`Work Item` проектируется как standard DocType минимального Frappe App на development Site с включённым `developer_mode`.
+`Work Item` проектируется как standard DocType минимального Frappe App:
 
 ```text
-App: work_management
-App Title: Work Management
-Module: Work Management
+App package: veqta_work_management
+App Title: VEQTA Work Management
+Module: VEQTA Work Management
 DocType: Work Item
 Custom: No
 ```
 
-Это не меняет предметную модель. App нужен для штатной разработки и воспроизводимой доставки metadata, а не для добавления собственного слоя архитектуры.
-
-Контроллер `Work Item` на текущем этапе не содержит прикладной логики. Наличие controller-файла является обычной частью standard DocType и оставляет официальные extension points Frappe доступными на случай подтверждённой необходимости.
+App нужен для штатной разработки и воспроизводимой доставки metadata и небольшого прикладного контракта `Work Item`. Он не добавляет отдельный service/repository layer.
 
 ## DocType
 
 ```text
 Name: Work Item
-Module: Work Management
+Module: VEQTA Work Management
 Custom: No
 
-Naming Rule: Autoincrement
-Auto Name: autoincrement
+Naming Rule: Expression
+Auto Name: VWM-WI-.#####
 Title Field: subject
 Show Title Field in Link: Yes
 Search Fields: subject
@@ -44,46 +42,63 @@ Track Views: No
 Allow Auto Repeat: Yes
 
 Default View: List
-Is Calendar and Gantt: Yes
+Is Calendar and Gantt: No
 Force Re-route to Default View: No
 
 Sort Field: creation
 Sort Order: DESC
 ```
 
-Остальные настройки остаются штатными значениями Frappe, если отдельная ответственность не требует их изменить.
-
-Техническое имя Work Item — последовательный идентификатор:
+Технические имена документов выглядят так:
 
 ```text
-1
-2
-3
-...
+VWM-WI-00001
+VWM-WI-00002
+VWM-WI-00003
 ```
 
-Пользовательское название документа — `subject`.
+Пользовательским названием остаётся `subject`. Префикс нужен для устойчивой идентификации в ссылках, логах и интеграциях; он не заменяет человеческое название.
+
+`Autoincrement` не используется: после начала эксплуатации Frappe ограничивает смену такого naming mode, а голые числовые имена хуже различимы за пределами конкретного DocType.
 
 ## Предметные поля
 
-Текущая предметная модель содержит шесть полей:
+Предметная модель содержит шесть полей:
 
-| Метка | Fieldname | Type | Обязательно | По умолчанию | No Copy | В списке | Фильтр | Global Search | Quick Entry |
+| Метка | Fieldname | Type | Required | Default | No Copy | List | Standard Filter | Global Search | Quick Entry |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Название | `subject` | Data | yes | — | no | title | no | yes | yes, как required |
+| Название | `subject` | Data | yes | — | no | title | no | yes | yes |
 | Описание | `description` | Text Editor | no | — | no | no | no | yes | yes |
-| Статус | `status` | Select | yes | `Open` | yes | yes | yes | no | yes, как required |
-| Приоритет | `priority` | Select | yes | `Medium` | no | yes | yes | no | yes, как required |
+| Статус | `status` | Select | yes | `Open` | yes | yes | yes | no | yes |
+| Приоритет | `priority` | Select | yes | `Medium` | no | yes | yes | no | yes |
 | Срок | `due_date` | Date | no | — | yes | yes | yes | no | yes |
 | Связи | `links` | Table → `Dynamic Link` | no | — | yes | no | no | no | no |
 
-Технические `fieldname` и значения `Select` остаются английскими. Русский язык относится к пользовательским меткам и переводу отображения, а не к API-идентификаторам или хранимым значениям.
+`Section Break` и `Column Break`, используемые для компоновки формы, являются layout metadata и не считаются предметными полями.
 
-Служебные поля, которые Frappe добавляет сам для включённых framework-механизмов, не считаются новыми предметными полями Work Management.
+Технические `fieldname` и значения `Select` остаются английскими. Русские подписи поставляются через `translations/ru.csv`.
 
-### `subject`
+## Компоновка формы
 
-Краткое человеческое название работы.
+Форма разделяется штатными layout fields Frappe:
+
+```text
+РАБОТА
+Название
+Описание
+
+ПАРАМЕТРЫ
+Статус | Приоритет | Срок
+
+СВЯЗИ
+Связи
+```
+
+Собственный CSS или frontend для этой компоновки не нужен.
+
+## `subject`
+
+Краткое человеческое название работы. Поле является `Title Field`.
 
 Пример:
 
@@ -91,9 +106,7 @@ Sort Order: DESC
 Проверить путевые листы за август
 ```
 
-Поле является `Title Field`, поэтому именно оно используется как основное название Work Item в пользовательском интерфейсе.
-
-### `description`
+## `description`
 
 Подробности и условия выполнения работы.
 
@@ -104,9 +117,9 @@ Sort Order: DESC
 Результат указать в комментарии.
 ```
 
-Структурированные состояния, исполнители и классификация в `description` не кодируются.
+Исполнители и состояния в `description` не кодируются.
 
-### `status`
+## `status`
 
 Технические значения:
 
@@ -117,15 +130,6 @@ Closed
 Cancelled
 ```
 
-В русском интерфейсе они отображаются как:
-
-```text
-Open      → Открыто
-Waiting   → Ожидание
-Closed    → Закрыто
-Cancelled → Отменено
-```
-
 Семантика:
 
 - `Open` — работа актуальна и может выполняться;
@@ -133,24 +137,47 @@ Cancelled → Отменено
 - `Closed` — работа полностью завершена;
 - `Cancelled` — работа больше не требуется.
 
-Типичные причины `Waiting`: ожидается ответ, согласование, документ или решение. Само назначение исполнителя не меняет `status`.
-
 ```text
-Open + нет назначения
-= свободная работа
-
-Open + назначение
-= открытая работа взята исполнителем
-
-Waiting + назначение
-= исполнитель остаётся ответственным, но продолжение сейчас невозможно
+Open + нет назначения = свободная работа
+Open + назначение     = работа взята исполнителем
+Waiting + назначение  = исполнитель остаётся ответственным
 ```
 
-Отдельное состояние «В работе» не используется: наличие активного назначения уже хранит факт персональной ответственности, а `status` не дублирует эту ось.
+Отдельное `In Progress` не используется: оно дублировало бы факт активного назначения.
 
-`status` имеет `No Copy = Yes`, чтобы новый экземпляр работы не наследовал `Waiting`, `Closed` или `Cancelled` от исходного документа.
+`status` имеет `No Copy = Yes`, чтобы новый экземпляр не наследовал `Waiting`, `Closed` или `Cancelled`.
 
-### `priority`
+### Терминальные состояния
+
+`Closed` и `Cancelled` создают собственный прикладной контракт, которого нет в стандартном `Assign To` автоматически:
+
+```text
+Work Item → Closed
+→ все активные связанные ToDo становятся Closed
+
+Work Item → Cancelled
+→ все активные связанные ToDo становятся Cancelled
+```
+
+Обратной автоматизации нет:
+
+```text
+ToDo → Closed
+≠
+Work Item → Closed
+```
+
+Один Work Item может иметь несколько назначений, поэтому завершение одного назначения не доказывает завершение всей работы.
+
+Нельзя также создавать или повторно открывать активный `ToDo`, если его `reference_type = Work Item`, а связанный Work Item уже `Closed` или `Cancelled`. Это серверный инвариант App, а не UI-ограничение.
+
+Для реализации используются официальные extension points Frappe:
+
+- controller `Work Item.on_update`;
+- `doc_events` для `ToDo.validate`, ограниченный только `reference_type = Work Item`;
+- штатные `frappe.desk.form.assign_to.close_all_assignments()` и `clear()`.
+
+## `priority`
 
 Технические значения:
 
@@ -160,60 +187,46 @@ Medium
 High
 ```
 
-Они совпадают со стандартным `ToDo.priority` и ручным `Assign To` Frappe, поэтому не меняются.
+Они совпадают со стандартным `ToDo.priority`. В Assign To dialog Frappe v16.33.0 использует `doc.priority` как default, если значение входит в `Low / Medium / High`, поэтому отдельное преобразование не нужно.
 
-В русском интерфейсе:
+`priority` копируется при повторении как часть содержательного контекста работы.
 
-```text
-Low    → Низкий
-Medium → Средний
-High   → Высокий
-```
-
-`priority` характеризует важность самой работы и копируется при обычном копировании или повторении как часть содержательного контекста.
-
-### `due_date`
+## `due_date`
 
 Необязательный общий срок самой работы.
-
-Пустое значение означает, что общий срок не установлен.
-
-`Work Item.due_date` не равен `ToDo.date`:
 
 ```text
 Work Item.due_date = общий срок работы
 ToDo.date          = Complete By конкретного назначения
 ```
 
-Поле имеет `No Copy = Yes`, чтобы новый экземпляр не наследовал абсолютный срок старой работы.
+Это разные данные. Assign To не обязан автоматически копировать `due_date` в `ToDo.date`; пользователь может задать срок конкретного назначения отдельно.
 
-Standard Calendar использует `due_date` как точку срока: в calendar config оно передаётся одновременно как `start` и `end`. Это не превращает срок в интервал выполнения.
+`due_date` имеет `No Copy = Yes`, чтобы новый экземпляр не наследовал абсолютную дату старой работы.
 
-В Frappe v16 наличие calendar config одновременно делает доступным Gantt. Текущая модель не содержит отдельной семантики `start_date`, `end_date` и `progress`, поэтому Gantt не является поддерживаемым представлением Lab. Поля ради его работы не добавляются.
+### Почему нет Calendar/Gantt
 
-### `links`
+`due_date` — одна точка, а стандартный Calendar Frappe работает с `start/end` и позволяет менять даты через интерфейс. Использование одного `due_date` одновременно как `start` и `end` создаёт неоднозначную запись обратно в документ.
 
-Необязательная таблица на стандартном дочернем DocType `Dynamic Link`.
+Поэтому baseline не включает Calendar/Gantt и не добавляет ради них фиктивные `start_date`, `end_date`, `progress` или длительность. Если в предметной модели появится реальный плановый интервал, представления проектируются уже из этой новой ответственности.
 
-Она связывает Work Item с произвольными документами Frappe без собственного DocType связей.
+## `links`
+
+`links` — необязательная таблица на стандартном дочернем DocType `Dynamic Link`.
 
 Пример:
 
 ```text
-Связи
-
 Purchase Order    PO-00015
 Customer          ACME
 Some Document     DOC-0042
 ```
 
-`links` имеет `No Copy = Yes`: связь относится к конкретному экземпляру работы и не переносится автоматически в новую повторяющуюся работу.
+Отдельный DocType связей не создаётся. `links` имеет `No Copy = Yes`, потому что связь относится к конкретному экземпляру работы.
 
 ## Назначения
 
-Исполнитель не хранится собственным полем `Work Item`.
-
-Используется штатный Frappe:
+Исполнитель не хранится собственным полем `Work Item`:
 
 ```text
 Work Item
@@ -224,19 +237,15 @@ ToDo
 Один Work Item может иметь ноль, одно или несколько активных назначений.
 
 ```text
-Work Item.status = состояние работы
-ToDo             = назначение работы конкретному пользователю
+Work Item.status = состояние общей работы
+ToDo             = назначение конкретному пользователю
 ```
 
-Закрытие собственного `ToDo` не закрывает `Work Item`. Изменение `Work Item.status` также не закрывает связанные `ToDo` автоматически.
-
-Это две независимые штатные модели состояния. Синхронизация между ними не добавляется без отдельного требования.
+Системное `_assign` используется самим Frappe для отображения назначений, но не становится нашим предметным API-полем.
 
 ## Ожидание
 
-`Waiting` является полноценным состоянием Work Item, а не тегом.
-
-Обычный цикл может выглядеть так:
+`Waiting` является состоянием Work Item, а не тегом:
 
 ```text
 Open
@@ -248,54 +257,33 @@ Open
 Closed
 ```
 
-Отдельные поля `waiting_reason`, `waiting_since` и `waiting_until` пока не входят в модель. Контекст ожидания фиксируется в Timeline/Comments.
+Поля `waiting_reason`, `waiting_since` и `waiting_until` пока не нужны. Контекст ожидания фиксируется в Timeline/Comments.
 
 ## Auto Repeat
 
-Для календарного повторения используется штатный `Auto Repeat` Frappe. Собственный scheduler не создаётся.
+Для календарного повторения используется штатный `Auto Repeat`. Собственный scheduler не создаётся.
 
-При `Allow Auto Repeat = Yes` Frappe v16 сам создаёт на DocType служебный `Custom Field`:
+При `Allow Auto Repeat = Yes` Frappe сам добавляет служебный `auto_repeat`; это framework field, а не седьмое предметное поле.
 
-```text
-fieldname: auto_repeat
-fieldtype: Link
-options: Auto Repeat
-read_only: 1
-no_copy: 1
-print_hide: 1
-```
-
-Это поле создаётся framework-механизмом `DocType.make_repeatable()` и не является седьмым предметным полем Work Management. Его не нужно проектировать или создавать вручную.
-
-Текущая схема специально не копирует предметные поля:
+При повторении:
 
 ```text
-status
-due_date
-links
+subject      → копируется
+description  → копируется
+priority     → копируется
+status       → default Open
+due_date     → не копируется
+links        → не копируются
+назначения   → не являются обязательной частью baseline
 ```
 
-Содержательный контекст, который может повторяться, остаётся в:
-
-```text
-subject
-description
-priority
-```
-
-Назначения Auto Repeat не являются обязательной частью модели: базовый сценарий оставляет новый Work Item в общей очереди.
-
-Чистая конфигурация Auto Repeat не вычисляет относительный `due_date`. Это ограничение конфигурации, а не Framework в целом: Frappe v16 вызывает controller method `on_recurring` у создаваемого документа. Если появится подтверждённое правило относительного срока, сначала используется эта официальная точка расширения, а не собственный scheduler.
+Если появится правило относительного срока, первым extension point является `Work Item.on_recurring`, который вызывается Auto Repeat. Отдельный scheduler для этого не нужен.
 
 ## Communication
 
-Письма не хранятся в собственных `source_email` или `source` полях Work Item.
-
-Стандартный `Communication` Frappe может ссылаться на Work Item и отображаться в Timeline документа. Поэтому происхождение письма остаётся ответственностью `Communication`.
+Письма не копируются в собственные `source_email` или `source` поля. Стандартный `Communication` может быть связан с Work Item и отображаться в Timeline.
 
 ## Намеренно отсутствующие поля и сущности
-
-В текущую предметную модель не входят:
 
 ```text
 Work Unit
@@ -321,69 +309,28 @@ start_date
 end_date
 ```
 
-Developer mode и наличие App не являются основанием добавлять эти элементы. Новая сущность или поле появляются только при самостоятельной ответственности, которую нельзя корректно закрыть текущей моделью или штатным механизмом Frappe.
+Новая сущность или поле появляются только при самостоятельной ответственности, которую нельзя корректно закрыть текущей моделью или штатным механизмом Frappe.
 
-## Штатные механизмы вокруг Work Item
+## Что нужно тестировать в App
 
-Текущая модель рассчитана на использование следующих возможностей Frappe без дублирования их собственными сущностями:
+Тестируются наши контракты, а не стандартный Frappe:
 
-```text
-Assign To / ToDo
-Comments / Timeline
-Attachments
-Tags
-Communication
-Auto Repeat
-Assignment Rule (optional)
-Notification
-Roles / DocPerm
-List View
-Kanban
-Calendar
-Report Builder
-Number Card
-Dashboard Chart
-Workspace
-Translation
-```
-
-При подтверждённой необходимости App также оставляет доступными официальные developer extension points:
-
-```text
-controller methods
-permission hooks
-standard Query / Script Report
-Dashboard Chart Source
-DocType Layout
-```
-
-Они не используются заранее.
-
-## Текущие ограничения
-
-1. `Work Item.status` и `ToDo.status` не синхронизируются автоматически.
-2. `Work Item.due_date` и `ToDo.date` имеют разную семантику и не считаются одним сроком.
-3. Стандартные DocPerm сами по себе не выражают правило «редактировать Work Item может только назначенный пользователь».
-4. Простого Report Builder недостаточно для некоторых видов аналитики по назначениям.
-5. Calendar и Gantt в Frappe v16 используют один calendar config; Calendar поддерживается по `due_date`, а Gantt остаётся видимым, но не является рабочим представлением текущей модели.
-6. Более строгие инварианты и developer extensions не реализуются до появления подтверждённой необходимости.
-
-Пункты 3–5 описывают границы конкретного штатного механизма или текущей модели, а не основание искусственно расширять предметные поля.
+1. `Closed` закрывает все активные `ToDo` этого Work Item.
+2. `Cancelled` отменяет все активные `ToDo` этого Work Item.
+3. активный `ToDo` нельзя создать или повторно открыть для terminal Work Item.
+4. закрытие одного `ToDo` не меняет `Work Item.status`.
+5. повторение не переносит `status`, `due_date` и `links`.
 
 ## Источники Frappe
 
-Текущий ориентир — Frappe v16.
+Текущий проверочный ориентир — Frappe v16.33.0.
 
-- [Frappe Apps](https://docs.frappe.io/framework/user/en/guides/basics/apps)
-- [Developer Mode](https://docs.frappe.io/framework/user/en/guides/app-development/how-enable-developer-mode-in-frappe)
 - [Create a DocType](https://docs.frappe.io/framework/user/en/tutorial/create-a-doctype)
-- [DocType](https://docs.frappe.io/framework/user/en/basics/doctypes)
 - [Field Types](https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes)
 - [Translations](https://docs.frappe.io/framework/user/en/translations)
-- [`DocType` controller, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py)
-- [`Calendar boilerplate`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/boilerplate/controller_calendar.js)
-- [`List View selector`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/list/list_view_select.js)
-- [`Gantt View`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/views/gantt/gantt_view.js)
+- [`Naming`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/naming.py)
+- [`DocType`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py)
 - [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
 - [`ToDo`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.py)
 - [`Auto Repeat`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
+- [`Document hooks`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/document.py)
