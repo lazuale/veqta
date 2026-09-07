@@ -354,6 +354,24 @@ Dynamic Filters: пусто
 
 Percentage Stats для текущей очереди выключены: они не восстанавливают историческое состояние `status`.
 
+### Оформление карточек
+
+Frappe v16 штатно поддерживает `Color` и `Background Color` у `Number Card`; Workspace применяет `Background Color` к фону всей карточки, а `Color` — к числовому значению.
+
+Для текущего прототипа используйте спокойную семантическую палитру:
+
+| Card | Color | Background Color |
+| --- | --- | --- |
+| Активные работы | `#1D4ED8` | `#EFF6FF` |
+| Ожидание | `#B45309` | `#FFF7ED` |
+| Без исполнителя | `#475569` | `#F1F5F9` |
+| Высокий приоритет | `#B91C1C` | `#FEF2F2` |
+| Срок сегодня | `#A16207` | `#FEFCE8` |
+
+Цвет здесь помогает быстро различать смысл показателей и убирает ощущение сплошного белого полотна. Он не кодирует новые состояния модели и не заменяет текст карточки.
+
+Если на реальном Desk выбранная тема даёт плохой контраст, меняйте только оттенок оформления; фильтры и смысл Number Card остаются прежними.
+
 ## 9. Создайте Dashboard Chart
 
 Создайте один график:
@@ -416,6 +434,8 @@ Roles:
 
 Для Calendar не выбирайте `DocType View: Calendar`: у site-level Custom DocType этот вариант не появляется только из-за отдельно созданного `Calendar View`. URL shortcut открывает именно `Работы по сроку` без включения Gantt.
 
+`Color` у Workspace Shortcut не используйте как основной декоративный механизм: в штатном v16 он влияет прежде всего на count-indicator у подходящих DocType shortcuts, а не перекрашивает всю плитку.
+
 ### Number Cards
 
 ```text
@@ -432,7 +452,11 @@ Roles:
 Новые работы
 ```
 
-Итоговый экран:
+### Визуальная компоновка
+
+Откройте Workspace в режиме редактирования и разделите экран штатными `Header` blocks. Не складывайте shortcuts, показатели и график в один непрерывный ряд.
+
+Итоговая структура:
 
 ```text
 УПРАВЛЕНИЕ РАБОТОЙ
@@ -453,6 +477,14 @@ Roles:
 └── ПОСТУПЛЕНИЕ
     └── Новые работы
 ```
+
+Практически это означает:
+
+1. Header `Действия` → ряд из четырёх shortcuts.
+2. Header `Текущее состояние` → пять Number Cards с заданными выше фонами.
+3. Header `Поступление` → график `Новые работы` на отдельной строке.
+
+Не добавляйте декоративные Custom HTML Blocks, собственный CSS или frontend только ради цвета и отступов. Сначала используйте штатную компоновку Workspace и оформление Number Cards.
 
 Quick List не нужен: стандартный Quick List показывает несколько последних документов по `creation desc`, а не приоритетную рабочую очередь.
 
@@ -560,6 +592,7 @@ Work Item не удаляется.
 11. Workspace `Управление работой` доступен пользователю с `Work User`.
 12. В русском интерфейсе `Work Item` отображается как `Работа`, статусы и приоритеты — по-русски, при этом их технические значения не изменены.
 13. Kanban показывает русские заголовки колонок при технических значениях `Open / Waiting / Closed / Cancelled`.
+14. Workspace визуально разделён на `Действия`, `Текущее состояние` и `Поступление`; Number Cards имеют различимые спокойные фоны, текст и числа читаются без потери контраста.
 
 ## 15. Известные ограничения штатной версии v1
 
@@ -590,5 +623,9 @@ Work Item не удаляется.
 - [Assign To](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
 - [Auto Repeat](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
 - [Calendar View](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/calendar_view/calendar_view.js)
+- [Workspace Shortcut](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace_shortcut/workspace_shortcut.json)
 - [Workspace Shortcut widget](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/widgets/shortcut_widget.js)
+- [Number Card](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/number_card/number_card.json)
+- [Number Card widget](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/widgets/number_card_widget.js)
 - [Workspace](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace/workspace.py)
+- [Workspace editor](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/views/workspace/workspace.js)
