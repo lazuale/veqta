@@ -53,7 +53,7 @@ Role Name: VEQTA Work User
 Desk Access: Yes
 ```
 
-Роль будет указана в permissions standard `Work Item`. Отдельный fixture роли заранее не добавляется; её доставка проверяется reinstall-test.
+Роль будет указана в permissions standard `Work Item`. Отдельный fixture роли не добавляется: при импорте standard DocType Frappe создаёт отсутствующие Role из permission rows. Это всё равно проверяется reinstall-test на чистом Site.
 
 ## 3. Создайте standard DocType `Work Item`
 
@@ -118,6 +118,8 @@ Medium
 High
 ```
 
+В русской локализации `due_date` отображайте как «Срок работы». Это общий срок Work Item, а не `Complete By` конкретного ToDo.
+
 ### Layout формы
 
 Используйте штатные `Section Break` / `Column Break`:
@@ -161,6 +163,8 @@ Links
 
 Не расширяйте permissions стандартного `ToDo` и не меняйте административную границу `System Manager`.
 
+Эта модель является доверенной общей очередью. Поэтому любой `VEQTA Work User` имеет Write на Work Item и по штатной семантике Assign To может снять чужое назначение через `remove`. Завершить назначение через `close` может только сам assignee.
+
 ## 5. Не добавляйте lifecycle-код
 
 Generated controller `Work Item` оставьте без прикладной логики.
@@ -174,7 +178,9 @@ ToDo.validate hook
 запрет Assign To по статусу Work Item
 ```
 
-`Work Item` и `ToDo` используют штатную семантику Frappe. Собственный lifecycle появляется только после подтверждённого бизнес-требования.
+`Work Item` и `ToDo` используют штатную семантику Frappe. Активное назначение означает персональную ответственность, но не создаёт отдельного сохранённого состояния `In Progress`.
+
+Собственный lifecycle появляется только после подтверждённого бизнес-требования.
 
 ## 6. List View
 
@@ -197,6 +203,8 @@ status = Open
 status = Waiting
 Assigned To → Me
 ```
+
+`Assigned To` использует штатную assignment-механику Frappe. Не добавляйте собственный `assignee` только ради фильтра.
 
 Global Saved Filters не создаются как App state.
 
@@ -247,6 +255,8 @@ bench --site <site> export-fixtures
 ```
 
 Проверьте, что fixture содержит только нужную доску.
+
+Не заменяйте этот fixture patch или собственным setup-кодом: Kanban Board является обязательной DB-конфигурацией, а не миграцией пользовательского состояния.
 
 ## 8. Создайте standard Number Cards
 
@@ -342,6 +352,8 @@ Intake
 
 Не добавляйте Custom HTML/CSS только ради декора.
 
+Отдельный standard `Workspace Sidebar` в baseline не создавайте. Frappe v16 умеет автоматически собирать module navigation; собственный Sidebar нужен только при реальном требовании к структуре навигации, которое автоматическая сборка не закрывает.
+
 ## 11. Локализация через Gettext
 
 ```bash
@@ -366,7 +378,22 @@ bench compile-po-to-mo --app veqta_work_management --locale ru
 bench --site <site> clear-cache
 ```
 
-## 12. Auto Repeat
+## 12. Assign To и сроки
+
+Создайте Work Item с `due_date` и выполните ручной Assign To.
+
+Проверьте два независимых значения:
+
+```text
+Work Item.due_date = срок общей работы
+ToDo.date          = Complete By назначения
+```
+
+Стандартный Assign To dialog не использует `Work Item.due_date` как default для Complete By. Если Complete By не заполнить, backend Frappe создаёт ToDo с текущей датой.
+
+Не добавляйте собственную синхронизацию сроков. Если появится требование автоматически передавать срок Work Item в ToDo, сначала проверьте `Assignment Rule.due_date_based_on`.
+
+## 13. Auto Repeat
 
 Создайте Auto Repeat без обязательного Assignee и проверьте ожидаемую metadata-семантику:
 
@@ -379,9 +406,22 @@ due_date     → пусто
 links        → пусто
 ```
 
+После этого отдельно проверьте нативные варианты только если они нужны сценарию:
+
+```text
+фиксированный исполнитель
+→ Auto Repeat.assignee
+
+автоматический выбор исполнителя
+→ Assignment Rule
+
+относительный due_date нового Work Item
+→ Work Item.on_recurring
+```
+
 Отдельный scheduler не создаётся.
 
-## 13. Проверьте состояние App
+## 14. Проверьте состояние App
 
 В каталоге App:
 
@@ -405,10 +445,12 @@ fixture:
 - только Kanban Board VEQTA Work Items
 
 не должно попадать:
+- отдельный fixture Role только ради VEQTA Work User
 - пользовательские Work Item / ToDo
 - global Saved Filters
 - custom List JS
 - ToDo hooks
+- Workspace Sidebar без отдельного требования
 - случайные DB exports
 ```
 
@@ -420,7 +462,7 @@ bench build
 bench --site <site> clear-cache
 ```
 
-## 14. Reinstall test на втором чистом Site
+## 15. Reinstall test на втором чистом Site
 
 ```bash
 bench --site <second-site> install-app veqta_work_management
@@ -432,7 +474,7 @@ bench --site <second-site> clear-cache
 
 - standard `Work Item`;
 - naming `WI-.#####`;
-- Role и DocPerm;
+- Role `VEQTA Work User` и DocPerm;
 - Kanban fixture;
 - Number Cards;
 - Dashboard Chart;
@@ -443,7 +485,7 @@ bench --site <second-site> clear-cache
 
 Если обязательный объект отсутствует, сначала определите его штатный delivery mechanism. Patch не добавляется автоматически.
 
-## 15. Runtime без Developer Mode
+## 16. Runtime без Developer Mode
 
 ```bash
 bench --site <site> set-config developer_mode 0
@@ -461,13 +503,15 @@ Runtime не должен зависеть от Developer Mode.
 3. Имя Work Item имеет формат `WI-00001`.
 4. Предметная модель содержит только шесть полей.
 5. Назначения работают через standard `Assign To / ToDo`.
-6. Work Item и ToDo не связаны синтетическим lifecycle-кодом.
-7. Calendar/Gantt не включены без interval semantics.
-8. Saved Filters не являются обязательным App state.
-9. Kanban поставляется узким fixture.
-10. Number Cards / Chart / Workspace являются standard metadata.
-11. Локализация использует Gettext.
-12. Второй чистый Site устанавливается без ручного повторения обязательной настройки.
+6. Активное назначение выражает персональную ответственность и не подменяется синтетическим `In Progress`.
+7. Work Item и ToDo не связаны собственным lifecycle-кодом.
+8. Общий `due_date` и `ToDo.date` трактуются как разные сроки.
+9. Calendar/Gantt не включены без interval semantics.
+10. Saved Filters не являются обязательным App state.
+11. Kanban поставляется узким fixture.
+12. Number Cards / Chart / Workspace являются standard metadata.
+13. Локализация использует Gettext.
+14. Второй чистый Site устанавливается без ручного повторения обязательной настройки.
 
 ## Источники
 
@@ -475,6 +519,12 @@ Runtime не должен зависеть от Developer Mode.
 - [Create an App](https://docs.frappe.io/framework/user/en/tutorial/create-an-app)
 - [Create a DocType](https://docs.frappe.io/framework/user/en/tutorial/create-a-doctype)
 - [Frappe Commands](https://docs.frappe.io/framework/user/en/bench/frappe-commands)
+- [`DocType`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py)
 - [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
+- [`Assign To dialog`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/form/sidebar/assign_to.js)
+- [`Assignment Rule`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/assignment_rule/assignment_rule.py)
+- [`Auto Repeat`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
+- [`Kanban Board`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/kanban_board/kanban_board.py)
+- [`Workspace Sidebar`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace_sidebar/workspace_sidebar.py)
 - [`Fixtures`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/utils/fixtures.py)
 - [`Gettext commands`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/commands/gettext.py)
