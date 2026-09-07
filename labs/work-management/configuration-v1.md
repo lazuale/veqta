@@ -25,16 +25,20 @@ veqta_work_management/locale/ru.po
 
 Уникальные строки App переводятся в `ru.po`. Общие строки Frappe не дублируются, если core Russian translation уже подходит.
 
+Для `Work Item.due_date` пользовательский смысл — «Срок работы». Это отличает общий срок Work Item от `Complete By` конкретного назначения.
+
 ## Основной сценарий
 
 ```text
 Work Item создан
 → Open
-→ пользователь берёт его через Assign to me
+→ пользователь принимает ответственность через Assign to me
 → при внешней блокировке переводит Work Item в Waiting
 → после продолжения возвращает в Open
 → при завершении переводит Work Item в Closed
 ```
+
+`Assign to me` создаёт персональное назначение, но baseline не хранит отдельный факт начала выполнения и не выводит состояние `In Progress` из самого наличия ToDo.
 
 Состояние Work Item и состояние назначения `ToDo` остаются независимыми. Baseline не добавляет автоматическую синхронизацию между ними.
 
@@ -64,6 +68,8 @@ status = Open
 status = Waiting
 Assigned To → Me
 ```
+
+`Assigned To` использует штатную assignment-механику Frappe. Внутренний `_assign` не становится полем предметной модели или App API.
 
 Global Saved Filters не являются обязательным состоянием App. Пользователь при необходимости сохраняет собственный фильтр.
 
@@ -102,7 +108,7 @@ due_date
 
 Перетаскивание карточки меняет только `Work Item.status`. Связанные `ToDo` App не синхронизирует.
 
-`Kanban Board` является обязательной DB-конфигурацией, поэтому для его поставки используется fixture.
+`Kanban Board` является обязательной DB-конфигурацией, поэтому для его поставки используется узкий fixture. Patch или собственный setup-код для создания одной обязательной доски не нужны.
 
 ## Calendar и Gantt
 
@@ -117,6 +123,17 @@ progress
 ```
 
 Если появится реальная ответственность планового интервала, представления проектируются из неё.
+
+## Срок Work Item и Complete By
+
+```text
+Work Item.due_date = общий срок работы
+ToDo.date          = Complete By конкретного назначения
+```
+
+Стандартный Assign To не копирует `Work Item.due_date` в `ToDo.date`. Если пользователь оставляет `Complete By` пустым, backend Frappe создаёт ToDo с текущей датой.
+
+Если появится требование автоматически передавать срок Work Item в назначения, сначала проверяется штатный `Assignment Rule.due_date_based_on`, включая его стандартное обновление сроков открытых ToDo. Собственная lifecycle-синхронизация не является первым вариантом.
 
 ## Auto Repeat
 
@@ -133,17 +150,37 @@ due_date     → пусто
 links        → пусто
 ```
 
-Относительный `due_date` без отдельного правила не вычисляется. Если такое правило появится, первым проверяется `Work Item.on_recurring`.
+Нативный механизм выбирается по конкретной ответственности:
+
+- обычное повторение — `Auto Repeat`;
+- фиксированный исполнитель нового экземпляра — `Auto Repeat.assignee`;
+- автоматический выбор исполнителя — `Assignment Rule`;
+- относительный `Work Item.due_date` или другая логика нового документа — `Work Item.on_recurring`.
+
+Отдельный scheduler для этих сценариев не создаётся.
 
 ## Assignment Rule
 
-`Assignment Rule` не входит в baseline.
+`Assignment Rule` не входит в baseline как обязательная конфигурация.
 
-Базовый сценарий — общая очередь + ручное `Assign to me`. Assignment Rule нужен только при реальном автоматическом распределении.
+Базовый сценарий — общая очередь + ручное `Assign to me`. Assignment Rule нужен только при реальном автоматическом распределении или при требовании штатно связывать срок назначения с полем исходного документа.
+
+При появлении автоматического распределения сначала рассматриваются нативные стратегии Frappe:
+
+```text
+Round Robin
+Load Balancing
+Based on Field
+Weighted Distribution
+```
+
+Собственная логика распределения не добавляется до появления требования, которое эти стратегии не выражают.
 
 ## Notifications
 
-Собственных обязательных Notification rules нет. `Assign To` уже использует штатные уведомления Frappe.
+Собственных обязательных Notification rules нет. `Assign To` уже использует штатные notification mechanisms Frappe.
+
+`Communication` может быть связан с Work Item и отображаться в Timeline, но baseline не выдаёт `VEQTA Work User` permission `Email` и не заявляет отдельный почтовый workflow.
 
 ## Number Cards
 
@@ -250,6 +287,8 @@ Work Board
 
 Используются штатные Header blocks, shortcuts, Number Cards и Chart. Custom HTML/CSS ради декоративного оформления не добавляется.
 
+Отдельный `Workspace Sidebar` не является обязательным состоянием baseline: Frappe v16 умеет строить навигацию модуля из его standard metadata. Собственный standard Sidebar нужен только если появится самостоятельное требование управлять структурой навигации, которую автоматическая module navigation не выражает.
+
 ## Поставка обязательного состояния
 
 Порядок:
@@ -275,11 +314,15 @@ fixture:
 - Kanban Board VEQTA Work Items
 
 не поставляется:
+- отдельный fixture Role только ради VEQTA Work User
 - global Saved Filters
 - пользовательские Work Item / ToDo
 - custom List JS
 - lifecycle hooks для ToDo
+- Workspace Sidebar без отдельного навигационного требования
 ```
+
+Role, указанные в permission rows standard DocType, создаются штатной импортной механикой Frappe; это проверяется reinstall-test вместе с DocPerm.
 
 Фактическая поставка проверяется reinstall-test на втором чистом Site.
 
@@ -287,9 +330,15 @@ fixture:
 
 - [Frappe Commands](https://docs.frappe.io/framework/user/en/bench/frappe-commands)
 - [`Gettext commands`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/commands/gettext.py)
+- [`Assign To`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
+- [`Assignment Rule`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/assignment_rule/assignment_rule.py)
+- [`Auto Repeat`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
 - [`Kanban View`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/views/kanban/kanban_view.js)
+- [`Kanban Board`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/kanban_board/kanban_board.py)
 - [`Kanban Settings`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/views/kanban/kanban_settings.js)
 - [`Number Card`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/number_card/number_card.py)
 - [`Dashboard Chart`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
 - [`Workspace`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace/workspace.py)
+- [`Workspace Sidebar`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace_sidebar/workspace_sidebar.py)
+- [`DocType import`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py)
 - [`Fixtures`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/utils/fixtures.py)
