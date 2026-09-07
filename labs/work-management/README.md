@@ -102,7 +102,7 @@ priority: Low, Medium, High
 | авторизация | Role / DocPerm |
 | локализация App | Gettext |
 
-Baseline не добавляет собственный API, scheduler, service/repository layer, frontend, permission model или lifecycle-синхронизацию поверх `ToDo`.
+Baseline не добавляет собственный API, scheduler, service/repository layer, frontend, permission model или lifecycle-синхронизацию поверх `ToDo`. Generated controller standard DocType остаётся без прикладной логики, пока живой прототип не покажет конкретный недостающий контракт.
 
 ## Сроки
 
