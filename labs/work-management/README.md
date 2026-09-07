@@ -78,7 +78,7 @@ status: Open, Waiting, Closed, Cancelled
 priority: Low, Medium, High
 ```
 
-Русские подписи поставляются App через `translations/ru.csv`. Пользователь видит `Работа`, `Открыто`, `Ожидание`, `Закрыто`, `Отменено`, но в данных остаются исходные технические значения.
+Для нового App на Frappe v16 русская локализация поставляется через Gettext: `locale/main.pot` и `locale/ru.po`. Пользователь видит `Работа`, `Управление работой` и другие русские подписи, но в данных остаются исходные технические значения.
 
 Префикс имени Work Item нужен не для интерфейса, а для устойчивой идентификации документа в ссылках, логах и интеграциях. Пользовательским названием документа остаётся `subject`.
 
@@ -100,7 +100,7 @@ priority: Low, Medium, High
 | показатели | Number Card / Dashboard Chart |
 | единая точка входа | Workspace |
 | авторизация | Role / DocPerm |
-| локализация App | `translations/*.csv` |
+| локализация App | Gettext `locale/*.po` |
 
 Собственный код baseline ограничен контрактом самого `Work Item`: терминальные состояния должны согласованно завершать активные назначения и не позволять создавать новые назначения на завершённую или отменённую работу. Для отображения состояния List View использует штатный `<doctype>_list.js` extension point.
 
@@ -159,11 +159,12 @@ end_date
 
 Основные источники:
 
-- [Frappe Apps](https://docs.frappe.io/framework/user/en/guides/basics/apps)
+- [Frappe Apps](https://docs.frappe.io/framework/user/en/basics/apps)
 - [Create an App](https://docs.frappe.io/framework/user/en/tutorial/create-an-app)
 - [Create a DocType](https://docs.frappe.io/framework/user/en/tutorial/create-a-doctype)
-- [Translations](https://docs.frappe.io/framework/user/en/translations)
+- [Frappe Commands](https://docs.frappe.io/framework/user/en/bench/frappe-commands)
 - [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
 - [`ToDo`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.py)
 - [`Auto Repeat`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
+- [`Gettext commands`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/commands/gettext.py)
 - [`Workspace`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace/workspace.py)
