@@ -126,11 +126,11 @@ Cancelled
 
 ```text
 Open + нет назначения = свободная работа
-Open + назначение     = работа взята исполнителем
+Open + назначение     = работа с персонально ответственным пользователем
 Waiting + назначение  = исполнитель остаётся ответственным
 ```
 
-Отдельное `In Progress` не используется: наличие активного назначения уже хранит факт персональной ответственности.
+Отдельное `In Progress` не используется. Активный `ToDo` хранит факт персональной ответственности, но сам по себе не является сохранённым фактом начала выполнения. В базовом pull-сценарии `Assign to me` означает, что пользователь принимает Work Item на себя. Если потребуется отдельно различать «назначено» и «фактически начато», это будет новая ответственность модели, а не вывод из `_assign` или `ToDo`.
 
 `status` имеет `No Copy = Yes`, чтобы новый экземпляр не наследовал состояние исходного документа.
 
@@ -161,13 +161,13 @@ Medium
 High
 ```
 
-Они совпадают со стандартным `ToDo.priority`. В Frappe v16.33.0 Assign To использует `doc.priority` как default, если значение входит в `Low / Medium / High`, поэтому преобразование не требуется.
+Они совпадают со стандартным `ToDo.priority`. В Frappe v16.33.0 стандартный Assign To dialog использует `doc.priority` как default, если значение входит в `Low / Medium / High`, поэтому преобразование не требуется. Это удобный default UI, а не синхронизация: пользователь может выбрать другой приоритет назначения.
 
 `priority` копируется при повторении как часть содержательного контекста работы.
 
 ## `due_date`
 
-Необязательный общий срок работы.
+Необязательный общий срок работы. Это семантика поля Work Item; отдельный перевод общей строки Frappe `Due Date` только ради этого различия не нужен.
 
 ```text
 Work Item.due_date = общий срок работы
@@ -175,6 +175,15 @@ ToDo.date          = Complete By конкретного назначения
 ```
 
 Это разные данные и они не синхронизируются автоматически.
+
+В стандартном Assign To dialog `Complete By` можно оставить пустым. FieldGroup не включает null-поле `date` в `get_values()`, поэтому backend `frappe.desk.form.assign_to` получает args без `date` и в Frappe v16.33.0 создаёт `ToDo.date` с текущей датой. Следовательно:
+
+```text
+пустой Work Item.due_date ≠ пустой ToDo.date
+Work Item.due_date        ≠ default для ToDo.date
+```
+
+Если появится требование автоматически передавать общий срок работы в назначение, сначала проверяется штатный `Assignment Rule.due_date_based_on`. Ручную синхронизацию Work Item → ToDo не следует вводить раньше такого требования.
 
 `due_date` имеет `No Copy = Yes`, чтобы новый экземпляр не наследовал абсолютную дату старой работы.
 
@@ -210,6 +219,13 @@ ToDo
 
 Один Work Item может иметь ноль, одно или несколько назначений. Системное `_assign` остаётся внутренним механизмом Frappe и не становится нашим предметным API-полем.
 
+Стандартный Assign To различает завершение и снятие назначения:
+
+- `close` завершает ToDo и разрешён только самому assignee;
+- `remove` переводит назначение в `Cancelled`; пользователь с Write на исходный Work Item может снять чужое назначение штатным UI.
+
+Для доверенной общей очереди это принимается как штатная семантика Frappe. Если потребуется запретить снятие чужих назначений, это станет отдельным server-side правилом.
+
 ## Ожидание
 
 `Waiting` является состоянием Work Item, а не отдельной сущностью:
@@ -241,14 +257,22 @@ priority     → копируется
 status       → default Open
 due_date     → не копируется
 links        → не копируются
-назначения   → не являются частью предметной модели Work Item
+назначения   → не являются полями Work Item
 ```
 
-Если появится правило относительного срока, первым проверяется `Work Item.on_recurring`.
+Для назначения повторяющихся экземпляров сначала используются нативные возможности по ответственности:
+
+- фиксированный assignee — `Auto Repeat.assignee`;
+- автоматический выбор пользователя — `Assignment Rule`;
+- относительный `Work Item.due_date` или другая логика самого нового документа — `Work Item.on_recurring`.
+
+`Auto Repeat` уже вызывает `on_recurring` после подготовки нового документа, поэтому отдельный scheduler для такой логики не нужен.
 
 ## Communication
 
-Письма не копируются в собственные `source_email` или `source` поля. Стандартный `Communication` может быть связан с Work Item и отображаться в Timeline.
+`Communication` может быть связан с Work Item и отображаться в Timeline. Письма не копируются в собственные `source_email` или `source` поля.
+
+При этом baseline не выдаёт `VEQTA Work User` право `Email` на Work Item и не заявляет отдельный почтовый workflow. Наличие `Communication` как штатной связанной сущности и право пользователя отправлять письмо из формы — разные ответственности.
 
 ## Намеренно отсутствующие поля и сущности
 
@@ -285,8 +309,10 @@ end_date
 1. `Work Item` создаётся как standard DocType App.
 2. Назначения работают через штатный `Assign To / ToDo` без собственного поля исполнителя.
 3. `Work Item.status` и `ToDo.status` фактически остаются независимыми.
-4. `priority` корректно подхватывается Assign To.
-5. Auto Repeat соблюдает `No Copy` metadata текущей модели.
+4. `priority` корректно подхватывается стандартным Assign To dialog как default.
+5. При пустом `Complete By` фактический `ToDo.date` соответствует штатному default текущей версии.
+6. Пользователь с Write на Work Item может снять чужое назначение, а завершить его через `close` может только assignee.
+7. Auto Repeat соблюдает `No Copy` metadata текущей модели и штатную семантику assignee.
 
 ## Источники Frappe
 
@@ -298,5 +324,8 @@ end_date
 - [`Naming`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/naming.py)
 - [`DocType`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py)
 - [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
+- [`Assign To dialog`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/form/sidebar/assign_to.js)
+- [`FieldGroup.get_values`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/ui/field_group.js)
 - [`ToDo`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.py)
 - [`Auto Repeat`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
+- [`Assignment Rule`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/assignment_rule/assignment_rule.py)
