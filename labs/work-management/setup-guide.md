@@ -1,6 +1,6 @@
 # Управление работой v1: сборка на Frappe v16
 
-Этот гайд собирает Work Management Lab как минимальный standard Frappe App и проверяет, что обязательное состояние воспроизводимо переносится на другой Site.
+Этот гайд собирает Work Management Lab как минимальный standard Frappe App и проверяет воспроизводимую поставку обязательного состояния.
 
 Перед началом:
 
@@ -12,20 +12,15 @@
 
 Работайте на отдельном тестовом Site без пользовательских данных.
 
-Из корня `frappe-bench` включите Developer Mode **только для этого Site**:
+Включите Developer Mode только для этого Site:
 
 ```bash
 bench --site <site> set-config developer_mode 1
 bench --site <site> clear-cache
-```
-
-Проверьте применённую конфигурацию:
-
-```bash
 bench --site <site> show-config
 ```
 
-Не используйте `-g developer_mode 1`, если нет причины включать Developer Mode для всех Sites bench.
+Не используйте глобальный `-g developer_mode 1`, если нет причины включать режим для всех Sites bench.
 
 ## 1. Создайте App штатным Bench
 
@@ -51,27 +46,16 @@ bench --site <site> install-app veqta_work_management
 bench --site <site> list-apps
 ```
 
-Ожидаются как минимум:
-
-```text
-frappe
-veqta_work_management
-```
-
 ## 2. Создайте роль `VEQTA Work User`
-
-На development Site создайте:
 
 ```text
 Role Name: VEQTA Work User
 Desk Access: Yes
 ```
 
-Роль будет указана в permissions standard `Work Item`. При установке App на второй чистый Site отдельно проверяется, что Frappe создаёт отсутствующую Role из standard metadata. Не добавляйте fixture роли заранее, если standard install path уже решает эту задачу.
+Роль будет указана в permissions standard `Work Item`. Отдельный fixture роли заранее не добавляется; её доставка проверяется reinstall-test.
 
 ## 3. Создайте standard DocType `Work Item`
-
-Под `Administrator` откройте `DocType` → `New`.
 
 ```text
 Name: Work Item
@@ -79,7 +63,7 @@ Module: VEQTA Work Management
 Custom: No
 
 Naming Rule: Expression
-Auto Name: VWM-WI-.#####
+Auto Name: WI-.#####
 Title Field: subject
 Show Title Field in Link: Yes
 Search Fields: subject
@@ -108,16 +92,12 @@ Sort Order: DESC
 
 ### Поля
 
-Источник labels можно оставить английским: русский интерфейс формируется переводами Frappe/App.
-
-Предметные поля:
-
 | Label | Fieldname | Type | Required | Default | No Copy | List | Standard Filter | Global Search | Quick Entry |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Subject | `subject` | Data | yes | — | no | title | no | yes | required |
+| Subject | `subject` | Data | yes | — | no | title | no | yes | yes |
 | Description | `description` | Text Editor | no | — | no | no | no | yes | yes |
-| Status | `status` | Select | yes | `Open` | yes | yes | yes | no | required |
-| Priority | `priority` | Select | yes | `Medium` | no | yes | yes | no | required |
+| Status | `status` | Select | yes | `Open` | yes | yes | yes | no | yes |
+| Priority | `priority` | Select | yes | `Medium` | no | yes | yes | no | yes |
 | Due Date | `due_date` | Date | no | — | yes | yes | yes | no | yes |
 | Links | `links` | Table → `Dynamic Link` | no | — | yes | no | no | no | no |
 
@@ -140,7 +120,7 @@ High
 
 ### Layout формы
 
-Добавьте штатные `Section Break` / `Column Break`, не меняя предметную модель:
+Используйте штатные `Section Break` / `Column Break`:
 
 ```text
 Work
@@ -156,7 +136,7 @@ Links
 └── Links
 ```
 
-Для трёх параметров используйте Column Breaks, чтобы они стояли в одной строке на широком экране.
+Собственный CSS не нужен.
 
 ## 4. Настройте DocPerm
 
@@ -179,119 +159,37 @@ Links
 | Amend | No |
 | If Owner | No |
 
-Не расширяйте permissions стандартного `ToDo` и не удаляйте административный доступ `System Manager`.
+Не расширяйте permissions стандартного `ToDo` и не меняйте административную границу `System Manager`.
 
-## 5. Добавьте lifecycle `Work Item`
+## 5. Не добавляйте lifecycle-код
 
-После сохранения standard DocType Frappe создаст controller-файл. Используйте созданный Framework путь, а не создавайте альтернативный service layer.
+Generated controller `Work Item` оставьте без прикладной логики.
 
-В `work_item.py` добавьте:
+Baseline не добавляет:
 
-```python
-import frappe
-from frappe import _
-from frappe.desk.form import assign_to
-from frappe.model.document import Document
-
-
-class WorkItem(Document):
-    def on_update(self):
-        if self.status == "Closed":
-            assign_to.close_all_assignments(
-                self.doctype,
-                self.name,
-                ignore_permissions=True,
-            )
-        elif self.status == "Cancelled":
-            cancel_active_assignments(self)
-
-
-def cancel_active_assignments(work_item):
-    assignments = frappe.get_all(
-        "ToDo",
-        fields=["name", "allocated_to"],
-        filters={
-            "reference_type": work_item.doctype,
-            "reference_name": work_item.name,
-            "status": ("not in", ("Closed", "Cancelled")),
-        },
-        limit_page_length=0,
-    )
-
-    for assignment in assignments:
-        assign_to.set_status(
-            work_item.doctype,
-            work_item.name,
-            todo=assignment.name,
-            assign_to=assignment.allocated_to,
-            status="Cancelled",
-            ignore_permissions=True,
-        )
-
-
-def validate_work_item_todo(doc, method=None):
-    if (
-        doc.reference_type != "Work Item"
-        or doc.status != "Open"
-        or not doc.reference_name
-    ):
-        return
-
-    work_status = frappe.db.get_value("Work Item", doc.reference_name, "status")
-
-    if work_status in {"Closed", "Cancelled"}:
-        frappe.throw(
-            _("Cannot create or reopen an assignment for a closed or cancelled Work Item.")
-        )
+```text
+Work Item.on_update → ToDo
+ToDo.validate hook
+синхронизацию Work Item.status ↔ ToDo.status
+запрет Assign To по статусу Work Item
 ```
 
-Почему для `Cancelled` нет `assign_to.clear()`: штатный `clear()` проходит по всем связанным ToDo и может перевести в Cancelled даже уже Closed назначения. Нам нужно отменить только активные назначения и сохранить историю выполненных.
+`Work Item` и `ToDo` используют штатную семантику Frappe. Собственный lifecycle появляется только после подтверждённого бизнес-требования.
 
-Первый блок согласует существующие активные назначения с terminal status Work Item. Второй запрещает создать или повторно открыть активное назначение на terminal Work Item.
+## 6. List View
 
-Не добавляйте обратную автоматизацию `ToDo → Work Item`: при нескольких исполнителях завершение одного ToDo не означает завершение всей работы.
+Не добавляйте обязательный `work_item_list.js`.
 
-## 6. Подключите официальный `doc_events` hook
+Проверьте стандартный List View с полями:
 
-В `veqta_work_management/hooks.py`:
-
-```python
-doc_events = {
-    "ToDo": {
-        "validate": (
-            "veqta_work_management.veqta_work_management.doctype.work_item."
-            "work_item.validate_work_item_todo"
-        )
-    }
-}
+```text
+subject
+status
+priority
+due_date
 ```
 
-Если `hooks.py` уже содержит `doc_events`, добавьте обработчик в существующую структуру, не создавая второй объект с тем же именем.
-
-Hook действует на стандартный `ToDo`, но прикладная проверка сразу выходит для любого `reference_type`, кроме `Work Item`.
-
-## 7. Настройте List View
-
-В созданном Framework файле `work_item_list.js`:
-
-```javascript
-frappe.listview_settings["Work Item"] = {
-	get_indicator(doc) {
-		const colors = {
-			Open: "blue",
-			Waiting: "orange",
-			Closed: "green",
-			Cancelled: "gray",
-		};
-
-		return [__(doc.status), colors[doc.status] || "gray", `status,=,${doc.status}`];
-	},
-};
-```
-
-Это штатный List View extension Frappe. Отдельный Client Script record не нужен.
-
-Основные пользовательские фильтры создаются через обычный Filter UI:
+Пользовательские фильтры:
 
 ```text
 status in Open, Waiting
@@ -300,9 +198,9 @@ status = Waiting
 Assigned To → Me
 ```
 
-Не создавайте обязательные global Saved Filters.
+Global Saved Filters не создаются как App state.
 
-## 8. Создайте Kanban
+## 7. Создайте Kanban
 
 ```text
 Kanban Board Name: VEQTA Work Items
@@ -320,18 +218,18 @@ Closed
 Cancelled
 ```
 
-В Kanban Settings добавьте на карточку:
+В Kanban Settings добавьте:
 
 ```text
 priority
 due_date
 ```
 
-Переход в `Closed` / `Cancelled` через drag должен вызвать обычное сохранение Work Item и тот же server lifecycle.
+Перетаскивание меняет только `Work Item.status`; App не синхронизирует связанные ToDo.
 
 ### Поставка Kanban
 
-`Kanban Board` поставляется fixture. В `hooks.py`:
+В `hooks.py` добавьте только fixture declaration:
 
 ```python
 fixtures = [
@@ -342,17 +240,15 @@ fixtures = [
 ]
 ```
 
-Затем:
+Экспорт:
 
 ```bash
 bench --site <site> export-fixtures
 ```
 
-Проверьте, что fixture содержит только нужную доску, а не все пользовательские Kanban Boards Site.
+Проверьте, что fixture содержит только нужную доску.
 
-## 9. Создайте standard Number Cards
-
-Создайте четыре карточки:
+## 8. Создайте standard Number Cards
 
 | Name | Filters |
 | --- | --- |
@@ -373,18 +269,11 @@ Module: VEQTA Work Management
 Show Percentage Stats: No
 ```
 
-Оформление:
+Для визуального разделения используйте штатные `Color` / `Background Color`.
 
-| Card | Color | Background Color |
-| --- | --- | --- |
-| Active | `#1D4ED8` | `#EFF6FF` |
-| Waiting | `#B45309` | `#FFF7ED` |
-| High Priority | `#B91C1C` | `#FEF2F2` |
-| Due Today | `#A16207` | `#FEFCE8` |
+Карточку «Без исполнителя» пока не создавайте как обязательную: сначала проверьте фактическое поведение assignment-фильтра на используемом patch-release.
 
-Карточку «Без исполнителя» пока не делайте mandatory: сначала отдельно проверьте patch-level поведение фильтра `Assigned To Is Not Set` в Number Card.
-
-## 10. Создайте standard Dashboard Chart
+## 9. Создайте standard Dashboard Chart
 
 ```text
 Chart Name: VEQTA New Work Items
@@ -400,14 +289,13 @@ Is Standard: Yes
 Module: VEQTA Work Management
 ```
 
-График показывает поступление новых Work Item и не трактуется как производительность.
+График показывает поступление Work Item, а не производительность.
 
-## 11. Создайте standard Workspace
+## 10. Создайте standard Workspace
 
 ```text
 Label: VEQTA Work Management
 Title: VEQTA Work Management
-Type: Workspace
 Public: Yes
 Module: VEQTA Work Management
 Roles:
@@ -434,7 +322,7 @@ Work Board
   Kanban Board: VEQTA Work Items
 ```
 
-Разложите Workspace штатными Header blocks:
+Компоновка:
 
 ```text
 Actions
@@ -452,13 +340,9 @@ Intake
 └── VEQTA New Work Items
 ```
 
-Не добавляйте Custom HTML/CSS только ради декоративного оформления.
+Не добавляйте Custom HTML/CSS только ради декора.
 
-## 12. Локализация v16 через Gettext
-
-Для нового App на Frappe v16 используйте основной Gettext/PO path, а не legacy CSV translations.
-
-После того как metadata и translatable code готовы:
+## 11. Локализация через Gettext
 
 ```bash
 bench generate-pot-file --app veqta_work_management
@@ -471,26 +355,9 @@ bench create-po-file ru --app veqta_work_management
 apps/veqta_work_management/veqta_work_management/locale/ru.po
 ```
 
-Минимально нужны уникальные строки App, например:
+Добавляйте только уникальные строки App. Общие переводы Frappe не дублируйте без необходимости.
 
-```text
-Work Item                         → Работа
-VEQTA Work Management            → Управление работой
-VEQTA Work User                  → Участник управления работой
-VEQTA Work Items                 → Работы
-VEQTA Active Work Items          → Активные работы
-VEQTA Waiting Work Items         → Ожидание
-VEQTA High Priority Work Items   → Высокий приоритет
-VEQTA Due Today Work Items       → Срок сегодня
-VEQTA New Work Items             → Новые работы
-New Work Item                    → Новая работа
-Work Item List                   → Список работ
-Work Board                       → Доска
-```
-
-Не дублируйте в App общие переводы Frappe (`Open`, `Priority`, `Status` и т. п.), если core Russian translation уже даёт подходящее значение.
-
-После изменения translatable strings:
+После изменений:
 
 ```bash
 bench generate-pot-file --app veqta_work_management
@@ -499,11 +366,9 @@ bench compile-po-to-mo --app veqta_work_management --locale ru
 bench --site <site> clear-cache
 ```
 
-## 13. Auto Repeat
+## 12. Auto Repeat
 
-Создайте standard Auto Repeat без обязательного Assignee.
-
-Новый Work Item должен получать:
+Создайте Auto Repeat без обязательного Assignee и проверьте ожидаемую metadata-семантику:
 
 ```text
 subject      → копируется
@@ -514,28 +379,9 @@ due_date     → пусто
 links        → пусто
 ```
 
-Если потребуется относительный срок, первым проверяется `Work Item.on_recurring`. Собственный scheduler для этого не создаётся.
+Отдельный scheduler не создаётся.
 
-## 14. Добавьте тесты собственных контрактов
-
-Тесты App должны проверять только наше поведение:
-
-1. `Closed` закрывает все активные ToDo этого Work Item.
-2. `Cancelled` отменяет активные ToDo и сохраняет уже Closed назначения.
-3. нельзя создать `ToDo.status = Open` для terminal Work Item.
-4. нельзя повторно открыть закрытый ToDo, пока Work Item terminal.
-5. закрытие одного ToDo не меняет Work Item.status.
-6. Auto Repeat не переносит `status`, `due_date`, `links`.
-
-Запуск:
-
-```bash
-bench --site <site> run-tests --app veqta_work_management
-```
-
-Не тестируйте заново стандартные возможности Frappe, которые App не изменяет.
-
-## 15. Проверьте состояние App
+## 13. Проверьте состояние App
 
 В каталоге App:
 
@@ -547,14 +393,11 @@ git diff
 Ожидаемые группы:
 
 ```text
-standard metadata / code:
+standard metadata:
 - Work Item
-- controller
-- list.js
 - Workspace
 - Number Cards
 - Dashboard Chart
-- hooks.py
 - locale/main.pot
 - locale/ru.po
 
@@ -562,9 +405,10 @@ fixture:
 - только Kanban Board VEQTA Work Items
 
 не должно попадать:
-- Work Item user data
-- ToDo user data
-- Saved Filters пользователей
+- пользовательские Work Item / ToDo
+- global Saved Filters
+- custom List JS
+- ToDo hooks
 - случайные DB exports
 ```
 
@@ -576,9 +420,7 @@ bench build
 bench --site <site> clear-cache
 ```
 
-## 16. Reinstall test на втором чистом Site
-
-Создайте второй test Site и установите App без ручного повторения конфигурации:
+## 14. Reinstall test на втором чистом Site
 
 ```bash
 bench --site <second-site> install-app veqta_work_management
@@ -586,54 +428,45 @@ bench --site <second-site> migrate
 bench --site <second-site> clear-cache
 ```
 
-Проверьте:
+Без ручного повторения настройки должны появиться:
 
-- появился `Work Item` с правильным naming и полями;
-- появился `VEQTA Work User`;
-- DocPerm совпадает с моделью;
-- lifecycle code работает;
-- присутствует Kanban fixture;
-- появились standard Number Cards / Chart / Workspace;
-- русский перевод работает после compile/build;
-- пользовательские данные первого Site не приехали.
+- standard `Work Item`;
+- naming `WI-.#####`;
+- Role и DocPerm;
+- Kanban fixture;
+- Number Cards;
+- Dashboard Chart;
+- Workspace;
+- Gettext localization.
 
-Если обязательный объект отсутствует, сначала определите его штатный delivery mechanism. Patch не является автоматическим ответом.
+Пользовательские данные первого Site переноситься не должны.
 
-## 17. Проверка без Developer Mode
+Если обязательный объект отсутствует, сначала определите его штатный delivery mechanism. Patch не добавляется автоматически.
 
-После фиксации App выключите режим на тестовом Site:
+## 15. Runtime без Developer Mode
 
 ```bash
 bench --site <site> set-config developer_mode 0
 bench --site <site> clear-cache
 ```
 
-Под обычным `VEQTA Work User` проверьте:
-
-- создание Work Item;
-- List View;
-- Assign To;
-- terminal lifecycle;
-- Kanban;
-- Number Cards;
-- Chart;
-- Workspace.
+Под обычным `VEQTA Work User` повторите основные сценарии: создание, List, Assign To, статусы, Kanban, Number Cards, Chart и Workspace.
 
 Runtime не должен зависеть от Developer Mode.
 
 ## Критерии готовности
 
 1. App создан `bench new-app`, без ручного каркаса.
-2. `Work Item` — standard DocType `VEQTA Work Management`.
-3. Имя Work Item имеет формат `VWM-WI-00001`.
+2. `Work Item` — standard DocType App.
+3. Имя Work Item имеет формат `WI-00001`.
 4. Предметная модель содержит только шесть полей.
-5. Назначения работают через standard `ToDo`.
-6. Terminal lifecycle защищён на сервере и сохраняет историю закрытых назначений.
+5. Назначения работают через standard `Assign To / ToDo`.
+6. Work Item и ToDo не связаны синтетическим lifecycle-кодом.
 7. Calendar/Gantt не включены без interval semantics.
 8. Saved Filters не являются обязательным App state.
 9. Kanban поставляется узким fixture.
 10. Number Cards / Chart / Workspace являются standard metadata.
-11. Локализация использует v16 Gettext/PO path.
+11. Локализация использует Gettext.
 12. Второй чистый Site устанавливается без ручного повторения обязательной настройки.
 
 ## Источники
@@ -643,6 +476,5 @@ Runtime не должен зависеть от Developer Mode.
 - [Create a DocType](https://docs.frappe.io/framework/user/en/tutorial/create-a-doctype)
 - [Frappe Commands](https://docs.frappe.io/framework/user/en/bench/frappe-commands)
 - [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
-- [`Document hooks`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/document.py)
 - [`Fixtures`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/utils/fixtures.py)
 - [`Gettext commands`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/commands/gettext.py)
