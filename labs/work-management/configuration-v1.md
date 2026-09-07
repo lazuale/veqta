@@ -1,12 +1,14 @@
 # Конфигурация v1: управление работой
 
-Эта конфигурация собирает рабочий интерфейс `Work Item` штатными средствами Frappe v16. Она не добавляет собственный код, scripts, hooks, API или frontend.
+Эта конфигурация собирает рабочий интерфейс `Work Item` штатными средствами Frappe v16 внутри минимального App `work_management`.
+
+Developer Mode используется для разработки и экспорта standard metadata в App. Это не означает, что прототип должен содержать собственный frontend, API, scheduler или прикладной Python-код: сначала используются готовые механизмы Frappe, затем официальные extension points и только потом минимальный собственный код для подтверждённого пробела.
 
 Модель данных описана в [Модели данных v1](data-model-v1.md), права доступа — в [Безопасности v1](security-v1.md).
 
 ## Русский интерфейс
 
-Пользовательская часть управления работой настраивается на русском языке. Технические идентификаторы и хранимые значения модели остаются стабильными:
+Пользовательская часть управления работой настраивается на русском языке. Технические идентификаторы и хранимые значения остаются стабильными:
 
 ```text
 DocType: Work Item
@@ -17,9 +19,7 @@ priority values: Low, Medium, High
 
 Русскими задаются метки полей, названия Saved Filters, Kanban Board, Calendar View, Number Cards, Dashboard Charts, Workspace и shortcuts.
 
-`Work Item` отображается как `Работа` через штатный DocType `Translation`.
-
-Для технических значений `status` и `priority` используется механизм перевода Frappe, а не изменение самих значений:
+`Work Item` отображается как `Работа` через штатный механизм переводов Frappe. Технические значения `status` и `priority` не заменяются русскими строками.
 
 ```text
 Open      → Открыто
@@ -32,22 +32,17 @@ Medium    → Средний
 High      → Высокий
 ```
 
-Если эти общие строки уже переведены текущим русским словарём Site, отдельные записи `Translation` не дублируются. Если конкретная строка остаётся английской, её можно добавить через штатный `Translation`. Для `Work Item` отдельный перевод требуется, потому что это наш Custom DocType.
-
-Это не меняет модель данных. В частности, Kanban хранит колонки по фактическим значениям `Open / Waiting / Closed / Cancelled`, а шаблон колонки Frappe выводит заголовок через `__()`, поэтому пользователь видит перевод.
-
-Есть одно ограничение: `Dashboard Chart → Group By` возвращает значения поля как готовые подписи и не применяет к значениям `Select` перевод. Поэтому категориальные графики по `status` и `priority` в русскую конфигурацию не входят: они показывали бы английские технические значения. Собственный код ради локализации графиков не добавляется.
+Если конкретная строка не переведена текущим русским словарём Site, добавляется перевод, а не новое значение модели.
 
 ## Основной сценарий
-
-Базовая работа строится вокруг общей очереди:
 
 ```text
 Work Item создан
 → виден Work User
 → пользователь берёт его через Assign to me
-→ при внешней блокировке переводит в Waiting (Ожидание)
-→ после выполнения закрывает назначение и переводит Work Item в Closed (Закрыто)
+→ при внешней блокировке переводит в Waiting
+→ после выполнения закрывает своё назначение
+→ переводит Work Item в Closed
 ```
 
 `Work Item.status` описывает состояние самой работы, а `Assign To / ToDo` — персональную ответственность.
@@ -56,23 +51,21 @@ Work Item создан
 
 List View — основной экран очереди.
 
-В рабочем списке используются:
+Используются:
 
-- `subject` с меткой `Название` как Title Field;
-- `status` с меткой `Статус`;
-- `priority` с меткой `Приоритет`;
-- `due_date` с меткой `Срок`;
-- системное поле `Assigned To` (`_assign`).
+- `subject` — `Название`;
+- `status` — `Статус`;
+- `priority` — `Приоритет`;
+- `due_date` — `Срок`;
+- системное `Assigned To` (`_assign`).
 
-Сортировка по умолчанию:
+Сортировка:
 
 ```text
 creation DESC
 ```
 
 ### Общие фильтры
-
-Для команды создаются глобальные Saved Filters:
 
 ```text
 Активные
@@ -89,17 +82,9 @@ status = Open
 Assigned To is not set
 ```
 
-Названия фильтров русские, а их условия используют фактические значения полей.
-
-Для неназначенной работы используется явный фильтр `Assigned To is not set`.
-
-### Мои назначения
-
-Отдельное поле `assignee` не требуется. В стандартном фильтре `Assigned To` пользователь выбирает `Me`; Frappe фильтрует документы по текущему пользователю через системное `_assign`.
+Для личной очереди отдельное поле `assignee` не требуется: используется стандартный фильтр `Assigned To → Me`.
 
 ## Kanban
-
-Создаётся одна общая доска:
 
 ```text
 Kanban Board: Работы
@@ -117,22 +102,11 @@ Closed
 Cancelled
 ```
 
-В русском интерфейсе их заголовки отображаются как:
-
-```text
-Открыто
-Ожидание
-Закрыто
-Отменено
-```
-
 Kanban показывает состояние работы. Исполнитель остаётся отдельным фактом `Assign To`, поэтому отдельной колонки «В работе» нет.
 
-Перетаскивание карточки меняет `Work Item.status` штатным сохранением документа. Оно не синхронизирует связанные `ToDo`; закрытие назначений и закрытие Work Item остаются отдельными действиями.
+Перетаскивание карточки меняет `Work Item.status` штатным сохранением документа. Оно не синхронизирует связанные `ToDo`.
 
 ## Calendar
-
-Для сроков создаётся Calendar View:
 
 ```text
 Name: Работы по сроку
@@ -143,69 +117,36 @@ End Date Field: due_date
 All Day: Yes
 ```
 
-Один `due_date` используется как точка срока, а не как интервал выполнения. Работы без `due_date` не отображаются как календарные события.
-
-`Is Calendar and Gantt` у `Work Item` остаётся выключенным. Именованный `Calendar View` открывается отдельным штатным route и не требует включать общий Calendar/Gantt режим DocType. Поэтому дополнительные `start_date`, `end_date`, `duration` и `progress` только ради Calendar или Gantt не добавляются.
-
-Для прямого входа используется route:
-
-```text
-/desk/work-item/view/calendar/%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D1%8B%20%D0%BF%D0%BE%20%D1%81%D1%80%D0%BE%D0%BA%D1%83
-```
+`due_date` используется как точка срока, а не интервал выполнения. Поля `start_date`, `end_date`, `duration`, `progress` только ради Calendar/Gantt не добавляются.
 
 ## Auto Repeat
 
 `Work Item` разрешает штатный Auto Repeat.
 
-Типовая конфигурация повторения:
+Базовая конфигурация повторения не назначает исполнителя автоматически. Новый экземпляр попадает в общую очередь.
+
+При копировании:
 
 ```text
-Reference Document Type: Work Item
-Reference Document: нужный Work Item
-Submit on Creation: No
-Generate Separate Documents For Each Assignee: No
-Assignee: —
-Notify by Email: No
+subject      → копируется
+description  → копируется
+priority     → копируется
+status       → не копируется, default Open
+due_date     → не копируется
+links        → не копируются
 ```
 
-При создании очередного Work Item:
+Чистая конфигурация Auto Repeat не рассчитывает относительный `due_date`. Это ограничение конфигурации, а не всего Frappe: v16 после подготовки нового документа вызывает controller method `on_recurring`.
 
-- `subject` копируется;
-- `description` копируется;
-- `priority` копируется;
-- `status` не копируется и получает обычный default `Open`;
-- `due_date` не копируется;
-- `links` не копируются.
+Поэтому если появится правило вроде «создать 1-го числа со сроком 5-го», сначала рассматривается `Work Item.on_recurring(...)`. Собственный scheduler для этого не нужен.
 
-Автоматическое назначение исполнителя не является частью текущей конфигурации. Повтор создаёт новую работу в общей очереди, после чего пользователь берёт её через `Assign to me`.
-
-`Work User` не получает отдельные права на DocType `Auto Repeat`. Настройка повторений остаётся административной конфигурацией Site, чтобы не открывать пользователю правила повторения других DocType.
-
-Штатный Auto Repeat не вычисляет для этой модели относительный `due_date` нового Work Item. Если повторяющейся работе понадобится правило вроде «создать 1-го числа со сроком 5-го», это отдельное требование.
+Пока такого требования нет, controller остаётся без прикладной логики.
 
 ## Notifications
 
-Обязательных собственных Notification rules в текущей конфигурации нет.
+Обязательных собственных Notification rules нет.
 
-`Assign To` уже создаёт штатное уведомление о назначении, поэтому отдельная Notification на новое назначение не нужна.
-
-При необходимости можно добавить email-напоминание по сроку Work Item:
-
-```text
-Document Type: Work Item
-Event: Days Before
-Reference Date: due_date
-Days Before: 1
-Channel: Email
-Filters: status in Open, Waiting
-Send To All Assignees: Yes
-```
-
-Это опциональная конфигурация Site, а не обязательная часть модели.
-
-System Notification по `due_date` только текущим исполнителям не настраивается: Work Item намеренно не хранит собственное поле исполнителя, а рассылка по роли отправила бы уведомление всей группе.
-
-`ToDo.date` не используется как замена `Work Item.due_date`: это `Complete By` конкретного назначения, а не срок самой работы.
+`Assign To` уже создаёт штатное уведомление о назначении. При необходимости можно добавить email-напоминание по `Work Item.due_date`; это конфигурация, а не новое поле модели.
 
 ## Number Cards
 
@@ -229,17 +170,28 @@ Show Percentage Stats: No
 Dynamic Filters: —
 ```
 
-Percentage Stats выключены: для текущих состояний они не восстанавливают историческое состояние очереди и поэтому не должны интерпретироваться как изменение её размера во времени.
+Percentage Stats выключены: они не восстанавливают историческое состояние очереди.
 
-Number Card кликабельна и открывает отфильтрованный список Work Item, поэтому отдельные shortcuts для `Открытые`, `Ожидание` и `Без исполнителя` не нужны.
+### Оформление
+
+Используются штатные `Color` и `Background Color`:
+
+| Card | Color | Background Color |
+| --- | --- | --- |
+| Активные работы | `#1D4ED8` | `#EFF6FF` |
+| Ожидание | `#B45309` | `#FFF7ED` |
+| Без исполнителя | `#475569` | `#F1F5F9` |
+| Высокий приоритет | `#B91C1C` | `#FEF2F2` |
+| Срок сегодня | `#A16207` | `#FEFCE8` |
+
+Developer Mode оставляет доступными standard/module-настройки карточек, если они нужны для воспроизводимой доставки App.
 
 ## Dashboard Charts
 
-В русской конфигурации используется один временной график.
-
-### Новые работы
+Базовая конфигурация использует один временной график:
 
 ```text
+Chart Name: Новые работы
 Chart Type: Count
 Document Type: Work Item
 Time Series: Yes
@@ -250,15 +202,17 @@ Type: Line
 Is Public: Yes
 ```
 
-Этот график показывает только поступление новых Work Item. Он не является показателем производительности или объёма выполненной работы.
+График показывает поступление новых Work Item и не является показателем производительности.
 
-Графики `Group By` по `status` и `priority` намеренно не создаются: Frappe v16 отдаёт технические значения `Select` как подписи групп без перевода.
+Простой `Group By` по `status`/`priority` пока не используется, если он показывает technical Select values без перевода.
 
-Dynamic Filters с JavaScript expressions не используются.
+Это не считается общей границей Frappe: Developer Mode открывает standard `Dashboard Chart` и `Dashboard Chart Source`. Собственный источник графика добавляется только при реальной необходимости, а не ради демонстрации возможностей.
 
-## Report Builder
+## Report Builder и расширенная отчётность
 
-Отдельный обязательный Report Builder report не создаётся. Стандартный Report View используется для разового анализа Work Item, например:
+Report Builder остаётся первым выбором для простого анализа одного DocType.
+
+Примеры:
 
 - `Count` по `status`;
 - `Count` по `priority`;
@@ -266,32 +220,27 @@ Dynamic Filters с JavaScript expressions не используются.
 
 `owner` означает создателя Work Item, а не исполнителя.
 
-Текущая модель не позволяет корректно считать через обычный Report Builder:
+Текущая предметная модель не хранит структурированные факты `closed_at`, `closed_by`, длительность `Waiting` или фактическое время выполнения, поэтому такие показатели нельзя честно выводить из `modified`.
 
-- кто закрыл Work Item;
-- сколько Work Item пользователь завершил за период;
-- фактическое время выполнения;
-- процент выполнения в срок;
-- длительность состояния `Waiting`.
-
-Для этих показателей в модели нет структурированных фактов завершения и периодов состояния. `modified` не используется как подмена даты закрытия.
+Отдельно нужно различать невозможность конкретного Report Builder-запроса и отсутствие возможностей Framework. Если появится обязательная безопасная аналитика по назначениям, App оставляет штатный путь через standard Query/Script Report с явной семантикой и проверкой прав. Выдавать руководителю широкий `Read` на все `ToDo` Site ради отчётности по-прежнему нельзя.
 
 ## Workspace
 
-Создаётся один общий Workspace:
+Создаётся один общий public Workspace:
 
 ```text
 Label: Управление работой
 Title: Управление работой
 Type: Workspace
 Public: Yes
+Module: Work Management
 Roles:
   Work User
 ```
 
-`Public` означает общий Workspace внутри Desk. Роль `Work User` ограничивает его видимость участниками управления работой.
+Developer Mode важен здесь не для runtime, а для разработки: public Workspace с module может быть экспортирован в App как standard metadata.
 
-Редактирование общего Workspace остаётся задачей штатного `Workspace Manager`; прикладной роли `Work User` административные права Workspace не выдаются.
+Используйте штатные `icon` и `indicator_color` Workspace. Не ограничивайте дизайн только теми полями, которые видны обычному администратору production Site.
 
 ### Shortcuts
 
@@ -314,10 +263,10 @@ Roles:
 
 Календарь
   Type: URL
-  URL: /desk/work-item/view/calendar/%D0%A0%D0%B0%D0%B1%D0%BE%D1%82%D1%8B%20%D0%BF%D0%BE%20%D1%81%D1%80%D0%BE%D0%BA%D1%83
+  URL: route именованного Calendar View Работы по сроку
 ```
 
-Для site-level Custom DocType `Work Item` вариант `DocType View: Calendar` не используется: список доступных Calendar shortcuts в Workspace привязан к стандартным calendar hooks / Calendar-Gantt режиму DocType, а созданный `Calendar View` является отдельной именованной конфигурацией. URL shortcut остаётся штатным механизмом Workspace и открывает конкретный `Работы по сроку` без включения Gantt. Штатный URL shortcut Frappe открывает такой адрес в новой вкладке.
+`Workspace Shortcut.color` не рассматривается как способ перекрасить всю плитку: в штатном v16 он главным образом участвует в indicator/count-представлении. Основная визуальная структура достигается компоновкой Workspace и оформлением Number Cards.
 
 ### Состав экрана
 
@@ -341,39 +290,47 @@ Roles:
     └── Новые работы
 ```
 
-Quick List не используется: стандартный Quick List показывает только несколько последних документов по `creation desc`, что не является приоритетной рабочей очередью.
+Workspace делится штатными Header blocks. Custom HTML, собственный CSS и frontend только ради декоративного оформления не добавляются.
 
-Custom HTML Blocks, отдельный Dashboard, Onboarding и служебные shortcuts для `ToDo`, `Auto Repeat` или `Notification` также не требуются.
+## Поставка обязательного состояния
 
-## Границы конфигурации
+Обязательное состояние Lab должно быть воспроизводимым.
 
-Чистая конфигурация на штатных механизмах Frappe сохраняет несколько известных ограничений:
+Приоритет поставки:
+
+1. standard metadata, которое Frappe экспортирует в module App;
+2. штатные fixtures для обязательных database records, если конкретный тип документа не является file-backed standard metadata;
+3. patch только если требуется миграция уже существующего состояния;
+4. ручная настройка — только временный шаг live experiment, а не конечный способ доставки.
+
+Точный набор exported metadata и fixtures фиксируется после живой сборки на используемой версии Frappe. Не нужно заранее придумывать механизм для каждого объекта без проверки фактического поведения Framework.
+
+## Границы текущей конфигурации
+
+На текущем этапе остаются следующие наблюдаемые границы:
 
 - `Work Item.status` и `ToDo.status` не синхронизируются автоматически;
-- Work User с `Write` на общей очереди может редактировать Work Item и снимать назначение другого Work User;
-- `Work Item.due_date` и `ToDo.date` независимы;
-- Auto Repeat не вычисляет относительный срок Work Item;
-- Dashboard Chart `Group By` не применяет перевод к значениям `Select`, поэтому категориальные графики по `status` и `priority` намеренно не добавляются;
-- безопасная командная аналитика по всем назначениям Work Item не получается только через стандартные права на `ToDo`, не открыв другие ToDo Site;
-- история `closed_at / closed_by` не хранится отдельными полями.
+- `Work Item.due_date` и `ToDo.date` имеют разную семантику;
+- чистый DocPerm не выражает правило «редактировать Work Item может только назначенный пользователь»;
+- простой Report Builder не закрывает безопасную общую аналитику по всем назначениям;
+- базовый Auto Repeat не вычисляет относительный `due_date`;
+- простой `Dashboard Chart Group By` может быть недостаточен для локализованного категориального графика.
 
-Эти ограничения сами по себе не являются основанием для собственной разработки. Доработка появляется только после подтверждённой пользовательской необходимости.
+Эти пункты не объявляются фундаментальными ограничениями Frappe. При подтверждённой необходимости сначала проверяется официальный developer extension point.
 
 ## Источники Frappe v16
 
-- [Translations](https://docs.frappe.io/framework/user/en/translations)
-- [Translation DocType](https://github.com/frappe/frappe/blob/version-16/frappe/core/doctype/translation/translation.json)
-- [Select control](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/form/controls/select.js)
-- [Kanban column template](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/views/kanban/kanban_column.html)
-- [Kanban Board](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/kanban_board/kanban_board.py)
-- [Dashboard Chart](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
-- [Calendar View](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/calendar_view/calendar_view.js)
-- [List View selector](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/list/list_view_select.js)
-- [Workspace](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/workspace/workspace.py)
-- [Workspace Shortcut](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/workspace_shortcut/workspace_shortcut.json)
-- [Workspace Shortcut widget](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/widgets/shortcut_widget.js)
-- [Workspace Quick List](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/widgets/quick_list_widget.js)
-- [Number Card](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/number_card/number_card.py)
-- [Assign To](https://github.com/frappe/frappe/blob/version-16/frappe/desk/form/assign_to.py)
-- [Auto Repeat](https://github.com/frappe/frappe/blob/version-16/frappe/automation/doctype/auto_repeat/auto_repeat.py)
-- [Notification](https://github.com/frappe/frappe/blob/version-16/frappe/email/doctype/notification/notification.py)
+- [Frappe Apps](https://docs.frappe.io/framework/user/en/guides/basics/apps)
+- [Developer Mode](https://docs.frappe.io/framework/user/en/guides/app-development/how-enable-developer-mode-in-frappe)
+- [Create a DocType](https://docs.frappe.io/framework/user/en/tutorial/create-a-doctype)
+- [Workspace](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace/workspace.py)
+- [Workspace form](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace/workspace.js)
+- [Workspace Shortcut](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace_shortcut/workspace_shortcut.json)
+- [Workspace Shortcut widget](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/widgets/shortcut_widget.js)
+- [Number Card](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/number_card/number_card.json)
+- [Number Card widget](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/widgets/number_card_widget.js)
+- [Dashboard Chart](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/dashboard_chart/dashboard_chart.py)
+- [Dashboard Chart Source](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/dashboard_chart_source/dashboard_chart_source.py)
+- [Report](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/report/report.py)
+- [Assign To](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
+- [Auto Repeat](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)

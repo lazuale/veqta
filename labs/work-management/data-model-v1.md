@@ -2,12 +2,28 @@
 
 `Work Item` — основной документ текущего прототипа управления работой. Он представляет сам факт работы. Назначения, комментарии, файлы, теги, коммуникации, повторение, представления и отчётность не дублируются собственными сущностями и полями, если соответствующую ответственность уже закрывает Frappe.
 
+## Поставка модели
+
+`Work Item` проектируется как standard DocType минимального Frappe App на development Site с включённым `developer_mode`.
+
+```text
+App: work_management
+App Title: Work Management
+Module: Work Management
+DocType: Work Item
+Custom: No
+```
+
+Это не меняет предметную модель. App нужен для штатной разработки и воспроизводимой доставки metadata, а не для добавления собственного слоя архитектуры.
+
+Контроллер `Work Item` на текущем этапе не содержит прикладной логики. Наличие controller-файла является обычной частью standard DocType и оставляет официальные extension points Frappe доступными на случай подтверждённой необходимости.
+
 ## DocType
 
 ```text
 Name: Work Item
-Module: Custom
-Custom: Yes
+Module: Work Management
+Custom: No
 
 Naming Rule: Autoincrement
 Auto Name: autoincrement
@@ -48,7 +64,9 @@ Sort Order: DESC
 
 Пользовательское название документа — `subject`.
 
-## Поля
+## Предметные поля
+
+Текущая предметная модель содержит шесть полей:
 
 | Метка | Fieldname | Type | Обязательно | По умолчанию | No Copy | В списке | Фильтр | Global Search | Quick Entry |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -60,6 +78,8 @@ Sort Order: DESC
 | Связи | `links` | Table → `Dynamic Link` | no | — | yes | no | no | no | no |
 
 Технические `fieldname` и значения `Select` остаются английскими. Русский язык относится к пользовательским меткам и переводу отображения, а не к API-идентификаторам или хранимым значениям.
+
+Служебные поля, которые Frappe добавляет сам для включённых framework-механизмов, не считаются новыми предметными полями Work Management.
 
 ### `subject`
 
@@ -129,8 +149,6 @@ Waiting + назначение
 Отдельное состояние «В работе» не используется: наличие активного назначения уже хранит факт персональной ответственности, а `status` не дублирует эту ось.
 
 `status` имеет `No Copy = Yes`, чтобы новый экземпляр работы не наследовал `Waiting`, `Closed` или `Cancelled` от исходного документа.
-
-Русификация не меняет хранимые значения `status`: стандартный Kanban Frappe передаёт название колонки через механизм перевода `__()`, поэтому локализация отображения не требует менять модель данных.
 
 ### `priority`
 
@@ -208,7 +226,7 @@ ToDo             = назначение работы конкретному по
 
 Закрытие собственного `ToDo` не закрывает `Work Item`. Изменение `Work Item.status` также не закрывает связанные `ToDo` автоматически.
 
-Это две независимые штатные модели состояния, и текущий вариант не добавляет между ними собственную синхронизацию.
+Это две независимые штатные модели состояния. Синхронизация между ними не добавляется без отдельного требования.
 
 ## Ожидание
 
@@ -226,15 +244,26 @@ Open
 Closed
 ```
 
-В русском интерфейсе тот же цикл отображается как `Открыто → Ожидание → Открыто → Закрыто`.
-
-Отдельные поля `waiting_reason`, `waiting_since` и `waiting_until` пока не входят в модель. Конкретный контекст ожидания фиксируется в Timeline/Comments.
+Отдельные поля `waiting_reason`, `waiting_since` и `waiting_until` пока не входят в модель. Контекст ожидания фиксируется в Timeline/Comments.
 
 ## Auto Repeat
 
-Для календарного повторения используется штатный `Auto Repeat` Frappe. Собственный планировщик не создаётся.
+Для календарного повторения используется штатный `Auto Repeat` Frappe. Собственный scheduler не создаётся.
 
-Текущая схема специально не копирует:
+При `Allow Auto Repeat = Yes` Frappe v16 сам создаёт на DocType служебный `Custom Field`:
+
+```text
+fieldname: auto_repeat
+fieldtype: Link
+options: Auto Repeat
+read_only: 1
+no_copy: 1
+print_hide: 1
+```
+
+Это поле создаётся framework-механизмом `DocType.make_repeatable()` и не является седьмым предметным полем Work Management. Его не нужно проектировать или создавать вручную.
+
+Текущая схема специально не копирует предметные поля:
 
 ```text
 status
@@ -252,6 +281,8 @@ priority
 
 Назначения Auto Repeat не являются обязательной частью модели: базовый сценарий оставляет новый Work Item в общей очереди.
 
+Чистая конфигурация Auto Repeat не вычисляет относительный `due_date`. Это ограничение конфигурации, а не Framework в целом: Frappe v16 вызывает controller method `on_recurring` у создаваемого документа. Если появится подтверждённое правило относительного срока, сначала используется эта официальная точка расширения, а не собственный scheduler.
+
 ## Communication
 
 Письма не хранятся в собственных `source_email` или `source` полях Work Item.
@@ -260,7 +291,7 @@ priority
 
 ## Намеренно отсутствующие поля и сущности
 
-В текущую модель не входят:
+В текущую предметную модель не входят:
 
 ```text
 Work Unit
@@ -286,11 +317,11 @@ start_date
 end_date
 ```
 
-Они не добавляются ради потенциальной будущей функциональности. Новая сущность или поле появляются только при самостоятельной ответственности, которую нельзя корректно закрыть текущей моделью или штатным механизмом Frappe.
+Developer mode и наличие App не являются основанием добавлять эти элементы. Новая сущность или поле появляются только при самостоятельной ответственности, которую нельзя корректно закрыть текущей моделью или штатным механизмом Frappe.
 
 ## Штатные механизмы вокруг Work Item
 
-Текущая модель рассчитана на использование следующих возможностей Frappe без собственного интерфейса или движков:
+Текущая модель рассчитана на использование следующих возможностей Frappe без дублирования их собственными сущностями:
 
 ```text
 Assign To / ToDo
@@ -312,22 +343,39 @@ Workspace
 Translation
 ```
 
+При подтверждённой необходимости App также оставляет доступными официальные developer extension points:
+
+```text
+controller methods
+permission hooks
+standard Query / Script Report
+Dashboard Chart Source
+DocType Layout
+```
+
+Они не используются заранее.
+
 ## Текущие ограничения
 
 1. `Work Item.status` и `ToDo.status` не синхронизируются автоматически.
 2. `Work Item.due_date` и `ToDo.date` имеют разную семантику и не считаются одним сроком.
 3. Стандартные DocPerm сами по себе не выражают правило «редактировать Work Item может только назначенный пользователь».
-4. Более строгие инварианты не реализуются кодом до появления подтверждённой необходимости.
+4. Простого Report Builder недостаточно для некоторых видов аналитики по назначениям.
+5. Более строгие инварианты и developer extensions не реализуются до появления подтверждённой необходимости.
+
+Пункты 3–4 описывают границы конкретного штатного механизма, а не отсутствие extension path во Frappe.
 
 ## Источники Frappe
 
 Текущий ориентир — Frappe v16.
 
+- [Frappe Apps](https://docs.frappe.io/framework/user/en/guides/basics/apps)
+- [Developer Mode](https://docs.frappe.io/framework/user/en/guides/app-development/how-enable-developer-mode-in-frappe)
+- [Create a DocType](https://docs.frappe.io/framework/user/en/tutorial/create-a-doctype)
 - [DocType](https://docs.frappe.io/framework/user/en/basics/doctypes)
 - [Field Types](https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes)
 - [Translations](https://docs.frappe.io/framework/user/en/translations)
-- [`Assign To` source, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/desk/form/assign_to.py)
-- [`ToDo` source, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/desk/doctype/todo/todo.py)
-- [`Auto Repeat` source, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/automation/doctype/auto_repeat/auto_repeat.py)
-- [`Select` control, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/form/controls/select.js)
-- [`Kanban column template`, version-16](https://github.com/frappe/frappe/blob/version-16/frappe/public/js/frappe/views/kanban/kanban_column.html)
+- [`DocType` controller, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py)
+- [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
+- [`ToDo`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.py)
+- [`Auto Repeat`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
