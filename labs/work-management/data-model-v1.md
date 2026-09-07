@@ -49,7 +49,7 @@ Sort Field: creation
 Sort Order: DESC
 ```
 
-Технические имена документов выглядят так:
+Технические имена документов:
 
 ```text
 VWM-WI-00001
@@ -65,18 +65,18 @@ VWM-WI-00003
 
 Предметная модель содержит шесть полей:
 
-| Метка | Fieldname | Type | Required | Default | No Copy | List | Standard Filter | Global Search | Quick Entry |
+| Source label | Fieldname | Type | Required | Default | No Copy | List | Standard Filter | Global Search | Quick Entry |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Название | `subject` | Data | yes | — | no | title | no | yes | yes |
-| Описание | `description` | Text Editor | no | — | no | no | no | yes | yes |
-| Статус | `status` | Select | yes | `Open` | yes | yes | yes | no | yes |
-| Приоритет | `priority` | Select | yes | `Medium` | no | yes | yes | no | yes |
-| Срок | `due_date` | Date | no | — | yes | yes | yes | no | yes |
-| Связи | `links` | Table → `Dynamic Link` | no | — | yes | no | no | no | no |
+| Subject | `subject` | Data | yes | — | no | title | no | yes | yes |
+| Description | `description` | Text Editor | no | — | no | no | no | yes | yes |
+| Status | `status` | Select | yes | `Open` | yes | yes | yes | no | yes |
+| Priority | `priority` | Select | yes | `Medium` | no | yes | yes | no | yes |
+| Due Date | `due_date` | Date | no | — | yes | yes | yes | no | yes |
+| Links | `links` | Table → `Dynamic Link` | no | — | yes | no | no | no | no |
 
 `Section Break` и `Column Break`, используемые для компоновки формы, являются layout metadata и не считаются предметными полями.
 
-Технические `fieldname` и значения `Select` остаются английскими. Русские подписи поставляются через `translations/ru.csv`.
+Технические `fieldname` и значения `Select` остаются английскими. Русское отображение App поставляется через Gettext `locale/main.pot` и `locale/ru.po`; общие переводы Frappe не дублируются без необходимости.
 
 ## Компоновка формы
 
@@ -157,6 +157,7 @@ Work Item → Closed
 
 Work Item → Cancelled
 → все активные связанные ToDo становятся Cancelled
+→ уже Closed ToDo остаются Closed
 ```
 
 Обратной автоматизации нет:
@@ -175,7 +176,10 @@ Work Item → Closed
 
 - controller `Work Item.on_update`;
 - `doc_events` для `ToDo.validate`, ограниченный только `reference_type = Work Item`;
-- штатные `frappe.desk.form.assign_to.close_all_assignments()` и `clear()`.
+- `assign_to.close_all_assignments()` для `Closed`;
+- `assign_to.set_status()` только для активных ToDo при `Cancelled`.
+
+`assign_to.clear()` здесь не используется: он отменяет все ToDo, связанные с документом, и тем самым может переписать уже закрытую историю назначения.
 
 ## `priority`
 
@@ -316,7 +320,7 @@ end_date
 Тестируются наши контракты, а не стандартный Frappe:
 
 1. `Closed` закрывает все активные `ToDo` этого Work Item.
-2. `Cancelled` отменяет все активные `ToDo` этого Work Item.
+2. `Cancelled` отменяет активные `ToDo`, не переписывая уже `Closed` назначения.
 3. активный `ToDo` нельзя создать или повторно открыть для terminal Work Item.
 4. закрытие одного `ToDo` не меняет `Work Item.status`.
 5. повторение не переносит `status`, `due_date` и `links`.
@@ -327,10 +331,11 @@ end_date
 
 - [Create a DocType](https://docs.frappe.io/framework/user/en/tutorial/create-a-doctype)
 - [Field Types](https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes)
-- [Translations](https://docs.frappe.io/framework/user/en/translations)
+- [Frappe Commands](https://docs.frappe.io/framework/user/en/bench/frappe-commands)
 - [`Naming`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/naming.py)
 - [`DocType`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py)
 - [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
 - [`ToDo`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.py)
 - [`Auto Repeat`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
 - [`Document hooks`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/document.py)
+- [`Gettext commands`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/commands/gettext.py)
