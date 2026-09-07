@@ -1,100 +1,85 @@
 # Управление работой v1: сборка на Frappe v16
 
-Этот гайд собирает текущий Work Management Lab на development Site штатным developer path Frappe v16.
+Этот гайд собирает Work Management Lab как минимальный standard Frappe App и проверяет, что обязательное состояние воспроизводимо переносится на другой Site.
 
-Прототип использует минимальный App `work_management`, standard DocType `Work Item` и стандартные механизмы Framework. Прикладная бизнес-логика и собственный frontend на текущем этапе не требуются. Единственный JS-файл, который появляется в baseline помимо обычного boilerplate DocType, — standard calendar config `Work Item`, создаваемый самим Frappe developer path.
+Перед началом:
 
-Перед настройкой полезно ознакомиться с:
+- [Модель данных v1](data-model-v1.md);
+- [Безопасность v1](security-v1.md);
+- [Конфигурация v1](configuration-v1.md).
 
-- [Моделью данных v1](data-model-v1.md) — модель `Work Item`;
-- [Безопасностью v1](security-v1.md) — роли и права;
-- [Конфигурацией v1](configuration-v1.md) — представления, автоматизация, аналитика и Workspace.
+## 0. Development Site
 
-## 0. Подготовьте development Site и App
+Работайте на отдельном тестовом Site без пользовательских данных.
 
-Работайте на отдельном development Site, а не на рабочем Site с пользовательскими данными.
-
-Из корня `frappe-bench` включите Developer Mode штатной командой Frappe:
+Из корня `frappe-bench` включите Developer Mode **только для этого Site**:
 
 ```bash
-bench set-config -g developer_mode 1
+bench --site <site> set-config developer_mode 1
 bench --site <site> clear-cache
 ```
 
-Создайте App штатным Bench:
+Проверьте применённую конфигурацию:
 
 ```bash
-bench new-app work_management
+bench --site <site> show-config
 ```
 
-Для Lab используйте:
+Не используйте `-g developer_mode 1`, если нет причины включать Developer Mode для всех Sites bench.
+
+## 1. Создайте App штатным Bench
+
+```bash
+bench new-app veqta_work_management
+```
+
+Используйте:
 
 ```text
-App Title: Work Management
+App Title: VEQTA Work Management
 App Description: Work Management prototype for VEQTA Labs
 App Publisher: VEQTA
 App License: MIT
 ```
 
-Установите App на тестовый Site:
+Не создавайте App-каркас вручную. Эталонная структура — результат `bench new-app` используемой версии Bench/Frappe.
+
+Установите App:
 
 ```bash
-bench --site <site> install-app work_management
+bench --site <site> install-app veqta_work_management
 bench --site <site> list-apps
 ```
 
-В списке должны присутствовать как минимум:
+Ожидаются как минимум:
 
 ```text
 frappe
-work_management
+veqta_work_management
 ```
 
-Не создавайте App-каркас вручную. `bench new-app` является штатным источником структуры App для используемой версии Bench/Frappe.
+## 2. Создайте роль `VEQTA Work User`
 
-Developer Mode нужен для проектирования и экспорта standard metadata в App. Обычная пользовательская работа после сборки не должна требовать Developer Mode.
-
-## Русский интерфейс
-
-Интерфейс тестовых пользователей переключите на `Russian (ru)`.
-
-Технические идентификаторы и значения данных не переводятся:
+На development Site создайте:
 
 ```text
-DocType: Work Item
-fieldnames: subject, description, status, priority, due_date, links
-status values: Open, Waiting, Closed, Cancelled
-priority values: Low, Medium, High
-```
-
-Русскими задаются пользовательские метки, названия представлений и перевод отображаемых значений.
-
-## 1. Создайте роль `Work User`
-
-Создайте роль:
-
-```text
-Role Name: Work User
+Role Name: VEQTA Work User
 Desk Access: Yes
 ```
 
-`Work User` — прикладная роль участников общей очереди. Административные `Administrator` и `System Manager` остаются отдельной границей.
+Роль будет указана в permissions standard `Work Item`. При установке App на второй чистый Site отдельно проверяется, что Frappe создаёт отсутствующую Role из standard metadata. Не добавляйте fixture роли заранее, если standard install path уже решает эту задачу.
 
-Для текущего live prototype роль можно создать на Site. Если Lab App затем фиксируется как воспроизводимый артефакт, обязательная роль должна доставляться App штатным механизмом, а не ручной инструкцией для каждого Site.
-
-## 2. Создайте standard DocType `Work Item`
+## 3. Создайте standard DocType `Work Item`
 
 Под `Administrator` откройте `DocType` → `New`.
 
-Основные настройки:
-
 ```text
 Name: Work Item
-Module: Work Management
+Module: VEQTA Work Management
 Custom: No
 
-Naming Rule: Autoincrement
-Auto Name: autoincrement
+Naming Rule: Expression
+Auto Name: VWM-WI-.#####
 Title Field: subject
 Show Title Field in Link: Yes
 Search Fields: subject
@@ -112,31 +97,31 @@ Track Views: No
 Allow Auto Repeat: Yes
 
 Default View: List
-Is Calendar and Gantt: Yes
+Is Calendar and Gantt: No
 Force Re-route to Default View: No
 
 Sort Field: creation
 Sort Order: DESC
 ```
 
-Ключевая проверка: DocType должен относиться к модулю App и быть standard, а не site-level `Custom DocType`.
+Ключевая проверка: это standard DocType App, а не site-level Custom DocType.
 
-В Developer Mode Frappe экспортирует standard DocType в App и создаёт обычный controller-файл. При `Is Calendar and Gantt = Yes` Framework также создаёт standard `<doctype>_calendar.js`. Не добавляйте в Python controller бизнес-логику без отдельного подтверждённого требования.
+### Поля
 
-Добавьте поля в таком порядке:
+Источник labels можно оставить английским: русский интерфейс формируется переводами Frappe/App.
 
-| Метка | Fieldname | Type | Required | Default | No Copy | List | Standard Filter | Global Search | Quick Entry |
+Предметные поля:
+
+| Label | Fieldname | Type | Required | Default | No Copy | List | Standard Filter | Global Search | Quick Entry |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Название | `subject` | Data | yes | — | no | title | no | yes | required field |
-| Описание | `description` | Text Editor | no | — | no | no | no | yes | yes |
-| Статус | `status` | Select | yes | `Open` | yes | yes | yes | no | required field |
-| Приоритет | `priority` | Select | yes | `Medium` | no | yes | yes | no | required field |
-| Срок | `due_date` | Date | no | — | yes | yes | yes | no | yes |
-| Связи | `links` | Table → `Dynamic Link` | no | — | yes | no | no | no | no |
+| Subject | `subject` | Data | yes | — | no | title | no | yes | required |
+| Description | `description` | Text Editor | no | — | no | no | no | yes | yes |
+| Status | `status` | Select | yes | `Open` | yes | yes | yes | no | required |
+| Priority | `priority` | Select | yes | `Medium` | no | yes | yes | no | required |
+| Due Date | `due_date` | Date | no | — | yes | yes | yes | no | yes |
+| Links | `links` | Table → `Dynamic Link` | no | — | yes | no | no | no | no |
 
-### Статус
-
-Options:
+`status` Options:
 
 ```text
 Open
@@ -145,18 +130,7 @@ Closed
 Cancelled
 ```
 
-Семантика:
-
-- `Open` — работа актуальна и может выполняться;
-- `Waiting` — работа актуальна, но продолжение зависит от внешнего события;
-- `Closed` — работа завершена;
-- `Cancelled` — работа больше не требуется.
-
-Отдельного состояния «В работе» нет. `Open` + активное назначение уже означает, что работа взята исполнителем.
-
-### Приоритет
-
-Options:
+`priority` Options:
 
 ```text
 Low
@@ -164,43 +138,31 @@ Medium
 High
 ```
 
-Они совпадают со штатным `ToDo.priority`.
+### Layout формы
 
-### Срок
-
-```text
-Work Item.due_date = срок самой работы
-ToDo.date          = Complete By конкретного назначения
-```
-
-Не используйте `ToDo.date` как подмену общего срока Work Item.
-
-### Связи
-
-Для `links` используйте стандартный дочерний DocType `Dynamic Link`. Собственный DocType связей не создавайте.
-
-### Переводы
-
-Ожидаемое отображение:
+Добавьте штатные `Section Break` / `Column Break`, не меняя предметную модель:
 
 ```text
-Work Item   → Работа
-Open        → Открыто
-Waiting     → Ожидание
-Closed      → Закрыто
-Cancelled   → Отменено
-Low         → Низкий
-Medium      → Средний
-High        → Высокий
+Work
+├── Subject
+└── Description
+
+Parameters
+├── Status
+├── Priority
+└── Due Date
+
+Links
+└── Links
 ```
 
-Не заменяйте technical Options русскими строками. Если конкретная строка не переведена текущим словарём, добавляйте перевод штатным механизмом Frappe.
+Для трёх параметров используйте Column Breaks, чтобы они стояли в одной строке на широком экране.
 
-## 3. Настройте права `Work Item`
+## 4. Настройте DocPerm
 
-Для `Work Item`, permission level `0`, роли `Work User`:
+Для `VEQTA Work User`, permission level `0`:
 
-| Permission | Значение |
+| Permission | Value |
 | --- | --- |
 | Read | Yes |
 | Create | Yes |
@@ -217,90 +179,118 @@ High        → Высокий
 | Amend | No |
 | If Owner | No |
 
-Не удаляйте штатный административный доступ `System Manager`.
+Не расширяйте permissions стандартного `ToDo` и не удаляйте административный доступ `System Manager`.
 
-Права стандартного `ToDo` не расширяйте.
+## 5. Добавьте lifecycle `Work Item`
 
-## 4. Проверьте `Assign To`
+После сохранения standard DocType Frappe создаст controller-файл. Используйте созданный Framework путь, а не создавайте альтернативный service layer.
 
-Создайте тестовый Work Item:
+В `work_item.py` добавьте:
 
-```text
-Название: Проверить тестовую работу
-Статус: Открыто (Open)
-Приоритет: Средний (Medium)
-Срок: пусто
+```python
+import frappe
+from frappe import _
+from frappe.desk.form import assign_to
+from frappe.model.document import Document
+
+
+class WorkItem(Document):
+    def on_update(self):
+        if self.status == "Closed":
+            assign_to.close_all_assignments(
+                self.doctype,
+                self.name,
+                ignore_permissions=True,
+            )
+        elif self.status == "Cancelled":
+            assign_to.clear(
+                self.doctype,
+                self.name,
+                ignore_permissions=True,
+            )
+
+
+def validate_work_item_todo(doc, method=None):
+    if (
+        doc.reference_type != "Work Item"
+        or doc.status != "Open"
+        or not doc.reference_name
+    ):
+        return
+
+    work_status = frappe.db.get_value("Work Item", doc.reference_name, "status")
+
+    if work_status in {"Closed", "Cancelled"}:
+        frappe.throw(
+            _("Cannot create or reopen an assignment for a closed or cancelled Work Item.")
+        )
 ```
 
-Выполните:
+Первый блок согласует существующие назначения с terminal status Work Item. Второй запрещает создать или повторно открыть активное назначение на terminal Work Item.
 
-```text
-Assign To
-→ Assign to me
+Не добавляйте обратную автоматизацию `ToDo → Work Item`: при нескольких исполнителях завершение одного ToDo не означает завершение всей работы.
+
+## 6. Подключите официальный `doc_events` hook
+
+В `veqta_work_management/hooks.py`:
+
+```python
+doc_events = {
+    "ToDo": {
+        "validate": (
+            "veqta_work_management.veqta_work_management.doctype.work_item."
+            "work_item.validate_work_item_todo"
+        )
+    }
+}
 ```
 
-Ожидается отдельный связанный `ToDo`, при этом `Work Item.status` остаётся `Open`.
+Если `hooks.py` уже содержит `doc_events`, добавьте обработчик в существующую структуру, не создавая второй объект с тем же именем.
 
-Рабочая семантика:
+Hook действует на стандартный `ToDo`, но прикладная проверка сразу выходит для любого `reference_type`, кроме `Work Item`.
 
-```text
-Open + нет назначения = свободная работа
-Open + назначение     = работа взята исполнителем
-Waiting + назначение  = исполнитель остаётся ответственным, работа ждёт внешнего события
+## 7. Настройте List View
+
+В созданном Framework файле `work_item_list.js`:
+
+```javascript
+frappe.listview_settings["Work Item"] = {
+	get_indicator(doc) {
+		const colors = {
+			Open: "blue",
+			Waiting: "orange",
+			Closed: "green",
+			Cancelled: "gray",
+		};
+
+		return [__(doc.status), colors[doc.status] || "gray", `status,=,${doc.status}`];
+	},
+};
 ```
 
-## 5. Настройте List View и Saved Filters
+Это штатный List View extension Frappe. Отдельный Client Script record не нужен.
 
-Основной рабочий список:
-
-```text
-Название
-Статус
-Приоритет
-Срок
-Assigned To
-```
-
-Сортировка:
+Основные пользовательские фильтры создаются через обычный Filter UI:
 
 ```text
-creation DESC
-```
-
-Глобальные Saved Filters:
-
-```text
-Активные
-status In Open, Waiting
-
-Открытые
+status in Open, Waiting
 status = Open
-
-Ожидание
 status = Waiting
-
-Без исполнителя
-status = Open
-Assigned To Is Not Set
+Assigned To → Me
 ```
 
-Для личной очереди используйте стандартный фильтр:
+Не создавайте обязательные global Saved Filters.
+
+## 8. Создайте Kanban
 
 ```text
-Assigned To
-→ Me
-```
-
-## 6. Создайте Kanban
-
-```text
-Kanban Board: Работы
+Kanban Board Name: VEQTA Work Items
 Reference DocType: Work Item
 Field: status
 Private: No
 ```
 
-Технические колонки:
+Колонки:
 
 ```text
 Open
@@ -309,75 +299,74 @@ Closed
 Cancelled
 ```
 
-Пользователь должен видеть русские подписи. Перетаскивание меняет `Work Item.status`, но не закрывает связанный `ToDo`.
+В Kanban Settings добавьте на карточку:
 
-## 7. Настройте standard Calendar
-
-Отдельный `Calendar View` не создавайте.
-
-После сохранения standard `Work Item` с `Is Calendar and Gantt = Yes` найдите созданный Frappe файл `<doctype>_calendar.js` в каталоге DocType App и задайте штатный calendar config:
-
-```javascript
-frappe.views.calendar["Work Item"] = {
-	field_map: {
-		start: "due_date",
-		end: "due_date",
-		id: "name",
-		title: "subject",
-	},
-	get_events_method: "frappe.desk.calendar.get_events",
-};
+```text
+priority
+due_date
 ```
 
-Calendar показывает `due_date` как точку срока. Использование одного поля одновременно как `start` и `end` является адаптацией к Calendar API, а не новой семантикой интервала.
+Переход в `Closed` / `Cancelled` через drag должен вызвать обычное сохранение Work Item и тот же server lifecycle.
 
-### Известный Gantt gap
+### Поставка Kanban
 
-В Frappe v16 тот же `frappe.views.calendar["Work Item"]` делает доступным пункт Gantt. Для текущего `Work Item` Gantt не считается рабочим представлением: модель не содержит `start_date`, `end_date`, `progress` или отдельной длительности.
+`Kanban Board` поставляется fixture. В `hooks.py`:
 
-Это принимается как известный gap. Не добавляйте поля, фиктивные даты, зависимости или progress только ради работоспособности Gantt. Поддерживаемый сценарий сроков — Calendar по `due_date`.
+```python
+fixtures = [
+    {
+        "doctype": "Kanban Board",
+        "filters": [["name", "=", "VEQTA Work Items"]],
+    }
+]
+```
 
-## 8. Создайте Number Cards
+Затем:
 
-Все карточки:
+```bash
+bench --site <site> export-fixtures
+```
+
+Проверьте, что fixture содержит только нужную доску, а не все пользовательские Kanban Boards Site.
+
+## 9. Создайте standard Number Cards
+
+Создайте четыре карточки:
+
+| Name | Filters |
+| --- | --- |
+| `VEQTA Active Work Items` | `status in Open, Waiting` |
+| `VEQTA Waiting Work Items` | `status = Waiting` |
+| `VEQTA High Priority Work Items` | `status in Open, Waiting`, `priority = High` |
+| `VEQTA Due Today Work Items` | `status in Open, Waiting`, `due_date Timespan Today` |
+
+Общие настройки:
 
 ```text
 Type: Document Type
 Document Type: Work Item
 Function: Count
 Is Public: Yes
+Is Standard: Yes
+Module: VEQTA Work Management
 Show Percentage Stats: No
-Dynamic Filters: пусто
 ```
 
-Карточки:
-
-| Card | Filters |
-| --- | --- |
-| Активные работы | `status in Open, Waiting` |
-| Ожидание | `status = Waiting` |
-| Без исполнителя | `status = Open`, `Assigned To Is Not Set` |
-| Высокий приоритет | `status in Open, Waiting`, `priority = High` |
-| Срок сегодня | `status in Open, Waiting`, `due_date Timespan Today` |
-
-### Оформление
-
-Используйте штатные `Color` и `Background Color`:
+Оформление:
 
 | Card | Color | Background Color |
 | --- | --- | --- |
-| Активные работы | `#1D4ED8` | `#EFF6FF` |
-| Ожидание | `#B45309` | `#FFF7ED` |
-| Без исполнителя | `#475569` | `#F1F5F9` |
-| Высокий приоритет | `#B91C1C` | `#FEF2F2` |
-| Срок сегодня | `#A16207` | `#FEFCE8` |
+| Active | `#1D4ED8` | `#EFF6FF` |
+| Waiting | `#B45309` | `#FFF7ED` |
+| High Priority | `#B91C1C` | `#FEF2F2` |
+| Due Today | `#A16207` | `#FEFCE8` |
 
-Цвет — только визуальная семантика, не новое состояние модели.
+Карточку «Без исполнителя» пока не делайте mandatory: сначала отдельно проверьте patch-level поведение фильтра `Assigned To Is Not Set` в Number Card.
 
-## 9. Создайте Dashboard Chart
+## 10. Создайте standard Dashboard Chart
 
 ```text
-Chart Name: Новые работы
+Chart Name: VEQTA New Work Items
 Chart Type: Count
 Document Type: Work Item
 Time Series: Yes
@@ -386,86 +375,112 @@ Timespan: Last Month
 Time Interval: Daily
 Type: Line
 Is Public: Yes
+Is Standard: Yes
+Module: VEQTA Work Management
 ```
 
-График показывает поступление новых Work Item и не трактуется как производительность.
+График означает поступление новых работ, а не производительность.
 
-Простой `Group By` по `status`/`priority` пока не используется из-за отображения technical Select values. Это ограничение выбранной конфигурации, а не всей системы графиков Frappe: при подтверждённой необходимости developer path оставляет доступным `Dashboard Chart Source`.
-
-## 10. Создайте Workspace
-
-Создайте public Workspace:
+## 11. Создайте standard Workspace
 
 ```text
-Label: Управление работой
-Title: Управление работой
+Label: VEQTA Work Management
+Title: VEQTA Work Management
 Type: Workspace
 Public: Yes
-Module: Work Management
+Module: VEQTA Work Management
 Roles:
-  Work User
+  VEQTA Work User
 ```
 
-Developer Mode позволяет привязать Workspace к module App и экспортировать public Workspace как standard metadata.
-
-Для Workspace используйте штатные icon/indicator settings. Не отказывайтесь от developer-only полей только ради совместимости с режимом администрирования production Site.
-
-### Shortcuts
+Shortcuts:
 
 ```text
-Новая работа
+New Work Item
   Type: DocType
   Link To: Work Item
   DocType View: New
 
-Список работ
+Work Item List
   Type: DocType
   Link To: Work Item
   DocType View: List
 
-Доска
+Work Board
   Type: DocType
   Link To: Work Item
   DocType View: Kanban
-  Kanban Board: Работы
-
-Календарь
-  Type: DocType
-  Link To: Work Item
-  DocType View: Calendar
+  Kanban Board: VEQTA Work Items
 ```
 
-Используйте штатный Calendar route DocType. URL на именованный `Calendar View` не нужен.
-
-### Визуальная компоновка
-
-Разделите экран штатными Header blocks:
+Разложите Workspace штатными Header blocks:
 
 ```text
-УПРАВЛЕНИЕ РАБОТОЙ
-│
-├── ДЕЙСТВИЯ
-│   ├── Новая работа
-│   ├── Список работ
-│   ├── Доска
-│   └── Календарь
-│
-├── ТЕКУЩЕЕ СОСТОЯНИЕ
-│   ├── Активные работы
-│   ├── Ожидание
-│   ├── Без исполнителя
-│   ├── Высокий приоритет
-│   └── Срок сегодня
-│
-└── ПОСТУПЛЕНИЕ
-    └── Новые работы
+Actions
+├── New Work Item
+├── Work Item List
+└── Work Board
+
+Current State
+├── VEQTA Active Work Items
+├── VEQTA Waiting Work Items
+├── VEQTA High Priority Work Items
+└── VEQTA Due Today Work Items
+
+Intake
+└── VEQTA New Work Items
 ```
 
-Не добавляйте Custom HTML, собственный CSS или frontend только ради цвета и отступов. Сначала используйте штатные возможности Workspace.
+Не добавляйте Custom HTML/CSS только ради декоративного оформления.
 
-## 11. Auto Repeat
+## 12. Локализация v16 через Gettext
 
-Для конкретной повторяющейся работы создайте стандартный `Auto Repeat` без обязательного Assignee.
+Для нового App на Frappe v16 используйте основной Gettext/PO path, а не legacy CSV translations.
+
+После того как metadata и translatable code готовы:
+
+```bash
+bench generate-pot-file --app veqta_work_management
+bench create-po-file ru --app veqta_work_management
+```
+
+Редактируйте:
+
+```text
+apps/veqta_work_management/veqta_work_management/locale/ru.po
+```
+
+Минимально нужны уникальные строки App, например:
+
+```text
+Work Item                         → Работа
+VEQTA Work Management             → Управление работой
+VEQTA Work User                   → Участник управления работой
+VEQTA Work Items                  → Работы
+VEQTA Active Work Items           → Активные работы
+VEQTA Waiting Work Items          → Ожидание
+VEQTA High Priority Work Items    → Высокий приоритет
+VEQTA Due Today Work Items        → Срок сегодня
+VEQTA New Work Items              → Новые работы
+New Work Item                     → Новая работа
+Work Item List                    → Список работ
+Work Board                        → Доска
+```
+
+Не дублируйте в App общие переводы Frappe (`Open`, `Priority`, `Status` и т. п.), если core Russian translation уже даёт подходящее значение.
+
+После изменения translatable strings:
+
+```bash
+bench generate-pot-file --app veqta_work_management
+bench update-po-files --app veqta_work_management --locale ru
+bench compile-po-to-mo --app veqta_work_management --locale ru
+bench --site <site> clear-cache
+```
+
+## 13. Auto Repeat
+
+Создайте standard Auto Repeat без обязательного Assignee.
 
 Новый Work Item должен получать:
 
@@ -476,117 +491,137 @@ priority     → копируется
 status       → Open
 due_date     → пусто
 links        → пусто
-назначения   → отсутствуют
 ```
 
-Если появится требование относительного срока нового экземпляра, не пишите собственный scheduler. Frappe v16 после подготовки повторного документа вызывает `Work Item.on_recurring(...)`; именно эту штатную controller extension point нужно проверить первой.
+Если потребуется относительный срок, первым проверяется `Work Item.on_recurring`. Собственный scheduler для этого не создаётся.
 
-Пока такого требования нет, controller остаётся без бизнес-логики.
+## 14. Добавьте тесты собственных контрактов
 
-## 12. Notifications
+Тесты App должны проверять только наше поведение:
 
-Обязательные собственные Notification rules для запуска не нужны: `Assign To` уже создаёт штатное уведомление о назначении.
+1. `Closed` закрывает все активные ToDo этого Work Item.
+2. `Cancelled` отменяет все активные ToDo этого Work Item.
+3. нельзя создать `ToDo.status = Open` для terminal Work Item.
+4. нельзя повторно открыть закрытый ToDo, пока Work Item terminal.
+5. закрытие одного ToDo не меняет Work Item.status.
+6. Auto Repeat не переносит `status`, `due_date`, `links`.
 
-Опционально можно настроить email-напоминание по `Work Item.due_date`. Оно не является частью предметной модели.
+Запуск:
 
-## 13. Рабочий цикл
-
-### Обычная работа
-
-```text
-создать Work Item
-→ Open
-→ Assign to me
-→ выполнить
-→ закрыть своё назначение
-→ Work Item = Closed
+```bash
+bench --site <site> run-tests --app veqta_work_management
 ```
 
-### Ожидание
+Не тестируйте заново стандартные возможности Frappe, которые App не изменяет.
 
-```text
-Open
-→ добавить комментарий с контекстом
-→ Waiting
-→ получить ответ / документ / решение
-→ Open
-```
+## 15. Проверьте состояние App
 
-### Отмена
-
-```text
-снять активные назначения
-→ Work Item = Cancelled
-```
-
-### Передача
-
-```text
-добавить контекст в Timeline
-→ снять старое назначение
-→ назначить нового пользователя
-```
-
-## 14. Проверка developer delivery
-
-После сохранения standard `Work Item` и public Workspace проверьте, что изменения действительно попали в App, а не остались только database-state конкретного Site.
-
-Минимально проверьте:
+В каталоге App:
 
 ```bash
 git status
+git diff
 ```
 
-в каталоге App и наличие экспортированных metadata Frappe для `Work Item`/Workspace там, где их создаёт используемая версия Framework.
+Ожидаемые группы:
 
-Отдельно убедитесь, что standard calendar config `Work Item` находится в App рядом с DocType и не зависит от отдельного `Calendar View` database record.
+```text
+standard metadata / code:
+- Work Item
+- controller
+- list.js
+- Workspace
+- Number Cards
+- Dashboard Chart
+- hooks.py
+- locale/main.pot
+- locale/ru.po
 
-Не придумывайте расположение файлов заранее: эталоном является фактическая структура, созданная Frappe/Bench v16 на стенде.
+fixture:
+- только Kanban Board VEQTA Work Items
 
-После этого выполните:
+не должно попадать:
+- Work Item user data
+- ToDo user data
+- Saved Filters пользователей
+- случайные DB exports
+```
+
+Затем:
 
 ```bash
 bench --site <site> migrate
+bench build
 bench --site <site> clear-cache
 ```
 
-## 15. Проверка пользовательского режима
+## 16. Reinstall test на втором чистом Site
 
-Основные пользовательские сценарии должны работать независимо от Developer Mode.
+Создайте второй test Site и установите App без ручного повторения конфигурации:
 
-После фиксации App можно отдельно проверить Site с `developer_mode = 0`: обычный `Work User` должен пользоваться очередью, формой, Kanban, Calendar и Workspace без developer privileges.
+```bash
+bench --site <second-site> install-app veqta_work_management
+bench --site <second-site> migrate
+bench --site <second-site> clear-cache
+```
 
-Пункт Gantt может оставаться видимым. Его работоспособность не является частью runtime-контракта текущего Lab и не считается причиной расширять модель.
+Проверьте:
 
-Developer Mode остаётся режимом разработки, а не обязательным условием эксплуатации.
+- появился `Work Item` с правильным naming и полями;
+- появился `VEQTA Work User`;
+- DocPerm совпадает с моделью;
+- lifecycle code работает;
+- присутствует Kanban fixture;
+- появились standard Number Cards / Chart / Workspace;
+- русский перевод работает после compile/build;
+- пользовательские данные первого Site не приехали.
 
-## 16. Критерии готовности
+Если обязательный объект отсутствует, сначала определите его штатный delivery mechanism. Patch не является автоматическим ответом.
 
-1. `Work Item` является standard DocType модуля `Work Management`, а не site-level Custom DocType.
-2. Предметная модель содержит только `subject`, `description`, `status`, `priority`, `due_date`, `links`.
-3. Назначения работают через стандартный `ToDo`.
-4. Права соответствуют `security-v1.md`.
-5. List/Kanban/Calendar/Number Cards/Chart/Workspace работают без собственного frontend; видимый Gantt принят как неподдерживаемый gap.
-6. Workspace визуально разделён и читаем, Number Cards имеют спокойные различимые фоны.
-7. Обязательное standard metadata фиксируется через App developer path, включая standard calendar config.
-8. Собственная бизнес-логика в controller отсутствует, пока нет подтверждённого поведения, которое Framework не закрывает конфигурацией или официальной точкой расширения.
+## 17. Проверка без Developer Mode
+
+После фиксации App выключите режим на тестовом Site:
+
+```bash
+bench --site <site> set-config developer_mode 0
+bench --site <site> clear-cache
+```
+
+Под обычным `VEQTA Work User` проверьте:
+
+- создание Work Item;
+- List View;
+- Assign To;
+- terminal lifecycle;
+- Kanban;
+- Number Cards;
+- Chart;
+- Workspace.
+
+Runtime не должен зависеть от Developer Mode.
+
+## Критерии готовности
+
+1. App создан `bench new-app`, без ручного каркаса.
+2. `Work Item` — standard DocType `VEQTA Work Management`.
+3. Имя Work Item имеет формат `VWM-WI-00001`.
+4. Предметная модель содержит только шесть полей.
+5. Назначения работают через standard `ToDo`.
+6. Terminal lifecycle защищён на сервере.
+7. Calendar/Gantt не включены без interval semantics.
+8. Saved Filters не являются обязательным App state.
+9. Kanban поставляется узким fixture.
+10. Number Cards / Chart / Workspace являются standard metadata.
+11. Локализация использует v16 Gettext/PO path.
+12. Второй чистый Site устанавливается без ручного повторения обязательной настройки.
 
 ## Источники
 
-Текущий ориентир — Frappe v16.33.0 и соответствующий Bench v5.
-
-- [Frappe Apps](https://docs.frappe.io/framework/user/en/guides/basics/apps)
+- [Frappe Apps](https://docs.frappe.io/framework/user/en/basics/apps)
 - [Create an App](https://docs.frappe.io/framework/user/en/tutorial/create-an-app)
-- [Developer Mode](https://docs.frappe.io/framework/user/en/guides/app-development/how-enable-developer-mode-in-frappe)
 - [Create a DocType](https://docs.frappe.io/framework/user/en/tutorial/create-a-doctype)
-- [Site Config](https://docs.frappe.io/framework/user/en/basics/site_config)
-- [DocType](https://docs.frappe.io/framework/user/en/basics/doctypes)
-- [Field Types](https://docs.frappe.io/framework/user/en/basics/doctypes/fieldtypes)
-- [`DocType` controller, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py)
-- [`Calendar boilerplate`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/boilerplate/controller_calendar.js)
-- [`ToDo Calendar`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo_calendar.js)
-- [`List View selector`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/list/list_view_select.js)
-- [`Gantt View`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/views/gantt/gantt_view.js)
-- [`Workspace`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/workspace/workspace.py)
+- [Frappe Commands](https://docs.frappe.io/framework/user/en/bench/frappe-commands)
 - [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
-- [`Auto Repeat`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
+- [`Document hooks`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/model/document.py)
+- [`Fixtures`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/utils/fixtures.py)
+- [`Gettext commands`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/commands/gettext.py)
