@@ -7,7 +7,8 @@
 `Work Item` проектируется как standard DocType минимального Frappe App на development Site с включённым `developer_mode`.
 
 ```text
-App: Work Management Lab
+App: work_management
+App Title: Work Management
 Module: Work Management
 DocType: Work Item
 Custom: No
