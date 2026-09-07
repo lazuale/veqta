@@ -4,16 +4,14 @@
 
 ## Роль `VEQTA Work User`
 
-Участник общей очереди получает одну прикладную роль:
-
 ```text
 Role: VEQTA Work User
 Desk Access: Yes
 ```
 
-Русское отображение роли поставляется App через Gettext `locale/ru.po`.
+Русское отображение роли поставляется App через Gettext.
 
-Для обычного System User эта роль определяет доступ к `Work Item`. Наличие общего `Desk User` само по себе не даёт доступа к очереди. `Administrator` и `System Manager` остаются штатной административной границей.
+Для обычного System User эта роль определяет доступ к `Work Item`. `Administrator` и `System Manager` остаются штатной административной границей.
 
 ## Права на `Work Item`
 
@@ -52,45 +50,40 @@ Desk Access: Yes
 
 Если назначаемый пользователь уже имеет доступ к Work Item, `DocShare` не требуется. Обычный случай — назначение между пользователями с ролью `VEQTA Work User`.
 
-`Share` для участников очереди выключен. Это принципиально: обычный пользователь не должен получать возможность открывать Work Item произвольным System Users только через назначение.
+`Share` для участников очереди выключен. Обычный пользователь не должен получать возможность открывать Work Item произвольным System Users только через назначение.
 
 ### Пользователь без доступа
 
-Assign To dialog Frappe показывает enabled System Users, а не пользователей конкретной прикладной роли. Если выбран пользователь без права читать Work Item, штатный Assign To пытается обеспечить доступ через `DocShare`. `frappe.share.add()` при этом проверяет право текущего пользователя на `Share`.
+Assign To dialog Frappe показывает enabled System Users, а не пользователей конкретной прикладной роли. Если выбран пользователь без права читать Work Item, штатный Assign To может попытаться обеспечить доступ через `DocShare`; `frappe.share.add()` проверяет право текущего пользователя на `Share`.
 
-Поскольку `VEQTA Work User` не имеет `Share`, такое назначение должно завершиться permission error и не является поддерживаемым сценарием. Расширять `Share` только ради более удобного picker нельзя.
+Поскольку `VEQTA Work User` не имеет `Share`, такой сценарий проверяется на живом Site и не считается поддерживаемым способом выдачи доступа.
 
-Если позже потребуется ограниченный список назначаемых пользователей, это отдельная UX-ответственность и сначала должна анализироваться как официальный extension point, а не как ослабление authorization model.
+Если позже потребуется ограниченный список назначаемых пользователей, это отдельная UX-ответственность. Ослабление authorization model ради picker не является решением.
 
 ## Права на `ToDo`
 
-Work Management не добавляет широкие DocPerm на стандартный `ToDo`.
+Work Management не добавляет широкие DocPerm на стандартный `ToDo` и не добавляет hooks, меняющие его lifecycle.
 
-Frappe применяет собственные условия видимости. Обычный пользователь работает прежде всего с ToDo, где он связан с назначением как assignee/assigner/owner, а не получает список всех ToDo Site.
+Frappe применяет собственные условия видимости и изменения ToDo. Baseline принимает их как штатную семантику Framework и проверяет на живом Site только те границы, которые важны для общей очереди.
 
-Закрыть назначение штатной кнопкой Done может сам assignee: server method `assign_to.close()` проверяет текущего пользователя.
+В частности, отдельно проверяется:
 
-Снятие назначения устроено иначе. Пользователь с Write на исходный Work Item может оказаться способен отменить чужое назначение. Для доверенной общей очереди это известная граница baseline, которая проверяется на живом Site.
+- кто может закрыть своё назначение;
+- может ли другой `VEQTA Work User` снять чужое назначение при наличии Write на Work Item;
+- что происходит при назначении пользователя без доступа к Work Item.
 
-Если эксплуатация потребует запретить это действие, UI-запрет без серверной проверки не считается решением.
+Если эксплуатация потребует более строгого правила, оно проектируется как отдельное server-side требование. UI-запрет сам по себе не считается защитой.
 
-## Терминальные Work Item
+## Независимость `Work Item` и `ToDo`
 
-Lifecycle-инвариант относится к самой модели работы, а не к расширению прав:
+Baseline не связывает `Work Item.status` и `ToDo.status` собственным кодом.
 
 ```text
-Work Item = Closed
-→ активных ToDo быть не должно
-
-Work Item = Cancelled
-→ активных ToDo быть не должно
+Work Item.status = состояние общей работы
+ToDo.status      = состояние конкретного назначения
 ```
 
-При `Closed` App закрывает активные назначения. При `Cancelled` App отменяет только активные назначения и не переписывает уже `Closed` ToDo.
-
-Отдельный `doc_events` hook на `ToDo.validate`, ограниченный `reference_type = Work Item`, запрещает создать или повторно открыть `ToDo.status = Open` для уже terminal Work Item.
-
-Этот hook не даёт пользователю дополнительных прав на ToDo и не меняет поведение назначений других DocTypes.
+Изменение одного не используется как authorization rule или автоматический lifecycle другого.
 
 ## Почему нет `Work Manager`
 
@@ -102,34 +95,27 @@ Work Item = Cancelled
 reference_type = Work Item
 ```
 
-Руководитель может быть обычным `VEQTA Work User` и видеть все Work Item. Если потребуется сводная аналитика назначений, она должна иметь собственную узкую authorization boundary.
-
-Первый вариант для такой ответственности — standard Script Report App, который:
-
-- выбирает только `ToDo.reference_type = Work Item`;
-- учитывает permission boundary Work Item;
-- не раскрывает посторонние ToDo;
-- не требует общего Read на ToDo.
+Руководитель может быть обычным `VEQTA Work User` и видеть все Work Item. Если потребуется сводная аналитика назначений, она должна получить собственную узкую authorization boundary.
 
 Отчёт не создаётся заранее.
 
-## Почему не используем `assigned_to` group-by как authorization layer
+## `assigned_to` и аналитика
 
-Frappe v16.33.0 имеет специальную агрегацию List View по `assigned_to`, но её запрос связывает `ToDo.reference_name` с разрешёнными именами исходных документов без явного ограничения `reference_type` в этой ветке запроса.
+Patch-level механика `assigned_to` / `_assign` не используется как security boundary Work Management.
 
-Поэтому такой group-by может быть удобным UI-инструментом после live-проверки, но не считается строгой security/analytics boundary Work Management.
+Она может быть удобна для UI-фильтров после live-проверки, но не заменяет явную проверку прав в будущем App-level отчёте.
 
 ## Администрирование
 
-Роль и DocPerm принадлежат metadata App. Конечный пользователь не должен вручную конструировать security model на каждом Site.
+Role и DocPerm принадлежат metadata App. Конечный пользователь не должен вручную собирать security model на каждом Site.
 
-`VEQTA Work User` не является административной ролью и не даёт права изменять Roles, DocPerm или Workspace metadata.
+`VEQTA Work User` не является административной ролью и не даёт права менять Roles, DocPerm или Workspace metadata.
 
-`User Group` не используется как замена Role: группа может быть удобна для выбора пользователей, но authorization остаётся ответственностью Role / DocPerm.
+`User Group` не используется как замена Role: группировка пользователей и авторизация — разные ответственности.
 
 ## Developer Mode
 
-Developer Mode нужен для разработки standard metadata и кода App. Он не является привилегией пользователя и не должен участвовать в authorization logic.
+Developer Mode нужен для разработки standard metadata App. Он не является привилегией пользователя и не участвует в authorization logic.
 
 После сборки пользовательские сценарии должны работать с `developer_mode = 0`.
 
@@ -142,7 +128,7 @@ Developer Mode нужен для разработки standard metadata и ко�
 → минимальная серверная проверка
 ```
 
-Клиентская защита не используется как единственный барьер критического правила.
+Серверный код не добавляется до появления самого требования.
 
 ## Граница v1
 
@@ -164,7 +150,7 @@ Developer Mode нужен для разработки standard metadata и ко�
         ├── Report
         ├── без Delete
         ├── без Share
-        └── стандартная видимость ToDo
+        └── стандартная семантика ToDo
 ```
 
 ## Источники Frappe
@@ -178,5 +164,4 @@ Developer Mode нужен для разработки standard metadata и ко�
 - [`DocShare`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/share.py)
 - [`Role`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/role/role.json)
 - [`Permissions`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/permissions.py)
-- [`List group-by`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/listview.py)
 - [Hooks](https://docs.frappe.io/framework/user/en/python-api/hooks)
