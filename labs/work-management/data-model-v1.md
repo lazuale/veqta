@@ -82,7 +82,7 @@ WI-00003
 Описание
 
 ПАРАМЕТРЫ
-Статус | Приоритет | Срок работы
+Статус | Приоритет | Срок
 
 СВЯЗИ
 Связи
@@ -167,7 +167,7 @@ High
 
 ## `due_date`
 
-Необязательный общий срок работы. В русском интерфейсе это «Срок работы».
+Необязательный общий срок работы. Это семантика поля Work Item; отдельный перевод общей строки Frappe `Due Date` только ради этого различия не нужен.
 
 ```text
 Work Item.due_date = общий срок работы
@@ -176,7 +176,7 @@ ToDo.date          = Complete By конкретного назначения
 
 Это разные данные и они не синхронизируются автоматически.
 
-В стандартном Assign To dialog `Complete By` можно оставить пустым, но серверный `frappe.desk.form.assign_to` в этом случае создаёт `ToDo.date` с текущей датой. Следовательно:
+В стандартном Assign To dialog `Complete By` можно оставить пустым. FieldGroup не включает null-поле `date` в `get_values()`, поэтому backend `frappe.desk.form.assign_to` получает args без `date` и в Frappe v16.33.0 создаёт `ToDo.date` с текущей датой. Следовательно:
 
 ```text
 пустой Work Item.due_date ≠ пустой ToDo.date
@@ -325,6 +325,7 @@ end_date
 - [`DocType`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/doctype/doctype.py)
 - [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
 - [`Assign To dialog`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/form/sidebar/assign_to.js)
+- [`FieldGroup.get_values`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/ui/field_group.js)
 - [`ToDo`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.py)
 - [`Auto Repeat`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/auto_repeat/auto_repeat.py)
 - [`Assignment Rule`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/automation/doctype/assignment_rule/assignment_rule.py)
