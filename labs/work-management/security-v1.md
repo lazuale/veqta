@@ -11,7 +11,7 @@ Role: VEQTA Work User
 Desk Access: Yes
 ```
 
-Русское отображение роли поставляется через `translations/ru.csv`.
+Русское отображение роли поставляется App через Gettext `locale/ru.po`.
 
 Для обычного System User эта роль определяет доступ к `Work Item`. Наличие общего `Desk User` само по себе не даёт доступа к очереди. `Administrator` и `System Manager` остаются штатной административной границей.
 
@@ -86,7 +86,7 @@ Work Item = Cancelled
 → активных ToDo быть не должно
 ```
 
-При сохранении terminal Work Item App завершает существующие назначения штатными функциями Assign To.
+При `Closed` App закрывает активные назначения. При `Cancelled` App отменяет только активные назначения и не переписывает уже `Closed` ToDo.
 
 Отдельный `doc_events` hook на `ToDo.validate`, ограниченный `reference_type = Work Item`, запрещает создать или повторно открыть `ToDo.status = Open` для уже terminal Work Item.
 
