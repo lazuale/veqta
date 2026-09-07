@@ -1,25 +1,23 @@
 # Безопасность v1
 
-Управление работой использует штатные `Role`, `DocPerm` и семантику прав Frappe. Собственный механизм прав, hook `permission_query_conditions` и отдельная модель членства на текущем этапе не вводятся.
+Управление работой использует штатные `Role`, `DocPerm` и permission semantics Frappe. Собственный permission model, `permission_query_conditions` и отдельная модель членства в baseline не вводятся.
 
-Наличие минимального App и Developer Mode не меняет прикладную модель доступа автоматически. Они только оставляют доступными официальные extension points Frappe, если чистых DocPerm действительно окажется недостаточно для подтверждённого требования.
-
-## Роль `Work User`
-
-Участник управления работой получает одну прикладную роль:
+## Роль `VEQTA Work User`
 
 ```text
-Role: Work User
+Role: VEQTA Work User
 Desk Access: Yes
 ```
 
-Для обычного прикладного System User роль определяет границу доступа к `Work Item` на Site: наличие обычного `Desk User` само по себе не даёт доступа к рабочей очереди. Штатный административный доступ `System Manager` и `Administrator` рассматривается отдельно и этой прикладной границей не отменяется.
+Русское отображение роли поставляется App через Gettext.
+
+Для обычного System User эта роль определяет доступ к `Work Item`. `Administrator` и `System Manager` остаются штатной административной границей.
 
 ## Права на `Work Item`
 
-Для `Work Item`, permission level `0`:
+Для permission level `0`:
 
-| Permission | Work User |
+| Permission | VEQTA Work User |
 | --- | --- |
 | Read | yes |
 | Create | yes |
@@ -36,94 +34,101 @@ Desk Access: Yes
 | Amend | no |
 | If Owner | no |
 
-Смысл этой модели:
+Смысл модели:
 
-- все `Work User` видят общую очередь;
-- любой `Work User` может зарегистрировать новую работу;
-- все участники могут изменять доступные им `Work Item`;
+- все участники видят общую очередь;
+- любой участник может зарегистрировать работу;
+- все участники могут изменять Work Item;
 - ненужная работа переводится в `Cancelled`, а не удаляется;
-- доступ не ограничивается владельцем документа, потому что очередь общая.
+- доступ не ограничивается владельцем документа.
 
-Текущий вариант является доверенной совместной очередью. Штатные DocPerm сами по себе не выражают правило «изменять Work Item может только назначенный пользователь», поэтому такое ограничение не заявляется.
+Это доверенная совместная очередь. Правило «редактировать Work Item может только назначенный пользователь» в baseline не заявляется: обычный DocPerm такого условия не выражает.
 
 ## Назначения
 
 Исполнители назначаются штатным `Assign To`, который создаёт связанные `ToDo`.
 
-Если назначаемый пользователь уже имеет доступ к `Work Item`, дополнительный `DocShare` не требуется. Это обычный случай для назначения между пользователями с ролью `Work User`.
+Если назначаемый пользователь уже имеет доступ к Work Item, `DocShare` не требуется. Обычный случай — назначение между пользователями с ролью `VEQTA Work User`.
 
-`Share` для `Work User` намеренно выключен. Если пользователь без доступа к `Work Item` назначается исполнителем, Frappe может использовать `DocShare`; обычный `Work User` не должен получать возможность открывать Work Item произвольным пользователям Site через назначение.
+`Share` для участников очереди выключен. Обычный пользователь не должен получать возможность открывать Work Item произвольным System Users только через назначение.
+
+### Пользователь без доступа
+
+Assign To dialog Frappe показывает enabled System Users, а не пользователей конкретной прикладной роли. Если выбран пользователь без права читать Work Item, штатный Assign To может попытаться обеспечить доступ через `DocShare`; `frappe.share.add()` проверяет право текущего пользователя на `Share`.
+
+Поскольку `VEQTA Work User` не имеет `Share`, такой сценарий проверяется на живом Site и не считается поддерживаемым способом выдачи доступа.
+
+Если позже потребуется ограниченный список назначаемых пользователей, это отдельная UX-ответственность. Ослабление authorization model ради picker не является решением.
 
 ## Права на `ToDo`
 
-Управление работой не добавляет собственные DocPerm к стандартному `ToDo`.
+Work Management не добавляет широкие DocPerm на стандартный `ToDo` и не добавляет hooks, меняющие его lifecycle.
 
-Frappe применяет к `ToDo` собственные условия доступа. Обычный пользователь видит ToDo, если он:
+Frappe применяет собственные условия видимости и изменения ToDo. Baseline принимает их как штатную семантику Framework и проверяет на живом Site только те границы, которые важны для общей очереди.
+
+В частности, отдельно проверяется:
+
+- кто может закрыть своё назначение;
+- может ли другой `VEQTA Work User` снять чужое назначение при наличии Write на Work Item;
+- что происходит при назначении пользователя без доступа к Work Item.
+
+Если эксплуатация потребует более строгого правила, оно проектируется как отдельное server-side требование. UI-запрет сам по себе не считается защитой.
+
+## Независимость `Work Item` и `ToDo`
+
+Baseline не связывает `Work Item.status` и `ToDo.status` собственным кодом.
 
 ```text
-allocated_to = current user
-или
-assigned_by = current user
-или
-owner = current user
+Work Item.status = состояние общей работы
+ToDo.status      = состояние конкретного назначения
 ```
 
-Поэтому `Work User` работает со своими назначениями и назначениями, созданными им, не получая общего доступа ко всем `ToDo` Site.
-
-Закрыть назначение как выполненное может сам назначенный пользователь: штатный метод Frappe проверяет соответствие назначенного пользователя текущему пользователю.
-
-Снятие назначения имеет другую серверную границу. В штатном пути Frappe перед отменой `ToDo` проверяется доступ к исходному Document; отдельного правила «снимать может только assignee» эта модель не добавляет.
-
-Следовательно, в общей очереди один `Work User` может оказаться способен снять назначение другого. Это принимается как ограничение доверенной совместной модели v1 и обязательно проверяется на живом Site.
-
-Если реальная эксплуатация потребует запретить такое действие, сначала анализируется официальный extension path App. UI-запрет без серверной защиты не считается решением.
+Изменение одного не используется как authorization rule или автоматический lifecycle другого.
 
 ## Почему нет `Work Manager`
 
-Отдельная прикладная роль `Work Manager` в текущей модели не создаётся.
+Отдельная прикладная роль руководителя в baseline не нужна.
 
-Причина — не в том, что руководителю не нужна аналитика, а в границе стандартного `ToDo`: широкий DocPerm на `ToDo` действует на записи всего Site, а не только на:
+Выдавать ей общий `Read` на весь `ToDo` нельзя только ради аналитики Work Management: такой DocPerm действует на ToDo Site в целом и не выражает условие:
 
 ```text
 reference_type = Work Item
 ```
 
-Обычный DocPerm не выражает условие по `reference_type`. Поэтому выдавать руководителю общий `Read` на все `ToDo` Site только ради аналитики Work Management нельзя.
+Руководитель может быть обычным `VEQTA Work User` и видеть все Work Item. Если потребуется сводная аналитика назначений, она должна получить собственную узкую authorization boundary.
 
-Руководитель может быть обычным `Work User` и видеть все `Work Item`, но общая аналитика загрузки по назначениям всей команды не считается закрытой простым расширением прав `ToDo`.
+Отчёт не создаётся заранее.
 
-Если такая аналитика станет обязательной, первый developer path — не новый permission model и не расширение `ToDo` DocPerm, а отдельный standard Query/Script Report или другой штатный App-механизм, который:
+## `assigned_to` и аналитика
 
-- выбирает только назначения `Work Item`;
-- применяет явную требуемую границу авторизации;
-- не раскрывает посторонние `ToDo` Site.
+Patch-level механика `assigned_to` / `_assign` не используется как security boundary Work Management.
 
-Только если этого недостаточно, рассматриваются permission hooks или другой официальный extension point.
+Она может быть удобна для UI-фильтров после live-проверки, но не заменяет явную проверку прав в будущем App-level отчёте.
 
 ## Администрирование
 
-Настройку Roles и DocPerm выполняет системный администратор штатными средствами Frappe. `Work User` не является административной ролью и не даёт права изменять модель безопасности.
+Role и DocPerm принадлежат metadata App. Конечный пользователь не должен вручную собирать security model на каждом Site.
 
-Standard `Work Item` принадлежит App, но это не отменяет стандартную роль `System Manager` и доступ `Administrator`.
+`VEQTA Work User` не является административной ролью и не даёт права менять Roles, DocPerm или Workspace metadata.
 
-`User Group` не используется как замена Role: группы предназначены для группировки пользователей и назначения, а авторизация остаётся ответственностью `Role` / `DocPerm`.
+`User Group` не используется как замена Role: группировка пользователей и авторизация — разные ответственности.
 
-## Developer Mode и безопасность
+## Developer Mode
 
-Developer Mode — режим разработки metadata и кода App, а не привилегия конечного пользователя.
+Developer Mode нужен для разработки standard metadata App. Он не является привилегией пользователя и не участвует в authorization logic.
 
-Он не должен использоваться как условие доступа к Work Item или как обход permission model.
+После сборки пользовательские сценарии должны работать с `developer_mode = 0`.
 
-После сборки основные пользовательские сценарии должны проходить с выключенным Developer Mode. Если требуемое бизнес-правило нельзя надёжно защитить чистыми DocPerm, порядок решения такой:
+Если появляется новое бизнес-ограничение, порядок решения:
 
 ```text
 требование
-→ проверить штатные DocPerm / User Permission / Share semantics
-→ проверить официальный permission/report/controller extension point
-→ добавить минимальную серверную проверку
+→ DocPerm / User Permission / Share semantics
+→ официальный permission/controller hook
+→ минимальная серверная проверка
 ```
 
-Не добавляется клиентская защита как единственный барьер критического правила.
+Серверный код не добавляется до появления самого требования.
 
 ## Граница v1
 
@@ -133,34 +138,30 @@ Developer Mode — режим разработки metadata и кода App, а 
 ├── Administrator / System Manager
 │   └── штатный административный доступ
 │
-└── обычный System User
+└── System User
     │
-    ├── без Work User
+    ├── без VEQTA Work User
     │   └── Work Item недоступен
     │
-    └── Work User
+    └── VEQTA Work User
         ├── Read всех Work Item
         ├── Create
         ├── Write
         ├── Report
         ├── без Delete
         ├── без Share
-        └── стандартная видимость ToDo
-            ├── назначенные мне
-            ├── назначенные мной
-            └── созданные мной
+        └── стандартная семантика ToDo
 ```
 
 ## Источники Frappe
 
-Текущий ориентир — Frappe v16.33.0.
+Текущий проверочный ориентир — Frappe v16.33.0.
 
-- [`ToDo` controller, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.py)
-- [`ToDo` metadata, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.json)
-- [`Assign To`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
-- [`DocShare`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/share.py)
-- [`Role`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/role/role.json)
-- [`DocPerm`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/docperm/docperm.json)
-- [`Permissions`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/permissions.py)
-- [`Report`, v16.33.0](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/report/report.py)
+- [`ToDo` controller](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.py)
+- [`ToDo` metadata](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/doctype/todo/todo.json)
+- [`Assign To`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/desk/form/assign_to.py)
+- [`Assign To dialog`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/public/js/frappe/form/sidebar/assign_to.js)
+- [`DocShare`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/share.py)
+- [`Role`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/core/doctype/role/role.json)
+- [`Permissions`](https://github.com/frappe/frappe/blob/v16.33.0/frappe/permissions.py)
 - [Hooks](https://docs.frappe.io/framework/user/en/python-api/hooks)
