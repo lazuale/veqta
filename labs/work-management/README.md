@@ -92,7 +92,7 @@ priority values: Low, Medium, High
 | уведомления | `Notification` |
 | очередь | List View |
 | состояние потока | Kanban |
-| сроки | Calendar View |
+| сроки | standard Calendar |
 | простая отчётность | Report Builder |
 | расширенная отчётность при подтверждённой необходимости | standard Query / Script Report |
 | показатели | Number Card / Dashboard Chart |
@@ -149,13 +149,16 @@ progress
 - `Work Item.due_date` и `ToDo.date` имеют разную семантику;
 - чистые DocPerm не выражают правило «редактировать Work Item может только назначенный пользователь»;
 - простого Report Builder недостаточно для безопасной общей аналитики по назначениям всей команды;
-- стандартная конфигурация Auto Repeat сама по себе не вычисляет относительный `due_date` нового Work Item.
+- стандартная конфигурация Auto Repeat сама по себе не вычисляет относительный `due_date` нового Work Item;
+- standard Calendar использует `due_date` как точку срока; в Frappe v16 тот же calendar config делает доступным Gantt, но текущая модель не содержит семантики интервала `start/end` и `progress`, поэтому Gantt не входит в поддерживаемый сценарий Lab.
 
 ### Что это не означает
 
 Эти пункты не являются доказательством отсутствия возможностей во Frappe. Если соответствующее требование станет обязательным, сначала проверяется официальный developer extension point: controller method, permission hook, standard Report, Dashboard Chart Source или другой штатный механизм.
 
 Например, Auto Repeat v16 вызывает `on_recurring` у создаваемого документа. Поэтому правило относительного срока при реальной необходимости должно сначала рассматриваться как controller extension, а не как повод писать собственный scheduler.
+
+Наличие Gantt в интерфейсе не является основанием добавлять `start_date`, `end_date` или `progress`: эти поля появятся только при самостоятельной предметной ответственности.
 
 ## Версия Frappe
 
